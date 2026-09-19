@@ -1,0 +1,37 @@
+<resources>
+    <string name="nav_home">首页</string>
+    <string name="nav_search">搜索</string>
+    <string name="nav_following">关注</string>
+    <string name="nav_me">我</string>
+    <string name="profile_avatar">个人头像</string>
+    <string name="search_placeholder">搜索 KIRAKIRA</string>
+    <string name="me_placeholder_name">KIRAKIRA 用户</string>
+    <string name="me_placeholder_bio">这是一条签名。</string>
+    <string name="me_following_count">关注</string>
+    <string name="me_followers_count">粉丝</string>
+    <string name="me_likes_count">获赞</string>
+    <string name="me_profile">个人主页</string>
+    <string name="me_library">我的内容</string>
+    <string name="me_history">历史记录</string>
+    <string name="me_favorites">收藏</string>
+    <string name="me_settings">设置</string>
+    <string name="navigate_back">返回</string>
+    <string name="settings_profile">资料</string>
+    <string name="settings_privacy">隐私</string>
+    <string name="settings_security">安全</string>
+    <string name="settings_blocking">屏蔽与隐藏</string>
+    <string name="settings_invitation_code">邀请码</string>
+    <string name="settings_general">常规</string>
+    <string name="settings_appearance">外观</string>
+    <string name="settings_playback">播放</string>
+    <string name="settings_danmaku">弹幕</string>
+    <string name="settings_about">关于</string>
+    <string name="settings_switch_account">切换账户</string>
+    <string name="settings_log_out">登出</string>
+    <string name="about_version">版本 %1$s</string>
+    <string name="about_github">GitHub</string>
+    <string name="about_licenses">开源许可</string>
+    <string name="about_privacy_policy">隐私政策</string>
+    <string name="about_terms">服务协议</string>
+    <string name="about_copyright">© 2024 KIRAKIRA</string>
+</resources>

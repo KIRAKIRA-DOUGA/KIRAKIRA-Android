@@ -1,0 +1,178 @@
+package moe.kirakira.feature.settings
+
+import android.content.res.Configuration
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import moe.kirakira.R
+import moe.kirakira.ui.components.SegmentedMenuItem
+import moe.kirakira.ui.theme.KIRAKIRAPink
+import moe.kirakira.ui.theme.KIRAKIRATheme
+
+@Composable
+fun AboutScreen(
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+    val versionName = packageInfo.versionName
+
+    Scaffold(
+        modifier = modifier
+            .fillMaxSize()
+            .testTag("about_screen"),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.settings_about)) },
+                navigationIcon = {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier.testTag("about_back"),
+                    ) {
+                        Icon(
+                            painterResource(R.drawable.ic_symbol_arrow_back),
+                            contentDescription = stringResource(R.string.navigate_back),
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
+            )
+        },
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .consumeWindowInsets(innerPadding),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+            Column(
+                modifier = Modifier
+                    .widthIn(max = 640.dp)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(
+                        top = innerPadding.calculateTopPadding() + 32.dp,
+                        bottom = innerPadding.calculateBottomPadding() + 32.dp,
+                        start = 16.dp,
+                        end = 16.dp,
+                    ),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(24.dp),
+            ) {
+                // App Logo and Name
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Surface(
+                        modifier = Modifier
+                            .size(96.dp)
+                            .clip(RoundedCornerShape(24.dp)),
+                        color = KIRAKIRAPink
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Image(
+                                painter = painterResource(R.drawable.ic_launcher_foreground),
+                                contentDescription = null,
+                                modifier = Modifier.requiredSize(144.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        text = stringResource(R.string.app_name),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (versionName != null) {
+                    Text(
+                        text = stringResource(R.string.about_version, versionName),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Links
+                Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
+                    SegmentedMenuItem(
+                        title = stringResource(R.string.about_github),
+                        icon = R.drawable.ic_symbol_info, // Should use a GitHub icon if available
+                        index = 0,
+                        count = 4,
+                        onClick = { /* TODO: Open GitHub */ }
+                    )
+                    SegmentedMenuItem(
+                        title = stringResource(R.string.about_licenses),
+                        icon = R.drawable.ic_symbol_shield,
+                        index = 1,
+                        count = 4,
+                        onClick = { /* TODO: Show licenses */ }
+                    )
+                    SegmentedMenuItem(
+                        title = stringResource(R.string.about_privacy_policy),
+                        icon = R.drawable.ic_symbol_lock,
+                        index = 2,
+                        count = 4,
+                        onClick = { /* TODO: Open Privacy Policy */ }
+                    )
+                    SegmentedMenuItem(
+                        title = stringResource(R.string.about_terms),
+                        icon = R.drawable.ic_symbol_confirmation_number,
+                        index = 3,
+                        count = 4,
+                        onClick = { /* TODO: Open Terms */ }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Preview(name = "About · English", locale = "en", showBackground = true)
+@Preview(name = "关于 · 中文", locale = "zh", showBackground = true)
+@Preview(name = "About · Dark", uiMode = Configuration.UI_MODE_NIGHT_YES, showBackground = true)
+@Composable
+private fun AboutPreview() {
+    KIRAKIRATheme(dynamicColor = false) {
+        AboutScreen(onBack = {})
+    }
+}
