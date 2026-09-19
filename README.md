@@ -2,7 +2,9 @@
 
 KIRAKIRA 的 Android 客户端，使用 **Kotlin + Jetpack Compose**，设计语言为 **Material 3 Expressive**，图标使用官方 **Material Symbols Rounded**。
 
-当前是基础布局原型：底部导航为 **首页（Home）、搜索（Search）、关注（Following）、我（Me）**。首页展示 KIRAKIRA 标题及头像占位，搜索页展示静态 SearchBar，关注页展示标题；“我”包含个人资料、统计、个人主页、历史、收藏和设置占位。支持导航切换及“我 → 设置”的进入和返回。设置页分为“我”“常规”与账户操作，子页面、切换账户和登出均为静态占位，未接入业务。
+当前是基础布局原型：底部导航为 **首页（Home）、搜索（Search）、关注（Following）、我（Me）**。首页展示 KIRAKIRA 标题及头像占位，搜索页展示静态 SearchBar，关注页展示标题；“我”包含个人资料、统计、个人主页、历史、收藏和设置入口。支持导航切换及“我 → 设置 → 关于”的进入和返回。设置页分为“我”“常规”与账户操作，除关于入口外的设置项、切换账户和登出均为静态占位，未接入业务。
+
+页面导航使用 **Navigation 3 1.1.7**：`rememberNavBackStack` 保存返回栈，`ActivityNavDisplay` 封装 `NavDisplay`，保留页面状态和生命周期。普通进入和返回采用 AOSP Activity 的横移与透明度参数；预测性返回移植 AOSP 的手势曲线、双页面几何变换、浅深色遮罩和独立的松手收尾阶段，完成后出栈，取消时复原。固定源码版本及公开 API 的适配差异见 [Android 转场说明](third_party/android-motion/README.md)。底栏仍在主界面内切换；从设置返回时恢复“我”的选中状态和滚动位置。在主界面按系统返回退出应用，不额外跳转首页。
 
 支持中文和英语，默认跟随系统语言；Android 13+ 可通过系统的应用语言设置切换。“我”页面当前使用占位资料和官方 `SegmentedListItem` 分组菜单，尚未接入真实账号数据。
 
@@ -18,6 +20,7 @@ KIRAKIRA 的 Android 客户端，使用 **Kotlin + Jetpack Compose**，设计语
 | Kotlin Compose 插件 | 2.4.20 |
 | Compose BOM | 2026.09.00 |
 | Material 3 Expressive | 1.5.0-alpha28（显式版本例外） |
+| Navigation 3 | 1.1.7（runtime / ui） |
 | Gradle Daemon JDK | 25 |
 | Java 源码 / 字节码兼容级别 | 11 |
 

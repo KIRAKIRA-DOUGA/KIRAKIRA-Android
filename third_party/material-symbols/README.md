@@ -8,4 +8,6 @@
 - 当前图标：`home`、`search`、`subscriptions`、`person`、`history`、`video_library`、`settings`、`chevron_right`、`shield`、`lock`、`block`、`confirmation_number`、`palette`、`play_circle`、`chat_bubble`、`info`、`switch_account`、`logout`、`arrow_back`。
 - 修改：移除 XML theme tint（由 Compose `Icon` 提供主题颜色）、调整缩进并增加来源注释；保留原始路径数据及 `chevron_right` 的 RTL 自动镜像。
 
+2026-09-20 补充导入 `star`，用于收藏入口，样式与处理方式同上。
+
 添加或更新官方图标时同步清单。自绘同风格图标应另用 `ic_custom_` 命名并记录设计理由，不能标为官方 Material Symbols。

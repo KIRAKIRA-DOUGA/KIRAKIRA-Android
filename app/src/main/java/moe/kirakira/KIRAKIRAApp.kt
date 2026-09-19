@@ -3,8 +3,7 @@ package moe.kirakira
 import android.content.res.Configuration
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
-import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,20 +29,25 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberNavBackStack
 import kotlinx.serialization.Serializable
 import moe.kirakira.feature.me.MeScreen
 import moe.kirakira.feature.search.SearchScreen
 import moe.kirakira.feature.settings.AboutScreen
+import moe.kirakira.feature.settings.AppearanceScreen
 import moe.kirakira.feature.settings.SettingsScreen
 import moe.kirakira.ui.components.PlaceholderAvatar
+import moe.kirakira.ui.navigation.ActivityNavDisplay
+import moe.kirakira.ui.navigation.NavigationPage
 import moe.kirakira.ui.theme.KIRAKIRATheme
+import moe.kirakira.ui.theme.ThemeMode
 
-@Serializable internal object MainRoute
-@Serializable internal object SettingsRoute
-@Serializable internal object AboutRoute
+@Serializable internal data object MainRoute : NavKey
+@Serializable internal data object SettingsRoute : NavKey
+@Serializable internal data object AboutRoute : NavKey
+@Serializable internal data object AppearanceRoute : NavKey
 
 private enum class AppDestination(
     @param:StringRes val label: Int,
@@ -56,77 +60,70 @@ private enum class AppDestination(
 }
 
 @Composable
-fun KIRAKIRAApp(modifier: Modifier = Modifier) {
-    val navController = rememberNavController()
+fun KIRAKIRAApp(
+    themeMode: ThemeMode,
+    onThemeModeChange: (ThemeMode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val backStack = rememberNavBackStack(MainRoute)
 
-    NavHost(
-        navController = navController,
-        startDestination = MainRoute,
-        modifier = modifier,
-    ) {
-        composable<MainRoute> {
-            MainScreen(onOpenSettings = { navController.navigate(SettingsRoute) })
-        }
-        composable<SettingsRoute>(
-            enterTransition = {
-                slideIntoContainer(
-                    towards = AnimatedContentTransitionScope.SlideDirection.Left,
-                    animationSpec = tween(300),
-                )
-            },
-            exitTransition = {
-                slideOutOfContainer(
-                    towards = AnimatedContentTransitionScope.SlideDirection.Right,
-                    animationSpec = tween(300),
-                )
-            },
-            popEnterTransition = {
-                slideIntoContainer(
-                    towards = AnimatedContentTransitionScope.SlideDirection.Right,
-                    animationSpec = tween(300),
-                )
-            },
-            popExitTransition = {
-                slideOutOfContainer(
-                    towards = AnimatedContentTransitionScope.SlideDirection.Right,
-                    animationSpec = tween(300),
-                )
-            },
-        ) {
-            SettingsScreen(
-                onBack = { navController.popBackStack() },
-                onNavigateToAbout = { navController.navigate(AboutRoute) },
-            )
-        }
-        composable<AboutRoute>(
-            enterTransition = {
-                slideIntoContainer(
-                    towards = AnimatedContentTransitionScope.SlideDirection.Left,
-                    animationSpec = tween(300),
-                )
-            },
-            exitTransition = {
-                slideOutOfContainer(
-                    towards = AnimatedContentTransitionScope.SlideDirection.Right,
-                    animationSpec = tween(300),
-                )
-            },
-            popEnterTransition = {
-                slideIntoContainer(
-                    towards = AnimatedContentTransitionScope.SlideDirection.Right,
-                    animationSpec = tween(300),
-                )
-            },
-            popExitTransition = {
-                slideOutOfContainer(
-                    towards = AnimatedContentTransitionScope.SlideDirection.Right,
-                    animationSpec = tween(300),
-                )
-            },
-        ) {
-            AboutScreen(onBack = { navController.popBackStack() })
-        }
-    }
+    // Keep the host opaque under translated pages and the predictive back preview.
+    ActivityNavDisplay(
+        backStack = backStack,
+        modifier = modifier.background(MaterialTheme.colorScheme.surfaceContainer),
+        onBack = {
+            if (backStack.size > 1) backStack.removeLastOrNull()
+        },
+        entryProvider = entryProvider {
+            entry<MainRoute> {
+                NavigationPage {
+                    MainScreen(
+                        onOpenSettings = {
+                            if (backStack.lastOrNull() == MainRoute) backStack.add(SettingsRoute)
+                        },
+                    )
+                }
+            }
+            entry<SettingsRoute> {
+                NavigationPage {
+                    SettingsScreen(
+                        onBack = {
+                            if (backStack.lastOrNull() == SettingsRoute) backStack.removeLastOrNull()
+                        },
+                        onNavigateToAbout = {
+                            if (backStack.lastOrNull() == SettingsRoute) backStack.add(AboutRoute)
+                        },
+                        onNavigateToAppearance = {
+                            if (backStack.lastOrNull() == SettingsRoute) backStack.add(AppearanceRoute)
+                        },
+                        onNavigateToAccount = {
+                            // TODO: Navigate to account
+                        },
+                    )
+                }
+            }
+            entry<AboutRoute> {
+                NavigationPage {
+                    AboutScreen(
+                        onBack = {
+                            if (backStack.lastOrNull() == AboutRoute) backStack.removeLastOrNull()
+                        },
+                    )
+                }
+            }
+            entry<AppearanceRoute> {
+                NavigationPage {
+                    AppearanceScreen(
+                        themeMode = themeMode,
+                        onThemeModeChange = onThemeModeChange,
+                        onBack = {
+                            if (backStack.lastOrNull() == AppearanceRoute) backStack.removeLastOrNull()
+                        },
+                    )
+                }
+            }
+        },
+    )
 }
 
 @Composable
@@ -207,6 +204,9 @@ private fun MainScreen(onOpenSettings: () -> Unit, modifier: Modifier = Modifier
 @Composable
 private fun AppPreview() {
     KIRAKIRATheme(dynamicColor = false) {
-        KIRAKIRAApp()
+        KIRAKIRAApp(
+            themeMode = ThemeMode.SYSTEM,
+            onThemeModeChange = {}
+        )
     }
 }

@@ -24,6 +24,7 @@
     <string name="settings_security">Security</string>
     <string name="settings_blocking">Blocked and hidden</string>
     <string name="settings_invitation_code">Invitation code</string>
+    <string name="settings_account">Account</string>
     <string name="settings_general">General</string>
     <string name="settings_appearance">Appearance</string>
     <string name="settings_playback">Playback</string>
@@ -31,10 +32,12 @@
     <string name="settings_about">About</string>
     <string name="settings_switch_account">Switch account</string>
     <string name="settings_log_out">Log out</string>
+    <string name="theme_system">Follow system</string>
+    <string name="theme_light">Light theme</string>
+    <string name="theme_dark">Dark theme</string>
     <string name="about_version">Version %1$s</string>
     <string name="about_github">GitHub</string>
     <string name="about_licenses">Open source licenses</string>
     <string name="about_privacy_policy">Privacy Policy</string>
     <string name="about_terms">Terms of Service</string>
-    <string name="about_copyright">© 2024 KIRAKIRA</string>
 </resources>

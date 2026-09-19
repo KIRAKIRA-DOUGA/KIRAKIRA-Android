@@ -42,6 +42,8 @@ private data class SettingsEntry(@param:StringRes val title: Int, @param:Drawabl
 fun SettingsScreen(
     onBack: () -> Unit,
     onNavigateToAbout: () -> Unit,
+    onNavigateToAppearance: () -> Unit,
+    onNavigateToAccount: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val personalSettings = remember {
@@ -111,28 +113,34 @@ fun SettingsScreen(
                 SettingsGroup(
                     title = stringResource(R.string.settings_general),
                     entries = generalSettings,
-                    onEntryClick = { entry ->
-                        if (entry.title == R.string.settings_about) {
-                            onNavigateToAbout()
-                        }
-                    }
+                    onAboutClick = onNavigateToAbout,
+                    onAppearanceClick = onNavigateToAppearance,
                 )
-                Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
-                    SegmentedMenuItem(
-                        title = stringResource(R.string.settings_switch_account),
-                        icon = R.drawable.ic_symbol_switch_account,
-                        index = 0,
-                        count = 2,
-                        showChevron = false,
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = stringResource(R.string.settings_account),
+                        modifier = Modifier.padding(horizontal = 16.dp).semantics { heading() },
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    SegmentedMenuItem(
-                        title = stringResource(R.string.settings_log_out),
-                        icon = R.drawable.ic_symbol_logout,
-                        index = 1,
-                        count = 2,
-                        showChevron = false,
-                        destructive = true,
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
+                        SegmentedMenuItem(
+                            title = stringResource(R.string.settings_switch_account),
+                            icon = R.drawable.ic_symbol_switch_account,
+                            index = 0,
+                            count = 2,
+                            onClick = onNavigateToAccount,
+                        )
+                        SegmentedMenuItem(
+                            title = stringResource(R.string.settings_log_out),
+                            icon = R.drawable.ic_symbol_logout,
+                            index = 1,
+                            count = 2,
+                            showChevron = false,
+                            destructive = true,
+                            onClick = { /* TODO: Logout */ },
+                        )
+                    }
                 }
             }
         }
@@ -144,7 +152,8 @@ private fun SettingsGroup(
     title: String,
     entries: List<SettingsEntry>,
     modifier: Modifier = Modifier,
-    onEntryClick: ((SettingsEntry) -> Unit)? = null,
+    onAboutClick: (() -> Unit)? = null,
+    onAppearanceClick: (() -> Unit)? = null,
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
@@ -160,9 +169,11 @@ private fun SettingsGroup(
                     icon = entry.icon,
                     index = index,
                     count = entries.size,
-                    onClick = if (onEntryClick != null) {
-                        { onEntryClick(entry) }
-                    } else null,
+                    onClick = when (entry.title) {
+                        R.string.settings_about -> onAboutClick
+                        R.string.settings_appearance -> onAppearanceClick
+                        else -> null
+                    },
                 )
             }
         }
@@ -176,6 +187,11 @@ private fun SettingsGroup(
 @Composable
 private fun SettingsPreview() {
     KIRAKIRATheme(dynamicColor = false) {
-        SettingsScreen(onBack = {}, onNavigateToAbout = {})
+        SettingsScreen(
+            onBack = {},
+            onNavigateToAbout = {},
+            onNavigateToAppearance = {},
+            onNavigateToAccount = {},
+        )
     }
 }

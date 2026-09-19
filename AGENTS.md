@@ -19,6 +19,7 @@
 - 显示文案使用字符串资源，默认 `values/` 为英语，`values-zh/` 为中文；两套翻译同步维护。可复用 UI 接收状态、事件回调和 `modifier: Modifier = Modifier`。
 - 分组菜单使用官方 `SegmentedListItem`，通过 `ListItemDefaults.segmentedShapes` 和 `SegmentedGap` 管理圆角与间距；纯布局使用无 `onClick` 的重载。
 - 保持单向数据流；业务状态交由 ViewModel，简单局部 UI 状态可保留在 composable。不得在组合执行体中发起网络请求、写存储或导航。
+- 页面导航使用 Navigation 3：`@Serializable` 路由实现 `NavKey`，使用 `rememberNavBackStack`、封装 `NavDisplay` 的 `ui/navigation/ActivityNavDisplay.kt`；普通转场与 AOSP 两阶段预测性返回统一由该宿主管理，页面使用 `NavigationPage`，验证返回栈与页面状态恢复。
 - 依赖统一登记在 `gradle/libs.versions.toml`；使用现有 Compose BOM。Material 3 为公开 Expressive API 显式使用 `1.5.0-alpha28`，其余版本例外需说明。
 
 ## 检查命令

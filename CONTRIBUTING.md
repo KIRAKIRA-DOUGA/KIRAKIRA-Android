@@ -9,7 +9,8 @@
 - 保持单 Activity 入口；`MainActivity` 负责宿主和顶层组合，不承载网络、数据库或业务规则。
 - 保留当前 `:app` 模块。新功能放在 `moe.kirakira.feature.<name>`；跨功能 UI 放 `ui/components/`，主题放 `ui/theme/`，数据访问按需放 `data/`，真正跨功能的基础设施放 `core/`。包名全小写，不将无关代码堆入 `Utils.kt`。
 - 页面展示状态并上报事件；涉及业务逻辑的屏幕由 ViewModel 管理状态，通过 Repository 隔离数据访问。复杂且可复用的业务规则才抽取 use case；不强制为简单操作增加层次。
-- 目前尚未建立完整数据层、ViewModel、依赖注入或导航框架。新增库时说明具体需求，先复用已有能力，避免为了符合目录示意而添加空实现。
+- 页面导航使用 Navigation 3，路由实现 `NavKey` 并标注 `@Serializable`，通过 `rememberNavBackStack` 和封装 `NavDisplay` 的 `ui/navigation/ActivityNavDisplay.kt` 管理返回栈及状态恢复。普通转场复用 `NavigationMotion.kt`，预测性返回由 `PredictiveBackMotion.kt` 移植 AOSP 的两阶段动画，页面使用 `NavigationPage`。参数来源与公开 API 适配差异见 [Android 转场说明](third_party/android-motion/README.md)，不在各页面重复配置。导航宿主通过 Navigation Event 接收手势，使用双页面 Scene 保留预览及收尾阶段的内容，完成后仅出栈一次；不要再叠加 NavDisplay 的默认预测性返回补间。Navigation 3 继续负责场景、可保存状态与生命周期，手势期间页面生命周期不高于 STARTED。导航由页面事件回调触发，保留根页面，避免连续点击重复入栈或出栈。底栏当前是主界面内的局部状态，不预建多返回栈架构。
+- 目前尚未建立完整数据层、ViewModel 或依赖注入。新增库时说明具体需求，先复用已有能力，避免为了符合目录示意而添加空实现。
 
 ## Kotlin 风格与命名
 
@@ -61,6 +62,8 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 依赖和插件版本集中到 `gradle/libs.versions.toml`，通过 `libs.*` 引用。Compose 库优先由现有 BOM 管理；禁止动态版本（如 `1.+`）和无需求的工具链升级。新增依赖说明用途、维护状况及体积影响。SDK、JDK、Wrapper 或 AGP 变更应独立说明并更新 README。
 
 当前例外：Material 3 显式固定为 `1.5.0-alpha28`，以使用公开的 Expressive 主题与分段列表 API；其余 Compose 依赖由 BOM `2026.09.00` 管理。实验性 opt-in 限于实际调用点。升级或转为稳定版时需验证主题、导航、搜索栏及中英文布局，不使用编译器抑制绕过内部 API 可见性。
+
+导航依赖采用 AndroidX 官方维护的 Navigation 3 稳定版 `1.1.7`，显式引入 `navigation3-runtime` 和 `navigation3-ui`，替换 Navigation 2 的 `navigation-compose`；Navigation 3 不由 Compose BOM 管理。仅引入当前所需的返回栈和 UI 能力，暂不添加 ViewModel、adaptive 等扩展库。依赖及其传递依赖会影响 APK 体积，不能将迁移视为体积优化；实际大小以构建产物为准。参考[官方入门指南](https://developer.android.com/guide/navigation/navigation-3/get-started)。
 
 不得提交 `local.properties`、访问令牌、签名密钥或带个人信息的日志。客户端内置值不能视为秘密；服务端凭据不得写入客户端代码。权限按功能最小需要声明。
 

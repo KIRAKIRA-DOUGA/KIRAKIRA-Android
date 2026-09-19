@@ -60,29 +60,21 @@ fun MeScreen(
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             ProfileCard()
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = stringResource(R.string.me_library),
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Column(
+                verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+            ) {
+                SegmentedMenuItem(
+                    title = stringResource(R.string.me_history),
+                    icon = R.drawable.ic_symbol_history,
+                    index = 0,
+                    count = 2,
                 )
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
-                ) {
-                    SegmentedMenuItem(
-                        title = stringResource(R.string.me_history),
-                        icon = R.drawable.ic_symbol_history,
-                        index = 0,
-                        count = 2,
-                    )
-                    SegmentedMenuItem(
-                        title = stringResource(R.string.me_favorites),
-                        icon = R.drawable.ic_symbol_video_library,
-                        index = 1,
-                        count = 2,
-                    )
-                }
+                SegmentedMenuItem(
+                    title = stringResource(R.string.me_favorites),
+                    icon = R.drawable.ic_symbol_star,
+                    index = 1,
+                    count = 2,
+                )
             }
             SegmentedMenuItem(
                 title = stringResource(R.string.me_settings),
