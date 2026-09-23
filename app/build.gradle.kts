@@ -1,4 +1,5 @@
 plugins {
+    alias(libs.plugins.aboutlibraries.android)
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
@@ -7,7 +8,9 @@ plugins {
 android {
     namespace = "moe.kirakira"
     compileSdk {
-        version = release(37)
+        version = release(37) {
+            minorApiLevel = 2
+        }
     }
 
     defaultConfig {
@@ -37,6 +40,7 @@ android {
 }
 
 dependencies {
+    implementation(libs.aboutlibraries.compose.m3)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
@@ -56,4 +60,13 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
+}
+
+aboutLibraries {
+    collect {
+        configPath = rootProject.file("third_party/aboutlibraries")
+        includePlatform = false
+        fetchRemoteLicense = false
+        fetchRemoteFunding = false
+    }
 }

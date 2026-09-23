@@ -1,0 +1,15 @@
+{
+  "uniqueId": "third-party:aosp-motion",
+  "name": "AOSP page transitions",
+  "artifactVersion": "f68c80b4e9dbdb1e5bf6620f437c3d9f865eb047",
+  "developers": [
+    {
+      "name": "The Android Open Source Project"
+    }
+  ],
+  "website": "https://android.googlesource.com/platform/frameworks/base/+/f68c80b4e9dbdb1e5bf6620f437c3d9f865eb047/",
+  "description": "Ported to Compose: SurfaceControl and system animators replaced with Compose layers and coroutine animations; public-API adaptations documented in third_party/android-motion.",
+  "licenses": [
+    "kirakira-aosp-motion-apache-2.0"
+  ]
+}

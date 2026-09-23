@@ -18,7 +18,7 @@
 
 ## 普通 Activity 转场
 
-- 横移距离 96dp、时长 450ms，使用公开系统资源 `android.R.interpolator.fast_out_extra_slow_in`。它与 Shell 的 `EMPHASIZED` 使用相同的两段贝塞尔路径。普通转场按 RTL 镜像。
+- 横移距离 96dp、时长 450ms，API 28+ 使用公开系统资源 `android.R.interpolator.fast_out_extra_slow_in`。它与 Shell 的 `EMPHASIZED` 使用相同的两段贝塞尔路径；API 27 回退为公开的 `fast_out_slow_in`。普通转场按 RTL 镜像。
 - 打开：新页从 +96dp 移至原位，旧页移至 −96dp；新页透明度线性变化，延迟 50ms，持续 83ms。
 - 返回：上一页从 −96dp 移至原位，当前页移至 +96dp；当前页透明度线性变化，延迟 35ms，持续 83ms。
 - 普通转场不再添加自行设计的圆角变化。
@@ -51,7 +51,7 @@
 ## 公开 API 适配边界
 
 - AOSP 的内部 `BackProgressAnimator.getVelocity()` 不公开；使用带时间戳的公开进度样本计算速度，弹簧参数与限幅保持一致。
-- AOSP 从系统资源及私有显示修正值读取窗口圆角；这里使用 API 31+ 公开 `WindowInsets.getRoundedCorner()` 提供的最小非零屏幕圆角，无圆角信息时为零。当前项目 minSdk 为 32，不访问隐藏资源。
+- AOSP 从系统资源及私有显示修正值读取窗口圆角；这里使用 API 31+ 公开 `WindowInsets.getRoundedCorner()` 提供的最小非零屏幕圆角，无圆角信息或运行在 API 27–30 时为零。当前项目 minSdk 为 27，不访问隐藏资源。
 - 系统在真实窗口 Surface 上实现边缘像素扩展、letterbox 和系统栏外观切换。Compose 页面没有独立窗口 Surface；这些窗口级能力不复制，移动露出的区域使用宿主主题背景，系统栏由 Activity 管理。因此这是 AOSP 页面运动逻辑与参数的移植，不是逐像素的系统窗口复刻。
 
 本次仅执行 Kotlin 编译；按用户要求未运行测试、Lint、设备或视觉检查。

@@ -2,11 +2,20 @@
 
 KIRAKIRA 的 Android 客户端，使用 **Kotlin + Jetpack Compose**，设计语言为 **Material 3 Expressive**，图标使用官方 **Material Symbols Rounded**。
 
-当前是基础布局原型：底部导航为 **首页（Home）、搜索（Search）、关注（Following）、我（Me）**。首页展示 KIRAKIRA 标题及头像占位，搜索页展示静态 SearchBar，关注页展示标题；“我”包含个人资料、统计、个人主页、历史、收藏和设置入口。支持导航切换及“我 → 设置 → 关于”的进入和返回。设置页分为“我”“常规”与账户操作，除关于入口外的设置项、切换账户和登出均为静态占位，未接入业务。
+当前是基础布局原型：底部导航为 **首页（Home）、搜索（Search）、关注（Following）、我（Me）**。首页展示 KIRAKIRA 标题及头像占位，搜索页展示静态 SearchBar，关注页展示标题；“我”包含个人资料、统计、个人主页、历史、收藏和设置入口。支持导航切换及“我 → 设置 → 关于”的进入和返回。设置页分为“我”“常规”与账户操作，外观、关于和切换账户入口可用，其他设置项和登出尚未接入业务。
+
+设置、外观、关于和切换账户页共用可折叠大标题栏：首次进入默认折叠，内容到顶后下拉展开，上滑收起，并保存展开程度。其他页面可按需要复用，适用场景与接入示例见[贡献指南](CONTRIBUTING.md#可选的可折叠大标题栏)。
 
 页面导航使用 **Navigation 3 1.1.7**：`rememberNavBackStack` 保存返回栈，`ActivityNavDisplay` 封装 `NavDisplay`，保留页面状态和生命周期。普通进入和返回采用 AOSP Activity 的横移与透明度参数；预测性返回移植 AOSP 的手势曲线、双页面几何变换、浅深色遮罩和独立的松手收尾阶段，完成后出栈，取消时复原。固定源码版本及公开 API 的适配差异见 [Android 转场说明](third_party/android-motion/README.md)。底栏仍在主界面内切换；从设置返回时恢复“我”的选中状态和滚动位置。在主界面按系统返回退出应用，不额外跳转首页。
 
 支持中文和英语，默认跟随系统语言；Android 13+ 可通过系统的应用语言设置切换。“我”页面当前使用占位资料和官方 `SegmentedListItem` 分组菜单，尚未接入真实账号数据。
+
+“设置 → 切换账户”提供 Material 3 Expressive 交互原型：游客固定置顶，两个演示账户使用 RadioButton 表示单选状态。普通账户可向左滑动露出圆角移除按钮，完整滑动同样进入移除确认；游客不可滑动。保留编辑模式和无障碍移除操作，移除当前账户会切回游客。添加账户暂时显示登录待接入提示。选择及移除结果在页面往返、旋转和系统状态恢复时保留，全新启动恢复演示数据，不保存真实登录会话，也不改变“我”的占位资料。
+
+“我 → 设置 → 关于 → 开源组件”使用 **AboutLibraries 15.2.0** 自带的 Material 3 列表和组件详情 Sheet，
+继承应用主题，支持离线阅读及返回栈、列表位置恢复。许可证数据按 Debug / Release 构建自动生成，
+并补充 Material Symbols 与 AOSP 转场移植声明。维护与检查方法见
+[开源声明说明](third_party/aboutlibraries/README.md)。此页采用第三方列表样式，外层导航与顶栏沿用项目组件。
 
 ## 开发环境
 
@@ -54,9 +63,13 @@ Material 3 单独使用公开 Expressive 主题与分段列表 API 的版本，�
 app/src/main/
 ├── java/moe/kirakira/
 │   ├── MainActivity.kt       # Activity 宿主
-│   ├── KIRAKIRAApp.kt        # 四栏导航与顶栏
-│   ├── feature/             # 搜索、个人页、设置页布局
-│   └── ui/                  # Expressive 主题与共享组件
+│   ├── KIRAKIRAApp.kt        # 应用入口、应用级状态与导航连接
+│   ├── feature/             # 主界面、搜索、个人页、设置页布局
+│   │   └── main/MainScreen.kt # 四栏切换、顶栏与底栏
+│   └── ui/                  # Expressive 主题、共享组件与导航
+│       └── navigation/
+│           ├── AppRoutes.kt  # 页面路由定义
+│           └── AppNavHost.kt # 页面注册与进入、返回逻辑
 ├── res/                     # 英文 / 中文字符串、Material Symbols、系统配置
 └── AndroidManifest.xml
 app/src/test/                 # 本机单元测试

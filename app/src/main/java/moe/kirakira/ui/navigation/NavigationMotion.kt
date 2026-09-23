@@ -1,6 +1,8 @@
 package moe.kirakira.ui.navigation
 
+import android.os.Build
 import android.view.animation.AnimationUtils
+import androidx.annotation.InterpolatorRes
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.LinearEasing
@@ -29,6 +31,14 @@ import androidx.compose.ui.unit.dp
 internal const val ACTIVITY_TRANSITION_MILLIS = 450
 internal const val ACTIVITY_OFFSET_DP = 96
 
+@InterpolatorRes
+internal fun activityInterpolatorResource(): Int =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        android.R.interpolator.fast_out_extra_slow_in
+    } else {
+        android.R.interpolator.fast_out_slow_in
+    }
+
 internal class NavigationMotion(
     val forward: ContentTransform,
     val backward: ContentTransform,
@@ -48,7 +58,7 @@ internal fun rememberNavigationMotion(): NavigationMotion {
     return remember(context, distance, direction) {
         val interpolator = AnimationUtils.loadInterpolator(
             context,
-            android.R.interpolator.fast_out_extra_slow_in,
+            activityInterpolatorResource(),
         )
         val offset = distance * direction
         val slideSpec = tween<IntOffset>(

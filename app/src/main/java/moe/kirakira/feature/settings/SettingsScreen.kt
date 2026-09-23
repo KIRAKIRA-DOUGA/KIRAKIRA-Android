@@ -8,32 +8,29 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
+import moe.kirakira.ui.components.CollapsibleTopAppBar
 import moe.kirakira.ui.components.SegmentedMenuItem
+import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 private data class SettingsEntry(@param:StringRes val title: Int, @param:DrawableRes val icon: Int)
@@ -46,6 +43,8 @@ fun SettingsScreen(
     onNavigateToAccount: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val scrollBehavior = rememberCollapsibleTopAppBarScrollBehavior()
+
     val personalSettings = remember {
         listOf(
             SettingsEntry(R.string.settings_profile, R.drawable.ic_symbol_person),
@@ -68,45 +67,31 @@ fun SettingsScreen(
     Scaffold(
         modifier = modifier
             .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection)
             .testTag("settings_screen"),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.me_settings)) },
-                navigationIcon = {
-                    IconButton (
-                        onClick = onBack,
-                        modifier = Modifier.testTag("settings_back"),
-                    ) {
-                        Icon(
-                            painterResource(R.drawable.ic_symbol_arrow_back),
-                            contentDescription = stringResource(R.string.navigate_back),
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                ),
+            CollapsibleTopAppBar(
+                title = stringResource(R.string.me_settings),
+                onBack = onBack,
+                scrollBehavior = scrollBehavior,
+                backButtonModifier = Modifier.testTag("settings_back"),
             )
         },
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(innerPadding)
                 .consumeWindowInsets(innerPadding),
             contentAlignment = Alignment.TopCenter,
         ) {
             Column(
                 modifier = Modifier
                     .widthIn(max = 640.dp)
-                    .fillMaxWidth()
+                    .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(
-                        top = innerPadding.calculateTopPadding() + 16.dp,
-                        bottom = innerPadding.calculateBottomPadding() + 16.dp,
-                        start = 16.dp,
-                        end = 16.dp,
-                    ),
+                    .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
                 SettingsGroup(stringResource(R.string.nav_me), personalSettings)

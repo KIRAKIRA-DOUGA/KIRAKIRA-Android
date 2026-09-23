@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
@@ -17,20 +16,22 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -38,61 +39,54 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
+import moe.kirakira.ui.components.CollapsibleTopAppBar
 import moe.kirakira.ui.components.SegmentedMenuItem
+import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.theme.KIRAKIRAPink
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 @Composable
 fun AboutScreen(
     onBack: () -> Unit,
+    onNavigateToLicenses: () -> Unit,
+    onNavigateToTest: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val scrollBehavior = rememberCollapsibleTopAppBarScrollBehavior()
+    var logoClickCount by remember { mutableIntStateOf(0) }
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
     val versionName = packageInfo.versionName
 
     Scaffold(
         modifier = modifier
             .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection)
             .testTag("about_screen"),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.settings_about)) },
-                navigationIcon = {
-                    IconButton(
-                        onClick = onBack,
-                        modifier = Modifier.testTag("about_back"),
-                    ) {
-                        Icon(
-                            painterResource(R.drawable.ic_symbol_arrow_back),
-                            contentDescription = stringResource(R.string.navigate_back),
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                ),
+            CollapsibleTopAppBar(
+                title = stringResource(R.string.settings_about),
+                onBack = onBack,
+                scrollBehavior = scrollBehavior,
+                backButtonModifier = Modifier.testTag("about_back"),
             )
         },
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(innerPadding)
                 .consumeWindowInsets(innerPadding),
             contentAlignment = Alignment.TopCenter,
         ) {
             Column(
                 modifier = Modifier
                     .widthIn(max = 640.dp)
-                    .fillMaxWidth()
+                    .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(
-                        top = innerPadding.calculateTopPadding() + 32.dp,
-                        bottom = innerPadding.calculateBottomPadding() + 32.dp,
-                        start = 16.dp,
-                        end = 16.dp,
-                    ),
+                    .padding(horizontal = 16.dp, vertical = 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
@@ -102,6 +96,13 @@ fun AboutScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Surface(
+                        onClick = {
+                            logoClickCount += 1
+                            if (logoClickCount == 10) {
+                                logoClickCount = 0
+                                onNavigateToTest()
+                            }
+                        },
                         modifier = Modifier
                             .size(96.dp)
                             .clip(RoundedCornerShape(24.dp)),
@@ -110,7 +111,7 @@ fun AboutScreen(
                         Box(contentAlignment = Alignment.Center) {
                             Image(
                                 painter = painterResource(R.drawable.ic_launcher_foreground),
-                                contentDescription = null,
+                                contentDescription = stringResource(R.string.app_name),
                                 modifier = Modifier.requiredSize(144.dp)
                             )
                         }
@@ -138,14 +139,15 @@ fun AboutScreen(
                         icon = R.drawable.ic_symbol_info, // Should use a GitHub icon if available
                         index = 0,
                         count = 4,
-                        onClick = { /* TODO: Open GitHub */ }
+                        onClick = { uriHandler.openUri("https://github.com/KIRAKIRA-DOUGA/") },
                     )
                     SegmentedMenuItem(
                         title = stringResource(R.string.about_licenses),
                         icon = R.drawable.ic_symbol_shield,
                         index = 1,
                         count = 4,
-                        onClick = { /* TODO: Show licenses */ }
+                        onClick = onNavigateToLicenses,
+                        modifier = Modifier.testTag("about_licenses"),
                     )
                     SegmentedMenuItem(
                         title = stringResource(R.string.about_privacy_policy),
@@ -173,6 +175,6 @@ fun AboutScreen(
 @Composable
 private fun AboutPreview() {
     KIRAKIRATheme(dynamicColor = false) {
-        AboutScreen(onBack = {})
+        AboutScreen(onBack = {}, onNavigateToLicenses = {}, onNavigateToTest = {})
     }
 }

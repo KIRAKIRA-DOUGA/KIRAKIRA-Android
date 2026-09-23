@@ -1,5 +1,6 @@
 package moe.kirakira.ui.navigation
 
+import android.os.Build
 import android.view.RoundedCorner
 import android.view.View
 import android.view.animation.AnimationUtils
@@ -65,7 +66,7 @@ internal fun <T : Any> ActivityNavDisplay(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val motion = remember(context, scope) {
-        val interpolator = AnimationUtils.loadInterpolator(context, android.R.interpolator.fast_out_extra_slow_in)
+        val interpolator = AnimationUtils.loadInterpolator(context, activityInterpolatorResource())
         PredictiveBackMotion(scope, Easing { interpolator.getInterpolation(it) })
     }
     val entries = rememberDecoratedNavEntries(
@@ -232,6 +233,7 @@ private data class ActivityScene<T : Any>(
 
 /** Public WindowInsets equivalent; system-only corner adjustments are not exposed to apps. */
 private fun View.windowCornerRadius(): Float {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return 0f
     val insets = rootWindowInsets ?: return 0f
     return listOf(
         RoundedCorner.POSITION_TOP_LEFT,

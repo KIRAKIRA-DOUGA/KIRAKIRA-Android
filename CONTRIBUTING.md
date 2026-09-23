@@ -56,6 +56,47 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 - 交互控件提供语义与可读标签，纯装饰图标使用空描述；保证触摸目标、字体缩放和 TalkBack 可用。验证浅色、深色、窄屏和宽屏，使用 `start/end` 方向及系统 Insets，避免用固定屏幕尺寸布局。
 - 列表项目使用稳定的业务 key；不要为了压制重组而随意添加 `@Stable` / `@Immutable`。可复用组件提供使用假数据的 Preview，不依赖真实服务或运行中的 ViewModel。
 - 异步页面明确表达加载、成功、空内容与失败状态；重试入口应与操作语义一致。
+- 无确定进度的页面加载统一使用 Material 3 Expressive 的 `LoadingIndicator`，不得使用不确定进度的 `CircularProgressIndicator`。有可量化进度的加载可使用确定进度指示器。
+
+### 可选的可折叠大标题栏
+
+设置、外观、关于和切换账户页使用共享组件
+[`CollapsibleTopAppBar`](app/src/main/java/moe/kirakira/ui/components/CollapsibleTopAppBar.kt)。
+它适合有返回入口、希望通过纵向滚动展开大标题的二级页面；**不是所有页面的强制顶栏**。
+固定小标题、搜索页、播放器或其他有特殊布局需求的页面，可按场景选择合适的官方顶栏。
+
+- 在每个页面内调用 `rememberCollapsibleTopAppBarScrollBehavior()`，各页面独立保存展开程度；默认首次进入折叠，上滑收起，内容回到顶部后下拉展开。需要首次展开时传入 `initialCollapsed = false`；此参数不会覆盖已恢复的状态。
+- 将同一份 `scrollBehavior` 传给顶栏，并将其 `nestedScrollConnection` 接到 `Scaffold` 或滚动内容的父容器。只替换顶栏、不接嵌套滚动，无法联动列表手势。
+- 顶栏接收字符串资源解析后的 `title`、`onBack` 和可选 `actions` 插槽，切换账户页的“编辑／完成”就是后者的示例。组件统一返回图标和配色，页面保留内容、滚动状态及 Snackbar 等职责。
+- 在滚动容器外应用并消费 `Scaffold` 的 `innerPadding`，避免内容被顶栏遮住。短内容页也让滚动容器占满可用高度，使空白区域能接收下拉手势；使用 `Column` 时将 `fillMaxSize()` 放在 `verticalScroll()` 前。
+
+接入示意（调用方提供 `onBack`，菜单内容按页面填写）：
+
+```kotlin
+val scrollBehavior = rememberCollapsibleTopAppBarScrollBehavior()
+Scaffold(
+    modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+    topBar = {
+        CollapsibleTopAppBar(
+            title = stringResource(R.string.me_settings),
+            onBack = onBack,
+            scrollBehavior = scrollBehavior,
+        )
+    },
+) { innerPadding ->
+    Column(
+        modifier = Modifier
+            .padding(innerPadding)
+            .consumeWindowInsets(innerPadding)
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+    ) {
+        // 页面内容
+    }
+}
+```
 
 ## 依赖与配置
 

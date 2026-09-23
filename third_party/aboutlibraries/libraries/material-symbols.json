@@ -1,0 +1,15 @@
+{
+  "uniqueId": "third-party:material-symbols",
+  "name": "Material Symbols",
+  "artifactVersion": "2026-09-20",
+  "developers": [
+    {
+      "name": "Google"
+    }
+  ],
+  "website": "https://github.com/google/material-design-icons",
+  "description": "Rounded icons; theme tint removed and XML formatting adjusted. Path data retained.",
+  "licenses": [
+    "kirakira-material-symbols-apache-2.0"
+  ]
+}

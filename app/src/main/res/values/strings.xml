@@ -37,7 +37,35 @@
     <string name="theme_dark">Dark theme</string>
     <string name="about_version">Version %1$s</string>
     <string name="about_github">GitHub</string>
-    <string name="about_licenses">Open source licenses</string>
+    <string name="about_licenses">Open source components</string>
     <string name="about_privacy_policy">Privacy Policy</string>
     <string name="about_terms">Terms of Service</string>
+    <string name="licenses_empty">No open source components available.</string>
+    <string name="licenses_error">Could not load open source components.</string>
+    <string name="licenses_retry">Retry</string>
+    <string name="licenses_source">Source</string>
+    <string name="licenses_website">Website</string>
+    <string name="licenses_sponsor">Sponsor</string>
+    <string name="licenses_view_license">View license</string>
+    <string name="content_unavailable_empty_title">No content yet</string>
+    <string name="content_unavailable_empty_description">There is nothing to display here right now.</string>
+    <string name="content_unavailable_error_title">Could not load content</string>
+    <string name="content_unavailable_error_description">Please try again later.</string>
+    <string name="content_unavailable_retry">Retry</string>
+    <string name="account_guest">Guest</string>
+    <string name="account_demo_kirakira">KIRAKIRA (demo)</string>
+    <string name="account_demo_sakura">Sakura (demo)</string>
+    <string name="account_demo_kirakira_handle" translatable="false">\@kirakira_demo</string>
+    <string name="account_demo_sakura_handle" translatable="false">\@sakura_demo</string>
+    <string name="account_current">Current account</string>
+    <string name="account_close_swipe">Hide account actions</string>
+    <string name="account_add">Add account</string>
+    <string name="account_edit">Edit</string>
+    <string name="account_done">Done</string>
+    <string name="account_login_unavailable">Sign-in is not available yet.</string>
+    <string name="account_remove_title">Remove account?</string>
+    <string name="account_remove_message">Remove %1$s from this list? If it is the current account, Guest will be selected.</string>
+    <string name="account_remove_description">Remove %1$s</string>
+    <string name="account_remove">Remove</string>
+    <string name="account_cancel">Cancel</string>
 </resources>

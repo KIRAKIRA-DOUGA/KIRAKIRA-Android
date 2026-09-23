@@ -32,6 +32,7 @@ import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import java.util.Locale
 import moe.kirakira.ui.theme.KIRAKIRATheme
+import moe.kirakira.ui.theme.ThemeMode
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -106,9 +107,12 @@ class AppLayoutTest {
         composeRule.onNodeWithTag("nav_me").assertDoesNotExist()
         listOf(
             "Profile", "Privacy", "Security", "Blocked and hidden", "Invitation code",
-            "General", "Appearance", "Playback", "Danmaku", "Switch account", "Log out",
+            "General", "Playback", "Danmaku",
         ).forEach { label ->
             composeRule.onNodeWithText(label).performScrollTo().assertIsDisplayed().assertHasNoClickAction()
+        }
+        listOf("Appearance", "Switch account", "Log out").forEach { label ->
+            composeRule.onNodeWithText(label).performScrollTo().assertIsDisplayed().assertHasClickAction()
         }
         composeRule.onNodeWithText("About").performScrollTo().assertHasClickAction().performClick()
         composeRule.onNodeWithTag("about_screen").assertIsDisplayed()
@@ -125,10 +129,13 @@ class AppLayoutTest {
     fun settings_chineseDarkLargeText_scrollsAndHandlesSystemBack() {
         composeRule.setContent { LocalizedApp(language = "zh", darkTheme = true, fontScale = 2f) }
         openSettings(label = "设置")
-        listOf("资料", "隐私", "安全", "屏蔽与隐藏", "邀请码", "常规", "外观", "播放", "弹幕", "切换账户", "登出")
+        listOf("资料", "隐私", "安全", "屏蔽与隐藏", "邀请码", "常规", "播放", "弹幕")
             .forEach { label ->
                 composeRule.onNodeWithText(label).performScrollTo().assertIsDisplayed().assertHasNoClickAction()
             }
+        listOf("外观", "切换账户", "登出").forEach { label ->
+            composeRule.onNodeWithText(label).performScrollTo().assertIsDisplayed().assertHasClickAction()
+        }
         composeRule.onNodeWithText("关于").performScrollTo().assertHasClickAction().performClick()
         composeRule.onNodeWithTag("about_screen").assertIsDisplayed()
         Espresso.pressBack()
@@ -305,6 +312,6 @@ private fun LocalizedApp(language: String, darkTheme: Boolean = false, fontScale
         LocalConfiguration provides configuration,
         LocalDensity provides Density(density, fontScale),
     ) {
-        KIRAKIRATheme(darkTheme = darkTheme, dynamicColor = false) { KIRAKIRAApp() }
+        KIRAKIRATheme(darkTheme = darkTheme, dynamicColor = false) { KIRAKIRAApp(themeMode = ThemeMode.SYSTEM, onThemeModeChange = {}) }
     }
 }
