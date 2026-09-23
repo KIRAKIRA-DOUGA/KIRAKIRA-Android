@@ -4,6 +4,8 @@ import android.content.res.Configuration
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -39,6 +42,7 @@ fun AppearanceScreen(
     modifier: Modifier = Modifier,
 ) {
     val scrollBehavior = rememberCollapsibleTopAppBarScrollBehavior()
+    val layoutDirection = LocalLayoutDirection.current
 
     Scaffold(
         modifier = modifier
@@ -58,7 +62,7 @@ fun AppearanceScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(top = innerPadding.calculateTopPadding())
                 .consumeWindowInsets(innerPadding),
             contentAlignment = Alignment.TopCenter,
         ) {
@@ -67,7 +71,13 @@ fun AppearanceScreen(
                     .widthIn(max = 640.dp)
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
+                    // Bottom inset scrolls with the content so the viewport reaches behind the navigation bar.
+                    .padding(
+                        start = innerPadding.calculateStartPadding(layoutDirection) + 16.dp,
+                        end = innerPadding.calculateEndPadding(layoutDirection) + 16.dp,
+                        top = 16.dp,
+                        bottom = innerPadding.calculateBottomPadding() + 16.dp,
+                    ),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {

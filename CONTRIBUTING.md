@@ -68,12 +68,14 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 - 在每个页面内调用 `rememberCollapsibleTopAppBarScrollBehavior()`，各页面独立保存展开程度；默认首次进入折叠，上滑收起，内容回到顶部后下拉展开。需要首次展开时传入 `initialCollapsed = false`；此参数不会覆盖已恢复的状态。
 - 将同一份 `scrollBehavior` 传给顶栏，并将其 `nestedScrollConnection` 接到 `Scaffold` 或滚动内容的父容器。只替换顶栏、不接嵌套滚动，无法联动列表手势。
 - 顶栏接收字符串资源解析后的 `title`、`onBack` 和可选 `actions` 插槽，切换账户页的“编辑／完成”就是后者的示例。组件统一返回图标和配色，页面保留内容、滚动状态及 Snackbar 等职责。
-- 在滚动容器外应用并消费 `Scaffold` 的 `innerPadding`，避免内容被顶栏遮住。短内容页也让滚动容器占满可用高度，使空白区域能接收下拉手势；使用 `Column` 时将 `fillMaxSize()` 放在 `verticalScroll()` 前。
+- 顶部内边距放在滚动容器外，避免内容被顶栏遮住；底部系统内边距必须随内容滚动：`Column` 将底部 `padding` 放在 `verticalScroll()` 后，`LazyColumn` 使用 `contentPadding`。不要在滚动容器外应用完整的 `innerPadding`，否则滚动区域会在导航栏上方截断，破坏底部 edge-to-edge。消费 Insets 防止子组件重复避让，滚动到底时保留末项所需的底部安全距离。
+- 短内容页也让滚动容器占满可用高度，使空白区域能接收下拉手势；使用 `Column` 时将 `fillMaxSize()` 放在 `verticalScroll()` 前。
 
 接入示意（调用方提供 `onBack`，菜单内容按页面填写）：
 
 ```kotlin
 val scrollBehavior = rememberCollapsibleTopAppBarScrollBehavior()
+val layoutDirection = LocalLayoutDirection.current
 Scaffold(
     modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
     containerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -87,11 +89,16 @@ Scaffold(
 ) { innerPadding ->
     Column(
         modifier = Modifier
-            .padding(innerPadding)
+            .padding(top = innerPadding.calculateTopPadding())
             .consumeWindowInsets(innerPadding)
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(
+                start = innerPadding.calculateStartPadding(layoutDirection) + 16.dp,
+                end = innerPadding.calculateEndPadding(layoutDirection) + 16.dp,
+                top = 16.dp,
+                bottom = innerPadding.calculateBottomPadding() + 16.dp,
+            ),
     ) {
         // 页面内容
     }

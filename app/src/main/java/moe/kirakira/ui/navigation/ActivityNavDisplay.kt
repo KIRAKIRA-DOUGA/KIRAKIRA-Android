@@ -231,15 +231,18 @@ private data class ActivityScene<T : Any>(
     }
 }
 
-/** Public WindowInsets equivalent; system-only corner adjustments are not exposed to apps. */
+private const val DEFAULT_WINDOW_CORNER_RADIUS_DP = 28f
+
+/** Prefer screen corners; fall back to 28dp when the platform provides no positive radius. */
 private fun View.windowCornerRadius(): Float {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return 0f
-    val insets = rootWindowInsets ?: return 0f
+    val fallbackRadius = DEFAULT_WINDOW_CORNER_RADIUS_DP * resources.displayMetrics.density
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return fallbackRadius
+    val insets = rootWindowInsets ?: return fallbackRadius
     return listOf(
         RoundedCorner.POSITION_TOP_LEFT,
         RoundedCorner.POSITION_TOP_RIGHT,
         RoundedCorner.POSITION_BOTTOM_LEFT,
         RoundedCorner.POSITION_BOTTOM_RIGHT,
     ).mapNotNull { insets.getRoundedCorner(it)?.radius?.takeIf { radius -> radius > 0 } }
-        .minOrNull()?.toFloat() ?: 0f
+        .minOrNull()?.toFloat() ?: fallbackRadius
 }

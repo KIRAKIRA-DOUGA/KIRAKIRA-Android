@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -31,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -53,6 +56,7 @@ fun AboutScreen(
     modifier: Modifier = Modifier,
 ) {
     val scrollBehavior = rememberCollapsibleTopAppBarScrollBehavior()
+    val layoutDirection = LocalLayoutDirection.current
     var logoClickCount by remember { mutableIntStateOf(0) }
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
@@ -77,7 +81,7 @@ fun AboutScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(top = innerPadding.calculateTopPadding())
                 .consumeWindowInsets(innerPadding),
             contentAlignment = Alignment.TopCenter,
         ) {
@@ -86,7 +90,13 @@ fun AboutScreen(
                     .widthIn(max = 640.dp)
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 32.dp),
+                    // Bottom inset scrolls with the content so the viewport reaches behind the navigation bar.
+                    .padding(
+                        start = innerPadding.calculateStartPadding(layoutDirection) + 16.dp,
+                        end = innerPadding.calculateEndPadding(layoutDirection) + 16.dp,
+                        top = 32.dp,
+                        bottom = innerPadding.calculateBottomPadding() + 32.dp,
+                    ),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
