@@ -11,6 +11,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import moe.kirakira.feature.account.DemoAccountState
 import moe.kirakira.ui.navigation.AppNavHost
 import moe.kirakira.ui.theme.KIRAKIRATheme
+import moe.kirakira.ui.theme.ThemeColorSettings
 import moe.kirakira.ui.theme.ThemeMode
 
 @Composable
@@ -18,6 +19,11 @@ fun KIRAKIRAApp(
     themeMode: ThemeMode,
     onThemeModeChange: (ThemeMode) -> Unit,
     modifier: Modifier = Modifier,
+    themeColors: ThemeColorSettings = ThemeColorSettings(),
+    onThemeColorsChange: (ThemeColorSettings) -> Unit = {},
+    shadowsEnabled: Boolean = false,
+    onShadowsEnabledChange: (Boolean) -> Unit = {},
+    onVideoPageActiveChange: (Boolean) -> Unit = {},
 ) {
     var accountState by rememberSaveable(stateSaver = DemoAccountState.Saver) {
         mutableStateOf(DemoAccountState())
@@ -26,6 +32,11 @@ fun KIRAKIRAApp(
     AppNavHost(
         themeMode = themeMode,
         onThemeModeChange = onThemeModeChange,
+        themeColors = themeColors,
+        onThemeColorsChange = onThemeColorsChange,
+        shadowsEnabled = shadowsEnabled,
+        onShadowsEnabledChange = onShadowsEnabledChange,
+        onVideoPageActiveChange = onVideoPageActiveChange,
         accountState = accountState,
         onSelectAccount = { accountState = accountState.select(it) },
         onRemoveAccount = { accountState = accountState.remove(it) },

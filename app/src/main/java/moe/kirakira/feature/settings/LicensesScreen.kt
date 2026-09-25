@@ -30,6 +30,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
@@ -41,7 +42,10 @@ import com.mikepenz.aboutlibraries.Libs
 import com.mikepenz.aboutlibraries.ui.compose.LibraryDefaults
 import com.mikepenz.aboutlibraries.ui.compose.m3.LibrariesContainer
 import com.mikepenz.aboutlibraries.ui.compose.m3.libraryColors
+import com.mikepenz.aboutlibraries.ui.compose.m3.style.accentDerivedLicenseHueResolver
+import com.mikepenz.aboutlibraries.ui.compose.m3.style.m3VariantColors
 import com.mikepenz.aboutlibraries.ui.compose.style.LibraryActionBadges
+import com.mikepenz.aboutlibraries.ui.compose.style.VariantColors
 import com.mikepenz.aboutlibraries.ui.compose.variant.LibraryDetailMode
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -50,6 +54,9 @@ import moe.kirakira.R
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.theme.KIRAKIRATheme
+import moe.kirakira.ui.theme.LocalClassicAccent
+import moe.kirakira.ui.theme.ThemeColorDefaults
+import moe.kirakira.ui.theme.topAppBarShadow
 
 internal sealed interface LicensesUiState {
     data object Loading : LicensesUiState
@@ -103,6 +110,7 @@ internal fun LicensesContent(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
             TopAppBar(
+                modifier = Modifier.topAppBarShadow(),
                 title = { Text(stringResource(R.string.about_licenses)) },
                 navigationIcon = {
                     IconButton(onClick = onBack, modifier = Modifier.testTag("licenses_back")) {
@@ -113,7 +121,8 @@ internal fun LicensesContent(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    containerColor = ThemeColorDefaults.appBarContainerColor(),
+                    scrolledContainerColor = ThemeColorDefaults.appBarContainerColor(),
                 ),
             )
         },
@@ -153,6 +162,7 @@ internal fun LicensesContent(
                     colors = LibraryDefaults.libraryColors(
                         libraryBackgroundColor = MaterialTheme.colorScheme.surfaceContainer,
                     ),
+                    variantColors = licensesVariantColors(),
                 )
             } else {
                 Box(
@@ -183,6 +193,17 @@ internal fun LicensesContent(
             }
         }
     }
+}
+
+@Composable
+private fun licensesVariantColors(): VariantColors {
+    if (!LocalClassicAccent.current) return LibraryDefaults.m3VariantColors()
+    val scheme = MaterialTheme.colorScheme
+    return LibraryDefaults.m3VariantColors(
+        tabActiveBackground = scheme.primaryContainer,
+        tabActiveContent = scheme.onPrimaryContainer,
+        licenseHueResolver = accentDerivedLicenseHueResolver(isDark = scheme.surface.luminance() < 0.5f),
+    )
 }
 
 @Preview(name = "Open source components · English", locale = "en", showBackground = true)

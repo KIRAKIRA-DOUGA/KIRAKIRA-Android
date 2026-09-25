@@ -76,7 +76,9 @@ internal fun AccountSwitchPage(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingRemovalId = null }) {
+                TextButton(
+                    onClick = { pendingRemovalId = null },
+                ) {
                     Text(stringResource(R.string.account_cancel))
                 }
             },

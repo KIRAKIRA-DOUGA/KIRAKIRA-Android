@@ -233,7 +233,12 @@ private fun AccountRow(
     } else null
     val trailing: (@Composable () -> Unit)? = when {
         !editing -> {
-            { RadioButton(selected = isSelected, onClick = null) }
+            {
+                RadioButton(
+                    selected = isSelected,
+                    onClick = null,
+                )
+            }
         }
         account.id != GUEST_ACCOUNT_ID -> {
             {

@@ -6,10 +6,6 @@
     <string name="nav_me">Me</string>
     <string name="profile_avatar">Profile avatar</string>
     <string name="search_placeholder">Search KIRAKIRA</string>
-    <string name="me_placeholder_name">KIRAKIRA User</string>
-    <string name="me_placeholder_handle" translatable="false">\@kirakira</string>
-    <string name="me_placeholder_bio">This is a bio.</string>
-    <string name="placeholder_count" translatable="false">—</string>
     <string name="me_following_count">Following</string>
     <string name="me_followers_count">Followers</string>
     <string name="me_likes_count">Likes</string>
@@ -53,10 +49,6 @@
     <string name="content_unavailable_error_description">Please try again later.</string>
     <string name="content_unavailable_retry">Retry</string>
     <string name="account_guest">Guest</string>
-    <string name="account_demo_kirakira">KIRAKIRA (demo)</string>
-    <string name="account_demo_sakura">Sakura (demo)</string>
-    <string name="account_demo_kirakira_handle" translatable="false">\@kirakira_demo</string>
-    <string name="account_demo_sakura_handle" translatable="false">\@sakura_demo</string>
     <string name="account_current">Current account</string>
     <string name="account_close_swipe">Hide account actions</string>
     <string name="account_add">Add account</string>
@@ -68,4 +60,83 @@
     <string name="account_remove_description">Remove %1$s</string>
     <string name="account_remove">Remove</string>
     <string name="account_cancel">Cancel</string>
+
+    <string name="theme_brightness">Brightness</string>
+    <string name="theme_shadows">Shadows</string>
+    <string name="theme_colors">Theme colors</string>
+    <string name="theme_colors_system">System colors</string>
+    <string name="theme_colors_manual">Choose a color</string>
+    <string name="theme_color_scheme">Color scheme</string>
+    <string name="theme_seed_color">Base color</string>
+    <string name="theme_color_pink">Pink</string>
+    <string name="theme_color_purple">Purple</string>
+    <string name="theme_color_blue">Blue</string>
+    <string name="theme_color_green">Green</string>
+    <string name="theme_color_amber">Amber</string>
+    <string name="theme_color_coral">Coral</string>
+    <string name="theme_color_custom">Custom</string>
+    <string name="theme_color_hex">HEX color</string>
+    <string name="theme_color_hex_error">Enter six hexadecimal digits (0–9, A–F).</string>
+    <string name="theme_color_apply">Apply</string>
+    <string name="theme_color_cancel">Cancel</string>
+    <string name="theme_color_picker_description">Choose a color on the wheel, then adjust its brightness. Tap Apply to use it throughout the app.</string>
+    <string name="theme_color_brightness">Color brightness</string>
+    <string name="theme_color_palette">Hue and saturation color wheel</string>
+    <string name="theme_color_algorithm">Color algorithm</string>
+    <string name="theme_algorithm_tonal_spot">Tonal Spot</string>
+    <string name="theme_algorithm_default">Default</string>
+    <string name="theme_algorithm_classic_accent">Classic Accent</string>
+    <string name="theme_algorithm_monochrome">Monochrome</string>
+    <string name="theme_algorithm_neutral">Neutral</string>
+    <string name="theme_algorithm_vibrant">Vibrant</string>
+    <string name="theme_algorithm_expressive">Expressive</string>
+    <string name="theme_algorithm_fidelity">Fidelity</string>
+    <string name="theme_algorithm_content">Content</string>
+    <string name="theme_algorithm_rainbow">Rainbow</string>
+    <string name="theme_algorithm_fruit_salad">Fruit Salad</string>
+
+    <!-- Video page -->
+    <string name="video_player_placeholder">Player coming soon</string>
+    <string name="video_tab_introduction">About</string>
+    <string name="video_tab_comments">Comments</string>
+    <string name="video_tab_danmaku">Danmaku</string>
+    <string name="video_follow">Follow</string>
+    <string name="video_views">1,024 views</string>
+    <string name="video_following">Following</string>
+    <string name="video_like">Like</string>
+    <string name="video_dislike">Dislike</string>
+    <string name="video_save">Save</string>
+    <string name="video_download">Download</string>
+    <string name="video_share">Share</string>
+    <string name="video_more">More</string>
+    <string name="video_action_unavailable">This action is coming soon.</string>
+    <string name="video_action_count">%1$s, %2$d</string>
+    <string name="video_count">%1$d</string>
+    <string name="video_danmaku_time">%1$02d:%2$02d</string>
+
+    <!-- Comment sorting and navigation -->
+    <string name="video_comments_by_time">By time</string>
+    <string name="video_comments_by_score">By score</string>
+    <string name="video_comments_ascending">Ascending</string>
+    <string name="video_comments_descending">Descending</string>
+    <string name="video_comments_page_count">%1$d / %2$d</string>
+    <string name="video_comments_page_description">Page %1$d of %2$d. Jump to a page or floor.</string>
+    <string name="video_comments_jump_title">Jump to comments</string>
+    <string name="video_comments_page">Page</string>
+    <string name="video_comments_floor">Floor</string>
+    <string name="video_comments_jump_range">Enter a whole number from 1 to %1$d.</string>
+    <string name="video_comments_jump">Jump</string>
+    <string name="video_comments_cancel">Cancel</string>
+    <string name="video_comments_end">All %1$d demo comments shown</string>
+    <string name="video_comment_floor">#%1$d</string>
+    <string name="video_comment_reply">Reply</string>
+
+    <plurals name="video_comments_total">
+        <item quantity="one">%1$d comment</item>
+        <item quantity="other">%1$d comments</item>
+    </plurals>
+    <plurals name="video_danmaku_total">
+        <item quantity="one">%1$d danmaku message</item>
+        <item quantity="other">%1$d danmaku messages</item>
+    </plurals>
 </resources>

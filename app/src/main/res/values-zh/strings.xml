@@ -5,8 +5,6 @@
     <string name="nav_me">我</string>
     <string name="profile_avatar">个人头像</string>
     <string name="search_placeholder">搜索 KIRAKIRA</string>
-    <string name="me_placeholder_name">KIRAKIRA 用户</string>
-    <string name="me_placeholder_bio">这是一条签名。</string>
     <string name="me_following_count">关注</string>
     <string name="me_followers_count">粉丝</string>
     <string name="me_likes_count">获赞</string>
@@ -37,21 +35,19 @@
     <string name="about_licenses">开源组件</string>
     <string name="about_privacy_policy">隐私政策</string>
     <string name="about_terms">服务协议</string>
-    <string name="licenses_empty">暂无开源组件。</string>
-    <string name="licenses_error">无法加载开源组件。</string>
+    <string name="licenses_empty">暂无开源组件</string>
+    <string name="licenses_error">无法加载开源组件</string>
     <string name="licenses_retry">重试</string>
     <string name="licenses_source">源码</string>
     <string name="licenses_website">网站</string>
     <string name="licenses_sponsor">赞助</string>
     <string name="licenses_view_license">查看许可证</string>
     <string name="content_unavailable_empty_title">暂无内容</string>
-    <string name="content_unavailable_empty_description">这里暂时没有可显示的内容。</string>
+    <string name="content_unavailable_empty_description">这里暂时没有可显示的内容</string>
     <string name="content_unavailable_error_title">内容加载失败</string>
-    <string name="content_unavailable_error_description">请稍后再试。</string>
+    <string name="content_unavailable_error_description">请稍后再试</string>
     <string name="content_unavailable_retry">重试</string>
     <string name="account_guest">游客</string>
-    <string name="account_demo_kirakira">KIRAKIRA（演示）</string>
-    <string name="account_demo_sakura">小樱（演示）</string>
     <string name="account_current">当前账号</string>
     <string name="account_close_swipe">收起账号操作</string>
     <string name="account_add">添加账号</string>
@@ -59,8 +55,85 @@
     <string name="account_done">完成</string>
     <string name="account_login_unavailable">登录功能尚未接入</string>
     <string name="account_remove_title">移除账号？</string>
-    <string name="account_remove_message">要从列表中移除 %1$s 吗？如果这是当前账号，将自动切换为游客。</string>
+    <string name="account_remove_message">要从列表中移除 %1$s 吗？如果这是当前账号，将自动切换为游客</string>
     <string name="account_remove_description">移除 %1$s</string>
     <string name="account_remove">移除</string>
     <string name="account_cancel">取消</string>
+
+    <string name="theme_brightness">明暗模式</string>
+    <string name="theme_shadows">阴影</string>
+    <string name="theme_colors">主题配色</string>
+    <string name="theme_colors_system">系统颜色</string>
+    <string name="theme_colors_manual">手动选色</string>
+    <string name="theme_color_scheme">色彩方案</string>
+    <string name="theme_seed_color">基础颜色</string>
+    <string name="theme_color_pink">粉色</string>
+    <string name="theme_color_purple">紫色</string>
+    <string name="theme_color_blue">蓝色</string>
+    <string name="theme_color_green">绿色</string>
+    <string name="theme_color_amber">琥珀色</string>
+    <string name="theme_color_coral">珊瑚色</string>
+    <string name="theme_color_custom">自定义</string>
+    <string name="theme_color_hex">HEX 色值</string>
+    <string name="theme_color_hex_error">请输入六位十六进制字符（0–9、A–F）</string>
+    <string name="theme_color_apply">应用</string>
+    <string name="theme_color_cancel">取消</string>
+    <string name="theme_color_picker_description">在色盘上选择颜色，再调整亮度，点按“应用”即可更改整个应用的配色</string>
+    <string name="theme_color_brightness">颜色亮度</string>
+    <string name="theme_color_palette">色相与饱和度色盘</string>
+    <string name="theme_color_algorithm">配色算法</string>
+    <string name="theme_algorithm_tonal_spot">柔和色调</string>
+    <string name="theme_algorithm_default">默认</string>
+    <string name="theme_algorithm_classic_accent">经典强调色</string>
+    <string name="theme_algorithm_monochrome">单色</string>
+    <string name="theme_algorithm_neutral">中性</string>
+    <string name="theme_algorithm_vibrant">鲜艳</string>
+    <string name="theme_algorithm_expressive">表现力</string>
+    <string name="theme_algorithm_fidelity">忠实</string>
+    <string name="theme_algorithm_content">内容</string>
+    <string name="theme_algorithm_rainbow">彩虹</string>
+    <string name="theme_algorithm_fruit_salad">缤纷</string>
+
+    <!-- Video page -->
+    <string name="video_player_placeholder">播放器待接入</string>
+    <string name="video_tab_introduction">简介</string>
+    <string name="video_tab_comments">评论</string>
+    <string name="video_tab_danmaku">弹幕</string>
+    <string name="video_follow">关注</string>
+    <string name="video_views">1,024 次播放</string>
+    <string name="video_following">已关注</string>
+    <string name="video_like">点赞</string>
+    <string name="video_dislike">点踩</string>
+    <string name="video_save">收藏</string>
+    <string name="video_download">下载</string>
+    <string name="video_share">分享</string>
+    <string name="video_more">更多</string>
+    <string name="video_action_unavailable">此功能待接入</string>
+    <string name="video_action_count">%1$s，%2$d</string>
+    <string name="video_count">%1$d</string>
+    <string name="video_danmaku_time">%1$02d:%2$02d</string>
+
+    <!-- Comment sorting and navigation -->
+    <string name="video_comments_by_time">按时间</string>
+    <string name="video_comments_by_score">按评分</string>
+    <string name="video_comments_ascending">正序（升序）</string>
+    <string name="video_comments_descending">倒序（降序）</string>
+    <string name="video_comments_page_count">%1$d / %2$d</string>
+    <string name="video_comments_page_description">第 %1$d 页，共 %2$d 页。跳转到页码或楼层</string>
+    <string name="video_comments_jump_title">快速跳转</string>
+    <string name="video_comments_page">页码</string>
+    <string name="video_comments_floor">楼层</string>
+    <string name="video_comments_jump_range">请输入 1 至 %1$d 之间的整数</string>
+    <string name="video_comments_jump">跳转</string>
+    <string name="video_comments_cancel">取消</string>
+    <string name="video_comments_end">已显示全部 %1$d 条演示评论</string>
+    <string name="video_comment_floor">#%1$d</string>
+    <string name="video_comment_reply">回复</string>
+
+    <plurals name="video_comments_total">
+        <item quantity="other">%1$d 条评论</item>
+    </plurals>
+    <plurals name="video_danmaku_total">
+        <item quantity="other">%1$d 条弹幕</item>
+    </plurals>
 </resources>

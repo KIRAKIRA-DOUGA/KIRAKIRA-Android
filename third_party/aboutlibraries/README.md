@@ -26,6 +26,14 @@ AboutLibraries 15.2.0 的 Android Gradle 插件为每个构建变体自动生成
 
 ## 检查
 
+默认仅按[贡献指南](../../CONTRIBUTING.md#构建与检查)执行 Debug 构建，不运行测试：
+
+```sh
+./gradlew :app:assembleDebug
+```
+
+以下完整检查仅在用户明确要求时执行：
+
 ```sh
 ./gradlew verify :app:assembleRelease
 ./gradlew :app:connectedDebugAndroidTest
@@ -36,6 +44,6 @@ Release 不包含 `ui-tooling`、`ui-tooling-data`、`ui-test-manifest`、JUnit 
 设备测试验证打包数据、列表、详情 Sheet、返回、恢复以及中英文大字体布局。
 
 插件与 UI 版本由版本目录统一管理。升级时检查实际解析的 Compose / Material 3 版本，
-避免传递依赖意外改变项目 BOM 或 Expressive 版本，并复测构建与页面交互。
+避免传递依赖意外改变项目 BOM 或 Expressive 版本，并完成默认 Debug 构建；页面交互测试仅在用户要求时执行。
 
 参考：[AboutLibraries 15.2.0](https://github.com/mikepenz/AboutLibraries/tree/15.2.0)。

@@ -1,93 +1,189 @@
 package moe.kirakira.feature.main
 
-import androidx.annotation.DrawableRes
+import android.content.res.Configuration
 import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ContentTransform
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
 import moe.kirakira.feature.me.MeScreen
 import moe.kirakira.feature.search.SearchScreen
+import moe.kirakira.feature.video.HomeVideoCard
 import moe.kirakira.ui.components.PlaceholderAvatar
+import moe.kirakira.ui.navigation.rememberNavigationMotion
+import moe.kirakira.ui.theme.KIRAKIRATheme
+import moe.kirakira.ui.theme.LocalClassicAccent
+import moe.kirakira.ui.theme.ThemeColorDefaults
+import moe.kirakira.ui.theme.navigationBarShadow
+import moe.kirakira.ui.theme.topAppBarShadow
 
 private enum class AppDestination(
     @param:StringRes val label: Int,
-    @param:DrawableRes val icon: Int,
+    val icon: MainTabIcon,
 ) {
-    HOME(R.string.nav_home, R.drawable.ic_symbol_home),
-    SEARCH(R.string.nav_search, R.drawable.ic_symbol_search),
-    FOLLOWING(R.string.nav_following, R.drawable.ic_symbol_subscriptions),
-    ME(R.string.nav_me, R.drawable.ic_symbol_person),
+    HOME(R.string.nav_home, MainTabIcon.HOME),
+    SEARCH(R.string.nav_search, MainTabIcon.SEARCH),
+    FOLLOWING(R.string.nav_following, MainTabIcon.FOLLOWING),
+    ME(R.string.nav_me, MainTabIcon.ME),
 }
 
 @Composable
 internal fun MainScreen(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenVideo: () -> Unit = {},
 ) {
     var destination by rememberSaveable { mutableStateOf(AppDestination.HOME) }
     val meScrollState = rememberScrollState()
+    val homeScrollState = rememberLazyListState()
+    val layoutDirection = LocalLayoutDirection.current
+    val motion = rememberNavigationMotion()
+    val tabStateHolder = rememberSaveableStateHolder()
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.surface,
-        topBar = {
-            MainTopBar(
-                destination = destination,
-                onOpenMe = { destination = AppDestination.ME },
-            )
-        },
+        containerColor = ThemeColorDefaults.pageBackgroundColor(),
+        // Each animated page owns its top and horizontal insets; the bottom bar owns the bottom inset.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             MainBottomBar(
                 destination = destination,
                 onDestinationChange = { destination = it },
             )
         },
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .consumeWindowInsets(innerPadding),
-        ) {
-            when (destination) {
-                AppDestination.HOME -> Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .testTag("home_screen"),
+    ) { bottomBarPadding ->
+        AnimatedContent(
+            targetState = destination,
+            modifier = Modifier.fillMaxSize().clipToBounds(),
+            contentAlignment = Alignment.TopStart,
+            transitionSpec = {
+                val transition = if (targetState.ordinal > initialState.ordinal) motion.forward else motion.backward
+                ContentTransform(
+                    targetContentEnter = transition.targetContentEnter,
+                    initialContentExit = transition.initialContentExit,
+                    // Stable page ordering also keeps interrupted and reversed transitions layered correctly.
+                    targetContentZIndex = targetState.ordinal.toFloat(),
+                    sizeTransform = null,
                 )
-                AppDestination.SEARCH -> SearchScreen()
-                AppDestination.FOLLOWING -> Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .testTag("following_screen"),
-                )
-                AppDestination.ME -> MeScreen(
-                    onOpenSettings = onOpenSettings,
-                    scrollState = meScrollState,
-                )
+            },
+            contentKey = { it },
+            label = "Main tab transition",
+        ) { page ->
+            tabStateHolder.SaveableStateProvider(page.name) {
+                Scaffold(
+                    modifier = Modifier.fillMaxSize(),
+                    containerColor = ThemeColorDefaults.pageBackgroundColor(),
+                    contentWindowInsets = ScaffoldDefaults.contentWindowInsets.only(
+                        WindowInsetsSides.Top + WindowInsetsSides.Horizontal,
+                    ),
+                    topBar = {
+                        MainTopBar(
+                            destination = page,
+                            onOpenMe = { destination = AppDestination.ME },
+                        )
+                    },
+                ) { innerPadding ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(
+                                top = innerPadding.calculateTopPadding(),
+                                start = innerPadding.calculateStartPadding(layoutDirection),
+                                end = innerPadding.calculateEndPadding(layoutDirection),
+                                bottom = if (page == AppDestination.HOME) {
+                                    0.dp
+                                } else {
+                                    bottomBarPadding.calculateBottomPadding()
+                                },
+                            )
+                            .consumeWindowInsets(innerPadding)
+                            .consumeWindowInsets(bottomBarPadding),
+                    ) {
+                        when (page) {
+                            AppDestination.HOME -> LazyColumn(
+                                state = homeScrollState,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .testTag("home_screen"),
+                                contentPadding = PaddingValues(
+                                    top = 16.dp,
+                                    bottom = bottomBarPadding.calculateBottomPadding() + 16.dp,
+                                    start = 16.dp,
+                                    end = 16.dp,
+                                ),
+                            ) {
+                                item(key = "demo_video") {
+                                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+                                        HomeVideoCard(
+                                            onClick = onOpenVideo,
+                                            modifier = Modifier.widthIn(max = 600.dp).fillMaxWidth(),
+                                        )
+                                    }
+                                }
+                            }
+
+                            AppDestination.SEARCH -> SearchScreen()
+                            AppDestination.FOLLOWING -> Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .testTag("following_screen"),
+                            )
+
+                            AppDestination.ME -> MeScreen(
+                                onOpenSettings = onOpenSettings,
+                                scrollState = meScrollState,
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -100,7 +196,36 @@ private fun MainTopBar(
 ) {
     when (destination) {
         AppDestination.HOME -> TopAppBar(
-            title = { Text(stringResource(R.string.app_name)) },
+            modifier = Modifier.topAppBarShadow(),
+            colors = mainTopAppBarColors(),
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Icon(
+                        painter = painterResource(R.drawable.logo_kirakira_wordmark),
+                        contentDescription = stringResource(R.string.app_name),
+                        modifier = Modifier.height(height = 20.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+
+                    Spacer(modifier = Modifier.weight(weight = 1f))
+
+                    Box(
+                        modifier = Modifier.height(height = 20.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.logo_kirakira),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .requiredSize(size = 96.dp)
+                                .alpha(0.2f),
+                            tint = MaterialTheme.colorScheme.primaryFixed,
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.weight(weight = 0.25f))
+                }
+            },
             actions = {
                 IconButton(
                     onClick = onOpenMe,
@@ -114,19 +239,31 @@ private fun MainTopBar(
         )
 
         AppDestination.FOLLOWING -> TopAppBar(
+            modifier = Modifier.topAppBarShadow(),
             title = { Text(stringResource(R.string.nav_following)) },
+            colors = mainTopAppBarColors(),
         )
 
         AppDestination.ME -> TopAppBar(
+            modifier = Modifier.topAppBarShadow(),
             title = { Text(stringResource(R.string.nav_me)) },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-            ),
+            colors = mainTopAppBarColors(defaultContainer = MaterialTheme.colorScheme.surfaceContainer),
         )
 
         AppDestination.SEARCH -> Unit
     }
 }
+
+@Composable
+private fun mainTopAppBarColors(defaultContainer: Color = MaterialTheme.colorScheme.surface): TopAppBarColors =
+    if (LocalClassicAccent.current) {
+        TopAppBarDefaults.topAppBarColors(
+            containerColor = ThemeColorDefaults.appBarContainerColor(),
+            scrolledContainerColor = ThemeColorDefaults.appBarContainerColor(),
+        )
+    } else {
+        TopAppBarDefaults.topAppBarColors(containerColor = defaultContainer)
+    }
 
 @Composable
 private fun MainBottomBar(
@@ -135,15 +272,24 @@ private fun MainBottomBar(
     modifier: Modifier = Modifier,
 ) {
     NavigationBar(
-        modifier = modifier,
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = modifier.navigationBarShadow(),
+        containerColor = ThemeColorDefaults.appBarContainerColor(),
     ) {
         AppDestination.entries.forEach { item ->
             NavigationBarItem(
                 selected = destination == item,
+                colors = if (LocalClassicAccent.current) {
+                    NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                    )
+                } else {
+                    NavigationBarItemDefaults.colors()
+                },
                 onClick = { onDestinationChange(item) },
                 icon = {
-                    Icon(painterResource(item.icon), contentDescription = null)
+                    AnimatedTabIcon(icon = item.icon, selected = destination == item)
                 },
                 label = {
                     Text(
@@ -155,5 +301,15 @@ private fun MainBottomBar(
                 modifier = Modifier.testTag("nav_${item.name.lowercase()}"),
             )
         }
+    }
+}
+
+@Preview(name = "Main · English", locale = "en", showBackground = true)
+@Preview(name = "主屏 · 中文", locale = "zh", showBackground = true)
+@Preview(name = "Main · Dark", uiMode = Configuration.UI_MODE_NIGHT_YES, showBackground = true)
+@Composable
+private fun MainScreenPreview() {
+    KIRAKIRATheme(dynamicColor = false) {
+        MainScreen(onOpenSettings = {})
     }
 }

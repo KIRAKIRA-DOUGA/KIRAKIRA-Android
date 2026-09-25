@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -94,7 +95,7 @@ fun AboutScreen(
                     .padding(
                         start = innerPadding.calculateStartPadding(layoutDirection) + 16.dp,
                         end = innerPadding.calculateEndPadding(layoutDirection) + 16.dp,
-                        top = 32.dp,
+                        top = 48.dp,
                         bottom = innerPadding.calculateBottomPadding() + 32.dp,
                     ),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -103,7 +104,7 @@ fun AboutScreen(
                 // App Logo and Name
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(24.dp),
                 ) {
                     Surface(
                         onClick = {
@@ -116,27 +117,42 @@ fun AboutScreen(
                         modifier = Modifier
                             .size(96.dp)
                             .clip(RoundedCornerShape(24.dp)),
-                        color = KIRAKIRAPink
+                        color = KIRAKIRAPink,
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Image(
                                 painter = painterResource(R.drawable.ic_launcher_foreground),
                                 contentDescription = stringResource(R.string.app_name),
-                                modifier = Modifier.requiredSize(144.dp)
+                                modifier = Modifier.requiredSize(144.dp),
                             )
                         }
                     }
-                    Text(
-                        text = stringResource(R.string.app_name),
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.logo_kirakira_wordmark),
+                            contentDescription = stringResource(R.string.app_name),
+                            modifier = Modifier.height(height = 20.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+
+                        Text(
+                            text = "for Android",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+
                     if (versionName != null) {
-                    Text(
-                        text = stringResource(R.string.about_version, versionName),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                        Text(
+                            text = stringResource(R.string.about_version, versionName),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
 
@@ -164,14 +180,14 @@ fun AboutScreen(
                         icon = R.drawable.ic_symbol_lock,
                         index = 2,
                         count = 4,
-                        onClick = { /* TODO: Open Privacy Policy */ }
+                        onClick = { /* TODO: Open Privacy Policy */ },
                     )
                     SegmentedMenuItem(
                         title = stringResource(R.string.about_terms),
                         icon = R.drawable.ic_symbol_confirmation_number,
                         index = 3,
                         count = 4,
-                        onClick = { /* TODO: Open Terms */ }
+                        onClick = { /* TODO: Open Terms */ },
                     )
                 }
             }

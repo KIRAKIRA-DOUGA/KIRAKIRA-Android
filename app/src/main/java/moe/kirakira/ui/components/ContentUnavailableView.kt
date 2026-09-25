@@ -16,10 +16,13 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,6 +59,7 @@ enum class ContentUnavailableState(
  * [title] 和 [description] 应来自字符串资源；传入 null 可隐藏说明。
  * 仅提供 [onRetry] 时显示重试按钮，实际加载及状态切换由调用方管理。
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ContentUnavailableView(
     state: ContentUnavailableState,
@@ -80,17 +84,24 @@ fun ContentUnavailableView(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Surface(
-                shape = MaterialTheme.shapes.extraLarge,
+                modifier = Modifier.size(144.dp),
+                shape = when (state) {
+                    ContentUnavailableState.EMPTY -> MaterialShapes.Cookie6Sided
+                    ContentUnavailableState.ERROR -> MaterialShapes.Clover4Leaf
+                }.toShape(),
                 color = MaterialTheme.colorScheme.secondaryContainer,
                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
             ) {
-                Icon(
-                    painter = painterResource(iconRes),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .padding(20.dp)
-                        .size(40.dp),
-                )
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(iconRes),
+                        contentDescription = null,
+                        modifier = Modifier.size(56.dp),
+                    )
+                }
             }
             Spacer(Modifier.height(4.dp))
             Text(

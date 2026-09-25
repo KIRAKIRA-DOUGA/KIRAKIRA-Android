@@ -51,9 +51,10 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 - 不在组合执行体中直接请求网络、写存储或执行导航。用户操作在事件回调中触发；与组合生命周期相关的工作使用具有正确 key 的 `LaunchedEffect` / `DisposableEffect`，并清理监听器。参见[副作用指南](https://developer.android.com/develop/ui/compose/side-effects)。
 - 网络和磁盘工作不得阻塞主线程；使用结构化并发，禁止 `GlobalScope`。捕获取消异常时必须继续传播取消。
 - 通过 `KIRAKIRATheme` 和 `MaterialTheme` 复用颜色、字体及形状；避免在业务页面散落品牌颜色。布局使用 `dp`，字体使用 `sp`，通用设计值按实际复用需求提取。
-- 新用户文案必须放入字符串资源，包含错误、导航标题和无障碍描述；使用格式化资源和 plurals，不拼接可翻译句子。
-- 当前支持英语与中文：`res/values/strings.xml` 是完整英语回退资源，`res/values-zh/strings.xml` 提供中文；新增可翻译 key 必须同时补齐两套文案。品牌名及无须翻译的占位值标记 `translatable="false"`。跟随系统语言，Android 13+ 通过 `res/xml/locales_config.xml` 声明应用语言；新增语言同步配置并检查长文案和字体缩放。
-- 交互控件提供语义与可读标签，纯装饰图标使用空描述；保证触摸目标、字体缩放和 TalkBack 可用。验证浅色、深色、窄屏和宽屏，使用 `start/end` 方向及系统 Insets，避免用固定屏幕尺寸布局。
+- 新界面文案必须放入字符串资源，包含错误、导航标题和无障碍描述；使用格式化资源和 plurals，不拼接可翻译句子。
+- 当前支持英语与中文：`res/values/strings.xml` 是完整英语界面回退资源，`res/values-zh/strings.xml` 提供中文；新增可翻译 key 必须同时补齐两套文案。品牌名标记 `translatable="false"`。跟随系统语言，Android 13+ 通过 `res/xml/locales_config.xml` 声明应用语言；新增语言同步配置并检查长文案和字体缩放。
+- Demo 占位内容不做多语言，包括用户名、账号标识、签名、评论正文、弹幕正文、简介、视频标题及演示元数据。只维护一份固定内容，集中放入 `res/values/demo_strings.xml` 并标记 `translatable="false"`，不得在 `values-zh/` 等语言目录中重复定义。内容可以使用中文，不受默认界面资源为英语的约束。按钮、导航标题、输入提示、功能待接入提示、数量标签和无障碍描述属于界面文案，仍须维护中英文翻译。
+- 交互控件提供语义与可读标签，纯装饰图标使用空描述；保证触摸目标、字体缩放和 TalkBack 可用。实现时兼顾浅色、深色、窄屏和宽屏，使用 `start/end` 方向及系统 Insets，避免用固定屏幕尺寸布局；不因此默认增加设备或截图测试。
 - 列表项目使用稳定的业务 key；不要为了压制重组而随意添加 `@Stable` / `@Immutable`。可复用组件提供使用假数据的 Preview，不依赖真实服务或运行中的 ViewModel。
 - 异步页面明确表达加载、成功、空内容与失败状态；重试入口应与操作语义一致。
 - 无确定进度的页面加载统一使用 Material 3 Expressive 的 `LoadingIndicator`，不得使用不确定进度的 `CircularProgressIndicator`。有可量化进度的加载可使用确定进度指示器。
@@ -109,20 +110,24 @@ Scaffold(
 
 依赖和插件版本集中到 `gradle/libs.versions.toml`，通过 `libs.*` 引用。Compose 库优先由现有 BOM 管理；禁止动态版本（如 `1.+`）和无需求的工具链升级。新增依赖说明用途、维护状况及体积影响。SDK、JDK、Wrapper 或 AGP 变更应独立说明并更新 README。
 
-当前例外：Material 3 显式固定为 `1.5.0-alpha28`，以使用公开的 Expressive 主题与分段列表 API；其余 Compose 依赖由 BOM `2026.09.00` 管理。实验性 opt-in 限于实际调用点。升级或转为稳定版时需验证主题、导航、搜索栏及中英文布局，不使用编译器抑制绕过内部 API 可见性。
+当前例外：Material 3 显式固定为 `1.5.0-alpha28`，以使用公开的 Expressive 主题与分段列表 API；其余 Compose 依赖由 BOM `2026.09.00` 管理。实验性 opt-in 限于实际调用点。升级或转为稳定版时需检查主题、导航、搜索栏及中英文布局相关 API 的兼容性，检查范围遵循下方默认构建约定，不使用编译器抑制绕过内部 API 可见性。
 
 导航依赖采用 AndroidX 官方维护的 Navigation 3 稳定版 `1.1.7`，显式引入 `navigation3-runtime` 和 `navigation3-ui`，替换 Navigation 2 的 `navigation-compose`；Navigation 3 不由 Compose BOM 管理。仅引入当前所需的返回栈和 UI 能力，暂不添加 ViewModel、adaptive 等扩展库。依赖及其传递依赖会影响 APK 体积，不能将迁移视为体积优化；实际大小以构建产物为准。参考[官方入门指南](https://developer.android.com/guide/navigation/navigation-3/get-started)。
 
 不得提交 `local.properties`、访问令牌、签名密钥或带个人信息的日志。客户端内置值不能视为秘密；服务端凭据不得写入客户端代码。权限按功能最小需要声明。
 
-## 测试与质量检查
+手动主题配色使用 [MaterialKolor 5.0.1](https://github.com/jordond/MaterialKolor)（MIT，底层 Material Color Utilities 为 Apache-2.0）的 `rememberDynamicColorScheme`，生成全部语义颜色，避免只替换 `primary` 而留下不协调的容器和文字颜色。该库维护 Google Material Color Utilities 的 Kotlin 移植与 Compose 适配，通过 `ThemeColorAlgorithm` 提供九种上游算法及独立的经典强调色方案，默认 `TonalSpot`；`TonalSpot`、`Neutral`、`Vibrant` 和 `Expressive` 使用 `SPEC_2025`，其余算法按上游支持范围使用 `SPEC_2021`。算法通过稳定枚举名保存，旧设置或未知名称回退到默认算法；主题、预设色板、算法列表与自定义选色器统一使用 `rememberSeedColorScheme`。`Monochrome` 生成灰阶主题强调色与背景，错误等语义颜色保留必要区分。`CLASSIC_ACCENT` 由统一配色入口独立生成：以 `Monochrome / SPEC_2021` 的灰阶角色为基础，保留不透明的原始选色为浅深模式的 `primary`，完整生成主色容器、反色与固定色角色，次要／第三色系列维持灰阶。栏面在浅色下为纯白、深色下为深灰；通过 `LocalTonalElevationEnabled` 关闭色调高度叠加，`surfaceTint` 与 `surface` 同色，避免直接计算高度色时重新染色。`onPrimary` 在主题生成阶段统一采用白色优先规则：白色与原色的对比达到 2.5:1 时使用白色，否则使用黑色。Switch 滑块和填充按钮文字直接继承该角色；此视觉选择不保证按钮文字达到 4.5:1。TextButton、RadioButton、OutlinedTextField 等使用官方默认配色，主色文字、选中标签与边框直接引用 `MaterialTheme.colorScheme.primary`，不逐组件计算对比度或调整明度，接受极浅／极深选色时前景对比不足。`ThemeColorDefaults` 只提供栏面颜色和页面背景两个接口；对比度与 HCT 工具仅作为主题生成器的私有实现，用于主色容器、反色等配套角色。底栏选中指示器及第三方组件如需映射不同角色，直接使用 `ColorScheme`，不新增组件专用配色函数或包装组件。此规则仅作用于经典方案，其余算法与系统配色保持既有行为。算法选择与应用使用 `MaterialExpressiveTheme` 是不同的设置。依赖会增加颜色算法及 Compose 适配代码的体积，没有引入 View 组件库；实际 APK 增量需通过同构建配置比较，不以依赖包大小代替。版本固定在目录中，不更换现有 Compose BOM 或 Material 3 版本。生命周期感知的主题状态收集显式使用与现有 lifecycle 相同版本的 `lifecycle-runtime-compose`。
 
-- JVM 逻辑测试使用 JUnit 4，放入 `app/src/test/`；平台和 Compose 交互测试使用 AndroidJUnit4 / Compose UI Test，放入 `app/src/androidTest/`。测试包路径与源码对应。
-- 修改业务逻辑需覆盖正常路径和相关边界、错误路径；修复缺陷时优先增加可复现的回归测试。UI 行为测试通过语义断言，必要时使用稳定的 test tag，避免固定等待或依赖真实网络。
-- 使用 fake 数据源及可控异步调度；不以堆积无意义断言满足数量目标。目前没有覆盖率百分比要求，现有示例测试也不代表业务覆盖。
-- 代码或构建变更提交前执行 `./gradlew verify`。涉及 UI 或平台行为时，另执行 `./gradlew :app:connectedDebugAndroidTest` 并记录设备 API；视觉变化附截图和人工检查结果。
-- 纯文档修改验证路径、链接、命令及表述一致性即可。无法执行某项检查时，明确标注“未运行 / 失败”、原因及需要补充的验证，不得勾选通过。
-- `verify` 聚合 Debug 构建、单元测试和 Android Lint；不含设备测试或 Kotlin 格式检查。不得通过全局忽略 Lint 或跳过测试掩盖失败；局部抑制必须说明理由。
+自定义颜色选择器使用 [colorpicker-compose 1.3.0](https://github.com/skydoves/colorpicker-compose)（Apache-2.0）的 HSV 色盘与亮度滑条，封装在 Material 3 `AlertDialog` 中，补充亮度无障碍调节与 HEX 输入。该库专门维护 Compose 选色组件，仅增加选色绘制与手势代码，不引入 View 互操作；许可证由 AboutLibraries 收集，实际 APK 增量以构建比较为准。草稿仅在确认后持久保存，取消不改变主题。自定义色值与当前生效色值独立存储，同时保存预设／自定义的选择状态，避免自定义颜色恰好等于预设时错误标记选中项。旧设置以当前保存的色值初始化独立的自定义颜色。预设色板复用官方 `ToggleButton` 和 `ToggleButtonDefaults.shapesFor` 的按压及选中动画，三色绘制随按钮形状一起裁剪。
+
+## 构建与检查
+
+- 代码或构建变更默认只执行 `./gradlew :app:assembleDebug`，修复本次改动引起的编译、资源处理和打包错误。构建成功仅表示编译和打包通过，不代表运行时行为已经测试。
+- 除非用户明确要求，否则不新增、修改或运行单元测试、回归测试、UI／设备测试或截图测试。业务逻辑变化、缺陷修复及交互变化同样遵循此约定，不以测试覆盖率或补充测试作为交付条件。
+- 默认不执行 `verify`、额外的 Android Lint，也不主动启动模拟器进行人工测试或采集截图、录屏。文中关于布局、颜色、导航和无障碍的要求是实现约束，不自动构成开展测试的要求。
+- 保留现有测试、依赖和检查任务。`verify` 仍聚合 Debug 构建、单元测试和 Android Lint，仅在用户明确要求该检查时运行；设备测试同样按用户要求运行，不改变这些命令的含义。
+- 用户明确要求测试时，JVM 测试使用 JUnit 4，放入 `app/src/test/`；设备测试使用 AndroidJUnit4 / Compose UI Test，放入 `app/src/androidTest/`，包结构与被测源码一致。仅覆盖用户要求的行为，避免固定等待或依赖真实网络。
+- 纯文档修改只检查路径、链接、命令及表述一致性，不运行构建或测试。交付时如实记录已执行检查及失败或阻塞原因，不得将未运行的检查报告为通过；按默认约定未运行测试无需作为规范例外处理。
 
 ## Git 与 Pull Request
 
@@ -131,5 +136,5 @@ Scaffold(
 - 分支建议使用 `feat/<topic>`、`fix/<topic>`、`docs/<topic>` 或 `chore/<topic>`。
 - 提交格式为 `type(scope): summary`，scope 可省略；type 使用 `feat`、`fix`、`refactor`、`docs`、`test`、`style`、`build`、`ci` 或 `chore`。例如 `feat(home): add empty state`、`docs: 完善开发环境说明`。summary 简洁说明动作，不用“更新代码”一类泛泛描述。
 - 一次提交聚焦一个目的；不要混入无关重排、依赖升级或生成目录。破坏兼容性的变更在正文中解释影响及迁移方式。
-- 使用 [PR 模板](.github/pull_request_template.md)，说明问题、方案、关联 issue（如有）、测试结果及风险；界面变更提供截图或录屏，规范例外写明原因。
+- 使用 [PR 模板](.github/pull_request_template.md)，说明问题、方案、关联 issue（如有）、构建结果及风险；测试结果、界面截图或录屏仅在用户要求时提供，规范例外写明原因。
 - 合并前由其他开发者审核适用规范与验证证据。当前项目未提供 CI 工作流；远端分支保护需维护者另行设置，不能把本地检查入口视为服务器已强制执行的规则。

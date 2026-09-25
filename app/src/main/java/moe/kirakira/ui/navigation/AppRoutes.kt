@@ -32,3 +32,6 @@ internal data object AccountSwitchRoute : NavKey
 @Serializable
 @SerialName("moe.kirakira.TestRoute")
 internal data object TestRoute : NavKey
+
+@Serializable
+internal data object VideoRoute : NavKey
