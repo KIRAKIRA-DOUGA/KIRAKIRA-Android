@@ -1,0 +1,37 @@
+<resources>
+    <!-- Demo content stays the same in every app language. Do not add translations. -->
+
+    <!-- Profile and accounts -->
+    <string name="me_placeholder_name" translatable="false">KIRAKIRA 用户</string>
+    <string name="me_placeholder_handle" translatable="false">\@kirakira</string>
+    <string name="me_placeholder_bio" translatable="false">这是一条签名</string>
+    <string name="placeholder_count" translatable="false">—</string>
+    <string name="account_demo_kirakira" translatable="false">KIRAKIRA（演示）</string>
+    <string name="account_demo_sakura" translatable="false">小樱（演示）</string>
+    <string name="account_demo_kirakira_handle" translatable="false">\@kirakira_demo</string>
+    <string name="account_demo_sakura_handle" translatable="false">\@sakura_demo</string>
+
+    <!-- Video content and sample metadata -->
+    <string name="video_demo_handle" translatable="false">\@kirakira_studio</string>
+    <string name="video_demo_cover" translatable="false">KIRAKIRA · 演示视频</string>
+    <string name="video_demo_title" translatable="false">值得铭记的瞬间｜一起见证冠军诞生</string>
+    <string name="video_demo_author" translatable="false">KIRAKIRA 创作室</string>
+    <string name="video_publish_time" translatable="false">2026年9月25日 18:00</string>
+    <string name="video_category" translatable="false">游戏</string>
+    <string name="video_demo_description" translatable="false">有些瞬间，值得反复回看。最后一回合的默契、观众席的欢呼，还有奖杯举起时的笑容，都被收进了这段小小的记录里。\n\n这支演示视频从赛前准备讲起，一路记录到比赛结束后的庆祝。每一个高光时刻背后，都是日复一日的练习、队友之间的信任，以及再试一次的勇气。无论你是第一次了解这个故事，还是已经看过无数次，希望它都能带给你一点热爱与感动。\n\n当前视频、作者资料与统计均为占位内容，播放功能稍后接入。可以先看看评论和弹幕，也可以收藏下来，留待下一次相遇。</string>
+
+    <!-- Comment authors and bodies -->
+    <string name="video_comment_author" translatable="false">观众 %1$d</string>
+    <string name="video_comment_handle" translatable="false">\@viewer_%1$d</string>
+    <string name="video_comment_one" translatable="false">最后那个瞬间真的起鸡皮疙瘩了，太精彩了！</string>
+    <string name="video_comment_two" translatable="false">能看出来背后付出了很多努力，谢谢你把这些瞬间记录下来。</string>
+    <string name="video_comment_three" translatable="false">先收藏，周末再回来慢慢看。</string>
+    <string name="video_comment_four" translatable="false">最喜欢的还是大家一起庆祝的画面，这就是团队的意义吧。</string>
+    <string name="video_comment_long" translatable="false">这一段我已经反复看了好多遍，每个人都在用自己的方式为团队贡献力量。那些漫长的练习和彼此的信任，终于在这一刻有了回报。尤其是最后大家一起庆祝的画面，真的让人忍不住跟着开心！</string>
+
+    <!-- Danmaku bodies -->
+    <string name="video_danmaku_one" translatable="false">来了来了！</string>
+    <string name="video_danmaku_two" translatable="false">这一刻值得铭记</string>
+    <string name="video_danmaku_three" translatable="false">恭喜夺冠！</string>
+    <string name="video_danmaku_long" translatable="false">观众的欢呼、队友的拥抱、举起的奖杯，每一个画面都值得反复回看！不管过了多久，再看到这一刻还是会起鸡皮疙瘩，真的太精彩了！</string>
+</resources>
