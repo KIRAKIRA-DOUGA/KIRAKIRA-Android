@@ -27,6 +27,8 @@ import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
@@ -62,7 +64,10 @@ import moe.kirakira.ui.theme.topAppBarShadow
 @Composable
 internal fun VideoScreen(
     state: VideoUiState,
-    listState: LazyListState,
+    pagerState: PagerState,
+    introductionScrollState: LazyListState,
+    commentsScrollState: LazyListState,
+    danmakuScrollState: LazyListState,
     snackbarHostState: SnackbarHostState,
     onTabChange: (VideoTab) -> Unit,
     onFollowingChange: (Boolean) -> Unit,
@@ -76,7 +81,7 @@ internal fun VideoScreen(
     val commentsStateHolder = rememberSaveableStateHolder()
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = if (state.tab == VideoTab.INTRODUCTION) {
+        containerColor = if (pagerState.currentPage == VideoTab.INTRODUCTION.ordinal) {
             MaterialTheme.colorScheme.surface
         } else {
             MaterialTheme.colorScheme.surfaceContainer
@@ -117,10 +122,10 @@ internal fun VideoScreen(
                             )
                         }
                     }
-                    PrimaryTabRow(selectedTabIndex = state.tab.ordinal) {
+                    PrimaryTabRow(selectedTabIndex = pagerState.currentPage) {
                         VideoTab.entries.forEach { tab ->
                             Tab(
-                                selected = state.tab == tab,
+                                selected = pagerState.currentPage == tab.ordinal,
                                 onClick = { onTabChange(tab) },
                                 text = {
                                     Text(
@@ -137,82 +142,101 @@ internal fun VideoScreen(
                         }
                     }
                 }
-                if (state.tab == VideoTab.COMMENTS) {
-                    commentsStateHolder.SaveableStateProvider("video_comments") {
-                        VideoCommentsPage(
-                            listState = listState,
-                            bottomPadding = innerPadding.calculateBottomPadding(),
-                            onUnavailableAction = onUnavailableAction,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                } else {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxWidth().weight(1f),
-                        contentPadding = PaddingValues(
-                            start = if (state.tab == VideoTab.DANMAKU) 8.dp else 20.dp,
-                            end = if (state.tab == VideoTab.DANMAKU) 8.dp else 20.dp,
-                            top = if (state.tab == VideoTab.DANMAKU) 8.dp else 24.dp,
-                            bottom = innerPadding.calculateBottomPadding() +
-                                if (state.tab == VideoTab.DANMAKU) 16.dp else 24.dp,
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(
-                            if (state.tab == VideoTab.DANMAKU) ListItemDefaults.SegmentedGap else 20.dp,
-                        ),
-                    ) {
-                        when (state.tab) {
-                            VideoTab.INTRODUCTION -> {
-                                item(key = "author") {
-                                    VideoAuthor(state.following, onFollowingChange)
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    key = { VideoTab.entries[it].name },
+                ) { page ->
+                    val tab = VideoTab.entries[page]
+                    if (tab == VideoTab.COMMENTS) {
+                        commentsStateHolder.SaveableStateProvider("video_comments") {
+                            VideoCommentsPage(
+                                listState = commentsScrollState,
+                                bottomPadding = innerPadding.calculateBottomPadding(),
+                                onUnavailableAction = onUnavailableAction,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            state = if (tab == VideoTab.INTRODUCTION) {
+                                introductionScrollState
+                            } else {
+                                danmakuScrollState
+                            },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    if (tab == VideoTab.INTRODUCTION) {
+                                        MaterialTheme.colorScheme.surface
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceContainer
+                                    },
+                                ),
+                            contentPadding = PaddingValues(
+                                start = if (tab == VideoTab.DANMAKU) 8.dp else 20.dp,
+                                end = if (tab == VideoTab.DANMAKU) 8.dp else 20.dp,
+                                top = if (tab == VideoTab.DANMAKU) 8.dp else 24.dp,
+                                bottom = innerPadding.calculateBottomPadding() +
+                                    if (tab == VideoTab.DANMAKU) 16.dp else 24.dp,
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(
+                                if (tab == VideoTab.DANMAKU) ListItemDefaults.SegmentedGap else 20.dp,
+                            ),
+                        ) {
+                            when (tab) {
+                                VideoTab.INTRODUCTION -> {
+                                    item(key = "author") {
+                                        VideoAuthor(state.following, onFollowingChange)
+                                    }
+                                    item(key = "title") {
+                                        SelectionContainer {
+                                            Text(
+                                                text = stringResource(R.string.video_demo_title),
+                                                style = MaterialTheme.typography.headlineSmall,
+                                                modifier = Modifier.semantics { heading() },
+                                            )
+                                        }
+                                    }
+                                    item(key = "metadata") {
+                                        FlowRow(
+                                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                                        ) {
+                                            VideoMetadata(R.drawable.ic_symbol_play_circle, stringResource(R.string.video_views))
+                                            VideoMetadata(R.drawable.ic_symbol_calendar_today, stringResource(R.string.video_publish_time))
+                                            VideoMetadata(R.drawable.ic_symbol_category, stringResource(R.string.video_category))
+                                        }
+                                    }
+                                    item(key = "description") {
+                                        SelectionContainer {
+                                            Text(
+                                                text = stringResource(R.string.video_demo_description),
+                                                style = MaterialTheme.typography.bodyLarge,
+                                            )
+                                        }
+                                    }
+                                    item(key = "actions") {
+                                        VideoActions(state, onReactionChange, onSavedChange, onUnavailableAction)
+                                    }
                                 }
-                                item(key = "title") {
-                                    SelectionContainer {
-                                        Text(
-                                            text = stringResource(R.string.video_demo_title),
-                                            style = MaterialTheme.typography.headlineSmall,
-                                            modifier = Modifier.semantics { heading() },
+                                VideoTab.COMMENTS -> Unit
+                                VideoTab.DANMAKU -> {
+                                    item(key = "danmaku_count") {
+                                        VideoListCount(R.plurals.video_danmaku_total, demoVideoDanmaku.size)
+                                    }
+                                    itemsIndexed(demoVideoDanmaku, key = { _, entry -> "danmaku_${entry.id}" }) { index, entry ->
+                                        DanmakuListItem(
+                                            time = stringResource(
+                                                R.string.video_danmaku_time,
+                                                entry.seconds / 60,
+                                                entry.seconds % 60,
+                                            ),
+                                            text = stringResource(entry.bodyRes),
+                                            index = index,
+                                            count = demoVideoDanmaku.size,
                                         )
                                     }
-                                }
-                                item(key = "metadata") {
-                                    FlowRow(
-                                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                                    ) {
-                                        VideoMetadata(R.drawable.ic_symbol_play_circle, stringResource(R.string.video_views))
-                                        VideoMetadata(R.drawable.ic_symbol_calendar_today, stringResource(R.string.video_publish_time))
-                                        VideoMetadata(R.drawable.ic_symbol_category, stringResource(R.string.video_category))
-                                    }
-                                }
-                                item(key = "description") {
-                                    SelectionContainer {
-                                        Text(
-                                            text = stringResource(R.string.video_demo_description),
-                                            style = MaterialTheme.typography.bodyLarge,
-                                        )
-                                    }
-                                }
-                                item(key = "actions") {
-                                    VideoActions(state, onReactionChange, onSavedChange, onUnavailableAction)
-                                }
-                            }
-                            VideoTab.COMMENTS -> Unit
-                            VideoTab.DANMAKU -> {
-                                item(key = "danmaku_count") {
-                                    VideoListCount(R.plurals.video_danmaku_total, demoVideoDanmaku.size)
-                                }
-                                itemsIndexed(demoVideoDanmaku, key = { _, entry -> "danmaku_${entry.id}" }) { index, entry ->
-                                    DanmakuListItem(
-                                        time = stringResource(
-                                            R.string.video_danmaku_time,
-                                            entry.seconds / 60,
-                                            entry.seconds % 60,
-                                        ),
-                                        text = stringResource(entry.bodyRes),
-                                        index = index,
-                                        count = demoVideoDanmaku.size,
-                                    )
                                 }
                             }
                         }
