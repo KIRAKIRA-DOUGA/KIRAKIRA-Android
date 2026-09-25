@@ -136,14 +136,14 @@ fun AboutScreen(
                             painter = painterResource(R.drawable.logo_kirakira_wordmark),
                             contentDescription = stringResource(R.string.app_name),
                             modifier = Modifier.height(height = 20.dp),
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = KIRAKIRAPink,
                         )
 
                         Text(
                             text = "for Android",
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = KIRAKIRAPink,
                         )
                     }
 
