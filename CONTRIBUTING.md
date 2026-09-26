@@ -1,6 +1,6 @@
 # 贡献指南
 
-本规范适用于人工开发与代码代理。文中的“必须 / 不得”是提交要求，“建议 / 优先”允许结合需求判断；例外应在 PR 中记录原因、影响及验证方式。配置变更应同步文档。既有模板不作为新代码的风格标准，也不要求每次提交清理整个项目。
+本规范适用于人工开发与代码代理。文中的“必须 / 不得”是提交要求，“建议 / 优先”允许结合需求判断；例外应在 PR 中记录原因、影响及验证方式。配置变更应同步文档，分工见[文档维护](#文档维护)。既有模板不作为新代码的风格标准，也不要求每次提交清理整个项目。
 
 ## 技术选型与架构
 
@@ -9,7 +9,7 @@
 - 保持单 Activity 入口；`MainActivity` 负责宿主和顶层组合，不承载网络、数据库或业务规则。
 - 保留当前 `:app` 模块。新功能放在 `moe.kirakira.feature.<name>`；跨功能 UI 放 `ui/components/`，主题放 `ui/theme/`，数据访问按需放 `data/`，真正跨功能的基础设施放 `core/`。包名全小写，不将无关代码堆入 `Utils.kt`。
 - 页面展示状态并上报事件；涉及业务逻辑的屏幕由 ViewModel 管理状态，通过 Repository 隔离数据访问。复杂且可复用的业务规则才抽取 use case；不强制为简单操作增加层次。
-- 页面导航使用 Navigation 3，路由实现 `NavKey` 并标注 `@Serializable`，通过 `rememberNavBackStack` 和封装 `NavDisplay` 的 `ui/navigation/ActivityNavDisplay.kt` 管理返回栈及状态恢复。普通转场复用 `NavigationMotion.kt`，预测性返回由 `PredictiveBackMotion.kt` 移植 AOSP 的两阶段动画，页面使用 `NavigationPage`。参数来源与公开 API 适配差异见 [Android 转场说明](third_party/android-motion/README.md)，不在各页面重复配置。导航宿主通过 Navigation Event 接收手势，使用双页面 Scene 保留预览及收尾阶段的内容，完成后仅出栈一次；不要再叠加 NavDisplay 的默认预测性返回补间。Navigation 3 继续负责场景、可保存状态与生命周期，手势期间页面生命周期不高于 STARTED。导航由页面事件回调触发，保留根页面，避免连续点击重复入栈或出栈。底栏当前是主界面内的局部状态，不预建多返回栈架构。
+- 页面导航使用 Navigation 3，路由实现 `NavKey` 并标注 `@Serializable`，通过 `rememberNavBackStack` 和封装 `NavDisplay` 的 `ui/navigation/ActivityNavDisplay.kt` 管理返回栈及状态恢复，页面使用 `NavigationPage`。普通转场复用 `NavigationMotion.kt`，预测性返回由宿主统一管理，不在页面重复配置或叠加 NavDisplay 默认的预测性返回补间。预览与收尾保留双页面内容，完成后仅出栈一次，取消时复原；手势期间页面生命周期不高于 STARTED。导航由页面事件回调触发，保留根页面，避免连续点击重复入栈或出栈。底栏作为主界面内的局部状态，不预建多返回栈架构。接入关系见[实现说明](docs/implementation.md#导航与状态管理)，参数来源与公开 API 适配差异见 [Android 转场说明](third_party/android-motion/README.md)。
 - 目前主题与认证状态使用 ViewModel，尚未建立完整数据层或依赖注入。新增库时说明具体需求，先复用已有能力，避免为了符合目录示意而添加空实现。
 
 ## Kotlin 风格与命名
@@ -34,19 +34,7 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 - 图标采用官方 **Material Symbols**，默认统一为 **Rounded、24dp、wght 400、GRAD 0、FILL 0**；选中状态如使用填充图标应保持其他参数一致。按需导入 Android VectorDrawable，不打包完整字体或旧版 `material-icons-extended`。
 - 必要时可自行绘制相同风格的图标：保持 24dp 画布、相近视觉重量、圆角和光学对齐，检查浅深色与小尺寸可读性，在 PR 中说明缺少合适标准图标的原因。官方资源使用 `ic_symbol_<name>`，自绘资源使用 `ic_custom_<name>`，保留来源及许可证记录于 `third_party/`。不得混用 SF Symbols、旧版 Material Icons 或不一致的描边风格。参见 [Material Symbols 指南](https://developers.google.com/fonts/docs/material_symbols)。
 - 使用单向数据流：状态向下传递，事件通过回调向上传递。可复用组件接收所需状态和回调，不直接获取 ViewModel、Repository 或导航控制器。
-- 可复用 UI 的第一个可选参数使用 `modifier: Modifier = Modifier`，作用于组件根节点；内容插槽放最后。例如：
-
-  ```kotlin
-  @Composable
-  fun FavoriteButton(
-      selected: Boolean,
-      onClick: () -> Unit,
-      modifier: Modifier = Modifier,
-  ) {
-      // 根据 selected 渲染，点击时调用 onClick。
-  }
-  ```
-
+- 可复用 UI 的第一个可选参数使用 `modifier: Modifier = Modifier`，作用于组件根节点；内容插槽放最后。[参数示例](docs/implementation.md#可复用-ui-参数示例)见实现说明。
 - 按[状态提升原则](https://developer.android.com/develop/ui/compose/state-hoisting)选择状态所有者：局部临时状态用 `remember`；需要恢复且可保存的 UI 状态用 `rememberSaveable`；业务状态由 ViewModel 暴露只读状态。采用 Flow 时，在屏幕入口通过 `collectAsStateWithLifecycle` 收集，并先在版本目录声明所需依赖。
 - 不在组合执行体中直接请求网络、写存储或执行导航。用户操作在事件回调中触发；与组合生命周期相关的工作使用具有正确 key 的 `LaunchedEffect` / `DisposableEffect`，并清理监听器。参见[副作用指南](https://developer.android.com/develop/ui/compose/side-effects)。
 - 网络和磁盘工作不得阻塞主线程；使用结构化并发，禁止 `GlobalScope`。捕获取消异常时必须继续传播取消。
@@ -61,64 +49,41 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 
 ### 可选的可折叠大标题栏
 
-设置、外观、关于和切换账户页使用共享组件
-[`CollapsibleTopAppBar`](app/src/main/java/moe/kirakira/ui/components/CollapsibleTopAppBar.kt)。
-它适合有返回入口、希望通过纵向滚动展开大标题的二级页面；**不是所有页面的强制顶栏**。
-固定小标题、搜索页、播放器或其他有特殊布局需求的页面，可按场景选择合适的官方顶栏。
+共享 `CollapsibleTopAppBar` 适合有返回入口、希望通过纵向滚动展开大标题的二级页面，不要求所有页面使用；固定小标题、搜索页、播放器等按场景选择合适的官方顶栏。
 
-- 在每个页面内调用 `rememberCollapsibleTopAppBarScrollBehavior()`，各页面独立保存展开程度；默认首次进入折叠，上滑收起，内容回到顶部后下拉展开。需要首次展开时传入 `initialCollapsed = false`；此参数不会覆盖已恢复的状态。
-- 将同一份 `scrollBehavior` 传给顶栏，并将其 `nestedScrollConnection` 接到 `Scaffold` 或滚动内容的父容器。只替换顶栏、不接嵌套滚动，无法联动列表手势。
-- 顶栏接收字符串资源解析后的 `title`、`onBack` 和可选 `actions` 插槽，切换账户页的“编辑／完成”就是后者的示例。组件统一返回图标和配色，页面保留内容、滚动状态及 Snackbar 等职责。
-- 顶部内边距放在滚动容器外，避免内容被顶栏遮住；底部系统内边距必须随内容滚动：`Column` 将底部 `padding` 放在 `verticalScroll()` 后，`LazyColumn` 使用 `contentPadding`。不要在滚动容器外应用完整的 `innerPadding`，否则滚动区域会在导航栏上方截断，破坏底部 edge-to-edge。消费 Insets 防止子组件重复避让，滚动到底时保留末项所需的底部安全距离。
-- 短内容页也让滚动容器占满可用高度，使空白区域能接收下拉手势；使用 `Column` 时将 `fillMaxSize()` 放在 `verticalScroll()` 前。
+- 每页独立创建 `rememberCollapsibleTopAppBarScrollBehavior()`，将同一状态传给顶栏并接入父容器的 `nestedScroll`；默认首次进入折叠，状态恢复后保留展开程度。
+- 顶栏接收资源解析后的标题与事件，页面保留内容、滚动状态及 Snackbar 等职责。
+- 顶部内边距放在滚动容器外；底部系统内边距必须随内容滚动：`Column` 放在 `verticalScroll()` 后，`LazyColumn` 使用 `contentPadding`。不要在滚动容器外应用完整 `innerPadding` 截短底部 edge-to-edge 区域；消费 Insets 防止重复避让，确保末项能滚动至导航栏上方。
+- 短内容页也让滚动容器占满可用高度，使空白区域能接收下拉手势。
 
-接入示意（调用方提供 `onBack`，菜单内容按页面填写）：
+参数、首次展开设置和完整接入示例见[实现说明](docs/implementation.md#可选的可折叠大标题栏)。
 
-```kotlin
-val scrollBehavior = rememberCollapsibleTopAppBarScrollBehavior()
-val layoutDirection = LocalLayoutDirection.current
-Scaffold(
-    modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-    topBar = {
-        CollapsibleTopAppBar(
-            title = stringResource(R.string.me_settings),
-            onBack = onBack,
-            scrollBehavior = scrollBehavior,
-        )
-    },
-) { innerPadding ->
-    Column(
-        modifier = Modifier
-            .padding(top = innerPadding.calculateTopPadding())
-            .consumeWindowInsets(innerPadding)
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(
-                start = innerPadding.calculateStartPadding(layoutDirection) + 16.dp,
-                end = innerPadding.calculateEndPadding(layoutDirection) + 16.dp,
-                top = 16.dp,
-                bottom = innerPadding.calculateBottomPadding() + 16.dp,
-            ),
-    ) {
-        // 页面内容
-    }
-}
-```
+### 认证状态约束
+
+认证 ViewModel 必须绑定 Navigation 3 导航条目，旋转时保留、出栈后释放，不使用 Activity 级认证 ViewModel。仅邮箱写入 `SavedStateHandle`，密码不得写入可保存状态、磁盘或日志；密码在进程重建后为空，界面重建后默认隐藏。
+
+业务接入放在 ViewModel 的统一提交入口，通过 Repository 隔离 API，服务端 DTO 不进入 UI。层次职责与条目装饰器顺序见[认证状态实现](docs/implementation.md#认证状态)。
+
+### 主题配色约束
+
+- 手动配色必须生成完整语义颜色，不能只替换 `primary`；主题、色板、算法列表与选色器统一使用 `rememberSeedColorScheme`。算法选择不改变 Expressive 形状、排版与动效体系；单色主题的错误等语义颜色保留必要区分。
+- 经典强调色在浅深模式均保留不透明原色为 `primary`，完整生成主色容器、反色与固定色角色，次要／第三色系列维持灰阶；栏面浅色纯白、深色深灰，关闭色调高度叠加以免重新染色。此规则仅作用于经典方案，其余算法与系统配色保持既有行为。
+- 经典方案的 `onPrimary` 在主题生成阶段采用白色优先规则：白色与原色的对比达到 2.5:1 时使用白色，否则使用黑色。Switch 滑块与填充按钮文字直接继承该角色；此视觉取舍不保证按钮文字达到 4.5:1。
+- TextButton、RadioButton、OutlinedTextField 等使用官方默认配色，主色文字、选中标签与边框直接引用 `MaterialTheme.colorScheme.primary`，不逐组件计算对比度或调整明度，接受极浅／极深选色时前景对比不足。
+- `ThemeColorDefaults` 只提供栏面颜色和页面背景两个接口；对比度与 HCT 工具仅作为主题生成器的私有实现。底栏选中指示器及第三方组件需映射不同角色时直接使用 `ColorScheme`，不新增组件专用配色函数或包装组件。
+- 自定义颜色草稿仅在确认后持久保存，取消不改变主题。自定义色值与当前生效色值独立存储，并保存预设／自定义选择状态，不能仅按色值相等判断选中项。
+
+算法版本、设置兼容与选色组件实现见[主题实现](docs/implementation.md#主题实现)。
 
 ## 依赖与配置
 
-依赖和插件版本集中到 `gradle/libs.versions.toml`，通过 `libs.*` 引用。Compose 库优先由现有 BOM 管理；禁止动态版本（如 `1.+`）和无需求的工具链升级。新增依赖说明用途、维护状况及体积影响。SDK、JDK、Wrapper 或 AGP 变更应独立说明并更新 README。
+依赖和插件版本集中到 [gradle/libs.versions.toml](gradle/libs.versions.toml)，通过 `libs.*` 引用。Compose 库优先由现有 BOM 管理；禁止动态版本（如 `1.+`）和无需求的工具链升级。新增依赖说明用途、维护状况及体积影响，不为接入单项功能更换现有 BOM 或 Material 3 版本。实际 APK 增量需通过同构建配置比较，不能以依赖包大小代替或将迁移默认视为体积优化。
 
-当前例外：Material 3 显式固定为 `1.5.0-alpha28`，以使用公开的 Expressive 主题与分段列表 API；其余 Compose 依赖由 BOM `2026.09.00` 管理。实验性 opt-in 限于实际调用点。升级或转为稳定版时需检查主题、导航、搜索栏及中英文布局相关 API 的兼容性，检查范围遵循下方默认构建约定，不使用编译器抑制绕过内部 API 可见性。
+Material 3 采用显式固定版本例外，以使用公开的 Expressive 主题与分段列表 API；其余 Compose 依赖由 BOM 管理。当前版本与 SDK、JDK、Wrapper、AGP 配置统一见[开发环境](docs/development.md#开发环境)。实验性 opt-in 限于实际调用点；升级或转为稳定版时检查主题、导航、搜索栏及中英文布局相关 API 的兼容性，检查范围遵循下方默认构建约定，不使用编译器抑制绕过内部 API 可见性。
 
-导航依赖采用 AndroidX 官方维护的 Navigation 3，版本统一维护于 `gradle/libs.versions.toml`，显式引入 `navigation3-runtime` 和 `navigation3-ui`，替换 Navigation 2 的 `navigation-compose`；Navigation 3 不由 Compose BOM 管理。认证页使用 `lifecycle-viewmodel-compose` 与 `lifecycle-viewmodel-navigation3`，版本与现有 Lifecycle 保持一致。`ActivityNavDisplay` 在可保存状态装饰器之后添加官方 `rememberViewModelStoreNavEntryDecorator`，使 ViewModel 绑定导航条目，旋转时保留、出栈后释放；不使用 Activity 级认证 ViewModel。仅邮箱写入 `SavedStateHandle`，密码不得写入可保存状态、磁盘或日志。暂不添加 adaptive 等无当前需求的扩展库。依赖及其传递依赖会影响 APK 体积，不能将迁移视为体积优化；实际大小以构建产物为准。参考[官方入门指南](https://developer.android.com/guide/navigation/navigation-3/get-started)。
+导航依赖采用 AndroidX 官方 Navigation 3，显式引入 `navigation3-runtime` 和 `navigation3-ui`，不使用 Navigation 2 的 `navigation-compose`；Navigation 3 不由 Compose BOM 管理。认证的 `lifecycle-viewmodel-compose`、`lifecycle-viewmodel-navigation3` 与主题的 `lifecycle-runtime-compose` 均与现有 Lifecycle 版本保持一致。暂不添加 adaptive 等无当前需求的扩展库。接入背景见[实现说明](docs/implementation.md)，Navigation 3 另见[官方入门指南](https://developer.android.com/guide/navigation/navigation-3/get-started)。
 
 不得提交 `local.properties`、访问令牌、签名密钥或带个人信息的日志。客户端内置值不能视为秘密；服务端凭据不得写入客户端代码。权限按功能最小需要声明。
-
-手动主题配色使用 [MaterialKolor 5.0.1](https://github.com/jordond/MaterialKolor)（MIT，底层 Material Color Utilities 为 Apache-2.0）的 `rememberDynamicColorScheme`，生成全部语义颜色，避免只替换 `primary` 而留下不协调的容器和文字颜色。该库维护 Google Material Color Utilities 的 Kotlin 移植与 Compose 适配，通过 `ThemeColorAlgorithm` 提供九种上游算法及独立的经典强调色方案，默认 `TonalSpot`；`TonalSpot`、`Neutral`、`Vibrant` 和 `Expressive` 使用 `SPEC_2025`，其余算法按上游支持范围使用 `SPEC_2021`。算法通过稳定枚举名保存，旧设置或未知名称回退到默认算法；主题、预设色板、算法列表与自定义选色器统一使用 `rememberSeedColorScheme`。`Monochrome` 生成灰阶主题强调色与背景，错误等语义颜色保留必要区分。`CLASSIC_ACCENT` 由统一配色入口独立生成：以 `Monochrome / SPEC_2021` 的灰阶角色为基础，保留不透明的原始选色为浅深模式的 `primary`，完整生成主色容器、反色与固定色角色，次要／第三色系列维持灰阶。栏面在浅色下为纯白、深色下为深灰；通过 `LocalTonalElevationEnabled` 关闭色调高度叠加，`surfaceTint` 与 `surface` 同色，避免直接计算高度色时重新染色。`onPrimary` 在主题生成阶段统一采用白色优先规则：白色与原色的对比达到 2.5:1 时使用白色，否则使用黑色。Switch 滑块和填充按钮文字直接继承该角色；此视觉选择不保证按钮文字达到 4.5:1。TextButton、RadioButton、OutlinedTextField 等使用官方默认配色，主色文字、选中标签与边框直接引用 `MaterialTheme.colorScheme.primary`，不逐组件计算对比度或调整明度，接受极浅／极深选色时前景对比不足。`ThemeColorDefaults` 只提供栏面颜色和页面背景两个接口；对比度与 HCT 工具仅作为主题生成器的私有实现，用于主色容器、反色等配套角色。底栏选中指示器及第三方组件如需映射不同角色，直接使用 `ColorScheme`，不新增组件专用配色函数或包装组件。此规则仅作用于经典方案，其余算法与系统配色保持既有行为。算法选择与应用使用 `MaterialExpressiveTheme` 是不同的设置。依赖会增加颜色算法及 Compose 适配代码的体积，没有引入 View 组件库；实际 APK 增量需通过同构建配置比较，不以依赖包大小代替。版本固定在目录中，不更换现有 Compose BOM 或 Material 3 版本。生命周期感知的主题状态收集显式使用与现有 lifecycle 相同版本的 `lifecycle-runtime-compose`。
-
-自定义颜色选择器使用 [colorpicker-compose 1.3.0](https://github.com/skydoves/colorpicker-compose)（Apache-2.0）的 HSV 色盘与亮度滑条，封装在 Material 3 `AlertDialog` 中，补充亮度无障碍调节与 HEX 输入。该库专门维护 Compose 选色组件，仅增加选色绘制与手势代码，不引入 View 互操作；许可证由 AboutLibraries 收集，实际 APK 增量以构建比较为准。草稿仅在确认后持久保存，取消不改变主题。自定义色值与当前生效色值独立存储，同时保存预设／自定义的选择状态，避免自定义颜色恰好等于预设时错误标记选中项。旧设置以当前保存的色值初始化独立的自定义颜色。预设色板复用官方 `ToggleButton` 和 `ToggleButtonDefaults.shapesFor` 的按压及选中动画，三色绘制随按钮形状一起裁剪。
 
 ## 构建与检查
 
@@ -129,9 +94,24 @@ Scaffold(
 - 用户明确要求测试时，JVM 测试使用 JUnit 4，放入 `app/src/test/`；设备测试使用 AndroidJUnit4 / Compose UI Test，放入 `app/src/androidTest/`，包结构与被测源码一致。仅覆盖用户要求的行为，避免固定等待或依赖真实网络。
 - 纯文档修改只检查路径、链接、命令及表述一致性，不运行构建或测试。交付时如实记录已执行检查及失败或阻塞原因，不得将未运行的检查报告为通过；按默认约定未运行测试无需作为规范例外处理。
 
+## 文档维护
+
+本指南是详细规范的唯一维护入口，AGENTS 保留执行摘要。修改规范时同步相关摘要、配置和模板；功能或实现变化更新对应专题，不在 README 追加逐次变更记录。
+
+| 内容变化 | 维护位置 |
+| --- | --- |
+| 项目定位、主要能力、最低运行要求或最短启动步骤 | [README](README.md) |
+| 页面行为、演示范围、保存行为与限制 | [功能现状](docs/features.md) |
+| 数据流、实现理由、参数与接入示例 | [实现说明](docs/implementation.md) |
+| SDK、JDK、Wrapper、AGP、依赖版本、命令与目录 | [开发指南](docs/development.md)；版本值以实际配置为准 |
+| 技术选型、架构边界、代码与 UI 约束、检查和提交政策 | 本指南；同步 [AGENTS](AGENTS.md) 与 [PR 模板](.github/pull_request_template.md) 的适用摘要 |
+| 第三方来源、许可、移植差异与开源声明维护 | [third_party](third_party/) 下对应文档 |
+
+同一项详细信息只在所属文档维护，其他位置用概览和链接引用。移动章节时同步相对路径与锚点；保留仍被引用的规范入口。完整版本表只维护在开发指南；版本变更若影响 README 的运行要求或快速开始，也要同步入口说明。
+
 ## Git 与 Pull Request
 
-当前工作副本没有可读取的 Git 历史；以下是新增统一约定。
+以下为项目统一约定。
 
 - 分支建议使用 `feat/<topic>`、`fix/<topic>`、`docs/<topic>` 或 `chore/<topic>`。
 - 提交格式为 `type(scope): summary`，scope 可省略；type 使用 `feat`、`fix`、`refactor`、`docs`、`test`、`style`、`build`、`ci` 或 `chore`。例如 `feat(home): add empty state`、`docs: 完善开发环境说明`。summary 简洁说明动作，不用“更新代码”一类泛泛描述。
