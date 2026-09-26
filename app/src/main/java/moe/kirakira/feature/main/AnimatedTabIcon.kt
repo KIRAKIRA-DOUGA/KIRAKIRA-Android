@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import moe.kirakira.R
 import moe.kirakira.ui.navigation.activityInterpolatorResource
 import moe.kirakira.ui.theme.KIRAKIRATheme
@@ -60,48 +61,57 @@ internal fun AnimatedTabIcon(
         animationSpec = tween(durationMillis = 300, easing = easing),
         label = "Tab icon fill",
     )
-    val neutral = if (icon == MainTabIcon.SEARCH) 0f else 1f
-    val impulse = remember(icon) { Animatable(neutral) }
+    val scaleImpulse = remember(icon) { Animatable(1f) }
+    val rotation = remember(icon) { Animatable(0f) }
     var previouslySelected by remember(icon) { mutableStateOf(selected) }
 
     LaunchedEffect(icon, selected) {
         // Start at the restored selection without replaying an entrance pulse.
         if (previouslySelected == selected) return@LaunchedEffect
         previouslySelected = selected
-        if (!selected) {
-            impulse.animateTo(neutral, tween(durationMillis = 120, easing = easing))
-            return@LaunchedEffect
-        }
-
         // A new selection cancels the previous job and continues from its current value.
-        val start = impulse.value
-        impulse.animateTo(
-            targetValue = neutral,
-            animationSpec = keyframes {
-                durationMillis = 320
-                start at 0 using FastOutSlowInEasing
-                when (icon) {
-                    MainTabIcon.SEARCH -> {
-                        -12f at 80 using FastOutSlowInEasing
-                        8f at 200 using FastOutSlowInEasing
-                    }
-                    else -> {
+        launch {
+            if (!selected) {
+                scaleImpulse.animateTo(1f, tween(durationMillis = 120, easing = easing))
+            } else {
+                val start = scaleImpulse.value
+                scaleImpulse.animateTo(
+                    targetValue = 1f,
+                    animationSpec = keyframes {
+                        durationMillis = 320
+                        start at 0 using FastOutSlowInEasing
                         0.94f at 64 using FastOutSlowInEasing
                         1.08f at 160 using FastOutSlowInEasing
-                    }
+                        1f at durationMillis
+                    },
+                )
+            }
+        }
+        if (icon == MainTabIcon.SEARCH) {
+            launch {
+                if (!selected) {
+                    rotation.animateTo(0f, tween(durationMillis = 120, easing = easing))
+                } else {
+                    val start = rotation.value
+                    rotation.animateTo(
+                        targetValue = 0f,
+                        animationSpec = keyframes {
+                            durationMillis = 320
+                            start at 0 using FastOutSlowInEasing
+                            -12f at 80 using FastOutSlowInEasing
+                            8f at 200 using FastOutSlowInEasing
+                            0f at durationMillis
+                        },
+                    )
                 }
-                neutral at durationMillis
-            },
-        )
+            }
+        }
     }
 
     val iconModifier = modifier.size(24.dp).graphicsLayer {
-        if (icon == MainTabIcon.SEARCH) {
-            rotationZ = impulse.value
-        } else {
-            scaleX = impulse.value
-            scaleY = impulse.value
-        }
+        rotationZ = rotation.value
+        scaleX = scaleImpulse.value
+        scaleY = scaleImpulse.value
     }
     val morphPath = remember(icon) {
         when (icon) {

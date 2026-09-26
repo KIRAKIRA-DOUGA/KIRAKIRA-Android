@@ -4,13 +4,11 @@
     <string name="nav_search">Search</string>
     <string name="nav_following">Following</string>
     <string name="nav_me">Me</string>
-    <string name="profile_avatar">Profile avatar</string>
     <string name="search_placeholder">Search KIRAKIRA</string>
     <string name="me_following_count">Following</string>
     <string name="me_followers_count">Followers</string>
     <string name="me_likes_count">Likes</string>
     <string name="me_profile">View profile</string>
-    <string name="me_library">My library</string>
     <string name="me_history">History</string>
     <string name="me_favorites">Favorites</string>
     <string name="me_settings">Settings</string>
@@ -67,7 +65,6 @@
     <string name="theme_colors_system">System colors</string>
     <string name="theme_colors_manual">Choose a color</string>
     <string name="theme_color_scheme">Color scheme</string>
-    <string name="theme_seed_color">Base color</string>
     <string name="theme_color_pink">Pink</string>
     <string name="theme_color_purple">Purple</string>
     <string name="theme_color_blue">Blue</string>
@@ -82,9 +79,7 @@
     <string name="theme_color_picker_description">Choose a color on the wheel, then adjust its brightness. Tap Apply to use it throughout the app.</string>
     <string name="theme_color_brightness">Color brightness</string>
     <string name="theme_color_palette">Hue and saturation color wheel</string>
-    <string name="theme_color_algorithm">Color algorithm</string>
     <string name="theme_algorithm_tonal_spot">Tonal Spot</string>
-    <string name="theme_algorithm_default">Default</string>
     <string name="theme_algorithm_classic_accent">Classic Accent</string>
     <string name="theme_algorithm_monochrome">Monochrome</string>
     <string name="theme_algorithm_neutral">Neutral</string>
@@ -127,7 +122,6 @@
     <string name="video_comments_jump_range">Enter a whole number from 1 to %1$d.</string>
     <string name="video_comments_jump">Jump</string>
     <string name="video_comments_cancel">Cancel</string>
-    <string name="video_comments_end">All %1$d comments shown</string>
     <string name="video_comment_floor">#%1$d</string>
     <string name="video_comment_reply">Reply</string>
 
@@ -139,4 +133,19 @@
         <item quantity="one">%1$d danmaku message</item>
         <item quantity="other">%1$d danmaku messages</item>
     </plurals>
+
+    <string name="auth_sign_in">Sign in</string>
+    <string name="auth_sign_in_button" translatable="false">LINK START</string>
+    <string name="auth_description">Sign in to send comments, danmaku, messages, and more.</string>
+    <string name="auth_email">Email address</string>
+    <string name="auth_password">Password</string>
+    <string name="auth_email_invalid">Enter a valid email address.</string>
+    <string name="auth_show_password">Show password</string>
+    <string name="auth_hide_password">Hide password</string>
+    <string name="auth_close">Close sign-in</string>
+    <string name="auth_register">Create account</string>
+    <string name="auth_registration_unavailable">Registration is not available yet.</string>
+    <string name="auth_signing_in">Signing in…</string>
+    <string name="auth_sign_in_failed">Unable to sign in. Please try again.</string>
+    <string name="auth_retry">Try again</string>
 </resources>

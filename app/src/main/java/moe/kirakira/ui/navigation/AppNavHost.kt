@@ -9,6 +9,8 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import moe.kirakira.feature.account.AccountSwitchPage
 import moe.kirakira.feature.account.DemoAccountState
+import moe.kirakira.feature.auth.AuthPage
+import moe.kirakira.feature.auth.AuthRoute
 import moe.kirakira.feature.main.MainScreen
 import moe.kirakira.feature.settings.AboutScreen
 import moe.kirakira.feature.settings.AppearanceScreen
@@ -97,8 +99,20 @@ internal fun AppNavHost(
                         state = accountState,
                         onSelectAccount = onSelectAccount,
                         onRemoveAccount = onRemoveAccount,
+                        onAddAccount = {
+                            if (backStack.lastOrNull() == AccountSwitchRoute) backStack.add(AuthRoute)
+                        },
                         onBack = {
                             if (backStack.lastOrNull() == AccountSwitchRoute) backStack.removeLastOrNull()
+                        },
+                    )
+                }
+            }
+            entry<AuthRoute> {
+                NavigationPage {
+                    AuthPage(
+                        onClose = {
+                            if (backStack.lastOrNull() == AuthRoute) backStack.removeLastOrNull()
                         },
                     )
                 }

@@ -3,13 +3,11 @@
     <string name="nav_search">搜索</string>
     <string name="nav_following">关注</string>
     <string name="nav_me">我</string>
-    <string name="profile_avatar">个人头像</string>
     <string name="search_placeholder">搜索 KIRAKIRA</string>
     <string name="me_following_count">关注</string>
     <string name="me_followers_count">粉丝</string>
     <string name="me_likes_count">获赞</string>
     <string name="me_profile">个人主页</string>
-    <string name="me_library">我的内容</string>
     <string name="me_history">历史记录</string>
     <string name="me_favorites">收藏</string>
     <string name="me_settings">设置</string>
@@ -66,7 +64,6 @@
     <string name="theme_colors_system">系统颜色</string>
     <string name="theme_colors_manual">手动选色</string>
     <string name="theme_color_scheme">色彩方案</string>
-    <string name="theme_seed_color">基础颜色</string>
     <string name="theme_color_pink">粉色</string>
     <string name="theme_color_purple">紫色</string>
     <string name="theme_color_blue">蓝色</string>
@@ -81,9 +78,7 @@
     <string name="theme_color_picker_description">在色盘上选择颜色，再调整亮度，点按“应用”即可更改整个应用的配色</string>
     <string name="theme_color_brightness">颜色亮度</string>
     <string name="theme_color_palette">色相与饱和度色盘</string>
-    <string name="theme_color_algorithm">配色算法</string>
     <string name="theme_algorithm_tonal_spot">柔和色调</string>
-    <string name="theme_algorithm_default">默认</string>
     <string name="theme_algorithm_classic_accent">经典强调色</string>
     <string name="theme_algorithm_monochrome">单色</string>
     <string name="theme_algorithm_neutral">中性</string>
@@ -116,8 +111,8 @@
     <!-- Comment sorting and navigation -->
     <string name="video_comments_by_time">按时间</string>
     <string name="video_comments_by_score">按评分</string>
-    <string name="video_comments_ascending">正序（升序）</string>
-    <string name="video_comments_descending">倒序（降序）</string>
+    <string name="video_comments_ascending">升序</string>
+    <string name="video_comments_descending">降序</string>
     <string name="video_comments_page_count">%1$d / %2$d</string>
     <string name="video_comments_page_description">第 %1$d 页，共 %2$d 页。跳转到页码或楼层</string>
     <string name="video_comments_jump_title">快速跳转</string>
@@ -126,7 +121,6 @@
     <string name="video_comments_jump_range">请输入 1 至 %1$d 之间的整数</string>
     <string name="video_comments_jump">跳转</string>
     <string name="video_comments_cancel">取消</string>
-    <string name="video_comments_end">已显示全部 %1$d 条评论</string>
     <string name="video_comment_floor">#%1$d</string>
     <string name="video_comment_reply">回复</string>
 
@@ -136,4 +130,19 @@
     <plurals name="video_danmaku_total">
         <item quantity="other">%1$d 条弹幕</item>
     </plurals>
+
+
+    <string name="auth_description">登录来发送评论、弹幕、信息和更多。</string>
+    <string name="auth_email">电子邮件地址</string>
+    <string name="auth_password">密码</string>
+    <string name="auth_email_invalid">请输入有效的电子邮件地址。</string>
+    <string name="auth_show_password">显示密码</string>
+    <string name="auth_hide_password">隐藏密码</string>
+    <string name="auth_close">关闭登录</string>
+    <string name="auth_register">注册账户</string>
+    <string name="auth_registration_unavailable">注册功能尚未接入</string>
+    <string name="auth_signing_in">正在登录…</string>
+    <string name="auth_sign_in_failed">登录失败，请重试。</string>
+    <string name="auth_retry">重试</string>
+    <string name="auth_sign_in">登录</string>
 </resources>

@@ -8,13 +8,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import kotlinx.coroutines.launch
 import moe.kirakira.R
 
 @Composable
@@ -24,12 +22,11 @@ internal fun AccountSwitchPage(
     onRemoveAccount: (String) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    onAddAccount: () -> Unit = {},
 ) {
     var editing by rememberSaveable { mutableStateOf(false) }
     var pendingRemovalId by rememberSaveable { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    val loginUnavailable = stringResource(R.string.account_login_unavailable)
     val accounts = state.accounts.map { account ->
         AccountItem(
             id = account.id,
@@ -45,13 +42,7 @@ internal fun AccountSwitchPage(
         snackbarHostState = snackbarHostState,
         onSelectAccount = onSelectAccount,
         onEditingChange = { editing = it },
-        onAddAccount = {
-            scope.launch {
-                if (snackbarHostState.currentSnackbarData == null) {
-                    snackbarHostState.showSnackbar(loginUnavailable)
-                }
-            }
-        },
+        onAddAccount = onAddAccount,
         onRemoveAccount = { pendingRemovalId = it },
         onBack = onBack,
         modifier = modifier,

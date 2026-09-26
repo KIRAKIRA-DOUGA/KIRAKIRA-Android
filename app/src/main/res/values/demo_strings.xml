@@ -34,4 +34,7 @@
     <string name="video_danmaku_two" translatable="false">好腻害</string>
     <string name="video_danmaku_three" translatable="false">恭喜UP主！</string>
     <string name="video_danmaku_long" translatable="false">喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵</string>
+    <string name="demo_auth_email" translatable="false">hello@example.com</string>
+    <string name="demo_auth_invalid_email" translatable="false">hello@</string>
+    <string name="demo_auth_password" translatable="false">preview-password</string>
 </resources>

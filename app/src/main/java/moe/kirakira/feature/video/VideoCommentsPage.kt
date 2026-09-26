@@ -31,7 +31,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -119,7 +118,7 @@ internal fun VideoCommentsPage(
             }
             item(key = "comments_end") {
                 Text(
-                    text = stringResource(R.string.video_comments_end, comments.size),
+                    text = "·",
                     modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -4,6 +4,8 @@ import android.animation.ValueAnimator
 import android.content.res.Configuration
 import android.graphics.Matrix
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -19,7 +21,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -48,15 +49,17 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlin.math.pow
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import moe.kirakira.R
 
 private object SplashRevealMotion {
     const val SHRINK_SCALE = 0.92f
-    const val REVEAL_DURATION_MULTIPLIER = 1.5f
-    const val BACKGROUND_FADE_START_PROGRESS = 0.65f
+    const val REVEAL_DURATION_MILLIS = 600
+    const val ICON_FADE_START_PROGRESS = 0.02f
+    const val BACKGROUND_FADE_START_PROGRESS = 0.92f
+    val revealEasing = CubicBezierEasing(0.65f, 0f, 0.15f, 1f)
 
     // A circle wholly inside the star in ic_splash_foreground's 108-unit viewport,
     // after its 0.75 group transform about (52, 58). Keep aligned with that artwork.
@@ -76,7 +79,12 @@ internal fun SplashReveal(
     val iconAlpha = remember(info) { Animatable(1f) }
     val backgroundAlpha = remember(info) { Animatable(1f) }
     val shrinkSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
-    val revealSpec = MaterialTheme.motionScheme.slowSpatialSpec<Float>()
+    val revealSpec = remember {
+        tween<Float>(
+            durationMillis = SplashRevealMotion.REVEAL_DURATION_MILLIS,
+            easing = SplashRevealMotion.revealEasing,
+        )
+    }
     val fadeSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
     val firstFrame = remember(info) { CompletableDeferred<Unit>() }
     val currentOnOverlayDrawn by rememberUpdatedState(onOverlayDrawn)
@@ -94,24 +102,24 @@ internal fun SplashReveal(
             withFrameNanos { }
             if (ValueAnimator.areAnimatorsEnabled()) {
                 currentOnOverlayDrawn()
-                // Finish each spatial spring at its first target crossing, before it
-                // rebounds. In particular, the reveal must never cover the page again.
+                // Stop the anticipation spring before its rebound. The subsequent reveal
+                // uses a monotonic curve, so it cannot cover the page again.
                 shrinkScale.updateBounds(lowerBound = SplashRevealMotion.SHRINK_SCALE, upperBound = 1f)
                 revealProgress.updateBounds(lowerBound = 0f, upperBound = 1f)
                 shrinkScale.animateTo(
                     targetValue = SplashRevealMotion.SHRINK_SCALE,
                     animationSpec = shrinkSpec,
                 )
-                // A full-window reveal needs more time than a component's spatial motion.
-                // Multiply the inherited scale, including live changes and disabled motion.
-                val systemDurationScale = coroutineContext[MotionDurationScale]
-                val revealDurationScale = object : MotionDurationScale {
-                    override val scaleFactor: Float
-                        get() = (systemDurationScale?.scaleFactor ?: 1f) *
-                            SplashRevealMotion.REVEAL_DURATION_MULTIPLIER
-                }
-                withContext(revealDurationScale) {
-                    val iconFade = launch { iconAlpha.animateTo(0f, fadeSpec) }
+                // Give the logo a clear anticipation, burst and settling phase. Keep
+                // the background opaque through most of the reveal so its outline stays visible.
+                // All animations inherit the system MotionDurationScale without a local override.
+                coroutineScope {
+                    val iconFade = launch {
+                        snapshotFlow { revealProgress.value }.first {
+                            it >= SplashRevealMotion.ICON_FADE_START_PROGRESS
+                        }
+                        iconAlpha.animateTo(0f, fadeSpec)
+                    }
                     val backgroundFade = launch {
                         snapshotFlow { revealProgress.value }.first {
                             it >= SplashRevealMotion.BACKGROUND_FADE_START_PROGRESS

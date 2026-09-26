@@ -4,10 +4,9 @@ import android.content.res.Configuration
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -20,6 +19,8 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -195,48 +196,7 @@ private fun MainTopBar(
     onOpenMe: () -> Unit,
 ) {
     when (destination) {
-        AppDestination.HOME -> TopAppBar(
-            modifier = Modifier.topAppBarShadow(),
-            colors = mainTopAppBarColors(),
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    Icon(
-                        painter = painterResource(R.drawable.logo_kirakira_wordmark),
-                        contentDescription = stringResource(R.string.app_name),
-                        modifier = Modifier.height(height = 20.dp),
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-
-                    Spacer(modifier = Modifier.weight(weight = 1f))
-
-                    Box(
-                        modifier = Modifier.height(height = 20.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.logo_kirakira),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .requiredSize(size = 96.dp)
-                                .alpha(0.2f),
-                            tint = MaterialTheme.colorScheme.primaryFixed,
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.weight(weight = 0.25f))
-                }
-            },
-            actions = {
-                IconButton(
-                    onClick = onOpenMe,
-                    modifier = Modifier.padding(end = 8.dp),
-                ) {
-                    PlaceholderAvatar(
-                        contentDescription = stringResource(R.string.nav_me),
-                    )
-                }
-            },
-        )
+        AppDestination.HOME -> HomeTopBar(onOpenMe = onOpenMe)
 
         AppDestination.FOLLOWING -> TopAppBar(
             modifier = Modifier.topAppBarShadow(),
@@ -251,6 +211,60 @@ private fun MainTopBar(
         )
 
         AppDestination.SEARCH -> Unit
+    }
+}
+
+@Composable
+private fun HomeTopBar(onOpenMe: () -> Unit) {
+    val colors = mainTopAppBarColors()
+    Box(
+        modifier = Modifier
+            .topAppBarShadow()
+            .clipToBounds()
+            .background(colors.containerColor),
+    ) {
+        // Draw outside the title slot so the decoration can extend behind the status bar.
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .windowInsetsPadding(TopAppBarDefaults.windowInsets.only(WindowInsetsSides.Horizontal))
+                .padding(end = 72.dp),
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.logo_kirakira),
+                contentDescription = null,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .wrapContentSize(align = Alignment.CenterEnd, unbounded = true)
+                    .requiredSize(128.dp)
+                    .alpha(0.2f),
+                tint = MaterialTheme.colorScheme.primaryFixed,
+            )
+        }
+        TopAppBar(
+            colors = colors.copy(
+                containerColor = Color.Transparent,
+                scrolledContainerColor = Color.Transparent,
+            ),
+            title = {
+                Icon(
+                    painter = painterResource(R.drawable.logo_kirakira_wordmark),
+                    contentDescription = stringResource(R.string.app_name),
+                    modifier = Modifier.height(20.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            },
+            actions = {
+                IconButton(
+                    onClick = onOpenMe,
+                    modifier = Modifier.padding(end = 8.dp),
+                ) {
+                    PlaceholderAvatar(
+                        contentDescription = stringResource(R.string.nav_me),
+                    )
+                }
+            },
+        )
     }
 }
 
