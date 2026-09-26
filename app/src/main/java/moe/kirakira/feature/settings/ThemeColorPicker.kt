@@ -59,25 +59,25 @@ internal fun ThemeColorPicker(
     val usesSystemColors = settings.useSystemColors && supportsSystemColors
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(24.dp)) {
-        AppearanceSection(title = stringResource(R.string.theme_colors)) {
-            Column(
-                modifier = Modifier.selectableGroup(),
-                verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
-            ) {
-                ColorSourceItem(
-                    title = stringResource(R.string.theme_colors_system),
-                    isSelected = usesSystemColors,
-                    enabled = supportsSystemColors,
-                    index = 0,
-                    onClick = { onSettingsChange(settings.copy(useSystemColors = true)) },
-                )
-                ColorSourceItem(
-                    title = stringResource(R.string.theme_colors_manual),
-                    isSelected = !usesSystemColors,
-                    enabled = true,
-                    index = 1,
-                    onClick = { onSettingsChange(settings.copy(useSystemColors = false)) },
-                )
+        if (supportsSystemColors) {
+            AppearanceSection(title = stringResource(R.string.theme_colors)) {
+                Column(
+                    modifier = Modifier.selectableGroup(),
+                    verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+                ) {
+                    ColorSourceItem(
+                        title = stringResource(R.string.theme_colors_system),
+                        isSelected = usesSystemColors,
+                        index = 0,
+                        onClick = { onSettingsChange(settings.copy(useSystemColors = true)) },
+                    )
+                    ColorSourceItem(
+                        title = stringResource(R.string.theme_colors_manual),
+                        isSelected = !usesSystemColors,
+                        index = 1,
+                        onClick = { onSettingsChange(settings.copy(useSystemColors = false)) },
+                    )
+                }
             }
         }
 
@@ -158,13 +158,11 @@ internal fun ThemeColorPicker(
 private fun ColorSourceItem(
     title: String,
     isSelected: Boolean,
-    enabled: Boolean,
     index: Int,
     onClick: () -> Unit,
 ) {
     SegmentedListItem(
         onClick = onClick,
-        enabled = enabled,
         shapes = ListItemDefaults.segmentedShapes(index = index, count = 2),
         modifier = Modifier
             .fillMaxWidth()
@@ -176,7 +174,6 @@ private fun ColorSourceItem(
             RadioButton(
                 selected = isSelected,
                 onClick = null,
-                enabled = enabled,
             )
         },
         content = { Text(title) },
