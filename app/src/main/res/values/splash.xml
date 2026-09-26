@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="splash_background">@color/product_main</color>
+    <color name="splash_icon">@color/white</color>
+    <bool name="splash_light_system_bars">true</bool>
+    <!-- Older Android versions display the foreground without adaptive icon cropping. -->
+    <item name="ic_splash" type="drawable">@drawable/ic_splash_foreground</item>
+</resources>

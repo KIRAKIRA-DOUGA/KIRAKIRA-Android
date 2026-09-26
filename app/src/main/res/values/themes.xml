@@ -1,10 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.KIRAKIRA" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.KIRAKIRA" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/splash_background</item>
+    </style>
 
     <style name="Theme.KIRAKIRA.Splash" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@color/product_main</item>
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
+        <item name="android:statusBarColor">@color/splash_background</item>
+        <item name="android:navigationBarColor">@color/splash_background</item>
+        <item name="android:windowLightStatusBar">@bool/splash_light_system_bars</item>
+        <item name="android:windowLightNavigationBar">@bool/splash_light_system_bars</item>
+        <item name="android:enforceStatusBarContrast">false</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
         <item name="postSplashScreenTheme">@style/Theme.KIRAKIRA</item>
     </style>
 </resources>

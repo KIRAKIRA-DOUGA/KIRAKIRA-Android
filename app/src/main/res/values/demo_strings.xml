@@ -12,26 +12,26 @@
     <string name="account_demo_sakura_handle" translatable="false">\@sakura_demo</string>
 
     <!-- Video content and sample metadata -->
-    <string name="video_demo_handle" translatable="false">\@kirakira_studio</string>
-    <string name="video_demo_cover" translatable="false">KIRAKIRA · 演示视频</string>
-    <string name="video_demo_title" translatable="false">值得铭记的瞬间｜一起见证冠军诞生</string>
-    <string name="video_demo_author" translatable="false">KIRAKIRA 创作室</string>
+    <string name="video_demo_handle" translatable="false">\@nova_studios</string>
+    <string name="video_demo_cover" translatable="false">演示视频</string>
+    <string name="video_demo_title" translatable="false">这是一个视频标题哦哦哦哦哦吼吼吼吼吼吼</string>
+    <string name="video_demo_author" translatable="false">NOVA Studios</string>
     <string name="video_publish_time" translatable="false">2026年9月25日 18:00</string>
-    <string name="video_category" translatable="false">游戏</string>
-    <string name="video_demo_description" translatable="false">有些瞬间，值得反复回看。最后一回合的默契、观众席的欢呼，还有奖杯举起时的笑容，都被收进了这段小小的记录里。\n\n这支演示视频从赛前准备讲起，一路记录到比赛结束后的庆祝。每一个高光时刻背后，都是日复一日的练习、队友之间的信任，以及再试一次的勇气。无论你是第一次了解这个故事，还是已经看过无数次，希望它都能带给你一点热爱与感动。\n\n当前视频、作者资料与统计均为占位内容，播放功能稍后接入。可以先看看评论和弹幕，也可以收藏下来，留待下一次相遇。</string>
+    <string name="video_category" translatable="false">音MAD</string>
+    <string name="video_demo_description" translatable="false">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque fringilla, odio a ultricies condimentum, tellus risus faucibus felis, id volutpat nisi elit in justo. Morbi viverra condimentum maximus. Vestibulum consequat mi et diam vestibulum tincidunt. Sed vel orci sagittis, pretium tortor id, tincidunt purus. In tincidunt imperdiet ipsum. Cras vitae lacus orci. Duis quam lacus, lobortis a placerat ac, pharetra sit amet arcu. Curabitur facilisis justo risus, a pellentesque felis ultricies in. Integer vel erat id elit venenatis rhoncus. Proin pretium, tortor vel hendrerit imperdiet, dolor nisi sollicitudin nisi, ut porttitor ex quam non ipsum. Cras fermentum, augue ut efficitur lacinia, libero dui tincidunt mi, ut aliquam nisl lacus nec sapien.\nDonec finibus lectus in malesuada sagittis. Proin vel ipsum sed elit gravida tempus. Morbi pretium mattis lacus, eget luctus ante scelerisque sit amet. Sed magna lacus, accumsan nec aliquam at, lacinia sed dui. Curabitur eu vestibulum libero. Fusce et consectetur est. Ut tristique urna vel arcu consectetur, a cursus augue ultricies. Ut consequat pharetra lacinia. Nam eu placerat neque, scelerisque aliquet elit. Morbi in imperdiet risus. Nam a diam posuere, rhoncus mi nec, condimentum odio.</string>
 
     <!-- Comment authors and bodies -->
     <string name="video_comment_author" translatable="false">观众 %1$d</string>
     <string name="video_comment_handle" translatable="false">\@viewer_%1$d</string>
-    <string name="video_comment_one" translatable="false">最后那个瞬间真的起鸡皮疙瘩了，太精彩了！</string>
+    <string name="video_comment_one" translatable="false">通关的时候真的起鸡皮疙瘩了，太精彩了！</string>
     <string name="video_comment_two" translatable="false">能看出来背后付出了很多努力，谢谢你把这些瞬间记录下来。</string>
     <string name="video_comment_three" translatable="false">先收藏，周末再回来慢慢看。</string>
-    <string name="video_comment_four" translatable="false">最喜欢的还是大家一起庆祝的画面，这就是团队的意义吧。</string>
-    <string name="video_comment_long" translatable="false">这一段我已经反复看了好多遍，每个人都在用自己的方式为团队贡献力量。那些漫长的练习和彼此的信任，终于在这一刻有了回报。尤其是最后大家一起庆祝的画面，真的让人忍不住跟着开心！</string>
+    <string name="video_comment_four" translatable="false">这是一条测试评论。</string>
+    <string name="video_comment_long" translatable="false">OHHHHHHHHHHH</string>
 
     <!-- Danmaku bodies -->
     <string name="video_danmaku_one" translatable="false">来了来了！</string>
-    <string name="video_danmaku_two" translatable="false">这一刻值得铭记</string>
-    <string name="video_danmaku_three" translatable="false">恭喜夺冠！</string>
-    <string name="video_danmaku_long" translatable="false">观众的欢呼、队友的拥抱、举起的奖杯，每一个画面都值得反复回看！不管过了多久，再看到这一刻还是会起鸡皮疙瘩，真的太精彩了！</string>
+    <string name="video_danmaku_two" translatable="false">好腻害</string>
+    <string name="video_danmaku_three" translatable="false">恭喜UP主！</string>
+    <string name="video_danmaku_long" translatable="false">喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵喵</string>
 </resources>

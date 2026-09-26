@@ -126,7 +126,7 @@
     <string name="video_comments_jump_range">请输入 1 至 %1$d 之间的整数</string>
     <string name="video_comments_jump">跳转</string>
     <string name="video_comments_cancel">取消</string>
-    <string name="video_comments_end">已显示全部 %1$d 条演示评论</string>
+    <string name="video_comments_end">已显示全部 %1$d 条评论</string>
     <string name="video_comment_floor">#%1$d</string>
     <string name="video_comment_reply">回复</string>
 

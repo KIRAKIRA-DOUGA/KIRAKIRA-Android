@@ -127,7 +127,7 @@
     <string name="video_comments_jump_range">Enter a whole number from 1 to %1$d.</string>
     <string name="video_comments_jump">Jump</string>
     <string name="video_comments_cancel">Cancel</string>
-    <string name="video_comments_end">All %1$d demo comments shown</string>
+    <string name="video_comments_end">All %1$d comments shown</string>
     <string name="video_comment_floor">#%1$d</string>
     <string name="video_comment_reply">Reply</string>
 
