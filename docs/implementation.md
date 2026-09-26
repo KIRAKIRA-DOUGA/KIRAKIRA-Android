@@ -129,6 +129,12 @@ Scaffold(
 }
 ```
 
+## 启动器图标
+
+Manifest 的 `icon` 与 `roundIcon` 分别引用 `mipmap-anydpi` 中的 `ic_launcher.xml` 与 `ic_launcher_round.xml`，两者共用品牌粉色背景和白色矢量前景，并以同一前景提供主题图标的 `monochrome` 层；外轮廓由启动器裁切。
+
+项目最低支持 API 27，已覆盖自适应图标所需的 API 26，因此仅维护自适应 XML 与矢量图层，不保留面向旧版 Android 的各密度 launcher WebP。更新品牌图标时修改对应图层；若将来降低最低支持版本至 API 25 或以下，需补齐匹配品牌设计的传统图标，并为自适应 XML 添加 `v26` 限定符。
+
 ## 启动动画
 
 [MainActivity](../app/src/main/java/moe/kirakira/MainActivity.kt) 与 [SplashRevealController](../app/src/main/java/moe/kirakira/ui/splash/SplashRevealController.kt) 协调系统 Splash 退出和 Compose 覆盖层，[SplashReveal](../app/src/main/java/moe/kirakira/ui/splash/SplashReveal.kt) 绘制图标遮罩。
