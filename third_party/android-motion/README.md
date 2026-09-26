@@ -53,5 +53,3 @@
 - AOSP 的内部 `BackProgressAnimator.getVelocity()` 不公开；使用带时间戳的公开进度样本计算速度，弹簧参数与限幅保持一致。
 - AOSP 从系统资源及私有显示修正值读取窗口圆角；这里优先使用 API 31+ 公开 `WindowInsets.getRoundedCorner()` 提供的最小非零屏幕圆角。无有效圆角信息、Insets 尚不可用或运行在 API 27–30 时，使用应用默认的 28dp（按屏幕密度转换为 px）；该回退值不是 AOSP 系统参数。当前项目 minSdk 为 27，不访问隐藏资源。
 - 系统在真实窗口 Surface 上实现边缘像素扩展、letterbox 和系统栏外观切换。Compose 页面没有独立窗口 Surface；这些窗口级能力不复制，移动露出的区域使用宿主主题背景，系统栏由 Activity 管理。因此这是 AOSP 页面运动逻辑与参数的移植，不是逐像素的系统窗口复刻。
-
-本次仅执行 Kotlin 编译；按用户要求未运行测试、Lint、设备或视觉检查。
