@@ -173,17 +173,8 @@ private fun InvitationStatistic(label: String, count: Int?) {
 @Preview(name = "Invitations · Large text", fontScale = 2f)
 @Composable
 private fun InvitationsPreview() {
-    val code = stringResource(R.string.demo_settings_invitation)
     KIRAKIRATheme(dynamicColor = false) {
-        InvitationsScreen(SettingsLoad(listOf(Invitation(code, 0, false))), true, false, null, 0,
+        InvitationsScreen(SettingsLoad(emptyList()), true, false, null, 0,
             {}, {}, {}, {}, {})
-    }
-}
-
-@Preview(name = "Invitations · Empty")
-@Composable
-private fun EmptyInvitationsPreview() {
-    KIRAKIRATheme(dynamicColor = false) {
-        InvitationsScreen(SettingsLoad(emptyList()), true, false, null, 0, {}, {}, {}, {}, {})
     }
 }

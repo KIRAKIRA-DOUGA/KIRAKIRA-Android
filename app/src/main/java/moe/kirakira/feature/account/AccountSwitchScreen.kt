@@ -321,14 +321,6 @@ private fun AccountSwitchPreview() {
     }
 }
 
-@Preview(name = "Accounts · Editing, long name", widthDp = 320, fontScale = 2f, showBackground = true)
-@Composable
-private fun AccountEditingPreview() {
-    KIRAKIRATheme(dynamicColor = false) {
-        AccountPreviewContent(editing = true)
-    }
-}
-
 @Preview(name = "Accounts · Dynamic color", showBackground = true)
 @Composable
 private fun AccountDynamicColorPreview() {
@@ -337,28 +329,16 @@ private fun AccountDynamicColorPreview() {
     }
 }
 
-@Preview(name = "Accounts · Switching", showBackground = true)
 @Composable
-private fun AccountSwitchingPreview() {
-    KIRAKIRATheme(dynamicColor = false) {
-        AccountPreviewContent(switching = true)
-    }
-}
-
-@Composable
-private fun AccountPreviewContent(editing: Boolean = false, switching: Boolean = false) {
+private fun AccountPreviewContent() {
     AccountSwitchScreen(
-        accounts = DemoAccount.entries.map { account ->
-            AccountItem(
-                id = account.id,
-                name = stringResource(account.nameRes),
-                handle = account.handleRes?.let { stringResource(it) },
-            )
-        },
-        selectedAccountId = DemoAccount.KIRAKIRA.id,
-        editing = editing,
-        busy = switching,
-        operation = if (switching) SessionOperation(SessionOperationType.SWITCH, DemoAccount.SAKURA.id) else null,
+        accounts = listOf(
+            AccountItem(id = GUEST_ACCOUNT_ID, name = stringResource(R.string.account_guest)),
+        ),
+        selectedAccountId = GUEST_ACCOUNT_ID,
+        editing = false,
+        busy = false,
+        operation = null,
         snackbarHostState = remember { SnackbarHostState() },
         onSelectAccount = {},
         onEditingChange = {},

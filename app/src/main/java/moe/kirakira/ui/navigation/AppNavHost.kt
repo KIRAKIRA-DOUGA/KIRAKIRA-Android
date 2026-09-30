@@ -45,7 +45,6 @@ import moe.kirakira.feature.settings.LicensesScreen
 import moe.kirakira.feature.settings.PlaybackSettingsScreen
 import moe.kirakira.feature.settings.PlaybackSettingsViewModel
 import moe.kirakira.feature.settings.SettingsScreen
-import moe.kirakira.feature.test.TestScreen
 import moe.kirakira.feature.video.VideoPage
 import moe.kirakira.ui.components.rememberEmphasizedEasing
 import moe.kirakira.ui.theme.ThemeColorSettings
@@ -75,9 +74,11 @@ internal fun AppNavHost(
     val playbackSettings = if (LocalInspectionMode.current) PlaybackSettings()
         else playbackSettingsModel?.settings?.collectAsStateWithLifecycle()?.value
     val backStack = rememberNavBackStack(MainRoute)
-    // Old demo routes did not carry IDs. Drop only these unrestorable entries after an upgrade.
+    // Discard retired demo destinations when restoring navigation after an upgrade.
     LaunchedEffect(Unit) {
-        backStack.removeAll { (it is VideoRoute && it.videoId <= 0) || (it is ProfileRoute && it.uid <= 0) }
+        backStack.removeAll {
+            it is TestRoute || (it is VideoRoute && it.videoId <= 0) || (it is ProfileRoute && it.uid <= 0)
+        }
     }
     val autofill = LocalAutofillManager.current
     val imageEasing = rememberEmphasizedEasing()
@@ -126,9 +127,7 @@ internal fun AppNavHost(
         },
         entryProvider = entryProvider {
             entry<TestRoute> {
-                NavigationPage {
-                    TestScreen()
-                }
+                // Retained only until the restored legacy entry is removed above.
             }
             entry<MainRoute> {
                 NavigationPage {
@@ -287,9 +286,6 @@ internal fun AppNavHost(
                     AboutScreen(
                         onNavigateToLicenses = {
                             if (backStack.lastOrNull() == AboutRoute) backStack.add(LicensesRoute)
-                        },
-                        onNavigateToTest = {
-                            if (backStack.lastOrNull() == AboutRoute) backStack.add(TestRoute)
                         },
                         onBack = {
                             if (backStack.lastOrNull() == AboutRoute) backStack.removeLastOrNull()

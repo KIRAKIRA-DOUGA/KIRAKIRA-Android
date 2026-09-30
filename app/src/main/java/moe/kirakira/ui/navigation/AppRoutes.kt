@@ -30,6 +30,7 @@ internal data object AppearanceRoute : NavKey
 @SerialName("moe.kirakira.AccountSwitchRoute")
 internal data object AccountSwitchRoute : NavKey
 
+// Decode legacy saved stacks so AppNavHost can discard the retired demo destination.
 @Serializable
 @SerialName("moe.kirakira.TestRoute")
 internal data object TestRoute : NavKey

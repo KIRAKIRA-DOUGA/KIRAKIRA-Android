@@ -25,10 +25,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,12 +49,10 @@ import moe.kirakira.ui.theme.KIRAKIRATheme
 fun AboutScreen(
     onBack: () -> Unit,
     onNavigateToLicenses: () -> Unit,
-    onNavigateToTest: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scrollBehavior = rememberCollapsibleTopAppBarScrollBehavior()
     val layoutDirection = LocalLayoutDirection.current
-    var logoClickCount by remember { mutableIntStateOf(0) }
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
@@ -107,13 +101,6 @@ fun AboutScreen(
                     verticalArrangement = Arrangement.spacedBy(24.dp),
                 ) {
                     Surface(
-                        onClick = {
-                            logoClickCount += 1
-                            if (logoClickCount == 10) {
-                                logoClickCount = 0
-                                onNavigateToTest()
-                            }
-                        },
                         modifier = Modifier
                             .size(96.dp)
                             .clip(RoundedCornerShape(24.dp)),
@@ -201,6 +188,6 @@ fun AboutScreen(
 @Composable
 private fun AboutPreview() {
     KIRAKIRATheme(dynamicColor = false) {
-        AboutScreen(onBack = {}, onNavigateToLicenses = {}, onNavigateToTest = {})
+        AboutScreen(onBack = {}, onNavigateToLicenses = {})
     }
 }

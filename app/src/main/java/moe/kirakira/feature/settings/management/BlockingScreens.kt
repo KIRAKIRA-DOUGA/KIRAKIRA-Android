@@ -290,33 +290,11 @@ private fun BlockingPreview() {
 }
 
 @Preview(name = "Rules · Empty", locale = "zh")
+@Preview(name = "Rules · Empty · Large text", fontScale = 2f)
 @Composable
 private fun EmptyRulesPreview() {
     KIRAKIRATheme(dynamicColor = false) {
         RuleManagementScreen(RuleCategory.BLOCK, SettingsLoad(RulePage(emptyList(), 0, 1)), true, false, null,
             {}, {}, {}, {}, {}, {}, {})
-    }
-}
-
-@Preview(name = "Rules · Users", locale = "zh")
-@Preview(name = "Rules · Users · Large text", fontScale = 2f)
-@Composable
-private fun UserRulesPreview() {
-    val name = stringResource(R.string.account_demo_sakura)
-    KIRAKIRATheme(dynamicColor = false) {
-        RuleManagementScreen(
-            category = RuleCategory.BLOCK,
-            state = SettingsLoad(RulePage(listOf(RuleEntry("preview-user", 0, 123, name)), 1, 1)),
-            signedIn = true,
-            busy = false,
-            message = null,
-            onBack = {},
-            onLogin = {},
-            onRefresh = {},
-            onMore = {},
-            onAdd = {},
-            onRemove = {},
-            onDismissMessage = {},
-        )
     }
 }

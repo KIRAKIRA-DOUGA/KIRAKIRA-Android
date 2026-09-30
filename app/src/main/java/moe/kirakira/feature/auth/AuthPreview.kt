@@ -5,11 +5,9 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
-import moe.kirakira.R
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 @Preview(name = "Auth · English", locale = "en", showBackground = true)
@@ -25,7 +23,6 @@ private fun AuthPreview() {
 }
 
 internal enum class AuthPreviewState {
-    FILLED,
     EMAIL_ERROR,
     SUBMITTING,
     FAILED,
@@ -40,14 +37,6 @@ internal class AuthPreviewStateProvider : PreviewParameterProvider<AuthPreviewSt
 private fun AuthFormStatePreview(@PreviewParameter(AuthPreviewStateProvider::class) preview: AuthPreviewState) {
     AuthPreviewContent(
         AuthUiState(
-            email = stringResource(
-                if (preview == AuthPreviewState.EMAIL_ERROR) {
-                    R.string.demo_auth_invalid_email
-                } else {
-                    R.string.demo_auth_email
-                },
-            ),
-            password = stringResource(R.string.demo_auth_password),
             emailInvalid = preview == AuthPreviewState.EMAIL_ERROR,
             submission = when (preview) {
                 AuthPreviewState.SUBMITTING -> AuthSubmission.SUBMITTING
@@ -90,5 +79,5 @@ internal class AuthStepPreviewProvider : PreviewParameterProvider<AuthStep> {
 @Preview(name = "Authentication steps", showBackground = true)
 @Composable
 private fun AuthStepPreview(@PreviewParameter(AuthStepPreviewProvider::class) step: AuthStep) {
-    AuthPreviewContent(AuthUiState(step = step, email = stringResource(R.string.demo_auth_email)))
+    AuthPreviewContent(AuthUiState(step = step))
 }

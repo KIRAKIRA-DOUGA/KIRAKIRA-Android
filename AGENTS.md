@@ -19,7 +19,7 @@
 - 遵循 `.editorconfig` 和 Kotlin official 风格：四空格、UTF-8、LF；禁用通配符导入，移除无用导入。
 - 类型、文件和返回 `Unit` 的 UI composable 用 `PascalCase`；普通函数和属性用 `camelCase`；资源用 `snake_case`。
 - 复用 `KIRAKIRATheme`；图标默认使用官方 **Material Symbols Rounded**，必要时可绘制相同风格的自定义矢量图标，记录来源或设计理由，不混用旧版 Material Icons、SF Symbols 或其他图标风格。
-- 界面文案使用字符串资源，默认 `values/` 为英语，`values-zh/` 为中文；两套翻译同步维护。Demo 占位内容（用户名、签名、评论、弹幕、简介、视频标题等）不做多语言，集中放在 `values/demo_strings.xml` 并标记 `translatable="false"`，不在语言目录中重复定义；按钮、导航、提示和无障碍描述仍需翻译。可复用 UI 接收状态、事件回调和 `modifier: Modifier = Modifier`。
+- 界面文案使用字符串资源，默认 `values/` 为英语，`values-zh/` 为中文；两套翻译同步维护。不在应用中内置 Demo 演示内容；设计预览优先使用空表单、游客账号与空列表。按钮、导航、提示和无障碍描述仍需翻译。可复用 UI 接收状态、事件回调和 `modifier: Modifier = Modifier`。
 - 除非用户明确要求，界面中不添加解释功能如何运作的说明文字；功能机制与实现细节记录在文档中，界面保留必要的操作标签、状态、错误和无障碍提示。
 - 分组菜单使用官方 `SegmentedListItem`，通过 `ListItemDefaults.segmentedShapes` 和 `SegmentedGap` 管理圆角与间距；纯布局使用无 `onClick` 的重载。
 - 需要滚动展开大标题的二级页面可复用 `ui/components/CollapsibleTopAppBar.kt` 与 `rememberCollapsibleTopAppBarScrollBehavior`，每页独立创建状态并接入 `nestedScroll`；默认进入折叠。按场景选用，不要求所有页面使用，接入示例见[实现说明](docs/implementation.md#可选的可折叠大标题栏)。
