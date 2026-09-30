@@ -10,7 +10,7 @@
 - 保留当前 `:app` 模块。新功能放在 `moe.kirakira.feature.<name>`；跨功能 UI 放 `ui/components/`，主题放 `ui/theme/`，数据访问按需放 `data/`，真正跨功能的基础设施放 `core/`。包名全小写，不将无关代码堆入 `Utils.kt`。
 - 页面展示状态并上报事件；涉及业务逻辑的屏幕由 ViewModel 管理状态，通过 Repository 隔离数据访问。复杂且可复用的业务规则才抽取 use case；不强制为简单操作增加层次。
 - 页面导航使用 Navigation 3，路由实现 `NavKey` 并标注 `@Serializable`，通过 `rememberNavBackStack` 和封装 `NavDisplay` 的 `ui/navigation/ActivityNavDisplay.kt` 管理返回栈及状态恢复，页面使用 `NavigationPage`。普通转场复用 `NavigationMotion.kt`，预测性返回由宿主统一管理，不在页面重复配置或叠加 NavDisplay 默认的预测性返回补间。预览与收尾保留双页面内容，完成后仅出栈一次，取消时复原；手势期间页面生命周期不高于 STARTED。导航由页面事件回调触发，保留根页面，避免连续点击重复入栈或出栈。底栏作为主界面内的局部状态，不预建多返回栈架构。接入关系见[实现说明](docs/implementation.md#导航与状态管理)，参数来源与公开 API 适配差异见 [Android 转场说明](third_party/android-motion/README.md)。
-- 目前主题与认证状态使用 ViewModel，尚未建立完整数据层或依赖注入。新增库时说明具体需求，先复用已有能力，避免为了符合目录示意而添加空实现。
+- 主题、会话与认证状态使用 ViewModel；当前数据层为 `data/auth`，网络基础设施为 `core/network`，通过构造参数显式传递依赖，暂不引入 DI 框架。新增库时说明具体需求，先复用已有能力，避免为了符合目录示意而添加空实现。
 
 ## Kotlin 风格与命名
 
@@ -29,6 +29,7 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 
 ## Compose 与界面规范
 
+- 表达「添加」的悬浮操作按钮（FAB）使用官方 `FloatingActionButton`，仅显示 Material Symbols Rounded `add` 加号，不在图标右侧重复显示「添加」文字，不使用带文字的扩展 FAB。保留本地化的「添加」无障碍描述、标准触摸目标与操作期间的禁用语义。
 - 使用 Material 3 Expressive 的组件、色彩层次和圆角分组；保持浅色、深色及动态颜色兼容，不用手绘控件替代已有标准组件。参考 [Compose Material 3](https://developer.android.com/develop/ui/compose/designsystems/material3)。
 - 分组菜单直接使用官方 `SegmentedListItem`，以 `ListItemDefaults.segmentedShapes(index, count)` 处理首尾与单项圆角，以 `SegmentedGap` 设置组内间距，并保留默认分段配色及内容内边距。不再以整组大圆角 `Surface` 模拟此样式。静态占位使用无 `onClick` 的重载；无副标题时传入空的 `supportingContent`，不要提供空内容 lambda。
 - 图标采用官方 **Material Symbols**，默认统一为 **Rounded、24dp、wght 400、GRAD 0、FILL 0**；选中状态如使用填充图标应保持其他参数一致。按需导入 Android VectorDrawable，不打包完整字体或旧版 `material-icons-extended`。
@@ -40,12 +41,14 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 - 网络和磁盘工作不得阻塞主线程；使用结构化并发，禁止 `GlobalScope`。捕获取消异常时必须继续传播取消。
 - 通过 `KIRAKIRATheme` 和 `MaterialTheme` 复用颜色、字体及形状；避免在业务页面散落品牌颜色。布局使用 `dp`，字体使用 `sp`，通用设计值按实际复用需求提取。
 - 新界面文案必须放入字符串资源，包含错误、导航标题和无障碍描述；使用格式化资源和 plurals，不拼接可翻译句子。
+- 除非用户明确要求，界面中不添加解释功能如何运作的说明文字；功能机制与实现细节记录在相应文档中。界面保留必要的操作标签、状态反馈、错误信息和无障碍提示，不主动加入机制说明或实现细节。
 - 当前支持英语与中文：`res/values/strings.xml` 是完整英语界面回退资源，`res/values-zh/strings.xml` 提供中文；新增可翻译 key 必须同时补齐两套文案。品牌名标记 `translatable="false"`。跟随系统语言，Android 13+ 通过 `res/xml/locales_config.xml` 声明应用语言；新增语言同步配置并检查长文案和字体缩放。
 - Demo 占位内容不做多语言，包括用户名、账号标识、签名、评论正文、弹幕正文、简介、视频标题及演示元数据。只维护一份固定内容，集中放入 `res/values/demo_strings.xml` 并标记 `translatable="false"`，不得在 `values-zh/` 等语言目录中重复定义。内容可以使用中文，不受默认界面资源为英语的约束。按钮、导航标题、输入提示、功能待接入提示、数量标签和无障碍描述属于界面文案，仍须维护中英文翻译。
 - 交互控件提供语义与可读标签，纯装饰图标使用空描述；保证触摸目标、字体缩放和 TalkBack 可用。实现时兼顾浅色、深色、窄屏和宽屏，使用 `start/end` 方向及系统 Insets，避免用固定屏幕尺寸布局；不因此默认增加设备或截图测试。
 - 列表项目使用稳定的业务 key；不要为了压制重组而随意添加 `@Stable` / `@Immutable`。可复用组件提供使用假数据的 Preview，不依赖真实服务或运行中的 ViewModel。
 - 异步页面明确表达加载、成功、空内容与失败状态；重试入口应与操作语义一致。
 - 无确定进度的页面加载统一使用 Material 3 Expressive 的 `LoadingIndicator`，不得使用不确定进度的 `CircularProgressIndicator`。有可量化进度的加载可使用确定进度指示器。
+- 区分首次加载与刷新：已有内容刷新时保留内容与布局，不在列表顶部额外插入占位的 `LoadingIndicator`，避免条目位移；下拉刷新统一由 `ContentPullToRefresh` 的覆盖式指示器反馈，不与列表内加载指示器重复显示。已加载的空结果也属于已有状态，刷新时保留空状态及其占位，不临时隐藏或替换为列表内加载指示器。首次无数据加载及相邻分页加载仍可在对应区域显示加载状态。检查调用 `ContentStatus` 时传入的 `loading`，不要直接把刷新状态映射为列表内加载状态。
 
 ### 可选的可折叠大标题栏
 
@@ -60,9 +63,25 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 
 ### 认证状态约束
 
-认证 ViewModel 必须绑定 Navigation 3 导航条目，旋转时保留、出栈后释放，不使用 Activity 级认证 ViewModel。仅邮箱写入 `SavedStateHandle`，密码不得写入可保存状态、磁盘或日志；密码在进程重建后为空，界面重建后默认隐藏。
+认证 ViewModel 必须绑定 Navigation 3 导航条目，旋转时保留、出栈后释放，不使用 Activity 级认证 ViewModel。仅邮箱写入 `SavedStateHandle`；密码、密码摘要、验证码、备用码与恢复码不得写入可保存状态、路由、应用磁盘或日志。系统密码保存是明确的例外边界：只有服务端认证与本机会话保存完成（密码重置则服务端确认与本地清理完成）后，才能经 `CreatePasswordRequest` 请求用户确认，将原密码交由用户选择的系统密码管理器保存；应用本身不落盘，取消或失败不撤销认证。待保存密码仅保留于条目流程内存，完成、取消或退出时释放。密码在进程重建后为空，认证流程回到登录入口，界面重建和切换步骤后默认隐藏。
+
+系统凭据获取、保存及清理通过可替换网关；弹窗必须由当前 Activity 承载，ViewModel 以请求编号及宿主身份处理一次性结果，拒绝旋转、退出或旧流程的回调。自动选择器每次进入登录流程只请求一次，禁用自动选中，指定邮箱重新登录时筛选账号。非生产根地址构建禁用真实提供者，离线测试使用凭据替身；不得读取真实密码管理器凭据。Compose 保留邮箱／用户名及密码 Autofill 语义，切换、取消流程和调用凭据保存前取消旧 Autofill 会话，不使用 View 专用凭据联动接口。退出登录、切换游客和移除当前账号后只尽力清理提供者会话，不删除其密码。
 
 业务接入放在 ViewModel 的统一提交入口，通过 Repository 隔离 API，服务端 DTO 不进入 UI。层次职责与条目装饰器顺序见[认证状态实现](docs/implementation.md#认证状态)。
+
+### API 与会话接入规范
+
+- 接口契约以 Rosales 的路由、Controller DTO 和 Service 实现为依据，Cerasus 用于对照交互、参数及邮件模板。不得根据 DTO 注释臆造散列方式、Bearer 鉴权、刷新令牌或登出撤销能力；当前已对照的端点见[实现说明](docs/implementation.md#api-与会话)。接口改动同步契约表与失败语义。
+- UI → ViewModel → Repository → API / Store 单向分层。服务端 DTO 只在数据层解码并转为领域模型；UI 不接触 token、Cookie 或密码摘要。应用只持有一份会话 Repository，认证表单仍按导航条目隔离。
+- API 地址只能来自 `BuildConfig.API_BASE_URL`，使用 HTTPS；构建配置不得含凭据、查询串或片段。禁止放宽证书校验、自动降级 HTTP、跟随鉴权请求重定向，禁止将会话发往图片或其他域名。环境切换不得复用另一后端的会话。
+- 使用共享 OkHttp API 客户端及 kotlinx.serialization；设置连接、读写与整个调用的超时，限制响应大小，查询值通过 URL builder 编码。网络、散列和磁盘操作离开主线程，请求取消必须传递到 HTTP Call。
+- HTTP 成功不等于业务成功：检查 `success`、必要字段及账号身份一致性；未知字段允许向前兼容，缺失关键字段不能产生已登录状态。禁止原样展示服务端错误或输出响应、邮箱、密码、摘要、验证码、Cookie、token 日志。
+- 统一区分网络、超时、服务不可用、响应异常、业务拒绝、限流、失效与本地存储错误，映射中英文提示。网络失败不删除账号；当前 Rosales 的 `success=false` 也可能表示数据库故障，不能一律当作令牌已撤销。校验拒绝保留加密凭据供重试，同时撤下受影响的当前身份；明确 HTTP 401 才清除对应 token。
+- 登录、注册、发送验证码、找回密码不自动重放请求，不自动重试。按钮禁用重复提交，重试由用户触发；验证码冷却按邮箱统一管理，尊重服务端冷却及每日上限，客户端倒计时不代替服务端校验。
+- 会话以服务端 UUID 去重，token 与最小账号资料用 Android Keystore AES-256-GCM 加密，IV 由平台每次随机生成，原子写入 `noBackupFilesDir`，不进入备份、SavedState、预览或普通偏好设置。解密不得生成替代密钥，须先验证完整认证标签及数据结构；缺失密钥、损坏文件或恢复失败时保留原文件并禁止覆盖。写入成功后才能发布新的当前账号；只能在用户明确确认后清除本机账号库及密钥。系统备份仅允许已明确列出的非敏感偏好。
+- 切换、移除和会话保存串行化；请求绑定发起时的账号，结果只能更新所属账号。后续增加账号私有缓存时必须按 UUID 隔离，并在切换／移除时清理对应页面状态，不能将前一个账号的数据交给新账号。
+- 游客不携带认证信息。切换到游客保留其他会话；登出／移除仅清除指定本机会话，不谎称已撤销服务器 token。禁止添加不存在的 refresh-token 流程；失效账号通过认证页重新登录。
+- 用户明确要求认证测试时，优先使用内存响应、内存账号库、虚构身份和可控时钟；测试不得请求生产后端或读取真实凭据。实际 Keystore 测试使用独立包名、无网络权限的专项变体及临时文件／密钥，不安装到普通应用包名。测试替身只放在测试源码中，不增加绕过 TLS 或改用假会话的产品入口。现有隔离方式与命令见[认证离线测试](docs/auth-testing.md)。
 
 ### 主题配色约束
 

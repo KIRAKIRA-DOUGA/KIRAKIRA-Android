@@ -16,11 +16,15 @@
 | Kotlin Compose 插件 | 2.4.20 |
 | Compose BOM | 2026.09.00 |
 | Material 3 Expressive | 1.5.0-alpha29（显式版本例外） |
+| AndroidX Credentials / Play Services auth | 1.6.0 |
 | Navigation 3 | 1.2.0（runtime / ui） |
 | Lifecycle | 2.11.0 |
 | AboutLibraries | 15.2.0 |
 | MaterialKolor | 5.0.1 |
 | colorpicker-compose | 1.3.0 |
+| Telephoto / Coil 3 | 0.19.0 / 3.2.0（含网络图片适配） |
+| Media3 | 1.11.0（ExoPlayer、DASH、HLS、Compose、MediaSession、OkHttp data source） |
+| OkHttp | 5.3.0 |
 | Gradle Daemon JDK | 25 |
 | Java 源码 / 字节码兼容级别 | 11 |
 
@@ -50,7 +54,29 @@ Material 3 单独使用公开 Expressive 主题与分段列表 API 的版本，�
 
 `verify` 在[根构建脚本](../build.gradle.kts)中聚合 Debug 构建、单元测试和 Android Lint，不包含设备测试，也不检查全部 Kotlin 格式规则。测试和 Lint 报告位于 `app/build/reports/`。已有布局测试覆盖中英文导航和选中状态恢复；设备测试需要模拟器或连接的设备。
 
+明确要求认证测试时，可执行 `./gradlew :app:testDebugUnitTest --offline`。认证用例使用内存 HTTP 响应和账号存储，不访问生产服务；协程测试依赖只用于 JVM 测试。覆盖范围、隔离机制和未验证项见[认证离线测试](auth-testing.md)。
+
+Keystore 专项设备测试通过 `-Pkirakira.cryptoCheck=true` 选择 `cryptoCheck` 变体：独立包名 `moe.kirakira.cryptocheck`、无网络权限、无主界面入口，API 地址固定为保留的 `.invalid` 域名。该开关只切换测试构建类型及测试源目录，不修改普通 Debug／Release 的生产环境配置。专项源码位于 `app/src/cryptoCheckAndroidTest/`，不参与默认 Debug 设备测试。构建、安装与运行命令见[认证离线测试](auth-testing.md#keystore-专项设备测试)。
+
 仓库未配置 CI 工作流、ktlint、Detekt 或覆盖率门槛；远端 CI 和分支保护需维护者自行配置。PR 默认报告构建结果，纯文档修改报告内容与链接检查结果。
+
+认证 UI 专项使用 `-Pkirakira.authUiCheck=true`，包名 `moe.kirakira.authuicheck`，无 INTERNET 权限、无生产入口，使用内存 HTTP / Store 和凭据替身。`authUiCheck` 与 `cryptoCheck` 两个开关不能同时启用；两者保留独立测试源目录。共享认证替身在 `app/src/authTestShared/`，不进入生产 APK。命令与结果见[认证专项验证](auth-testing.md#认证体验与系统密码专项)。
+
+## API 环境配置
+
+默认正式地址为 `https://rosales.kirakira.moe/`。通过 Gradle 属性覆盖地址，例如连接 Cerasus 开发代理使用的预发布服务：
+
+```sh
+./gradlew :app:assembleDebug -Pkirakira.apiBaseUrl=https://stg-rosales.kirafile.com/
+```
+
+也可在用户级 Gradle 属性配置 `kirakira.apiBaseUrl`；不要提交个人环境文件。地址经 HTTPS／host／无凭据／无 query 与 fragment 校验后生成 `BuildConfig.API_BASE_URL`，支持路径前缀，尾部斜杠自动补齐。模拟器访问开发机应使用设备可达、证书可信的 HTTPS 地址，不能把设备的 localhost 当作开发机，也不能关闭证书校验。
+
+增加的 `INTERNET` 是普通权限，不弹运行时请求。Manifest 禁用明文流量；OkHttp API 客户端禁止重定向、自动连接重试、响应缓存和请求日志，Coil 头像请求使用独立客户端。版本表中的 OkHttp 用于 API 超时、取消、TLS 与 URL 编码，`coil-network-okhttp` 为已有 Coil 添加远程头像支持；复用现有 serialization，无新 DI／数据库框架。Media3 用于真实视频播放，按同一固定版本声明，不升级现有 Compose BOM。播放器使用无账号会话的独立媒体客户端。体积增量未测量，许可证由 AboutLibraries 收集。
+
+非生产 API 根地址构建的 `SYSTEM_CREDENTIALS_ENABLED=false`，禁用真实系统密码提供者；仅完整的默认生产根地址启用。
+
+账号库保存在不参与备份的 `noBackupFilesDir/sessions.v1.enc`，密码和验证码不持久保存。会话与完整 API 根地址绑定；切换构建环境时不加载另一后端的账号，首次保存新环境会话会替换本机旧环境账号库。可选的 userDataBootstrapHint 同样加密保存，仅首页过滤请求使用。图片分发默认固定生产 Cloudflare 地址，覆盖 API 地址不会自动切换图片环境。协议与已知服务端限制见[API 与会话](implementation.md#api-与会话)。
 
 ## 环境排障
 
@@ -67,6 +93,8 @@ app/src/main/
 ├── java/moe/kirakira/
 │   ├── MainActivity.kt       # Activity 宿主
 │   ├── KIRAKIRAApp.kt        # 应用入口、应用级状态与导航连接
+│   ├── core/network/        # HTTPS 客户端、响应解码、取消和统一失败类型
+│   ├── data/                # auth 认证会话与 content 视频、资料、评论、弹幕
 │   ├── feature/             # 主界面、视频、账户、认证与设置等功能
 │   │   └── main/MainScreen.kt # 四栏切换、顶栏与底栏
 │   └── ui/                  # Expressive 主题、共享组件与导航
@@ -81,4 +109,3 @@ gradle/                      # Wrapper、JDK 配置和版本目录
 ```
 
 后续功能继续按 `feature/<name>/` 组织，详细边界见[贡献指南](../CONTRIBUTING.md#技术选型与架构)。官方图标来源与许可见 [Material Symbols 记录](../third_party/material-symbols/README.md)。
-

@@ -15,15 +15,19 @@
 
 ## 代码与界面规则
 
+- 表达「添加」的 FAB 仅显示 Material Symbols Rounded `add` 加号，不附加「添加」文字；使用官方 `FloatingActionButton`，保留本地化无障碍描述与禁用语义，详见贡献指南。
 - 遵循 `.editorconfig` 和 Kotlin official 风格：四空格、UTF-8、LF；禁用通配符导入，移除无用导入。
 - 类型、文件和返回 `Unit` 的 UI composable 用 `PascalCase`；普通函数和属性用 `camelCase`；资源用 `snake_case`。
 - 复用 `KIRAKIRATheme`；图标默认使用官方 **Material Symbols Rounded**，必要时可绘制相同风格的自定义矢量图标，记录来源或设计理由，不混用旧版 Material Icons、SF Symbols 或其他图标风格。
 - 界面文案使用字符串资源，默认 `values/` 为英语，`values-zh/` 为中文；两套翻译同步维护。Demo 占位内容（用户名、签名、评论、弹幕、简介、视频标题等）不做多语言，集中放在 `values/demo_strings.xml` 并标记 `translatable="false"`，不在语言目录中重复定义；按钮、导航、提示和无障碍描述仍需翻译。可复用 UI 接收状态、事件回调和 `modifier: Modifier = Modifier`。
+- 除非用户明确要求，界面中不添加解释功能如何运作的说明文字；功能机制与实现细节记录在文档中，界面保留必要的操作标签、状态、错误和无障碍提示。
 - 分组菜单使用官方 `SegmentedListItem`，通过 `ListItemDefaults.segmentedShapes` 和 `SegmentedGap` 管理圆角与间距；纯布局使用无 `onClick` 的重载。
 - 需要滚动展开大标题的二级页面可复用 `ui/components/CollapsibleTopAppBar.kt` 与 `rememberCollapsibleTopAppBarScrollBehavior`，每页独立创建状态并接入 `nestedScroll`；默认进入折叠。按场景选用，不要求所有页面使用，接入示例见[实现说明](docs/implementation.md#可选的可折叠大标题栏)。
 - 滚动页面保留底部 edge-to-edge：底部系统内边距放入滚动内容（`Column` 的 `verticalScroll` 后或 `LazyColumn.contentPadding`），不要用容器外的完整 `innerPadding` 截短滚动区域；确保末项能滚动至导航栏上方。
 - 无确定进度的页面加载统一使用 `LoadingIndicator`，不得使用不确定进度的 `CircularProgressIndicator`；有可量化进度的加载可使用确定进度指示器。
+- 已有内容刷新时保留内容与布局，不在列表顶部额外插入 `LoadingIndicator`，避免跳动；下拉刷新使用 `ContentPullToRefresh` 的覆盖式指示器，不重复显示列表内加载状态。已加载的空状态在刷新期间也保持显示与占位。首次加载与相邻分页加载分别处理，详见贡献指南的 Compose 与界面规范。
 - 保持单向数据流；业务状态交由 ViewModel，简单局部 UI 状态可保留在 composable。不得在组合执行体中发起网络请求、写存储或导航。
+- API 接入遵循 [API 与会话规范](CONTRIBUTING.md#api-与会话接入规范)：契约对照 Rosales，UI 不接触 DTO／令牌；HTTPS、统一错误与取消、账号隔离、加密原子存储、禁止敏感日志和自动重放认证请求。仅邮箱可进入认证 SavedState；密码、摘要与验证码仅存流程内存。认证及本地保存完成后可经用户确认交给系统密码管理器；应用不落盘，非生产构建禁用真实凭据提供者。
 - 页面导航使用 Navigation 3：`@Serializable` 路由实现 `NavKey`，使用 `rememberNavBackStack`、封装 `NavDisplay` 的 `ui/navigation/ActivityNavDisplay.kt`；普通转场与 AOSP 两阶段预测性返回统一由该宿主管理，页面使用 `NavigationPage`，保持返回栈与页面状态恢复逻辑正确。
 - 依赖统一登记在 `gradle/libs.versions.toml`；使用现有 Compose BOM。Material 3 为公开 Expressive API 显式固定版本，具体值以版本目录为准，当前版本表见[开发指南](docs/development.md#开发环境)；其余版本例外需说明。
 

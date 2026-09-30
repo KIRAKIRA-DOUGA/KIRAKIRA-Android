@@ -14,12 +14,15 @@ AboutLibraries 15.2.0 的 Android Gradle 插件为每个构建变体自动生成
   `ui-tooling-preview` 是本项目的 implementation 依赖，因此仍会出现在发布版清单。
 - `libraries/` 是手动添加的非 Gradle 组件或依赖元数据补丁。
 - `licenses/` 保存手工声明对应的完整正文，通过 `hash` 与 library 的 `licenses` 字段关联。
-  为两项手动声明使用独立 hash，以保留各自的来源、修改说明与版权信息。
+  为各项手动声明使用独立 hash，以保留各自的来源、修改说明与版权信息。
 - [Material Symbols](../material-symbols/README.md) 和 [AOSP 转场](../android-motion/README.md)
   的来源记录及 LICENSE 继续保留在各自目录；更新这些组件时同步本目录的条目与正文。
+- [Cerasus 弹幕／颜文字图标及目录](../cerasus-icons/README.md) 以手动条目保留来源与 AGPL-3.0 许可全文。
 - 保留上游名称、许可证原文和版权声明，不翻译或缩写法律文本。不要把 README 中的说明视为上游 NOTICE 的替代。
 - 新增依赖后检查生成的 JSON：每项必须有正确许可证和非空全文。缺失时依据上游固定版本的
   LICENSE / NOTICE，在本目录补充信息，不按库名称猜测许可证。
+
+图片查看器新增 Telephoto 0.19.0（含 Coil 3 适配）和 Coil 3.2.0，均通过 Gradle 元数据自动收集；构建后检查生成清单中 Telephoto、Coil 及其传递依赖的 Apache-2.0 正文。
 
 生成 JSON 只放在 build 目录，不提交。构建时可能需要联网获取 Maven 元数据和 SPDX 正文；
 不需要 GitHub Token，不开启远程许可证或资助信息抓取。App 读取声明不发起网络请求。
@@ -39,7 +42,7 @@ AboutLibraries 15.2.0 的 Android Gradle 插件为每个构建变体自动生成
 ./gradlew :app:connectedDebugAndroidTest
 ```
 
-检查 Debug 与 Release APK 中的 `@raw/aboutlibraries` JSON（Release 资源优化可能重命名归档路径），确认都包含两项手动声明、正文非空，
+检查 Debug 与 Release APK 中的 `@raw/aboutlibraries` JSON（Release 资源优化可能重命名归档路径），确认都包含全部手动声明、正文非空，
 Release 不包含 `ui-tooling`、`ui-tooling-data`、`ui-test-manifest`、JUnit 或 AndroidX Test。
 设备测试验证打包数据、列表、详情 Sheet、返回、恢复以及中英文大字体布局。
 
@@ -47,3 +50,5 @@ Release 不包含 `ui-tooling`、`ui-tooling-data`、`ui-test-manifest`、JUnit 
 避免传递依赖意外改变项目 BOM 或 Expressive 版本，并完成默认 Debug 构建；页面交互测试仅在用户要求时执行。
 
 参考：[AboutLibraries 15.2.0](https://github.com/mikepenz/AboutLibraries/tree/15.2.0)。
+
+API 使用 OkHttp，远程头像使用 Coil 的 OkHttp 适配；两者由 Gradle 依赖与 AboutLibraries 自动收集许可证，不复制依赖源码或手工生成许可证文件。
