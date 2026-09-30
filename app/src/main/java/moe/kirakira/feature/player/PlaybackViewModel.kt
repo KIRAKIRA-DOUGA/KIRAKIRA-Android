@@ -12,7 +12,10 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.common.TrackSelectionOverride
+import androidx.media3.common.Tracks
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -22,8 +25,14 @@ import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.abs
+import kotlin.math.round
 import moe.kirakira.data.content.VideoPart
 import okhttp3.OkHttpClient
+
+internal data class VideoQualityOption(val height: Int, val bitrate: Int?)
+
+internal val playbackSpeeds = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f, 3f, 4f)
 
 /** Route-owned playback, paused on restoration; never stores URLs or credentials in SavedState. */
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
@@ -40,10 +49,78 @@ internal class PlaybackViewModel(private val context: Context, private val saved
         private set
     var playing by mutableStateOf(false)
         private set
+    var showPauseIcon by mutableStateOf(false)
+        private set
     var buffering by mutableStateOf(false)
         private set
     var failed by mutableStateOf(false)
         private set
+    var qualityOptions by mutableStateOf<List<VideoQualityOption>>(emptyList())
+        private set
+    var selectedQualityHeight by mutableStateOf<Int?>(null)
+        private set
+    var actualVideoHeight by mutableStateOf<Int?>(null)
+        private set
+    var speed by mutableStateOf(savedState.get<Float>("speed")?.takeIf { it.isFinite() && it in 0.25f..4f } ?: 1f)
+        private set
+    var continuousSpeed by mutableStateOf(savedState.get<Boolean>("continuous_speed") ?: false)
+        private set
+    var preservesPitch by mutableStateOf(savedState.get<Boolean>("preserves_pitch") ?: true)
+        private set
+    private var preferredHeight: Int? = null
+
+    fun setQualityPreference(auto: Boolean, height: Int?) {
+        preferredHeight = height?.takeIf { !auto && it > 0 }
+        player?.let(::updateQuality)
+    }
+
+    private fun updateQuality(current: ExoPlayer) {
+        val candidates = current.currentTracks.groups.filter { it.type == C.TRACK_TYPE_VIDEO }.flatMap { group ->
+            (0 until group.length).filter { group.isTrackSupported(it) && group.getTrackFormat(it).height > 0 }
+                .map { index -> group to index }
+        }
+        // Display the bitrate of the same representative track that manual selection will use.
+        val representatives = candidates
+            .sortedWith(compareByDescending<Pair<Tracks.Group, Int>> { it.first.isSelected }
+                .thenByDescending { (group, index) -> group.getTrackFormat(index).bitrate })
+            .distinctBy { (group, index) -> group.getTrackFormat(index).height }
+        qualityOptions = representatives.map { (group, index) ->
+            val format = group.getTrackFormat(index)
+            VideoQualityOption(format.height, format.bitrate.takeIf { it > 0 })
+        }.sortedByDescending { it.height }
+        val target = representatives.firstOrNull { (group, index) -> group.getTrackFormat(index).height == preferredHeight }
+        selectedQualityHeight = target?.let { (group, index) -> group.getTrackFormat(index).height }
+        val parameters = current.trackSelectionParameters.buildUpon().clearOverridesOfType(C.TRACK_TYPE_VIDEO)
+        target?.let { (group, index) -> parameters.setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, index)) }
+        val next = parameters.build()
+        if (next != current.trackSelectionParameters) current.trackSelectionParameters = next
+    }
+
+    fun changeSpeed(value: Float) {
+        if (!value.isFinite()) return
+        val bounded = value.coerceIn(0.25f, 4f)
+        speed = if (continuousSpeed) round(bounded * 100) / 100
+            else playbackSpeeds.minBy { abs(it - bounded) }
+        savedState["speed"] = speed
+        applySpeed()
+    }
+
+    fun changeContinuousSpeed(enabled: Boolean) {
+        continuousSpeed = enabled
+        savedState["continuous_speed"] = enabled
+        changeSpeed(speed)
+    }
+
+    fun changePreservesPitch(enabled: Boolean) {
+        preservesPitch = enabled
+        savedState["preserves_pitch"] = enabled
+        applySpeed()
+    }
+
+    private fun applySpeed() {
+        player?.playbackParameters = PlaybackParameters(speed, if (preservesPitch) 1f else speed)
+    }
+
     private var autoplayHandled = savedState.get<Boolean>("autoplay_handled") == true
 
     init {
@@ -92,13 +169,19 @@ internal class PlaybackViewModel(private val context: Context, private val saved
                 setHandleAudioBecomingNoisy(true)
                 addListener(object : Player.Listener {
                     override fun onEvents(player: Player, events: Player.Events) {
+                        if (player !== this@PlaybackViewModel.player) return
+                        if (events.contains(Player.EVENT_TRACKS_CHANGED)) updateQuality(player)
+                        actualVideoHeight = this@PlaybackViewModel.player?.videoFormat?.height?.takeIf { it > 0 }
                         playing = player.isPlaying
+                        // isPlaying becomes false during buffering; the button still means pause.
+                        showPauseIcon = player.playWhenReady && player.playbackState != Player.STATE_ENDED &&
+                            player.playerError == null
                         buffering = player.playbackState == Player.STATE_BUFFERING
                         durationMs = player.duration.takeIf { it != C.TIME_UNSET }?.coerceAtLeast(0) ?: 0
                         positionMs = player.currentPosition.coerceAtLeast(0)
                         bufferedPositionMs = player.bufferedPosition.coerceIn(0, durationMs)
                     }
-                    override fun onPlayerError(error: PlaybackException) { failed = true; buffering = false }
+                    override fun onPlayerError(error: PlaybackException) { failed = true; buffering = false; showPauseIcon = false }
                 })
                 setMediaItem(MediaItem.Builder().setUri(part.url).setMediaId(part.id.toString())
                     .setMediaMetadata(MediaMetadata.Builder().setTitle(title).setSubtitle(part.title).build()).build())
@@ -106,10 +189,12 @@ internal class PlaybackViewModel(private val context: Context, private val saved
                 prepare()
             }
         player = next
+        applySpeed()
         mediaSession = MediaSession.Builder(context, next).setId("video-${hashCode()}").build()
         next.play()
         progress = viewModelScope.launch {
             while (true) {
+                actualVideoHeight = next.videoFormat?.height?.takeIf { it > 0 }
                 positionMs = next.currentPosition.coerceAtLeast(0)
                 bufferedPositionMs = next.bufferedPosition.coerceIn(0, durationMs)
                 savedState["position"] = positionMs
@@ -118,7 +203,14 @@ internal class PlaybackViewModel(private val context: Context, private val saved
         }
     }
 
-    fun toggle() { if (player?.playWhenReady == true) player?.pause() else play() }
+    fun toggle() {
+        val current = player
+        if (current?.playWhenReady == true && current.playbackState != Player.STATE_ENDED && !failed) {
+            current.pause()
+        } else {
+            play()
+        }
+    }
     fun seek(position: Long) {
         positionMs = position.coerceIn(0, durationMs.coerceAtLeast(0))
         player?.seekTo(positionMs)
@@ -147,10 +239,15 @@ internal class PlaybackViewModel(private val context: Context, private val saved
         progress = null
         mediaSession?.release()
         mediaSession = null
-        player?.release()
+        val previous = player
         player = null
+        previous?.release()
+        qualityOptions = emptyList()
+        selectedQualityHeight = null
+        actualVideoHeight = null
         bufferedPositionMs = 0
         playing = false
+        showPauseIcon = false
         buffering = false
     }
     override fun onCleared() { release() }

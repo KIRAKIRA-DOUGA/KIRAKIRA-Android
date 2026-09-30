@@ -339,4 +339,15 @@
     <string name="kaomoji_embarrassed">Speechless</string>
     <string name="kaomoji_recent_empty">No recent kaomoji</string>
     <string name="kaomoji_too_long">Text cannot exceed %1$d characters.</string>
+    <string name="player_quality">Quality</string>
+    <string name="player_speed">Playback speed</string>
+    <string name="player_quality_auto">Auto</string>
+    <string name="player_quality_value">%1$dp</string>
+    <string name="player_quality_current">Currently %1$dp</string>
+    <string name="player_speed_value">%1$s×</string>
+    <string name="player_quality_description">Quality: %1$s</string>
+    <string name="player_speed_description">Playback speed: %1$s</string>
+    <string name="player_continuous_speed">Continuous speed control</string>
+    <string name="player_preserves_pitch">Preserve pitch</string>
+    <string name="player_quality_bitrate">%1$d Kbps</string>
 </resources>

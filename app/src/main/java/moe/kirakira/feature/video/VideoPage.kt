@@ -71,6 +71,7 @@ internal fun VideoPage(
     onLogin: () -> Unit,
     modifier: Modifier = Modifier,
     isActive: Boolean = true,
+    onQualityPreference: (Int?) -> Unit = {},
 ) {
     val model = viewModel { VideoViewModel(videoId, repository) }
     val kaomojiModel: KaomojiViewModel = viewModel()
@@ -105,6 +106,9 @@ internal fun VideoPage(
     fun unavailable() { scope.launch { snackbar.showSnackbar(context.getString(R.string.video_action_unavailable)) } }
     val lifecycleOwner = LocalLifecycleOwner.current
     val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsStateWithLifecycle()
+    LaunchedEffect(playbackSettings?.autoQuality, playbackSettings?.preferredVideoHeight) {
+        playbackSettings?.let { playback.setQualityPreference(it.autoQuality, it.preferredVideoHeight) }
+    }
     var initialSessionRevision by remember { mutableStateOf<Long?>(null) }
     LaunchedEffect(value, playbackSettings, isActive, lifecycleState, session.revision) {
         val previousRevision = initialSessionRevision
@@ -160,11 +164,11 @@ internal fun VideoPage(
         view.keepScreenOn = playback.playing
         onDispose { view.keepScreenOn = false }
     }
-    LaunchedEffect(playback.playing, playback.buffering, isActive, playerBounds, playbackSettings) {
+    LaunchedEffect(playback.player, playback.playing, playback.failed, playback.buffering, isActive, playerBounds, playbackSettings) {
         val size = playback.player?.videoSize
         val ratio = if (size != null && size.width > 0 && size.height > 0) size.width.toFloat() / size.height else 16f / 9f
-        activity?.updatePictureInPicture(isActive && playback.playing, playerBounds, ratio,
-            autoEnter = playbackSettings?.autoPictureInPicture == true)
+        activity?.updatePictureInPicture(isActive && playback.player != null && !playback.failed, playerBounds, ratio,
+            autoEnter = playback.playing && playbackSettings?.autoPictureInPicture == true)
     }
     NavigationBackHandler(rememberNavigationEventState(FullscreenInfo), isBackEnabled = fullscreen && !pip,
         onBackCompleted = { fullscreen = false })
@@ -191,9 +195,24 @@ internal fun VideoPage(
                             },
                     ) {
                         VideoPlayer(
+                            active = isActive,
+                            onQuality = { height ->
+                                playback.setQualityPreference(height == null, height)
+                                onQualityPreference(height)
+                            },
+                            onSpeed = playback::changeSpeed,
+                            onContinuousSpeed = playback::changeContinuousSpeed,
+                            onPreservesPitch = playback::changePreservesPitch,
                             player = playback.player,
                             state = PlayerUiState(
+                                qualityOptions = playback.qualityOptions,
+                                selectedQualityHeight = playback.selectedQualityHeight,
+                                actualVideoHeight = playback.actualVideoHeight,
+                                speed = playback.speed,
+                                continuousSpeed = playback.continuousSpeed,
+                                preservesPitch = playback.preservesPitch,
                                 playing = playback.playing,
+                                showPauseIcon = playback.showPauseIcon,
                                 buffering = playback.buffering,
                                 failed = playback.failed,
                                 positionMs = playback.positionMs,

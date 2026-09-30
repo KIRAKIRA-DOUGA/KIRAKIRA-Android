@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
@@ -46,10 +47,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -58,6 +62,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.media3.common.Player
 import androidx.media3.ui.compose.ContentFrame
 import kotlinx.coroutines.delay
@@ -71,12 +76,19 @@ import moe.kirakira.ui.theme.KIRAKIRATheme
 
 internal data class PlayerUiState(
     val playing: Boolean = false,
+    val showPauseIcon: Boolean = playing,
     val buffering: Boolean = false,
     val failed: Boolean = false,
     val positionMs: Long = 0,
     val durationMs: Long = 0,
     val bufferedPositionMs: Long = 0,
     val available: Boolean = false,
+    val qualityOptions: List<VideoQualityOption> = emptyList(),
+    val selectedQualityHeight: Int? = null,
+    val actualVideoHeight: Int? = null,
+    val speed: Float = 1f,
+    val continuousSpeed: Boolean = false,
+    val preservesPitch: Boolean = true,
 )
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
@@ -95,7 +107,16 @@ internal fun VideoPlayer(
     onPictureInPicture: () -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    active: Boolean = true,
+    onQuality: (Int?) -> Unit = {},
+    onSpeed: (Float) -> Unit = {},
+    onContinuousSpeed: (Boolean) -> Unit = {},
+    onPreservesPitch: (Boolean) -> Unit = {},
 ) {
+    val playbackIconMotion = rememberPlaybackIconMotion(
+        playing = state.showPauseIcon,
+    )
+    var settingsPanel by remember { mutableStateOf<PlayerSettingsPanel?>(null) }
     var controlsVisible by remember { mutableStateOf(true) }
     var interaction by remember { mutableIntStateOf(0) }
     var dragged by remember(player) { mutableStateOf<Float?>(null) }
@@ -110,8 +131,19 @@ internal fun VideoPlayer(
         }
     }
     val touchExploration = rememberTouchExplorationEnabled()
-    val keepVisible = !state.playing || state.buffering || state.failed || dragging || pressing || dragged != null || touchExploration
+    val keepVisible = settingsPanel != null || !state.playing || state.buffering || state.failed || dragging || pressing || dragged != null || touchExploration
     fun interact() { controlsVisible = true; interaction++ }
+    fun controlAction(action: () -> Unit) {
+        if (controlsVisible) {
+            interact()
+            action()
+        }
+    }
+    val focusManager = LocalFocusManager.current
+    var controlsHaveFocus by remember { mutableStateOf(false) }
+    LaunchedEffect(controlsVisible) {
+        if (!controlsVisible && controlsHaveFocus) focusManager.clearFocus(force = true)
+    }
     LaunchedEffect(keepVisible, interaction, controlsVisible, fullscreen, pictureInPicture) {
         if (keepVisible) controlsVisible = true
         else if (controlsVisible && !pictureInPicture) {
@@ -119,7 +151,22 @@ internal fun VideoPlayer(
             controlsVisible = false
         }
     }
-    LaunchedEffect(fullscreen, pictureInPicture) { interact() }
+    LaunchedEffect(fullscreen, pictureInPicture, active, state.failed) {
+        settingsPanel = null
+        interact()
+    }
+    if (active && !pictureInPicture && !state.failed) {
+        settingsPanel?.let { panel ->
+            PlayerSettingsSheet(
+                panel, state,
+                onDismiss = { settingsPanel = null; interact() },
+                onQuality = onQuality,
+                onSpeed = onSpeed,
+                onContinuousSpeed = onContinuousSpeed,
+                onPreservesPitch = onPreservesPitch,
+            )
+        }
+    }
     Box(modifier.background(Color.Black)) {
         if (player != null) {
             ContentFrame(player = player, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
@@ -128,7 +175,9 @@ internal fun VideoPlayer(
         }
         if (!pictureInPicture) {
             val controlsLabel = stringResource(if (controlsVisible) R.string.player_hide_controls else R.string.player_show_controls)
-            Box(Modifier.fillMaxSize().semantics { contentDescription = controlsLabel }.clickable(
+            // Keep the reveal target above exiting controls so a tap cannot reach them.
+            Box(Modifier.fillMaxSize().zIndex(if (controlsVisible) 0f else 1f)
+                .semantics { contentDescription = controlsLabel }.clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClickLabel = controlsLabel,
@@ -143,6 +192,11 @@ internal fun VideoPlayer(
                 Box(
                     Modifier.fillMaxSize()
                         .then(if (!controlsVisible) Modifier.clearAndSetSemantics { } else Modifier)
+                        .focusProperties {
+                            onEnter = { if (!controlsVisible) cancelFocusChange() }
+                        }
+                        .onFocusChanged { controlsHaveFocus = it.hasFocus }
+                        .focusGroup()
                         .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.3f), Color.Transparent, Color.Black.copy(alpha = 0.7f))))
                         .then(if (fullscreen) Modifier.windowInsetsPadding(WindowInsets.safeDrawing) else Modifier)
                         .padding(8.dp),
@@ -153,8 +207,7 @@ internal fun VideoPlayer(
                     )
                     IconButton(
                         colors = iconColors,
-                        onClick = { interact(); onBack() },
-                        enabled = controlsVisible,
+                        onClick = { controlAction(onBack) },
                         modifier = Modifier.align(Alignment.TopStart),
                     ) {
                         Icon(painterResource(R.drawable.ic_symbol_arrow_back), stringResource(
@@ -166,13 +219,13 @@ internal fun VideoPlayer(
                             state = ContentUnavailableState.ERROR,
                             title = stringResource(R.string.player_error),
                             description = null,
-                            onRetry = { interact(); onRetry() },
+                            onRetry = { controlAction(onRetry) },
                             retryEnabled = state.available,
                             presentation = ContentUnavailablePresentation.MEDIA,
                             modifier = Modifier.fillMaxSize().padding(horizontal = 48.dp),
                         )
                         IconButton(
-                            onClick = { interact(); onFullscreen() },
+                            onClick = { controlAction(onFullscreen) },
                             colors = iconColors,
                             modifier = Modifier.align(Alignment.TopEnd),
                         ) {
@@ -182,6 +235,12 @@ internal fun VideoPlayer(
                             )
                         }
                     } else {
+                        PlayerSettingsButtons(
+                            state = state,
+                            enabled = active,
+                            onOpen = { panel -> controlAction { settingsPanel = panel } },
+                            modifier = Modifier.align(Alignment.TopEnd).padding(start = 48.dp),
+                        )
                         Box(
                             modifier = Modifier.align(Alignment.Center).size(64.dp)
                                 .background(Color.Black.copy(alpha = 0.45f), CircleShape),
@@ -191,30 +250,27 @@ internal fun VideoPlayer(
                                 LoadingIndicator(modifier = Modifier.size(48.dp), color = Color.White)
                             } else {
                                 IconButton(
-                                    onClick = { interact(); onToggle() },
-                                    enabled = controlsVisible && state.available,
+                                    onClick = { controlAction(onToggle) },
+                                    enabled = state.available,
                                     colors = IconButtonDefaults.iconButtonColors(
                                         contentColor = Color.White,
                                         disabledContentColor = Color.White.copy(alpha = 0.38f),
                                     ),
                                     modifier = Modifier.fillMaxSize(),
                                 ) {
-                                    Icon(
-                                        painterResource(when {
-                                            state.playing -> R.drawable.ic_symbol_pause
-                                            else -> R.drawable.ic_symbol_play_arrow
-                                        }),
-                                        stringResource(when {
-                                            state.playing -> R.string.player_pause
-                                            else -> R.string.player_play
-                                        }),
-                                        Modifier.size(48.dp),
+                                    AnimatedPlaybackIcon(
+                                        motion = playbackIconMotion,
+                                        description = stringResource(
+                                            if (state.showPauseIcon) R.string.player_pause else R.string.player_play,
+                                        ),
+                                        modifier = Modifier.size(48.dp),
                                     )
                                 }
                             }
                         }
                         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 8.dp)) {
                             val seekLabel = stringResource(R.string.player_seek)
+                            val seekThumbSize = DpSize(16.dp, 16.dp)
                             val sliderColors = SliderDefaults.colors(
                                 activeTrackColor = MaterialTheme.colorScheme.primary,
                                 inactiveTrackColor = Color.Transparent,
@@ -239,14 +295,16 @@ internal fun VideoPlayer(
                                     "${durationText(dragged?.let { (it * state.durationMs).toLong() } ?: state.positionMs)} / ${durationText(state.durationMs)}",
                                     style = MaterialTheme.typography.labelMedium,
                                     color = Color.White,
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier.weight(1f).padding(start = seekThumbSize.width / 2),
                                 )
-                                if (state.playing) {
-                                    IconButton(onClick = { interact(); onPictureInPicture() }, enabled = controlsVisible, colors = iconColors) {
-                                        Icon(painterResource(R.drawable.ic_symbol_picture_in_picture_alt), stringResource(R.string.player_pip))
-                                    }
+                                IconButton(
+                                    onClick = { controlAction(onPictureInPicture) },
+                                    enabled = active && player != null && state.available,
+                                    colors = iconColors,
+                                ) {
+                                    Icon(painterResource(R.drawable.ic_symbol_picture_in_picture_alt), stringResource(R.string.player_pip))
                                 }
-                                IconButton(onClick = { interact(); onFullscreen() }, enabled = controlsVisible, colors = iconColors) {
+                                IconButton(onClick = { controlAction(onFullscreen) }, colors = iconColors) {
                                     Icon(
                                         painterResource(if (fullscreen) R.drawable.ic_symbol_fullscreen_exit else R.drawable.ic_symbol_fullscreen),
                                         stringResource(if (fullscreen) R.string.player_exit_fullscreen else R.string.player_fullscreen),
@@ -256,13 +314,16 @@ internal fun VideoPlayer(
                             Slider(
                                 state = slider,
                                 colors = sliderColors,
-                                onValueChange = { slider.value = it; dragged = it; interact() },
-                                onValueChangeFinished = {
-                                    dragged?.let { onSeek((it * state.durationMs).toLong()) }
-                                    dragged = null
-                                    interact()
+                                onValueChange = { value ->
+                                    controlAction { slider.value = value; dragged = value }
                                 },
-                                enabled = controlsVisible && state.durationMs > 0,
+                                onValueChangeFinished = {
+                                    controlAction {
+                                        dragged?.let { onSeek((it * state.durationMs).toLong()) }
+                                    }
+                                    dragged = null
+                                },
+                                enabled = state.durationMs > 0,
                                 interactionSource = sliderInteraction,
                                 modifier = Modifier.fillMaxWidth().height(32.dp).semantics { contentDescription = seekLabel },
                                 thumb = {
@@ -270,8 +331,8 @@ internal fun VideoPlayer(
                                         interactionSource = sliderInteraction,
                                         isVertical = false,
                                         colors = sliderColors,
-                                        enabled = controlsVisible && state.durationMs > 0,
-                                        thumbSize = DpSize(16.dp, 16.dp),
+                                        enabled = state.durationMs > 0,
+                                        thumbSize = seekThumbSize,
                                     )
                                 },
                                 track = { sliderState ->
@@ -281,7 +342,7 @@ internal fun VideoPlayer(
                                             sliderState = bufferSlider,
                                             colors = bufferColors,
                                             modifier = Modifier.height(6.dp).clearAndSetSemantics { },
-                                            enabled = controlsVisible && state.durationMs > 0,
+                                            enabled = state.durationMs > 0,
                                             trackCornerSize = 3.dp,
                                             trackInsideCornerSize = 3.dp,
                                             thumbTrackGapSize = 0.dp,
@@ -291,7 +352,7 @@ internal fun VideoPlayer(
                                             sliderState = sliderState,
                                             colors = sliderColors,
                                             modifier = Modifier.height(6.dp),
-                                            enabled = controlsVisible && state.durationMs > 0,
+                                            enabled = state.durationMs > 0,
                                             trackCornerSize = 3.dp,
                                             trackInsideCornerSize = 3.dp,
                                             thumbTrackGapSize = 0.dp,

@@ -58,7 +58,10 @@
 - [`pause`](https://github.com/google/material-design-icons/blob/master/symbols/android/pause/materialsymbolsrounded/pause_fill1_24px.xml)
 - [`fullscreen`](https://github.com/google/material-design-icons/blob/master/symbols/android/fullscreen/materialsymbolsrounded/fullscreen_24px.xml)
 - [`fullscreen_exit`](https://github.com/google/material-design-icons/blob/master/symbols/android/fullscreen_exit/materialsymbolsrounded/fullscreen_exit_24px.xml)
+- [`speed`](https://github.com/google/material-design-icons/blob/master/symbols/android/speed/materialsymbolsrounded/speed_24px.xml)：播放器倍速入口。
 - [`picture_in_picture_alt`](https://github.com/google/material-design-icons/blob/master/symbols/android/picture_in_picture_alt/materialsymbolsrounded/picture_in_picture_alt_24px.xml)
+
+`AnimatedPlaybackIcon.kt` 基于上述播放／暂停 FILL 1 路径制作形变：播放三角形沿 y=480 拆成两个同向闭合轮廓，直线转换为等价二次曲线；暂停双竖条重新选择起点并拆分直边，使每个轮廓具有十六段二次曲线。端点保持官方外轮廓，形变中间态为自定义插值。两个方向都对目标控制点反向旋转 90°，再随动画顺时针旋转 90°；中断时从当前可见控制点重新插值，保持连续。未新增第三方图标或依赖，沿用 Apache 2.0 许可。
 
 ## 视频卡片元数据图标
 

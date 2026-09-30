@@ -336,4 +336,15 @@
     <string name="kaomoji_embarrassed">无语</string>
     <string name="kaomoji_recent_empty">暂无最近使用的颜文字</string>
     <string name="kaomoji_too_long">内容不能超过 %1$d 个字符。</string>
+    <string name="player_quality">画质</string>
+    <string name="player_speed">播放速度</string>
+    <string name="player_quality_auto">自动</string>
+    <string name="player_quality_value">%1$dp</string>
+    <string name="player_quality_current">当前 %1$dp</string>
+    <string name="player_speed_value">%1$s×</string>
+    <string name="player_quality_description">画质：%1$s</string>
+    <string name="player_speed_description">播放速度：%1$s</string>
+    <string name="player_continuous_speed">连续调速</string>
+    <string name="player_preserves_pitch">保持音调</string>
+    <string name="player_quality_bitrate">%1$d Kbps</string>
 </resources>

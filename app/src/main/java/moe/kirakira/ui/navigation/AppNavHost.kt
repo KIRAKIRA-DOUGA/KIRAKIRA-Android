@@ -151,7 +151,7 @@ internal fun AppNavHost(
                     if (contentRepository == null || route.videoId <= 0) {
                         Text(stringResource(R.string.content_login_to_interact))
                     } else {
-                        VideoPage(playbackSettings = playbackSettings, videoId = route.videoId, repository = contentRepository, isActive = backStack.lastOrNull() == route,
+                        VideoPage(onQualityPreference = { playbackSettingsModel?.setQuality(it) }, playbackSettings = playbackSettings, videoId = route.videoId, repository = contentRepository, isActive = backStack.lastOrNull() == route,
                             onOpenProfile = { uid -> openFrom(route, ProfileRoute(uid)) }, onLogin = {
                                 if (backStack.lastOrNull() == route) backStack.add(AuthRoute())
                             }, onBack = { if (backStack.lastOrNull() == route) backStack.removeLastOrNull() })
