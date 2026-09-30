@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- This isolated package runs storage tests only and cannot contact any backend. -->
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove" />
+    <application android:allowBackup="false" tools:replace="android:allowBackup">
+        <activity android:name="moe.kirakira.MainActivity" tools:node="remove" />
+    </application>
+</manifest>
