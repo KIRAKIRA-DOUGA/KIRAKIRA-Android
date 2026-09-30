@@ -14,6 +14,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalInspectionMode
 import moe.kirakira.feature.settings.PlaybackSettings
+import moe.kirakira.feature.settings.DanmakuSettings
+import moe.kirakira.feature.settings.DanmakuSettingsScreen
+import moe.kirakira.feature.settings.DanmakuSettingsViewModel
 import androidx.compose.ui.platform.LocalAutofillManager
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -73,6 +76,9 @@ internal fun AppNavHost(
     val playbackSettingsModel = if (LocalInspectionMode.current) null else viewModel<PlaybackSettingsViewModel>()
     val playbackSettings = if (LocalInspectionMode.current) PlaybackSettings()
         else playbackSettingsModel?.settings?.collectAsStateWithLifecycle()?.value
+    val danmakuSettingsModel = if (LocalInspectionMode.current) null else viewModel<DanmakuSettingsViewModel>()
+    val danmakuSettings = if (LocalInspectionMode.current) DanmakuSettings()
+        else danmakuSettingsModel?.settings?.collectAsStateWithLifecycle()?.value
     val backStack = rememberNavBackStack(MainRoute)
     // Discard retired demo destinations when restoring navigation after an upgrade.
     LaunchedEffect(Unit) {
@@ -151,7 +157,7 @@ internal fun AppNavHost(
                     if (contentRepository == null || route.videoId <= 0) {
                         Text(stringResource(R.string.content_login_to_interact))
                     } else {
-                        VideoPage(onQualityPreference = { playbackSettingsModel?.setQuality(it) }, playbackSettings = playbackSettings, videoId = route.videoId, repository = contentRepository, isActive = backStack.lastOrNull() == route,
+                        VideoPage(danmakuSettings = danmakuSettings, onDanmakuEnabled = { danmakuSettingsModel?.setEnabled(it) }, onQualityPreference = { playbackSettingsModel?.setQuality(it) }, playbackSettings = playbackSettings, videoId = route.videoId, repository = contentRepository, isActive = backStack.lastOrNull() == route,
                             onOpenProfile = { uid -> openFrom(route, ProfileRoute(uid)) }, onLogin = {
                                 if (backStack.lastOrNull() == route) backStack.add(AuthRoute())
                             }, onBack = { if (backStack.lastOrNull() == route) backStack.removeLastOrNull() })
@@ -202,6 +208,7 @@ internal fun AppNavHost(
                     SettingsScreen(
                         onNavigateToBlocking = { openFrom(SettingsRoute, BlockingOverviewRoute) },
                         onNavigateToInvitations = { openFrom(SettingsRoute, InvitationsRoute) },
+                        onNavigateToDanmaku = { openFrom(SettingsRoute, DanmakuSettingsRoute) },
                         onNavigateToPlayback = {
                             if (backStack.lastOrNull() == SettingsRoute) backStack.add(PlaybackSettingsRoute)
                         },
@@ -290,6 +297,15 @@ internal fun AppNavHost(
                         onBack = {
                             if (backStack.lastOrNull() == AboutRoute) backStack.removeLastOrNull()
                         },
+                    )
+                }
+            }
+            entry<DanmakuSettingsRoute> {
+                NavigationPage {
+                    DanmakuSettingsScreen(
+                        settings = danmakuSettings,
+                        onChange = { danmakuSettingsModel?.update(it) },
+                        onBack = { if (backStack.lastOrNull() == DanmakuSettingsRoute) backStack.removeLastOrNull() },
                     )
                 }
             }

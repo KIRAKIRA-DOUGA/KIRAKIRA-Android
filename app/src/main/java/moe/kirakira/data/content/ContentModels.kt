@@ -59,4 +59,9 @@ internal data class CommentPage(val comments: List<VideoComment>, val total: Int
     val pages: Int get() = ((total + 19) / 20).coerceAtLeast(1)
 }
 
-internal data class DanmakuEntry(val timeSeconds: Double, val text: String, val editedAt: Long?)
+internal data class DanmakuEntry(
+    val timeSeconds: Double,
+    val text: String,
+    val editedAt: Long?,
+    val style: DanmakuStyle = DanmakuStyle(),
+)

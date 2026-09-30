@@ -350,4 +350,12 @@
     <string name="player_continuous_speed">Continuous speed control</string>
     <string name="player_preserves_pitch">Preserve pitch</string>
     <string name="player_quality_bitrate">%1$d Kbps</string>
+
+    <string name="danmaku_display">Show danmaku</string>
+    <string name="danmaku_opacity">Opacity</string>
+    <string name="danmaku_font_scale">Text size</string>
+    <string name="danmaku_area">Display area</string>
+    <string name="danmaku_speed">Scrolling speed</string>
+    <string name="danmaku_percent">%1$d%%</string>
+    <string name="danmaku_speed_value">%1$.1f×</string>
 </resources>

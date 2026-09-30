@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
-    <!-- Only non-sensitive appearance and playback preferences are eligible for backup. -->
+    <!-- Only non-sensitive appearance, playback and danmaku preferences are eligible for backup. -->
     <include domain="sharedpref" path="kirakira_settings.xml" />
 </full-backup-content>

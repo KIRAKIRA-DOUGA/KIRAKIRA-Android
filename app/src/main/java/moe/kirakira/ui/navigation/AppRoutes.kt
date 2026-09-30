@@ -48,6 +48,9 @@ internal data object SelfProfileRoute : NavKey
 internal data class ImageViewerRoute(val image: ViewerImage) : NavKey
 
 @Serializable
+internal data object DanmakuSettingsRoute : NavKey
+
+@Serializable
 internal data object PlaybackSettingsRoute : NavKey
 
 @Serializable

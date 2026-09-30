@@ -56,6 +56,7 @@ import moe.kirakira.data.content.ContentRepository
 import moe.kirakira.feature.player.PlaybackViewModel
 import moe.kirakira.feature.player.PlayerUiState
 import moe.kirakira.feature.player.VideoPlayer
+import moe.kirakira.feature.settings.DanmakuSettings
 import moe.kirakira.feature.settings.PlaybackSettings
 import moe.kirakira.ui.components.messageRes
 
@@ -72,6 +73,8 @@ internal fun VideoPage(
     modifier: Modifier = Modifier,
     isActive: Boolean = true,
     onQualityPreference: (Int?) -> Unit = {},
+    danmakuSettings: DanmakuSettings? = null,
+    onDanmakuEnabled: (Boolean) -> Unit = {},
 ) {
     val model = viewModel { VideoViewModel(videoId, repository) }
     val kaomojiModel: KaomojiViewModel = viewModel()
@@ -195,6 +198,10 @@ internal fun VideoPage(
                             },
                     ) {
                         VideoPlayer(
+                            danmaku = danmaku.data.orEmpty(),
+                            danmakuSettings = danmakuSettings,
+                            danmakuContentKey = Triple(videoId, playback.selectedPart, session.revision),
+                            onDanmakuEnabled = onDanmakuEnabled,
                             active = isActive,
                             onQuality = { height ->
                                 playback.setQualityPreference(height == null, height)

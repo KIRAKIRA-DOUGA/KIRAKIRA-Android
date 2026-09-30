@@ -51,6 +51,7 @@ fun SettingsScreen(
     onNavigateToAccount: () -> Unit,
     modifier: Modifier = Modifier,
     onNavigateToPlayback: () -> Unit = {},
+    onNavigateToDanmaku: () -> Unit = {},
     onNavigateToBlocking: () -> Unit = {},
     onNavigateToInvitations: () -> Unit = {},
     signedIn: Boolean = false,
@@ -149,6 +150,7 @@ fun SettingsScreen(
                     onAboutClick = onNavigateToAbout,
                     onAppearanceClick = onNavigateToAppearance,
                     onPlaybackClick = onNavigateToPlayback,
+                    onDanmakuClick = onNavigateToDanmaku,
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SectionHeader(
@@ -185,6 +187,7 @@ private fun SettingsGroup(
     entries: List<SettingsEntry>,
     modifier: Modifier = Modifier,
     onPlaybackClick: (() -> Unit)? = null,
+    onDanmakuClick: (() -> Unit)? = null,
     onBlockingClick: (() -> Unit)? = null,
     onInvitationsClick: (() -> Unit)? = null,
     onAboutClick: (() -> Unit)? = null,
@@ -206,6 +209,7 @@ private fun SettingsGroup(
                         R.string.settings_blocking -> onBlockingClick
                         R.string.settings_invitation_code -> onInvitationsClick
                         R.string.settings_playback -> onPlaybackClick
+                        R.string.settings_danmaku -> onDanmakuClick
                         R.string.settings_about -> onAboutClick
                         R.string.settings_appearance -> onAppearanceClick
                         else -> null

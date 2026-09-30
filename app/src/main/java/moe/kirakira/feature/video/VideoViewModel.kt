@@ -42,7 +42,10 @@ internal class VideoViewModel(val videoId: Int, repository: ContentRepository) :
             _posted.value = null
             commentsRequested = false
             danmakuRequested = false
-        }, ::refresh)
+        }, {
+            refresh()
+            ensureDanmaku()
+        })
     }
 
     fun refresh() = load(_detail) { repository.video(videoId, it) }
@@ -59,6 +62,7 @@ internal class VideoViewModel(val videoId: Int, repository: ContentRepository) :
     fun loadAdjacentComments(before: Boolean, retry: Boolean) = commentList.adjacent(before, retry)
     fun consumeCommentLocation(request: Long) = commentList.consumeLocation(request)
     fun refreshDanmaku() {
+        if (!session.value.isReadyForContent || revision != session.value.revision) return
         danmakuRequested = true
         load(_danmaku) { repository.danmaku(videoId, it) }
     }

@@ -120,8 +120,15 @@ internal class ContentRepository(private val api: ApiClient, private val auth: A
         // This endpoint's personalized filtering currently expects a bootstrap hint. Do not invent token auth.
         val response = api.get<DanmakuResponse>("video/danmaku", mapOf("videoId" to id.toString()), cookie = null)
         response.check()
-        response.danmaku.orEmpty().filter { it.time.isFinite() && it.time >= 0 }.map {
-            DanmakuEntry(it.time, it.text, it.editDateTime)
+        response.danmaku.orEmpty().filter {
+            it.time.isFinite() && it.time >= 0 && it.time < Long.MAX_VALUE / 1000.0 && it.text.isNotBlank()
+        }.map {
+            DanmakuEntry(it.time, it.text, it.editDateTime, DanmakuStyle(
+                color = it.color?.takeIf { value -> value.matches(Regex("[0-9a-fA-F]{6}")) }?.toIntOrNull(16) ?: 0xFFFFFF,
+                fontSize = DanmakuFontSize.entries.firstOrNull { size -> size.wireValue == it.fontSize } ?: DanmakuFontSize.MEDIUM,
+                mode = DanmakuMode.entries.firstOrNull { mode -> mode.wireValue == it.mode } ?: DanmakuMode.RTL,
+                enableRainbow = it.enableRainbow ?: false,
+            ))
         }.sortedBy { it.timeSeconds }
     }
 
@@ -261,4 +268,12 @@ private data class CommentDto(
 @Serializable
 private data class DanmakuResponse(override val success: Boolean, val danmaku: List<DanmakuDto>? = null) : ApiResult
 @Serializable
-private data class DanmakuDto(val time: Double, val text: String, val editDateTime: Long? = null)
+private data class DanmakuDto(
+    val time: Double,
+    val text: String,
+    val editDateTime: Long? = null,
+    val color: String? = null,
+    val fontSize: String? = null,
+    val mode: String? = null,
+    val enableRainbow: Boolean? = null,
+)

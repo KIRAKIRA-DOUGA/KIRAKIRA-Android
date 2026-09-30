@@ -34,6 +34,8 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSliderState
 import androidx.compose.runtime.Composable
@@ -67,6 +69,8 @@ import androidx.media3.common.Player
 import androidx.media3.ui.compose.ContentFrame
 import kotlinx.coroutines.delay
 import moe.kirakira.R
+import moe.kirakira.data.content.DanmakuEntry
+import moe.kirakira.feature.settings.DanmakuSettings
 import moe.kirakira.feature.video.VideoArtwork
 import moe.kirakira.feature.video.durationText
 import moe.kirakira.ui.components.ContentUnavailablePresentation
@@ -112,6 +116,10 @@ internal fun VideoPlayer(
     onSpeed: (Float) -> Unit = {},
     onContinuousSpeed: (Boolean) -> Unit = {},
     onPreservesPitch: (Boolean) -> Unit = {},
+    danmaku: List<DanmakuEntry> = emptyList(),
+    danmakuSettings: DanmakuSettings? = null,
+    danmakuContentKey: Any = Unit,
+    onDanmakuEnabled: (Boolean) -> Unit = {},
 ) {
     val playbackIconMotion = rememberPlaybackIconMotion(
         playing = state.showPauseIcon,
@@ -172,6 +180,9 @@ internal fun VideoPlayer(
             ContentFrame(player = player, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
         } else {
             VideoArtwork(image, Modifier.fillMaxSize())
+        }
+        if (player != null && active && !pictureInPicture && !state.failed && danmakuSettings?.enabled == true) {
+            DanmakuOverlay(player, danmaku, danmakuSettings, danmakuContentKey)
         }
         if (!pictureInPicture) {
             val controlsLabel = stringResource(if (controlsVisible) R.string.player_hide_controls else R.string.player_show_controls)
@@ -296,6 +307,23 @@ internal fun VideoPlayer(
                                     style = MaterialTheme.typography.labelMedium,
                                     color = Color.White,
                                     modifier = Modifier.weight(1f).padding(start = seekThumbSize.width / 2),
+                                )
+                                val danmakuLabel = stringResource(R.string.danmaku_display)
+                                Switch(
+                                    checked = danmakuSettings?.enabled == true,
+                                    onCheckedChange = { enabled -> controlAction { onDanmakuEnabled(enabled) } },
+                                    enabled = active && danmakuSettings != null,
+                                    modifier = Modifier.semantics { contentDescription = danmakuLabel },
+                                    thumbContent = {
+                                        Icon(
+                                            painterResource(
+                                                if (danmakuSettings?.enabled == true) R.drawable.ic_custom_danmaku
+                                                else R.drawable.ic_custom_danmaku_off,
+                                            ),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(SwitchDefaults.IconSize),
+                                        )
+                                    },
                                 )
                                 IconButton(
                                     onClick = { controlAction(onPictureInPicture) },
