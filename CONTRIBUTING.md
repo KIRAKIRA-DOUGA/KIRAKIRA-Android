@@ -32,6 +32,7 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 - 表达「添加」的悬浮操作按钮（FAB）使用官方 `FloatingActionButton`，仅显示 Material Symbols Rounded `add` 加号，不在图标右侧重复显示「添加」文字，不使用带文字的扩展 FAB。保留本地化的「添加」无障碍描述、标准触摸目标与操作期间的禁用语义。
 - 使用 Material 3 Expressive 的组件、色彩层次和圆角分组；保持浅色、深色及动态颜色兼容，不用手绘控件替代已有标准组件。参考 [Compose Material 3](https://developer.android.com/develop/ui/compose/designsystems/material3)。
 - 分组菜单直接使用官方 `SegmentedListItem`，以 `ListItemDefaults.segmentedShapes(index, count)` 处理首尾与单项圆角，以 `SegmentedGap` 设置组内间距，并保留默认分段配色及内容内边距。不再以整组大圆角 `Surface` 模拟此样式。静态占位使用无 `onClick` 的重载；无副标题时传入空的 `supportingContent`，不要提供空内容 lambda。
+- 设置页中，普通开关仅通过 Switch 表达开启状态，整行背景和形状不随开启状态变化；使用 `SegmentedListItem` 的 `onClick` 重载切换状态，并提供 `Role.Switch` 与 `toggleableState` 语义，尾部 Switch 的 `onCheckedChange` 为 `null`，保留禁用状态和官方按压反馈。仅功能总开关（如「显示弹幕」）使用 `checked` 重载保留整行强调样式；「阴影」「自动画中画」「自动播放」和各弹幕模式均属于普通开关。
 - 图标采用官方 **Material Symbols**，默认统一为 **Rounded、24dp、wght 400、GRAD 0、FILL 0**；选中状态如使用填充图标应保持其他参数一致。按需导入 Android VectorDrawable，不打包完整字体或旧版 `material-icons-extended`。
 - 必要时可自行绘制相同风格的图标：保持 24dp 画布、相近视觉重量、圆角和光学对齐，检查浅深色与小尺寸可读性，在 PR 中说明缺少合适标准图标的原因。官方资源使用 `ic_symbol_<name>`，自绘资源使用 `ic_custom_<name>`，保留来源及许可证记录于 `third_party/`。不得混用 SF Symbols、旧版 Material Icons 或不一致的描边风格。参见 [Material Symbols 指南](https://developers.google.com/fonts/docs/material_symbols)。
 - 使用单向数据流：状态向下传递，事件通过回调向上传递。可复用组件接收所需状态和回调，不直接获取 ViewModel、Repository 或导航控制器。

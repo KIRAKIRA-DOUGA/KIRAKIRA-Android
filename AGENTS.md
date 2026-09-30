@@ -22,6 +22,7 @@
 - 界面文案使用字符串资源，默认 `values/` 为英语，`values-zh/` 为中文；两套翻译同步维护。不在应用中内置 Demo 演示内容；设计预览优先使用空表单、游客账号与空列表。按钮、导航、提示和无障碍描述仍需翻译。可复用 UI 接收状态、事件回调和 `modifier: Modifier = Modifier`。
 - 除非用户明确要求，界面中不添加解释功能如何运作的说明文字；功能机制与实现细节记录在文档中，界面保留必要的操作标签、状态、错误和无障碍提示。
 - 分组菜单使用官方 `SegmentedListItem`，通过 `ListItemDefaults.segmentedShapes` 和 `SegmentedGap` 管理圆角与间距；纯布局使用无 `onClick` 的重载。
+- 设置页普通开关仅改变 Switch 状态，不随开启状态改变整行背景与形状；使用 `onClick` 重载并保留开关状态和禁用语义。仅「显示弹幕」等功能总开关使用 `checked` 重载保留整行强调，具体分类见贡献指南。
 - 需要滚动展开大标题的二级页面可复用 `ui/components/CollapsibleTopAppBar.kt` 与 `rememberCollapsibleTopAppBarScrollBehavior`，每页独立创建状态并接入 `nestedScroll`；默认进入折叠。按场景选用，不要求所有页面使用，接入示例见[实现说明](docs/implementation.md#可选的可折叠大标题栏)。
 - 滚动页面保留底部 edge-to-edge：底部系统内边距放入滚动内容（`Column` 的 `verticalScroll` 后或 `LazyColumn.contentPadding`），不要用容器外的完整 `innerPadding` 截短滚动区域；确保末项能滚动至导航栏上方。
 - 无确定进度的页面加载统一使用 `LoadingIndicator`，不得使用不确定进度的 `CircularProgressIndicator`；有可量化进度的加载可使用确定进度指示器。

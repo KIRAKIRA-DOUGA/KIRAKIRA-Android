@@ -26,6 +26,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
@@ -76,11 +78,13 @@ internal fun PlaybackSettingsScreen(
 @Composable
 private fun PlaybackSetting(label: Int, checked: Boolean, enabled: Boolean, index: Int, onChange: (Boolean) -> Unit) {
     SegmentedListItem(
-        checked = checked,
-        onCheckedChange = onChange,
+        onClick = { onChange(!checked) },
         enabled = enabled,
         shapes = ListItemDefaults.segmentedShapes(index, 2),
-        modifier = Modifier.fillMaxWidth().semantics { role = Role.Switch },
+        modifier = Modifier.fillMaxWidth().semantics {
+            role = Role.Switch
+            toggleableState = ToggleableState(checked)
+        },
         trailingContent = { Switch(checked = checked, onCheckedChange = null, enabled = enabled) },
         content = { Text(stringResource(label)) },
     )

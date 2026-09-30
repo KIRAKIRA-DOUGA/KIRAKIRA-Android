@@ -31,6 +31,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
@@ -68,7 +70,15 @@ internal fun DanmakuSettingsScreen(
                     ),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
-                DanmakuToggle(R.string.danmaku_display, value.enabled, ready, 0, 1) { onChange(value.copy(enabled = it)) }
+                SegmentedListItem(
+                    checked = value.enabled,
+                    onCheckedChange = { onChange(value.copy(enabled = it)) },
+                    enabled = ready,
+                    shapes = ListItemDefaults.segmentedShapes(index = 0, count = 1),
+                    modifier = Modifier.fillMaxWidth().semantics { role = Role.Switch },
+                    trailingContent = { Switch(value.enabled, onCheckedChange = null, enabled = ready) },
+                    content = { Text(stringResource(R.string.danmaku_display)) },
+                )
                 Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
                     DanmakuSlider(R.string.danmaku_opacity, value.opacityPercent, 10..100, 5, ready, 0,
                         stringResource(R.string.danmaku_percent, value.opacityPercent)) { onChange(value.copy(opacityPercent = it)) }
@@ -93,11 +103,13 @@ internal fun DanmakuSettingsScreen(
 @Composable
 private fun DanmakuToggle(label: Int, checked: Boolean, enabled: Boolean, index: Int, count: Int, onChange: (Boolean) -> Unit) {
     SegmentedListItem(
-        checked = checked,
-        onCheckedChange = onChange,
+        onClick = { onChange(!checked) },
         enabled = enabled,
         shapes = ListItemDefaults.segmentedShapes(index, count),
-        modifier = Modifier.fillMaxWidth().semantics { role = Role.Switch },
+        modifier = Modifier.fillMaxWidth().semantics {
+            role = Role.Switch
+            toggleableState = ToggleableState(checked)
+        },
         trailingContent = { Switch(checked, onCheckedChange = null, enabled = enabled) },
         content = { Text(stringResource(label)) },
     )

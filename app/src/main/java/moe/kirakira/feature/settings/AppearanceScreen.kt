@@ -32,6 +32,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
@@ -125,12 +127,14 @@ fun AppearanceScreen(
                     onSettingsChange = onThemeColorsChange,
                 )
                 SegmentedListItem(
-                    checked = shadowsEnabled,
-                    onCheckedChange = onShadowsEnabledChange,
+                    onClick = { onShadowsEnabledChange(!shadowsEnabled) },
                     shapes = ListItemDefaults.segmentedShapes(index = 0, count = 1),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .semantics { role = Role.Switch },
+                        .semantics {
+                            role = Role.Switch
+                            toggleableState = ToggleableState(shadowsEnabled)
+                        },
                     trailingContent = {
                         Switch(
                             checked = shadowsEnabled,
