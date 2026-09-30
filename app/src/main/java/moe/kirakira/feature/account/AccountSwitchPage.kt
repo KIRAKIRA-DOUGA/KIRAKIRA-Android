@@ -14,33 +14,43 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import moe.kirakira.R
+import moe.kirakira.data.auth.SessionState
 
 @Composable
 internal fun AccountSwitchPage(
-    state: DemoAccountState,
+    state: SessionState,
     onSelectAccount: (String) -> Unit,
     onRemoveAccount: (String) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     onAddAccount: () -> Unit = {},
+    onReauthenticate: (String) -> Unit = {},
 ) {
     var editing by rememberSaveable { mutableStateOf(false) }
     var pendingRemovalId by rememberSaveable { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
-    val accounts = state.accounts.map { account ->
-        AccountItem(
-            id = account.id,
-            name = stringResource(account.nameRes),
-            handle = account.handleRes?.let { stringResource(it) },
-        )
-    }
+    val accounts = listOf(AccountItem(GUEST_ACCOUNT_ID, stringResource(R.string.account_guest))) +
+        state.accounts.map { account ->
+            AccountItem(
+                id = account.profile.uuid,
+                name = account.profile.displayName,
+                handle = if (account.needsLogin) stringResource(R.string.account_needs_login)
+                    else account.profile.email,
+                avatar = account.profile.avatar,
+            )
+        }
 
     AccountSwitchScreen(
         accounts = accounts,
-        selectedAccountId = state.selectedId,
+        selectedAccountId = state.activeUuid ?: GUEST_ACCOUNT_ID,
         editing = editing,
         snackbarHostState = snackbarHostState,
-        onSelectAccount = onSelectAccount,
+        onSelectAccount = { id ->
+            val account = state.accounts.find { it.profile.uuid == id }
+            if (account?.needsLogin == true) onReauthenticate(account.profile.email) else onSelectAccount(id)
+        },
+        busy = state.isLoading || state.isBusy,
+        operation = state.operation,
         onEditingChange = { editing = it },
         onAddAccount = onAddAccount,
         onRemoveAccount = { pendingRemovalId = it },

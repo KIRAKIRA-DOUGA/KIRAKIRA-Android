@@ -15,6 +15,7 @@ import moe.kirakira.ui.theme.KIRAKIRATheme
 @Preview(name = "Auth · English", locale = "en", showBackground = true)
 @Preview(name = "认证 · 中文", locale = "zh", showBackground = true)
 @Preview(name = "Auth · Dark", uiMode = Configuration.UI_MODE_NIGHT_YES, showBackground = true)
+@Preview(name = "Auth · Fixed AppBar", widthDp = 411, heightDp = 891, showBackground = true)
 @Preview(name = "Auth · Narrow, large text", widthDp = 320, heightDp = 640, fontScale = 2f)
 @Preview(name = "Auth · Wide", widthDp = 840, heightDp = 600)
 @Preview(name = "Auth · Short landscape", widthDp = 740, heightDp = 360)
@@ -77,6 +78,17 @@ private fun AuthPreviewContent(state: AuthUiState, dynamicColor: Boolean = false
             onSubmit = {},
             onRegister = {},
             onClose = {},
+            onBack = {},
         )
     }
+}
+
+internal class AuthStepPreviewProvider : PreviewParameterProvider<AuthStep> {
+    override val values = AuthStep.entries.asSequence()
+}
+
+@Preview(name = "Authentication steps", showBackground = true)
+@Composable
+private fun AuthStepPreview(@PreviewParameter(AuthStepPreviewProvider::class) step: AuthStep) {
+    AuthPreviewContent(AuthUiState(step = step, email = stringResource(R.string.demo_auth_email)))
 }

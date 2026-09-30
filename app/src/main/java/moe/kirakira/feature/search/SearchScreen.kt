@@ -1,6 +1,6 @@
 package moe.kirakira.feature.search
 
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -20,6 +20,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
+import moe.kirakira.ui.components.ContentUnavailableState
+import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 @Composable
@@ -27,9 +29,9 @@ fun SearchScreen(modifier: Modifier = Modifier) {
     val searchBarState = rememberSearchBarState()
     val textFieldState = rememberTextFieldState()
 
-    Box(
+    Column(
         modifier = modifier.fillMaxSize().testTag("search_screen").padding(16.dp),
-        contentAlignment = Alignment.TopCenter,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         SearchBar(
             state = searchBarState,
@@ -48,6 +50,13 @@ fun SearchScreen(modifier: Modifier = Modifier) {
                     },
                 )
             },
+        )
+        ContentUnavailableView(
+            state = ContentUnavailableState.EMPTY,
+            title = stringResource(R.string.content_not_available_yet),
+            description = null,
+            iconRes = R.drawable.ic_symbol_search,
+            modifier = Modifier.weight(1f),
         )
     }
 }

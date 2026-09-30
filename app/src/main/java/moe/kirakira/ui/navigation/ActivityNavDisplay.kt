@@ -6,6 +6,7 @@ import android.view.View
 import android.view.animation.AnimationUtils
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
@@ -50,6 +51,7 @@ import androidx.navigation3.ui.NavDisplay
 import androidx.navigationevent.NavigationEvent
 import androidx.navigationevent.NavigationEventHandler
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
+import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 
 /**
@@ -78,12 +80,26 @@ internal fun <T : Any> ActivityNavDisplay(
         ),
         entryProvider = entryProvider,
     )
+    val imageActive = entries.last().usesImageTransition
     val previewKey = motion.closingKey
-    val strategy = remember(motion, previewKey) { ActivitySceneStrategy<T>(motion, previewKey) }
+    val strategy = remember(motion, previewKey) {
+        ActivitySceneStrategy<T>(motion, previewKey)
+    }
     val sceneState = rememberSceneState(entries, listOf(strategy), onBack = onBack)
-    // Intentionally stays idle: a stock NavDisplay seek/finish would also animate these pages,
-    // collapsing the platform's two phases into one tween. The handler below owns the gesture.
-    val displayState = rememberNavigationEventState(currentInfo = SceneInfo(sceneState.currentScene))
+    val topRoute = backStack.last()
+    // The image viewer uses Navigation 3's seekable predictive back. Other pages retain AOSP motion.
+    val displayState = rememberNavigationEventState(
+        currentInfo = SceneInfo(sceneState.currentScene),
+        backInfo = sceneState.previousScenes.asReversed().map { SceneInfo(it) },
+    )
+    NavigationBackHandler(
+        state = displayState,
+        isBackEnabled = imageActive && entries.size > 1,
+        onBackCompleted = {
+            // A close button may already have removed the viewer during the gesture.
+            if (imageActive && backStack.size > 1 && backStack.lastOrNull() == topRoute) onBack()
+        },
+    )
     var size by remember { mutableStateOf(IntSize.Zero) }
     val density = LocalDensity.current.density
     val view = LocalView.current
@@ -129,7 +145,7 @@ internal fun <T : Any> ActivityNavDisplay(
     }
     val dispatcher = checkNotNull(LocalNavigationEventDispatcherOwner.current).navigationEventDispatcher
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    val canGoBack = entries.size > 1
+    val canGoBack = entries.size > 1 && !imageActive
     val currentCanGoBack by rememberUpdatedState(canGoBack)
     SideEffect {
         motion.onTopChanged(entries.last().contentKey)
@@ -153,26 +169,38 @@ internal fun <T : Any> ActivityNavDisplay(
             motion.reset()
         }
     }
-    NavDisplay(
-        sceneState = sceneState,
-        navigationEventState = displayState,
-        modifier = modifier
-            .fillMaxSize()
-            .clipToBounds()
-            .onSizeChanged {
-                if (size != it && size != IntSize.Zero) motion.reset()
-                size = it
-            },
-        transitionSpec = { ordinaryMotion.forward },
-        popTransitionSpec = {
-            if (motion.completedPop == (initialState.key to targetState.key)) {
-                EnterTransition.None togetherWith ExitTransition.None
-            } else {
-                ordinaryMotion.backward
-            }
-        },
-        predictivePopTransitionSpec = { EnterTransition.None togetherWith ExitTransition.None },
-    )
+    SharedTransitionLayout {
+        val imageSizes = remember { ImageTransitionSizes() }
+        CompositionLocalProvider(
+            LocalImageSharedScope provides this,
+            LocalImageTransitionSizes provides imageSizes,
+        ) {
+            NavDisplay(
+                sceneState = sceneState,
+                navigationEventState = displayState,
+                modifier = modifier
+                    .fillMaxSize()
+                    .clipToBounds()
+                    .onSizeChanged {
+                        if (size != it && size != IntSize.Zero) motion.reset()
+                        size = it
+                    },
+                // Image entries override these defaults through their Scene metadata. Scene.key
+                // is a saved-state content key, not a route instance; never infer motion from it.
+                transitionSpec = { ordinaryMotion.forward },
+                popTransitionSpec = {
+                    if (motion.completedPop == (initialState.key to targetState.key)) {
+                        EnterTransition.None togetherWith ExitTransition.None
+                    } else {
+                        ordinaryMotion.backward
+                    }
+                },
+                predictivePopTransitionSpec = {
+                    EnterTransition.None togetherWith ExitTransition.None
+                },
+            )
+        }
+    }
 }
 
 private class ActivitySceneStrategy<T : Any>(

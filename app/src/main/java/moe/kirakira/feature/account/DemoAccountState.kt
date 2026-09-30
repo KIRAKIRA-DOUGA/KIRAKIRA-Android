@@ -4,8 +4,6 @@ import androidx.annotation.StringRes
 import androidx.compose.runtime.saveable.listSaver
 import moe.kirakira.R
 
-internal const val GUEST_ACCOUNT_ID = "guest"
-
 internal enum class DemoAccount(
     val id: String,
     @param:StringRes val nameRes: Int,
@@ -42,5 +40,3 @@ internal data class DemoAccountState(
         )
     }
 }
-
-internal data class AccountItem(val id: String, val name: String, val handle: String? = null)

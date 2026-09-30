@@ -1,0 +1,345 @@
+package moe.kirakira.feature.profile
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Tab
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import moe.kirakira.R
+import moe.kirakira.core.network.ApiFailure
+import moe.kirakira.data.content.VideoSummary
+import moe.kirakira.feature.settings.VideoCardLayout
+import moe.kirakira.feature.video.ContentState
+import moe.kirakira.feature.video.VideoCardRow
+import moe.kirakira.ui.components.ContentPullToRefresh
+import moe.kirakira.ui.components.ContentStatus
+import moe.kirakira.ui.components.ContentUnavailablePresentation
+import moe.kirakira.ui.components.ContentUnavailableState
+import moe.kirakira.ui.components.ContentUnavailableView
+import moe.kirakira.ui.components.PagerTabIndicator
+import moe.kirakira.ui.components.messageRes
+import moe.kirakira.ui.theme.ThemeColorDefaults
+
+@Composable
+internal fun ProfileScreen(
+    state: ProfileUiState,
+    videos: ContentState<List<VideoSummary>>,
+    pagerState: PagerState,
+    videosListState: LazyListState,
+    collectionsListState: LazyListState,
+    bioExpanded: Boolean,
+    snackbarHostState: SnackbarHostState,
+    onTabChange: (ProfileTab) -> Unit,
+    onBioExpandedChange: (Boolean) -> Unit,
+    onFollowingChange: (Boolean) -> Unit,
+    onUnavailableAction: (ProfileAction) -> Unit,
+    onOpenAvatar: () -> Unit,
+    onOpenVideo: (Int) -> Unit,
+    onBack: () -> Unit,
+    onRetry: () -> Unit,
+    isRefreshing: Boolean = false,
+    modifier: Modifier = Modifier,
+    videoCardLayout: VideoCardLayout = VideoCardLayout.GRID,
+    profileError: ApiFailure? = null,
+    statsError: ApiFailure? = null,
+) {
+    val videoRows = remember(videos, videoCardLayout) { videos.data.orEmpty().chunked(videoCardLayout.columns) }
+    val layoutDirection = LocalLayoutDirection.current
+    val background = ThemeColorDefaults.pageBackgroundColor()
+    val coverHeight = 160.dp + WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val profileListState = rememberLazyListState()
+    var tabRowHeight by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    val headerScrollConnection = remember(profileListState) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                // Collapse the profile before scrolling the selected page. Downward scroll
+                // reaches the outer list naturally once the selected page is back at its top.
+                if (available.y >= 0f) return Offset.Zero
+                val consumed = profileListState.dispatchRawDelta(-available.y)
+                return Offset(0f, -consumed)
+            }
+        }
+    }
+
+    Box(modifier
+        .fillMaxSize()
+        .background(background)) {
+        ProfileCover(profileListState, coverHeight)
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = Color.Transparent,
+            topBar = {
+                TopAppBar(
+                    title = {},
+                    navigationIcon = {
+                        FilledTonalIconButton(onClick = onBack) {
+                            Icon(
+                                painterResource(R.drawable.ic_symbol_arrow_back),
+                                stringResource(R.string.navigate_back),
+                            )
+                        }
+                    },
+                    actions = {
+                        if (!state.isSelf) {
+                            FilledTonalIconButton(
+                                onClick = { onUnavailableAction(ProfileAction.MORE) },
+                            ) {
+                                Icon(
+                                    painterResource(R.drawable.ic_symbol_more_horiz),
+                                    stringResource(R.string.video_more),
+                                )
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent,
+                    ),
+                )
+            },
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(
+                        top = innerPadding.calculateTopPadding(),
+                        start = innerPadding.calculateStartPadding(layoutDirection),
+                        end = innerPadding.calculateEndPadding(layoutDirection),
+                    )
+                    .consumeWindowInsets(innerPadding),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                ContentPullToRefresh(
+                    isRefreshing = isRefreshing,
+                    onRefresh = onRetry,
+                    modifier = Modifier.widthIn(max = 640.dp).fillMaxSize(),
+                ) {
+                    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                        val pagerHeight = (maxHeight - with(density) { tabRowHeight.toDp() }).coerceAtLeast(0.dp)
+                        LazyColumn(
+                            state = profileListState,
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            item(key = "profile_header") {
+                                ProfileHeader(
+                                    state = state,
+                                    bioExpanded = bioExpanded,
+                                    onBioExpandedChange = onBioExpandedChange,
+                                    onFollowingChange = onFollowingChange,
+                                    onUnavailableAction = onUnavailableAction,
+                                    onOpenAvatar = onOpenAvatar,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    coverRemainderHeight = (coverHeight - innerPadding.calculateTopPadding()).coerceAtLeast(0.dp),
+                                )
+                            }
+                            if (profileError != null) {
+                                item(key = "profile_error") {
+                                    ContentUnavailableView(
+                                        state = ContentUnavailableState.ERROR,
+                                        title = stringResource(R.string.profile_load_failed),
+                                        description = stringResource(profileError.messageRes()),
+                                        onRetry = onRetry,
+                                        presentation = ContentUnavailablePresentation.INLINE,
+                                    )
+                                }
+                            }
+                            if (statsError != null) {
+                                item(key = "profile_stats_error") {
+                                    ContentUnavailableView(
+                                        state = ContentUnavailableState.ERROR,
+                                        title = stringResource(R.string.profile_stats_load_failed),
+                                        description = stringResource(statsError.messageRes()),
+                                        onRetry = onRetry,
+                                        presentation = ContentUnavailablePresentation.INLINE,
+                                    )
+                                }
+                            }
+                            stickyHeader(key = "profile_tabs") {
+                                PrimaryTabRow(
+                                    selectedTabIndex = pagerState.currentPage,
+                                    modifier = Modifier.fillMaxWidth().onSizeChanged { tabRowHeight = it.height },
+                                    containerColor = background,
+                                    indicator = { PagerTabIndicator(pagerState) },
+                                    divider = {},
+                                ) {
+                                    ProfileTab.entries.forEachIndexed { index, tab ->
+                                        Tab(
+                                            selected = pagerState.currentPage == index,
+                                            onClick = { onTabChange(tab) },
+                                            text = {
+                                                Text(
+                                                    stringResource(
+                                                        if (tab == ProfileTab.VIDEOS) R.string.profile_videos
+                                                        else R.string.profile_collections,
+                                                    ),
+                                                )
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                            item(key = "profile_pages") {
+                                HorizontalPager(
+                                    state = pagerState,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(pagerHeight)
+                                        .background(background)
+                                        .nestedScroll(headerScrollConnection),
+                                    key = { ProfileTab.entries[it].name },
+                                ) { page ->
+                                    val tab = ProfileTab.entries[page]
+                                    val statusHeight = (pagerHeight - innerPadding.calculateBottomPadding()).coerceAtLeast(0.dp)
+                                    if (tab == ProfileTab.VIDEOS) {
+                                        LazyColumn(
+                                            state = videosListState,
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentPadding = PaddingValues(bottom = innerPadding.calculateBottomPadding()),
+                                        ) {
+                                            if (videos.error != null || videos.data.isNullOrEmpty()) {
+                                                item(key = "profile_videos_status") {
+                                                    ContentStatus(
+                                                        videos.copy(loading = videos.loading && videos.data == null), onRetry,
+                                                        Modifier.fillMaxWidth().then(
+                                                            if (videos.data.isNullOrEmpty()) Modifier.heightIn(min = statusHeight) else Modifier,
+                                                        ),
+                                                        videos.data.isNullOrEmpty(),
+                                                    )
+                                                }
+                                            }
+                                            itemsIndexed(
+                                                items = videoRows,
+                                                key = { _, row -> "profile_video_row_${row.first().id}" },
+                                            ) { index, row ->
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(
+                                                            start = 16.dp,
+                                                            end = 16.dp,
+                                                            top = if (index == 0) 16.dp else 12.dp,
+                                                            bottom = if (index == videoRows.lastIndex) 16.dp else 0.dp,
+                                                        ),
+                                                ) {
+                                                    VideoCardRow(
+                                                        videos = row,
+                                                        layout = videoCardLayout,
+                                                        onOpenVideo = onOpenVideo,
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        showUploader = false,
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        LazyColumn(
+                                            state = collectionsListState,
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentPadding = PaddingValues(bottom = innerPadding.calculateBottomPadding()),
+                                        ) {
+                                            item(key = "profile_collections_empty") {
+                                                ContentUnavailableView(
+                                                    state = ContentUnavailableState.EMPTY,
+                                                    title = stringResource(R.string.content_not_available_yet),
+                                                    description = null,
+                                                    iconRes = R.drawable.ic_symbol_star,
+                                                    presentation = ContentUnavailablePresentation.INLINE,
+                                                    modifier = Modifier.fillMaxWidth().heightIn(min = statusHeight),
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileCover(listState: LazyListState, height: Dp) {
+    val background = ThemeColorDefaults.pageBackgroundColor()
+    val scrimHeight = with(LocalDensity.current) { (height - 48.dp).toPx() }
+    Box(Modifier
+        .fillMaxWidth()
+        .height(height)) {
+        Image(
+            painter = painterResource(R.drawable.profile_banner_placeholder),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .matchParentSize()
+                .graphicsLayer {
+                    // Draw beyond the list viewport so the cover reaches behind the status bar and transparent toolbar.
+                    translationY = -listState.firstVisibleItemScrollOffset.toFloat()
+                    alpha = if (listState.firstVisibleItemIndex == 0) 1f else 0f
+                },
+        )
+        // Keep the gradient stationary as the photo scrolls beneath the system icons.
+        Box(
+            Modifier
+                .matchParentSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(background.copy(alpha = 0.8f), Color.Transparent),
+                        endY = scrimHeight,
+                    ),
+                ),
+        )
+    }
+}

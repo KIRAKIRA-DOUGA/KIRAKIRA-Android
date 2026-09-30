@@ -14,11 +14,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -43,7 +50,35 @@ fun SettingsScreen(
     onNavigateToAppearance: () -> Unit,
     onNavigateToAccount: () -> Unit,
     modifier: Modifier = Modifier,
+    onNavigateToPlayback: () -> Unit = {},
+    onNavigateToBlocking: () -> Unit = {},
+    onNavigateToInvitations: () -> Unit = {},
+    signedIn: Boolean = false,
+    accountBusy: Boolean = false,
+    onLogout: () -> Unit = {},
 ) {
+    var confirmLogout by rememberSaveable { mutableStateOf(false) }
+    if (confirmLogout && signedIn) {
+        AlertDialog(
+            onDismissRequest = { confirmLogout = false },
+            title = { Text(stringResource(R.string.settings_log_out)) },
+            text = { Text(stringResource(R.string.account_logout_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmLogout = false
+                        onLogout()
+                    },
+                    enabled = !accountBusy,
+                ) {
+                    Text(stringResource(R.string.settings_log_out))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmLogout = false }) { Text(stringResource(R.string.account_cancel)) }
+            },
+        )
+    }
     val scrollBehavior = rememberCollapsibleTopAppBarScrollBehavior()
     val layoutDirection = LocalLayoutDirection.current
 
@@ -61,7 +96,7 @@ fun SettingsScreen(
         listOf(
             SettingsEntry(R.string.settings_appearance, R.drawable.ic_symbol_palette),
             SettingsEntry(R.string.settings_playback, R.drawable.ic_symbol_play_circle),
-            SettingsEntry(R.string.settings_danmaku, R.drawable.ic_symbol_chat_bubble),
+            SettingsEntry(R.string.settings_danmaku, R.drawable.ic_custom_danmaku),
             SettingsEntry(R.string.settings_about, R.drawable.ic_symbol_info),
         )
     }
@@ -102,12 +137,18 @@ fun SettingsScreen(
                     ),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
-                SettingsGroup(stringResource(R.string.nav_me), personalSettings)
+                SettingsGroup(
+                    title = stringResource(R.string.nav_me),
+                    entries = personalSettings,
+                    onBlockingClick = onNavigateToBlocking,
+                    onInvitationsClick = onNavigateToInvitations,
+                )
                 SettingsGroup(
                     title = stringResource(R.string.settings_general),
                     entries = generalSettings,
                     onAboutClick = onNavigateToAbout,
                     onAppearanceClick = onNavigateToAppearance,
+                    onPlaybackClick = onNavigateToPlayback,
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SectionHeader(
@@ -129,7 +170,7 @@ fun SettingsScreen(
                             count = 2,
                             showChevron = false,
                             destructive = true,
-                            onClick = { /* TODO: Logout */ },
+                            onClick = if (signedIn && !accountBusy) ({ confirmLogout = true }) else null,
                         )
                     }
                 }
@@ -143,6 +184,9 @@ private fun SettingsGroup(
     title: String,
     entries: List<SettingsEntry>,
     modifier: Modifier = Modifier,
+    onPlaybackClick: (() -> Unit)? = null,
+    onBlockingClick: (() -> Unit)? = null,
+    onInvitationsClick: (() -> Unit)? = null,
     onAboutClick: (() -> Unit)? = null,
     onAppearanceClick: (() -> Unit)? = null,
 ) {
@@ -159,6 +203,9 @@ private fun SettingsGroup(
                     index = index,
                     count = entries.size,
                     onClick = when (entry.title) {
+                        R.string.settings_blocking -> onBlockingClick
+                        R.string.settings_invitation_code -> onInvitationsClick
+                        R.string.settings_playback -> onPlaybackClick
                         R.string.settings_about -> onAboutClick
                         R.string.settings_appearance -> onAppearanceClick
                         else -> null

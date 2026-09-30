@@ -1,9 +1,7 @@
 package moe.kirakira.feature.video
 
-import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,163 +12,241 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import moe.kirakira.R
-import moe.kirakira.ui.theme.KIRAKIRATheme
+import moe.kirakira.data.content.Reaction
+import moe.kirakira.data.content.VideoComment
+import moe.kirakira.ui.components.ContentPullToRefresh
+import moe.kirakira.ui.components.ContentStatus
 
 @Composable
 internal fun VideoCommentsPage(
+    state: CommentListState,
+    posted: VideoComment?,
+    draft: String,
+    busy: Boolean,
+    canInteract: Boolean,
+    onDraft: (String) -> Unit,
+    onSend: () -> Unit,
+    onPage: (Int) -> Unit,
+    onVote: (VideoComment, Reaction) -> Unit,
+    onOpenProfile: (Long) -> Unit,
+    onUnavailable: () -> Unit,
+    onRefresh: () -> Unit,
+    onRetry: () -> Unit,
+    onAdjacent: (Boolean, Boolean) -> Unit,
+    onLocationConsumed: (Long) -> Unit,
     listState: LazyListState,
     bottomPadding: Dp,
-    onUnavailableAction: () -> Unit,
     modifier: Modifier = Modifier,
+    composerState: ComposerState = remember { ComposerState() },
+    composerActive: Boolean = true,
+    recentKaomoji: List<String> = emptyList(),
+    onKaomojiInserted: (String) -> Unit = {},
 ) {
-    var sort by rememberSaveable { mutableStateOf(CommentSort.TIME) }
-    var ascending by rememberSaveable { mutableStateOf(false) }
-    var votes by rememberSaveable { mutableStateOf(IntArray(demoVideoComments.size)) }
+    val entries = remember(state.pages) { state.entries }
+    val showLoadingStatus = state.loading && !state.refreshing
+    val showPosted = posted != null && entries.none { it.comment.id == posted.id }
+    val commentStart = 3 + if (showPosted) 1 else 0
+    val totalPages = state.totalPages
+    val navigationEnabled = state.pages.isNotEmpty() && !busy
     var showJumpDialog by rememberSaveable { mutableStateOf(false) }
-    val comments = remember(sort, ascending, votes) {
-        val comparator = when (sort) {
-            CommentSort.TIME -> compareBy<DemoVideoComment> { it.createdAt }
-            CommentSort.SCORE -> compareBy { it.score + votes[it.floor - 1] }
-        }.thenBy { it.floor }
-        demoVideoComments.sortedWith(if (ascending) comparator else comparator.reversed())
-    }
-    val density = LocalDensity.current
     var toolbarSize by remember { mutableStateOf(IntSize.Zero) }
-    val toolbarClearance = with(density) { toolbarSize.height.toDp() } + 16.dp
-    val toolbarClearancePx = with(density) { toolbarClearance.roundToPx() }
-    val listTopPadding = 8.dp
-    val jumpScrollOffset = with(density) { (listTopPadding - toolbarClearance).roundToPx() }
-    val totalPages = (comments.size + COMMENTS_PER_PAGE - 1) / COMMENTS_PER_PAGE
-    val currentPage by remember(listState, totalPages, toolbarClearancePx, comments.size) {
+    var headerHeight by remember { mutableStateOf(0) }
+    val density = LocalDensity.current
+    val currentPage by remember(entries, state.firstPage) {
         derivedStateOf {
-            val layout = listState.layoutInfo
-            // Item offsets use the content-padding origin; convert the overlay's lower edge.
-            val visibleStart = layout.viewportStartOffset + toolbarClearancePx
-            val firstComment = layout.visibleItemsInfo.firstOrNull {
-                it.key is Int && it.offset + it.size > visibleStart && it.offset < layout.viewportEndOffset
-            }
-            val commentIndex = ((firstComment?.index ?: listState.firstVisibleItemIndex) - 1)
-                .coerceIn(0, comments.lastIndex)
-            (commentIndex / COMMENTS_PER_PAGE + 1).coerceIn(1, totalPages)
+            // visibleItemsInfo also includes the preceding item inside contentPadding.
+            // Use the logical scroll anchor so a page-boundary jump cannot report the old page.
+            val visibleKeys = listState.layoutInfo.visibleItemsInfo
+                .filter { it.index >= listState.firstVisibleItemIndex && it.offset + it.size > 0 }
+                .map { it.key }
+            entries.firstOrNull { it.comment.id in visibleKeys }?.page ?: state.firstPage
         }
     }
-
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceContainer),
-    ) {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                start = 8.dp,
-                end = 8.dp,
-                top = listTopPadding,
-                bottom = bottomPadding + 16.dp,
-            ),
-            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+    val atTop by remember { derivedStateOf { !listState.canScrollBackward } }
+    var previousFirstPage by remember { mutableStateOf(state.firstPage) }
+    // Capture the old layout before LazyColumn receives prepended items, including when
+    // a header (rather than a comment) is its first visible key.
+    val prependAnchor = remember(state.pages) {
+        if (state.firstPage < previousFirstPage && state.location == null) {
+            listState.layoutInfo.visibleItemsInfo.firstOrNull { item ->
+                entries.any { it.page >= previousFirstPage && it.comment.id == item.key }
+            }
+        } else null
+    }
+    SideEffect {
+        if (state.firstPage < previousFirstPage && prependAnchor != null) {
+            val index = entries.indexOfFirst { it.comment.id == prependAnchor.key }
+            listState.requestScrollToItem(commentStart + index, -prependAnchor.offset)
+        }
+        previousFirstPage = state.firstPage
+    }
+    LaunchedEffect(state.location) {
+        state.location?.let { location ->
+            val index = entries.indexOfFirst { it.page == location.page }
+            val targetIndex = if (location.page == 1 || index < 0) 0 else commentStart + index
+            val targetKey = if (targetIndex == 0) "count" else entries[index].comment.id
+            // Apply the request during the next measure, with the new item provider. Keep
+            // adjacent loading paused until that provider has actually placed the target.
+            listState.requestScrollToItem(targetIndex)
+            snapshotFlow {
+                val layout = listState.layoutInfo
+                layout.totalItemsCount == commentStart + entries.size + 1 &&
+                    layout.visibleItemsInfo.any { it.index == targetIndex && it.key == targetKey } &&
+                    (listState.firstVisibleItemIndex == targetIndex || !listState.canScrollForward)
+            }.first { it }
+            onLocationConsumed(location.request)
+        }
+    }
+    LaunchedEffect(entries, state.loading, state.location, state.previous, state.next) {
+        if (state.loading || state.location != null || entries.isEmpty()) return@LaunchedEffect
+        snapshotFlow {
+            val visible = listState.layoutInfo.visibleItemsInfo.map { it.key }.toSet()
+            val first = entries.indexOfFirst { it.comment.id in visible }
+            val last = entries.indexOfLast { it.comment.id in visible }
+            (first in 0..3) to (last >= (entries.size - 4).coerceAtLeast(0))
+        }.distinctUntilChanged().collect { (nearStart, nearEnd) ->
+            if (nearStart) onAdjacent(true, false)
+            if (nearEnd) onAdjacent(false, false)
+        }
+    }
+    FloatingComposerLayout(
+        bottomPadding = bottomPadding,
+        composer = { availableHeight ->
+            ContentComposer(
+                draft, R.string.comment_write, onDraft, onSend,
+                enabled = canInteract, busy = busy, maxLength = 19999,
+                state = composerState, active = composerActive, availableHeight = availableHeight,
+                recent = recentKaomoji, onKaomojiInserted = onKaomojiInserted,
+            )
+        },
+        modifier = modifier,
+    ) { listBottomPadding ->
+        ContentPullToRefresh(
+            isRefreshing = state.refreshing,
+            enabled = state.firstPage == 1 && atTop && (!state.loading || state.refreshing),
+            onRefresh = onRefresh,
+            modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainer),
         ) {
-            item(key = "comments_count") {
-                CommentCountHeader(count = comments.size, toolbarSize = toolbarSize)
-            }
-            itemsIndexed(comments, key = { _, comment -> comment.floor }) { index, comment ->
-                VideoCommentItem(
-                    comment = comment,
-                    index = index,
-                    count = comments.size,
-                    vote = votes[comment.floor - 1],
-                    onVote = { value ->
-                        votes = votes.copyOf().apply {
-                            val index = comment.floor - 1
-                            this[index] = if (this[index] == value) 0 else value
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                val statusHeight = (maxHeight - listBottomPadding - 8.dp -
+                    with(density) { headerHeight.toDp() } - ListItemDefaults.SegmentedGap).coerceAtLeast(0.dp)
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = 8.dp,
+                        end = 8.dp,
+                        top = 8.dp,
+                        bottom = listBottomPadding,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+                ) {
+                    item("count") {
+                        CommentCountHeader(
+                            count = state.total,
+                            toolbarSize = toolbarSize,
+                            modifier = Modifier.onSizeChanged { headerHeight = it.height },
+                        )
+                    }
+                    item("status") {
+                        if (state.error != null || showLoadingStatus || entries.isEmpty()) {
+                            ContentStatus(
+                                ContentState(data = state.pages.takeIf { it.isNotEmpty() }, loading = showLoadingStatus, error = state.error),
+                                onRetry,
+                                Modifier.fillMaxWidth().then(
+                                    if (entries.isEmpty() && posted == null) Modifier.heightIn(min = statusHeight)
+                                    else Modifier,
+                                ),
+                                empty = entries.isEmpty() && posted == null,
+                                emptyTitle = stringResource(R.string.video_comments_empty),
+                                emptyIconRes = R.drawable.ic_symbol_chat_bubble,
+                            )
                         }
-                    },
-                    onReply = onUnavailableAction,
-                    onMore = onUnavailableAction,
-                )
-            }
-            item(key = "comments_end") {
-                Text(
-                    text = "·",
-                    modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
+                    }
+                    item("previous") {
+                        ContentStatus(state.previous, { onAdjacent(true, true) }, Modifier.fillMaxWidth(), empty = false)
+                    }
+                    if (showPosted) {
+                        item("posted") { Text(stringResource(R.string.comment_posted, posted.text)) }
+                    }
+                    itemsIndexed(entries, key = { _, entry -> entry.comment.id }) { index, entry ->
+                        val comment = entry.comment
+                        VideoCommentItem(
+                            comment, index, entries.size,
+                            vote = when (comment.reaction) {
+                                Reaction.LIKE -> 1
+                                Reaction.DISLIKE -> -1
+                                Reaction.NONE -> 0
+                            },
+                            enabled = !busy && !state.loading && entry.page !in state.updatingPages && canInteract,
+                            onOpenAuthor = { onOpenProfile(comment.author.uid) },
+                            onVote = { onVote(comment, if (it == 1) Reaction.LIKE else Reaction.DISLIKE) },
+                            onReply = onUnavailable,
+                            onMore = onUnavailable,
+                        )
+                    }
+                    item("next") {
+                        ContentStatus(state.next, { onAdjacent(false, true) }, Modifier.fillMaxWidth(), empty = false)
+                    }
+                }
+                CommentToolbar(
+                    currentPage = currentPage,
+                    totalPages = totalPages,
+                    enabled = navigationEnabled,
+                    onPage = onPage,
+                    onOpenJump = { showJumpDialog = true },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .onSizeChanged { toolbarSize = it },
                 )
             }
         }
-        CommentToolbar(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(8.dp)
-                .onSizeChanged { toolbarSize = it },
-            currentPage = currentPage,
-            totalPages = totalPages,
-            sort = sort,
-            ascending = ascending,
-            onOpenJump = { showJumpDialog = true },
-            onSortChange = { newSort, newAscending ->
-                if (newSort != sort || newAscending != ascending) {
-                    sort = newSort
-                    ascending = newAscending
-                    // 显式回到新排序的第一页，避免稳定 key 自动保留旧位置。
-                    listState.requestScrollToItem(0)
-                }
-            },
-        )
     }
     if (showJumpDialog) {
         CommentJumpDialog(
             currentPage = currentPage,
             totalPages = totalPages,
-            maxFloor = demoVideoComments.size,
+            enabled = navigationEnabled,
             onDismiss = { showJumpDialog = false },
-            onJump = { byFloor, value ->
-                val index = if (byFloor) {
-                    comments.indexOfFirst { it.floor == value }
-                } else {
-                    (value - 1) * COMMENTS_PER_PAGE
-                }
-                if (index in comments.indices) {
-                    // The header adds one item; the negative offset clears the floating toolbar
-                    // now that the list itself has only a compact top inset.
-                    listState.requestScrollToItem(index + 1, scrollOffset = jumpScrollOffset)
-                    showJumpDialog = false
-                }
+            onJump = {
+                onPage(it)
+                showJumpDialog = false
             },
         )
     }
 }
 
 @Composable
-private fun CommentCountHeader(count: Int, toolbarSize: IntSize) {
+private fun CommentCountHeader(count: Int, toolbarSize: IntSize, modifier: Modifier = Modifier) {
     val label = pluralStringResource(R.plurals.video_comments_total, count, count)
     val style = MaterialTheme.typography.bodyMedium
     val textMeasurer = rememberTextMeasurer()
@@ -179,7 +255,7 @@ private fun CommentCountHeader(count: Int, toolbarSize: IntSize) {
     val toolbarWidth = with(density) { toolbarSize.width.toDp() }
     val toolbarHeight = with(density) { toolbarSize.height.toDp() }
 
-    BoxWithConstraints(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+    BoxWithConstraints(modifier.fillMaxWidth().padding(bottom = 8.dp)) {
         // Measure the localized label so narrow layouts and large fonts stack without overlap.
         val inline = toolbarSize.width > 0 && labelWidth + toolbarWidth + 24.dp <= maxWidth
         Text(
@@ -200,19 +276,5 @@ private fun CommentCountHeader(count: Int, toolbarSize: IntSize) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = style,
         )
-    }
-}
-
-@Preview(name = "评论 · 中文", locale = "zh", widthDp = 412, heightDp = 640)
-@Preview(name = "Comments · English", locale = "en", widthDp = 412, heightDp = 640)
-@Preview(name = "Comments · Dark", uiMode = Configuration.UI_MODE_NIGHT_YES, widthDp = 412, heightDp = 640)
-@Preview(name = "Comments · Wide", locale = "en", widthDp = 840, heightDp = 640)
-@Preview(name = "Comments · Large text", locale = "zh", fontScale = 2f, widthDp = 320, heightDp = 640)
-@Composable
-private fun VideoCommentsPreview() {
-    KIRAKIRATheme(dynamicColor = false) {
-        Surface {
-            VideoCommentsPage(rememberLazyListState(), 0.dp, onUnavailableAction = {})
-        }
     }
 }

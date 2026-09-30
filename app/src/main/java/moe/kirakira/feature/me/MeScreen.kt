@@ -6,23 +6,18 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -30,19 +25,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
-import moe.kirakira.ui.components.PlaceholderAvatar
+import moe.kirakira.data.auth.AccountProfile
+import moe.kirakira.ui.components.AccountAvatar
 import moe.kirakira.ui.components.SegmentedMenuItem
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 @Composable
-fun MeScreen(
+internal fun MeScreen(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
     scrollState: ScrollState = rememberScrollState(),
+    onOpenProfile: () -> Unit = {},
+    profile: AccountProfile? = null,
 ) {
     Box(
         modifier = modifier
@@ -59,7 +59,7 @@ fun MeScreen(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            ProfileCard()
+            ProfileListItem(onOpenProfile, profile)
             Column(
                 verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
             ) {
@@ -89,57 +89,38 @@ fun MeScreen(
 }
 
 @Composable
-private fun ProfileCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(
-            containerColor = ListItemDefaults.colors().containerColor
-        ),
-    ) {
-        Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                PlaceholderAvatar(size = 72.dp)
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = stringResource(R.string.me_placeholder_name),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        text = stringResource(R.string.me_placeholder_handle),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
-            }
-            Text(text = stringResource(R.string.me_placeholder_bio), style = MaterialTheme.typography.bodyMedium)
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                maxItemsInEachRow = 3,
-            ) {
-                ProfileStat(stringResource(R.string.me_following_count))
-                ProfileStat(stringResource(R.string.me_followers_count))
-                ProfileStat(stringResource(R.string.me_likes_count))
-            }
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = stringResource(R.string.me_profile),
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                Icon(painterResource(R.drawable.ic_symbol_chevron_right), contentDescription = null)
-            }
+private fun ProfileListItem(
+    onOpenProfile: () -> Unit,
+    profile: AccountProfile?,
+    modifier: Modifier = Modifier,
+) {
+    val supportingContent: (@Composable () -> Unit)? = profile?.username?.takeIf { it.isNotBlank() }?.let { username ->
+        {
+            Text(
+                text = "@$username",
+                fontFamily = FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
-}
-
-@Composable
-private fun ProfileStat(label: String, modifier: Modifier = Modifier) {
-    Column(modifier = modifier.width(IntrinsicSize.Max), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(text = stringResource(R.string.placeholder_count), style = MaterialTheme.typography.titleLarge)
-        Text(text = label, style = MaterialTheme.typography.labelMedium)
+    SegmentedListItem(
+        onClick = onOpenProfile,
+        modifier = modifier.fillMaxWidth(),
+        shapes = ListItemDefaults.segmentedShapes(index = 0, count = 1),
+        verticalAlignment = Alignment.CenterVertically,
+        leadingContent = { AccountAvatar(url = profile?.avatar, size = 72.dp) },
+        supportingContent = supportingContent,
+        trailingContent = {
+            Icon(painterResource(R.drawable.ic_symbol_chevron_right), contentDescription = null)
+        },
+    ) {
+        Text(
+            text = profile?.displayName ?: stringResource(R.string.auth_sign_in),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

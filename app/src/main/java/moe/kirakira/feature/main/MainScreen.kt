@@ -6,6 +6,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
@@ -22,6 +24,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Icon
@@ -51,14 +54,24 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
+import moe.kirakira.data.auth.AccountProfile
+import moe.kirakira.data.content.VideoSummary
 import moe.kirakira.feature.me.MeScreen
 import moe.kirakira.feature.search.SearchScreen
-import moe.kirakira.feature.video.HomeVideoCard
-import moe.kirakira.ui.components.PlaceholderAvatar
+import moe.kirakira.feature.settings.VideoCardLayout
+import moe.kirakira.feature.video.ContentState
+import moe.kirakira.feature.video.VideoCardRow
+import moe.kirakira.ui.components.AccountAvatar
+import moe.kirakira.ui.components.ContentPullToRefresh
+import moe.kirakira.ui.components.ContentStatus
+import moe.kirakira.ui.components.ContentUnavailableState
+import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.navigation.rememberNavigationMotion
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.LocalClassicAccent
@@ -80,7 +93,12 @@ private enum class AppDestination(
 internal fun MainScreen(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
-    onOpenVideo: () -> Unit = {},
+    onOpenVideo: (Int) -> Unit = {},
+    onOpenProfile: () -> Unit = {},
+    profile: AccountProfile? = null,
+    videos: ContentState<List<VideoSummary>> = ContentState(),
+    onRefreshVideos: () -> Unit = {},
+    videosLayout: VideoCardLayout = VideoCardLayout.GRID,
 ) {
     var destination by rememberSaveable { mutableStateOf(AppDestination.HOME) }
     val meScrollState = rememberScrollState()
@@ -127,6 +145,7 @@ internal fun MainScreen(
                     ),
                     topBar = {
                         MainTopBar(
+                            avatar = profile?.avatar,
                             destination = page,
                             onOpenMe = { destination = AppDestination.ME },
                         )
@@ -149,37 +168,58 @@ internal fun MainScreen(
                             .consumeWindowInsets(bottomBarPadding),
                     ) {
                         when (page) {
-                            AppDestination.HOME -> LazyColumn(
-                                state = homeScrollState,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .testTag("home_screen"),
-                                contentPadding = PaddingValues(
-                                    top = 16.dp,
-                                    bottom = bottomBarPadding.calculateBottomPadding() + 16.dp,
-                                    start = 16.dp,
-                                    end = 16.dp,
-                                ),
+                            AppDestination.HOME -> ContentPullToRefresh(
+                                isRefreshing = videos.loading && videos.data != null,
+                                onRefresh = onRefreshVideos,
+                                modifier = Modifier.fillMaxSize(),
                             ) {
-                                item(key = "demo_video") {
-                                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
-                                        HomeVideoCard(
-                                            onClick = onOpenVideo,
-                                            modifier = Modifier.widthIn(max = 600.dp).fillMaxWidth(),
-                                        )
+                                BoxWithConstraints(Modifier.fillMaxSize()) {
+                                    val statusHeight = (maxHeight - bottomBarPadding.calculateBottomPadding() - 32.dp)
+                                        .coerceAtLeast(0.dp)
+                                    LazyColumn(
+                                        state = homeScrollState,
+                                        modifier = Modifier.fillMaxSize().testTag("home_screen"),
+                                        contentPadding = PaddingValues(
+                                            top = 16.dp,
+                                            bottom = bottomBarPadding.calculateBottomPadding() + 16.dp,
+                                            start = 16.dp,
+                                            end = 16.dp,
+                                        ),
+                                    ) {
+                                        item(key = "status") {
+                                            if (videos.error != null || videos.data.isNullOrEmpty()) {
+                                                ContentStatus(
+                                                    videos.copy(loading = videos.loading && videos.data == null), onRefreshVideos,
+                                                    Modifier.fillMaxWidth().then(
+                                                        if (videos.data.isNullOrEmpty()) Modifier.heightIn(min = statusHeight) else Modifier,
+                                                    ),
+                                                    videos.data.isNullOrEmpty(),
+                                                )
+                                            }
+                                        }
+                                        items(videos.data.orEmpty().chunked(videosLayout.columns), key = { it.first().id }) { row ->
+                                            Box(Modifier.fillMaxWidth().padding(bottom = 12.dp), contentAlignment = Alignment.TopCenter) {
+                                                VideoCardRow(row, videosLayout, onOpenVideo,
+                                                    Modifier.widthIn(max = 840.dp).fillMaxWidth())
+                                            }
+                                        }
                                     }
                                 }
                             }
 
                             AppDestination.SEARCH -> SearchScreen()
-                            AppDestination.FOLLOWING -> Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .testTag("following_screen"),
+                            AppDestination.FOLLOWING -> ContentUnavailableView(
+                                state = ContentUnavailableState.EMPTY,
+                                title = stringResource(R.string.content_not_available_yet),
+                                description = null,
+                                iconRes = R.drawable.ic_symbol_person_add,
+                                modifier = Modifier.fillMaxSize().testTag("following_screen"),
                             )
 
                             AppDestination.ME -> MeScreen(
+                                profile = profile,
                                 onOpenSettings = onOpenSettings,
+                                onOpenProfile = onOpenProfile,
                                 scrollState = meScrollState,
                             )
                         }
@@ -194,9 +234,10 @@ internal fun MainScreen(
 private fun MainTopBar(
     destination: AppDestination,
     onOpenMe: () -> Unit,
+    avatar: String?,
 ) {
     when (destination) {
-        AppDestination.HOME -> HomeTopBar(onOpenMe = onOpenMe)
+        AppDestination.HOME -> HomeTopBar(onOpenMe = onOpenMe, avatar = avatar)
 
         AppDestination.FOLLOWING -> TopAppBar(
             modifier = Modifier.topAppBarShadow(),
@@ -215,7 +256,8 @@ private fun MainTopBar(
 }
 
 @Composable
-private fun HomeTopBar(onOpenMe: () -> Unit) {
+private fun HomeTopBar(onOpenMe: () -> Unit, avatar: String?) {
+    val meDescription = stringResource(R.string.nav_me)
     val colors = mainTopAppBarColors()
     Box(
         modifier = Modifier
@@ -257,11 +299,9 @@ private fun HomeTopBar(onOpenMe: () -> Unit) {
             actions = {
                 IconButton(
                     onClick = onOpenMe,
-                    modifier = Modifier.padding(end = 8.dp),
+                    modifier = Modifier.padding(end = 8.dp).semantics { contentDescription = meDescription },
                 ) {
-                    PlaceholderAvatar(
-                        contentDescription = stringResource(R.string.nav_me),
-                    )
+                    AccountAvatar(url = avatar, size = 40.dp)
                 }
             },
         )

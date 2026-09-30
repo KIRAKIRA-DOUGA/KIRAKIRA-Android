@@ -1,0 +1,10 @@
+{
+  "uniqueId": "third-party:cerasus-danmaku",
+  "name": "KIRAKIRA-Cerasus icons and kaomoji",
+  "artifactVersion": "dd5b8cdcabaac4d03ad190f6b7037bfab494c72b",
+  "website": "https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Cerasus/tree/dd5b8cdcabaac4d03ad190f6b7037bfab494c72b",
+  "description": "Danmaku and kaomoji icons converted from SVG to Android VectorDrawable with original paths preserved and theme tint; five-category kaomoji catalog ported to Kotlin with original text and ordering.",
+  "licenses": [
+    "kirakira-cerasus-agpl-3.0"
+  ]
+}

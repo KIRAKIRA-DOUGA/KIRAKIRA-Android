@@ -1,5 +1,6 @@
 package moe.kirakira.feature.video
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -20,32 +21,29 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 import moe.kirakira.R
-import moe.kirakira.ui.components.PlaceholderAvatar
+import moe.kirakira.data.content.VideoComment
+import moe.kirakira.ui.components.AccountAvatar
 
 @Composable
 internal fun VideoCommentItem(
-    comment: DemoVideoComment,
+    comment: VideoComment,
     index: Int,
     count: Int,
     vote: Int,
+    enabled: Boolean,
+    onOpenAuthor: () -> Unit,
     onVote: (Int) -> Unit,
     onReply: () -> Unit,
     onMore: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val locale = LocalConfiguration.current.locales[0]
-    val dateFormatter = remember(locale) { DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT).withLocale(locale) }
     val layoutDirection = LocalLayoutDirection.current
     val defaultPadding = ListItemDefaults.ContentPadding
     // 横向按 24dp 图标对齐正文；官方按钮仍以完整触摸尺寸居中，向布局槽两侧延伸。
@@ -59,7 +57,13 @@ internal fun VideoCommentItem(
             defaultShapes = ListItemDefaults.shapes(shape = MaterialTheme.shapes.extraSmall),
         ),
         modifier = modifier.fillMaxWidth(),
-        leadingContent = { PlaceholderAvatar(size = 40.dp) },
+        leadingContent = {
+            AccountAvatar(
+                comment.author.avatar,
+                Modifier.clickable(onClick = onOpenAuthor),
+                size = 40.dp,
+            )
+        },
         verticalAlignment = Alignment.Top,
         // 操作按钮已保留触摸区域，底部只补少量视觉留白。
         contentPadding = PaddingValues(
@@ -74,23 +78,25 @@ internal fun VideoCommentItem(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                SelectionContainer {
-                    Column(Modifier.padding(end = 12.dp)) {
-                        Text(
-                            stringResource(R.string.video_comment_author, comment.author),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        Text(
-                            stringResource(R.string.video_comment_handle, comment.author),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                Column(
+                    Modifier
+                        .padding(end = 12.dp)
+                        .clickable(onClick = onOpenAuthor),
+                ) {
+                    Text(
+                        comment.author.name.ifBlank { stringResource(R.string.content_unknown_author) },
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        comment.author.username.takeIf { it.isNotBlank() }?.let { "@$it" }.orEmpty(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
                 SelectionContainer {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
-                            dateFormatter.format(comment.createdAt),
+                            dateText(comment.createdAt),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -105,7 +111,7 @@ internal fun VideoCommentItem(
 
             SelectionContainer {
                 Text(
-                    stringResource(comment.bodyRes),
+                    comment.text,
                     modifier = Modifier.padding(top = 8.dp),
                     style = MaterialTheme.typography.bodyLarge,
                 )
@@ -120,6 +126,7 @@ internal fun VideoCommentItem(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     IconToggleButton(
+                        enabled = enabled && !comment.blockedByOther,
                         checked = vote == 1,
                         onCheckedChange = { onVote(1) },
                         modifier = actionButtonModifier,
@@ -127,10 +134,11 @@ internal fun VideoCommentItem(
                         Icon(painterResource(R.drawable.ic_symbol_arrow_upward), stringResource(R.string.video_like))
                     }
                     Text(
-                        stringResource(R.string.video_count, comment.score + vote),
+                        stringResource(R.string.video_count, comment.score),
                         style = MaterialTheme.typography.labelLarge,
                     )
                     IconToggleButton(
+                        enabled = enabled && !comment.blockedByOther,
                         checked = vote == -1,
                         onCheckedChange = { onVote(-1) },
                         modifier = actionButtonModifier,

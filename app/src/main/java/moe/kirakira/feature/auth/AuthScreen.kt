@@ -2,12 +2,8 @@ package moe.kirakira.feature.auth
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -16,20 +12,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -38,11 +33,13 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -70,34 +67,106 @@ internal fun AuthScreen(
     onSubmit: () -> Unit,
     onRegister: () -> Unit,
     onClose: () -> Unit,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    onFieldChange: (AuthField, String) -> Unit = { _, _ -> },
+    onForgotPassword: () -> Unit = {},
+    onResend: () -> Unit = {},
+    onRecoveryHelp: () -> Unit = {},
+    focusRequesters: Map<AuthField, FocusRequester> = remember { AuthField.entries.associateWith { FocusRequester() } },
 ) {
     val layoutDirection = LocalLayoutDirection.current
-    val signInLabel = stringResource(R.string.auth_sign_in)
-    val signingInDescription = stringResource(R.string.auth_signing_in)
+    val title = when (state.step) {
+        AuthStep.REGISTER_PROFILE -> R.string.auth_profile_title
+        AuthStep.REGISTER_CREDENTIALS -> R.string.auth_credentials_title
+        AuthStep.REGISTER_INVITATION -> R.string.auth_invitation_title
+        AuthStep.REGISTER_VERIFY -> R.string.auth_verify_email_title
+        AuthStep.LOGIN_EMAIL -> R.string.auth_verify_email_title
+        AuthStep.LOGIN_TOTP -> R.string.auth_totp_title
+        AuthStep.FORGOT_EMAIL -> R.string.auth_forgot_password
+        AuthStep.TOTP_HELP -> R.string.auth_recovery_title
+        AuthStep.RESET_PASSWORD, AuthStep.SAVE_PASSWORD_RESET -> R.string.auth_reset_password
+        AuthStep.SAVE_SESSION -> R.string.auth_save_session
+        else -> R.string.auth_sign_in
+    }
+    val description = when (state.step) {
+        AuthStep.LOGIN -> R.string.auth_description
+        AuthStep.LOGIN_EMAIL -> R.string.auth_email_code_description
+        AuthStep.LOGIN_TOTP -> R.string.auth_totp_description
+        AuthStep.REGISTER_PROFILE -> R.string.auth_profile_description
+        AuthStep.REGISTER_CREDENTIALS -> R.string.auth_registration_description
+        AuthStep.REGISTER_INVITATION -> R.string.auth_invitation_description
+        AuthStep.REGISTER_VERIFY -> R.string.auth_register_verify_description
+        AuthStep.FORGOT_EMAIL -> R.string.auth_forgot_description
+        AuthStep.RESET_PASSWORD -> R.string.auth_reset_description
+        AuthStep.TOTP_HELP -> R.string.auth_totp_recovery_description
+        AuthStep.SAVE_SESSION -> R.string.auth_save_session_description
+        AuthStep.SAVE_PASSWORD_RESET -> R.string.auth_finish_reset_description
+    }
+    val submitLabel = when (state.step) {
+        AuthStep.LOGIN, AuthStep.LOGIN_EMAIL, AuthStep.LOGIN_TOTP -> R.string.auth_sign_in_button
+        AuthStep.REGISTER_VERIFY -> R.string.auth_register
+        AuthStep.RESET_PASSWORD -> R.string.auth_reset_password
+        AuthStep.SAVE_SESSION, AuthStep.SAVE_PASSWORD_RESET -> R.string.auth_retry
+        else -> R.string.auth_continue
+    }
+    val stepIcon = when (state.step) {
+        AuthStep.LOGIN -> R.drawable.logo_kirakira
+        AuthStep.LOGIN_EMAIL, AuthStep.REGISTER_VERIFY -> R.drawable.ic_symbol_mail
+        AuthStep.LOGIN_TOTP -> R.drawable.ic_symbol_shield
+        AuthStep.REGISTER_PROFILE -> R.drawable.ic_symbol_person
+        AuthStep.REGISTER_CREDENTIALS -> R.drawable.ic_symbol_person_add
+        AuthStep.REGISTER_INVITATION -> R.drawable.ic_symbol_confirmation_number
+        AuthStep.FORGOT_EMAIL -> R.drawable.ic_symbol_manage_accounts
+        AuthStep.RESET_PASSWORD -> R.drawable.ic_symbol_lock_reset
+        AuthStep.TOTP_HELP -> R.drawable.ic_symbol_help
+        AuthStep.SAVE_SESSION, AuthStep.SAVE_PASSWORD_RESET -> R.drawable.ic_symbol_save
+    }
+    val registrationStep = when (state.step) {
+        AuthStep.REGISTER_PROFILE -> 1
+        AuthStep.REGISTER_CREDENTIALS -> 2
+        AuthStep.REGISTER_INVITATION -> 3
+        AuthStep.REGISTER_VERIFY -> 4
+        else -> 0
+    }
+    val signInLabel = stringResource(title)
+    val signingInDescription = stringResource(R.string.auth_working)
     Scaffold(
-        modifier = modifier.fillMaxSize().imePadding(),
+        modifier = modifier.fillMaxSize().testTag("auth_${state.step.name}"),
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .windowInsetsPadding(
-                        WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
-                    )
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-            ) {
-                FilledTonalIconButton(onClick = onClose, modifier = Modifier.size(48.dp)) {
+            CenterAlignedTopAppBar(
+                title = {
                     Icon(
-                        painter = painterResource(R.drawable.ic_symbol_close),
-                        contentDescription = stringResource(R.string.auth_close),
+                        painter = painterResource(stepIcon),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(if (state.step == AuthStep.LOGIN) 40.dp else 32.dp),
                     )
-                }
-            }
+                },
+                navigationIcon = {
+                    if (state.step != AuthStep.LOGIN) {
+                        FilledTonalIconButton(onClick = onBack, modifier = Modifier.testTag("auth_back")) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_symbol_arrow_back),
+                                contentDescription = stringResource(R.string.navigate_back),
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    FilledTonalIconButton(onClick = onClose, modifier = Modifier.testTag("auth_close")) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_symbol_close),
+                            contentDescription = stringResource(R.string.auth_close),
+                        )
+                    }
+                },
+            )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
-        BoxWithConstraints(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
@@ -108,101 +177,132 @@ internal fun AuthScreen(
                 .consumeWindowInsets(innerPadding),
             contentAlignment = Alignment.TopCenter,
         ) {
-            val viewportHeight = maxHeight
             Column(
                 modifier = Modifier
                     .padding(horizontal = 24.dp)
                     .widthIn(max = 480.dp)
                     .fillMaxWidth()
+                    .imePadding()
                     .verticalScroll(rememberScrollState())
-                    .heightIn(min = viewportHeight)
                     // Keep the viewport edge-to-edge; the final inset scrolls with the button.
                     .padding(top = 24.dp, bottom = innerPadding.calculateBottomPadding() + 24.dp),
-                verticalArrangement = Arrangement.SpaceBetween,
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    Icon(
-                        painter = painterResource(R.drawable.logo_kirakira),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.align(Alignment.CenterHorizontally).size(96.dp),
-                    )
-                    Spacer(Modifier.height(32.dp))
+                    if (registrationStep > 0) {
+                        Text(stringResource(R.string.auth_step_progress, registrationStep, 4),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.height(8.dp))
+                        LinearProgressIndicator(progress = { registrationStep / 4f }, modifier = Modifier.fillMaxWidth())
+                        Spacer(Modifier.height(28.dp))
+                    }
                     Text(
-                        text = stringResource(R.string.auth_sign_in),
+                        text = signInLabel,
                         style = MaterialTheme.typography.headlineLarge,
                         modifier = Modifier.semantics { heading() },
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        text = stringResource(R.string.auth_description),
+                        text = stringResource(description),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Spacer(Modifier.height(32.dp))
-                    LoginForm(
+                    Spacer(Modifier.height(28.dp))
+                    AuthForm(
                         state = state,
                         passwordVisible = passwordVisible,
                         emailFocusRequester = emailFocusRequester,
+                        focusRequesters = focusRequesters,
                         onEmailChange = onEmailChange,
                         onPasswordChange = onPasswordChange,
                         onPasswordVisibilityChange = onPasswordVisibilityChange,
                         onSubmit = onSubmit,
+                        onFieldChange = onFieldChange,
                     )
                     Spacer(Modifier.height(12.dp))
-                    TextButton(onClick = onRegister, enabled = !state.isSubmitting) {
-                        Icon(painterResource(R.drawable.ic_symbol_add), contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.auth_register))
+                    if (state.step == AuthStep.LOGIN) {
+                        TextButton(onClick = onForgotPassword, enabled = state.canEdit) {
+                            Text(stringResource(R.string.auth_forgot_password))
+                        }
+                        TextButton(onClick = onRegister, enabled = state.canEdit, modifier = Modifier.testTag("auth_register")) {
+                            Icon(painterResource(R.drawable.ic_symbol_add), contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.auth_register))
+                        }
+                    } else {
+                        if (state.step in setOf(AuthStep.LOGIN_EMAIL, AuthStep.REGISTER_VERIFY, AuthStep.RESET_PASSWORD)) {
+                            TextButton(onClick = onResend, enabled = state.canEdit && state.resendSeconds == 0) {
+                                Text(
+                                    if (state.resendSeconds > 0) {
+                                        stringResource(R.string.auth_resend_countdown, state.resendSeconds)
+                                    } else {
+                                        stringResource(R.string.auth_resend)
+                                    },
+                                )
+                            }
+                        }
+                        if (state.step == AuthStep.TOTP_HELP) {
+                            TextButton(onClick = onRecoveryHelp) { Text(stringResource(R.string.auth_contact_support)) }
+                        }
                     }
-                    Spacer(Modifier.height(32.dp))
+                    Spacer(Modifier.height(28.dp))
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (state.submission == AuthSubmission.FAILED) {
+                    state.noticeRes?.let {
                         Text(
-                            text = stringResource(R.string.auth_sign_in_failed),
+                            text = stringResource(it),
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                        )
+                    }
+                    if (state.errorRes != null || (state.submission == AuthSubmission.FAILED && state.fieldErrors.isEmpty())) {
+                        Text(
+                            text = stringResource(state.errorRes ?: R.string.auth_sign_in_failed),
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                         )
                     }
-                    Button(
-                        onClick = onSubmit,
-                        enabled = state.canSubmit,
-                        shapes = ButtonDefaults.shapesFor(56.dp),
-                        contentPadding = ButtonDefaults.contentPaddingFor(56.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp)
-                            .semantics {
-                                if (state.isSubmitting) {
-                                    contentDescription = signInLabel
-                                    stateDescription = signingInDescription
-                                    progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate
-                                    liveRegion = LiveRegionMode.Polite
-                                }
-                            },
-                    ) {
-                        Box(
-                            modifier = Modifier.heightIn(min = 24.dp),
-                            contentAlignment = Alignment.Center,
+                    if (state.step != AuthStep.TOTP_HELP) {
+                        Button(
+                            onClick = onSubmit,
+                            enabled = state.canSubmit,
+                            shapes = ButtonDefaults.shapesFor(56.dp),
+                            contentPadding = ButtonDefaults.contentPaddingFor(56.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("auth_submit")
+                                .heightIn(min = 56.dp)
+                                .semantics {
+                                    if (state.isSubmitting) {
+                                        contentDescription = signInLabel
+                                        stateDescription = signingInDescription
+                                        progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate
+                                        liveRegion = LiveRegionMode.Polite
+                                    }
+                                },
                         ) {
-                            // Reserve the label's height even at large font scales while loading.
-                            Text(
-                                text = if (state.submission == AuthSubmission.FAILED) {
-                                    stringResource(R.string.auth_retry)
-                                } else {
-                                    stringResource(R.string.auth_sign_in_button)
-                                },
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = if (state.isSubmitting) {
-                                    Modifier.alpha(0f).clearAndSetSemantics { }
-                                } else {
-                                    Modifier
-                                },
-                            )
-                            if (state.isSubmitting) {
-                                LoadingIndicator(modifier = Modifier.size(24.dp).clearAndSetSemantics { })
+                            Box(
+                                modifier = Modifier.heightIn(min = 24.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                // Reserve the label's height even at large font scales while loading.
+                                Text(
+                                    text = if (state.submission == AuthSubmission.FAILED) {
+                                        stringResource(R.string.auth_retry)
+                                    } else {
+                                        stringResource(submitLabel)
+                                    },
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = if (state.isSubmitting) {
+                                        Modifier.alpha(0f).clearAndSetSemantics { }
+                                    } else {
+                                        Modifier
+                                    },
+                                )
+                                if (state.isSubmitting) {
+                                    LoadingIndicator(modifier = Modifier.size(24.dp).clearAndSetSemantics { })
+                                }
                             }
                         }
                     }

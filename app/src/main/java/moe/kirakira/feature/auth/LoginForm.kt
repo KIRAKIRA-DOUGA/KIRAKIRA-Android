@@ -11,11 +11,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentType
@@ -33,13 +35,14 @@ internal fun LoginForm(
     state: AuthUiState,
     passwordVisible: Boolean,
     emailFocusRequester: FocusRequester,
+    passwordFocusRequester: FocusRequester,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onPasswordVisibilityChange: () -> Unit,
     onSubmit: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val passwordFocusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         OutlinedTextField(
             value = state.email,
@@ -47,17 +50,15 @@ internal fun LoginForm(
             modifier = Modifier
                 .fillMaxWidth()
                 .focusRequester(emailFocusRequester)
-                .semantics { contentType = ContentType.EmailAddress },
-            enabled = !state.isSubmitting,
+                .testTag("auth_email")
+                .semantics { contentType = ContentType.EmailAddress + ContentType.Username },
+            enabled = state.canEdit,
             label = { Text(stringResource(R.string.auth_email)) },
             singleLine = true,
             shape = MaterialTheme.shapes.large,
-            isError = state.emailInvalid,
-            supportingText = if (state.emailInvalid) {
-                { Text(stringResource(R.string.auth_email_invalid)) }
-            } else {
-                null
-            },
+            isError = state.fieldErrors[AuthField.EMAIL] != null || state.emailInvalid,
+            supportingText = (state.fieldErrors[AuthField.EMAIL]
+                ?: R.string.auth_email_invalid.takeIf { state.emailInvalid })?.let { { Text(stringResource(it)) } },
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.None,
                 autoCorrectEnabled = false,
@@ -72,14 +73,21 @@ internal fun LoginForm(
             modifier = Modifier
                 .fillMaxWidth()
                 .focusRequester(passwordFocusRequester)
-                .semantics { contentType = ContentType.Password },
-            enabled = !state.isSubmitting,
+                .testTag("auth_password")
+                .semantics {
+                    contentType = if (state.step == AuthStep.REGISTER_CREDENTIALS) {
+                        ContentType.NewPassword
+                    } else {
+                        ContentType.Password
+                    }
+                },
+            enabled = state.canEdit,
             label = { Text(stringResource(R.string.auth_password)) },
             singleLine = true,
             shape = MaterialTheme.shapes.large,
             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
-                IconButton(onClick = onPasswordVisibilityChange, enabled = !state.isSubmitting) {
+                IconButton(onClick = onPasswordVisibilityChange, enabled = state.canEdit) {
                     Icon(
                         painter = painterResource(
                             if (passwordVisible) {
@@ -98,9 +106,12 @@ internal fun LoginForm(
                 capitalization = KeyboardCapitalization.None,
                 autoCorrectEnabled = false,
                 keyboardType = KeyboardType.Password,
-                imeAction = ImeAction.Done,
+                imeAction = if (state.step == AuthStep.REGISTER_CREDENTIALS) ImeAction.Next else ImeAction.Done,
             ),
-            keyboardActions = KeyboardActions(onDone = { if (state.canSubmit) onSubmit() }),
+            keyboardActions = KeyboardActions(
+                onNext = { focusManager.moveFocus(FocusDirection.Next) },
+                onDone = { if (state.canSubmit) onSubmit() },
+            ),
         )
     }
 }

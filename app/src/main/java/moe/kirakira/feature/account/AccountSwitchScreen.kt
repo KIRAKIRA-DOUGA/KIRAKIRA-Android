@@ -16,9 +16,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -42,18 +44,21 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
+import moe.kirakira.data.auth.SessionOperation
+import moe.kirakira.data.auth.SessionOperationType
+import moe.kirakira.ui.components.AccountAvatar
 import moe.kirakira.ui.components.CollapsibleTopAppBar
-import moe.kirakira.ui.components.PlaceholderAvatar
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun AccountSwitchScreen(
     accounts: List<AccountItem>,
@@ -66,6 +71,8 @@ internal fun AccountSwitchScreen(
     onRemoveAccount: (String) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    busy: Boolean = false,
+    operation: SessionOperation? = null,
 ) {
     val scrollBehavior = rememberCollapsibleTopAppBarScrollBehavior()
     val layoutDirection = LocalLayoutDirection.current
@@ -90,6 +97,7 @@ internal fun AccountSwitchScreen(
                 actions = {
                     if (accounts.any { it.id != GUEST_ACCOUNT_ID }) {
                         TextButton(
+                            enabled = !busy,
                             onClick = {
                                 swipedAccountId = null
                                 onEditingChange(!editing)
@@ -123,7 +131,7 @@ internal fun AccountSwitchScreen(
                         top = 16.dp,
                         bottom = innerPadding.calculateBottomPadding() + 16.dp,
                     ),
-                verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Column(
                     modifier = Modifier.selectableGroup(),
@@ -133,19 +141,24 @@ internal fun AccountSwitchScreen(
                         key(account.id) {
                             val onSelect = {
                                 swipedAccountId = null
-                                if (account.id != selectedAccountId) onSelectAccount(account.id)
+                                if (!busy && account.id != selectedAccountId) onSelectAccount(account.id)
                             }
                             val onRemove = {
                                 swipedAccountId = null
-                                onRemoveAccount(account.id)
+                                if (!busy) onRemoveAccount(account.id)
                             }
                             val content: @Composable (Modifier, () -> Unit) -> Unit = { rowModifier, onClick ->
                                 AccountRow(
                                     account = account,
                                     isSelected = account.id == selectedAccountId,
                                     editing = editing,
+                                    enabled = !busy,
+                                    operationType = operation?.takeIf {
+                                        (it.targetUuid ?: GUEST_ACCOUNT_ID) == account.id &&
+                                            it.type in setOf(SessionOperationType.SWITCH, SessionOperationType.REMOVE)
+                                    }?.type,
                                     index = index,
-                                    count = accounts.size + 1,
+                                    count = accounts.size,
                                     onSelect = onClick,
                                     onRemove = onRemove,
                                     modifier = rowModifier,
@@ -173,8 +186,9 @@ internal fun AccountSwitchScreen(
                         swipedAccountId = null
                         onAddAccount()
                     },
-                    enabled = !editing,
-                    shapes = ListItemDefaults.segmentedShapes(index = accounts.size, count = accounts.size + 1),
+                    enabled = !editing && !busy,
+                    shapes = ListItemDefaults.segmentedShapes(index = 0, count = 1),
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth().testTag("account_add"),
                     leadingContent = {
                         Surface(
@@ -197,11 +211,14 @@ internal fun AccountSwitchScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun AccountRow(
     account: AccountItem,
     isSelected: Boolean,
     editing: Boolean,
+    enabled: Boolean,
+    operationType: SessionOperationType?,
     index: Int,
     count: Int,
     onSelect: () -> Unit,
@@ -214,49 +231,62 @@ private fun AccountRow(
         if (isSelected) stateDescription = currentAccount
     }
     val shapes = ListItemDefaults.segmentedShapes(index = index, count = count)
-    val avatar: @Composable () -> Unit = { PlaceholderAvatar(size = 48.dp) }
-    val headline: @Composable () -> Unit = { Text(account.name) }
-    val supporting: (@Composable () -> Unit)? = if (account.handle != null || (editing && isSelected)) {
+    val avatar: @Composable () -> Unit = { AccountAvatar(url = account.avatar, size = 48.dp) }
+    val headline: @Composable () -> Unit = {
+        Text(account.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+    val supportingText = when {
+        operationType == SessionOperationType.REMOVE -> stringResource(R.string.account_removing)
+        operationType != null -> stringResource(R.string.account_switching)
+        account.id == GUEST_ACCOUNT_ID -> null
+        editing && isSelected -> currentAccount
+        else -> account.handle
+    }
+    val supporting: (@Composable () -> Unit)? = supportingText?.let { subtitle ->
         {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                account.handle?.let { Text(it) }
-                if (editing && isSelected) {
-                    Text(
-                        text = currentAccount,
-                        modifier = Modifier.clearAndSetSemantics {},
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
+            Text(
+                text = subtitle,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = if (operationType != null || editing && isSelected) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = if (operationType != null) Modifier.testTag("account_status_${account.id}")
+                    else Modifier,
+            )
+        }
+    }
+    val trailing: @Composable () -> Unit = {
+        // Selection, progress and editing share a centered slot, including the non-removable guest.
+        Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+            when {
+                operationType != null -> {
+                    LoadingIndicator(modifier = Modifier.size(32.dp).testTag("account_loading_${account.id}"))
+                }
+                !editing -> {
+                    RadioButton(selected = isSelected, onClick = null, enabled = enabled)
+                }
+                account.id != GUEST_ACCOUNT_ID -> {
+                    IconButton(
+                        onClick = onRemove,
+                        enabled = enabled,
+                        modifier = Modifier.testTag("account_remove_${account.id}"),
+                    ) {
+                        Icon(
+                            painterResource(R.drawable.ic_symbol_delete),
+                            contentDescription = stringResource(R.string.account_remove_description, account.name),
+                            tint = if (enabled) MaterialTheme.colorScheme.error
+                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                        )
+                    }
                 }
             }
         }
-    } else null
-    val trailing: (@Composable () -> Unit)? = when {
-        !editing -> {
-            {
-                RadioButton(
-                    selected = isSelected,
-                    onClick = null,
-                )
-            }
-        }
-        account.id != GUEST_ACCOUNT_ID -> {
-            {
-                IconButton(onClick = onRemove, modifier = Modifier.testTag("account_remove_${account.id}")) {
-                    Icon(
-                        painterResource(R.drawable.ic_symbol_delete),
-                        contentDescription = stringResource(R.string.account_remove_description, account.name),
-                        tint = MaterialTheme.colorScheme.error,
-                    )
-                }
-            }
-        }
-        else -> null
     }
 
     if (editing) {
         SegmentedListItem(
             shapes = shapes,
+            verticalAlignment = Alignment.CenterVertically,
             modifier = rowModifier,
             leadingContent = avatar,
             supportingContent = supporting,
@@ -266,8 +296,10 @@ private fun AccountRow(
     } else {
         SegmentedListItem(
             selected = isSelected,
+            enabled = enabled,
             onClick = onSelect,
             shapes = shapes,
+            verticalAlignment = Alignment.CenterVertically,
             modifier = rowModifier,
             leadingContent = avatar,
             supportingContent = supporting,
@@ -285,7 +317,7 @@ private fun AccountRow(
 @Composable
 private fun AccountSwitchPreview() {
     KIRAKIRATheme(dynamicColor = false) {
-        AccountSwitchPage(DemoAccountState(), onSelectAccount = {}, onRemoveAccount = {}, onBack = {})
+        AccountPreviewContent()
     }
 }
 
@@ -293,20 +325,7 @@ private fun AccountSwitchPreview() {
 @Composable
 private fun AccountEditingPreview() {
     KIRAKIRATheme(dynamicColor = false) {
-        AccountSwitchScreen(
-            accounts = listOf(
-                AccountItem(GUEST_ACCOUNT_ID, "Guest"),
-                AccountItem("sample", "A very long demonstration account name", "@long_sample_handle"),
-            ),
-            selectedAccountId = "sample",
-            editing = true,
-            snackbarHostState = remember { SnackbarHostState() },
-            onSelectAccount = {},
-            onEditingChange = {},
-            onAddAccount = {},
-            onRemoveAccount = {},
-            onBack = {},
-        )
+        AccountPreviewContent(editing = true)
     }
 }
 
@@ -314,6 +333,37 @@ private fun AccountEditingPreview() {
 @Composable
 private fun AccountDynamicColorPreview() {
     KIRAKIRATheme(dynamicColor = true) {
-        AccountSwitchPage(DemoAccountState(), onSelectAccount = {}, onRemoveAccount = {}, onBack = {})
+        AccountPreviewContent()
     }
+}
+
+@Preview(name = "Accounts · Switching", showBackground = true)
+@Composable
+private fun AccountSwitchingPreview() {
+    KIRAKIRATheme(dynamicColor = false) {
+        AccountPreviewContent(switching = true)
+    }
+}
+
+@Composable
+private fun AccountPreviewContent(editing: Boolean = false, switching: Boolean = false) {
+    AccountSwitchScreen(
+        accounts = DemoAccount.entries.map { account ->
+            AccountItem(
+                id = account.id,
+                name = stringResource(account.nameRes),
+                handle = account.handleRes?.let { stringResource(it) },
+            )
+        },
+        selectedAccountId = DemoAccount.KIRAKIRA.id,
+        editing = editing,
+        busy = switching,
+        operation = if (switching) SessionOperation(SessionOperationType.SWITCH, DemoAccount.SAKURA.id) else null,
+        snackbarHostState = remember { SnackbarHostState() },
+        onSelectAccount = {},
+        onEditingChange = {},
+        onAddAccount = {},
+        onRemoveAccount = {},
+        onBack = {},
+    )
 }

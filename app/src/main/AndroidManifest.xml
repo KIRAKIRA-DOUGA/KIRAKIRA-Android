@@ -2,7 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+
     <application
+        android:usesCleartextTraffic="false"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -13,8 +17,19 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.KIRAKIRA"
         tools:targetApi="33">
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.images"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/image_provider_paths" />
+        </provider>
         <activity
             android:name=".MainActivity"
+            android:supportsPictureInPicture="true"
+            android:configChanges="orientation|screenLayout|screenSize|smallestScreenSize"
             android:exported="true"
             android:theme="@style/Theme.KIRAKIRA.Splash"
             android:windowSoftInputMode="adjustResize">

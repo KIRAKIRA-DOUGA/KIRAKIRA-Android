@@ -2,13 +2,13 @@ package moe.kirakira
 
 import android.content.res.Configuration
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.tooling.preview.Preview
-import moe.kirakira.feature.account.DemoAccountState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import moe.kirakira.data.auth.SessionState
+import moe.kirakira.feature.account.SessionViewModel
 import moe.kirakira.ui.navigation.AppNavHost
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorSettings
@@ -24,10 +24,10 @@ fun KIRAKIRAApp(
     shadowsEnabled: Boolean = false,
     onShadowsEnabledChange: (Boolean) -> Unit = {},
     onVideoPageActiveChange: (Boolean) -> Unit = {},
+    onImageViewerActiveChange: (Boolean) -> Unit = {},
 ) {
-    var accountState by rememberSaveable(stateSaver = DemoAccountState.Saver) {
-        mutableStateOf(DemoAccountState())
-    }
+    val sessionViewModel = if (LocalInspectionMode.current) null else viewModel<SessionViewModel>()
+    val accountState = sessionViewModel?.state?.collectAsStateWithLifecycle()?.value ?: SessionState(isLoading = false)
 
     AppNavHost(
         themeMode = themeMode,
@@ -37,9 +37,15 @@ fun KIRAKIRAApp(
         shadowsEnabled = shadowsEnabled,
         onShadowsEnabledChange = onShadowsEnabledChange,
         onVideoPageActiveChange = onVideoPageActiveChange,
+        onImageViewerActiveChange = onImageViewerActiveChange,
         accountState = accountState,
-        onSelectAccount = { accountState = accountState.select(it) },
-        onRemoveAccount = { accountState = accountState.remove(it) },
+        authRepository = sessionViewModel?.repository,
+        onSelectAccount = { sessionViewModel?.select(it) },
+        onRemoveAccount = { sessionViewModel?.remove(it) },
+        onLogout = { sessionViewModel?.logout() },
+        onResetLocalAccounts = { sessionViewModel?.resetLocalAccounts() },
+        onRetrySession = { sessionViewModel?.retry() },
+        onDismissSessionError = { sessionViewModel?.dismissError() },
         modifier = modifier,
     )
 }
