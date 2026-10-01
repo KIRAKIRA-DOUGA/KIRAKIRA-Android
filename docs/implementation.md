@@ -345,6 +345,8 @@ Manifest 的 `icon` 与 `roundIcon` 分别引用 `mipmap-anydpi` 中的 `ic_laun
 
 `DanmakuSettingsRoute` 使用现有 Navigation 3 宿主和可折叠顶栏。`DanmakuSettingsViewModel` 由导航宿主持有，向设置页与播放器提供同一份状态；只写 `kirakira_settings` 下独立的 `danmaku_*` 键，不覆盖播放或主题设置。读取在 IO 调度器完成，写入使用 SharedPreferences.apply，范围与步长统一归一化；加载完成前禁用编辑并不绘制。偏好为设备级非敏感数据，沿用该偏好文件已有的备份白名单。
 
+弹幕设置的滑块条目保留官方 `SegmentedListItem` 分组样式，标题与当前数值在 `content` 内同排，Slider 在 `supportingContent` 内占满内容宽度，避免尾部数值列压缩滑块。
+
 字号与排布参考：Cerasus 使用 14／20／28 CSS px、继承 1.4 行高，其 `danmaku` DOM 引擎按每条文字的实际 offsetHeight 排布；DanmakuFlameMaster 同样基于 paintHeight 与 margin 寻找位置。tdanmaku 默认 15sp、1.6 倍行高。Android 此处选用 16sp 中号与 1.25em 行高，适配较小的视频视口，并采用逐条高度排布；这些值是本客户端的取舍，并非直接复制 Cerasus 的 CSS 数值。
 
 采用自有 Compose 绘制，不新增引擎依赖或移植外部源码。选型对照：[DanmakuFlameMaster](https://github.com/bilibili/DanmakuFlameMaster) 提供四模式但需要旧 View 引擎适配，[AkDanmaku](https://github.com/KwaiAppTeam/AkDanmaku) 引入 libGDX/ECS，[DanmakuRenderEngine](https://github.com/bytedance/DanmakuRenderEngine) 默认缺少反向模式，[tdanmaku](https://github.com/NihilDigit/tdanmaku) 的早期接口将反向滚动降级为普通滚动；这些项目未进入应用依赖或源码。

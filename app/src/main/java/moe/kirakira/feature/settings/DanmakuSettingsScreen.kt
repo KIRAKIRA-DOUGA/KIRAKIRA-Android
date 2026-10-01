@@ -3,6 +3,7 @@ package moe.kirakira.feature.settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
@@ -134,8 +135,17 @@ private fun DanmakuSlider(
     SideEffect { slider.value = value.toFloat() }
     SegmentedListItem(
         shapes = ListItemDefaults.segmentedShapes(index, 4),
-        content = { Text(title) },
-        trailingContent = { Text(formatted) },
+        modifier = Modifier.fillMaxWidth(),
+        content = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(title, modifier = Modifier.weight(1f))
+                Text(formatted)
+            }
+        },
         supportingContent = {
             Slider(
                 state = slider,
