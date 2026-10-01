@@ -49,6 +49,8 @@
 
 资料页以外层 `LazyColumn` 承载资料信息、`stickyHeader` Tab 栏和固定为剩余视口高度的 `HorizontalPager`。分页内列表通过嵌套滚动优先滚走资料信息，回到列表顶部后再向下展开资料；背景跟随外层列表，各 Tab 保留独立列表位置。Tab 高度按实测值扣除，底部系统内边距仍放在分页列表的 `contentPadding` 中。
 
+资料页按昵称文字的实际底部位置与外层列表视口顶部判断可见性；昵称完全滚出正文后，顶栏显示单行昵称，超长省略，昵称重新可见时隐藏顶栏标题。资料头被列表回收后仍通过首个可见条目保持顶栏昵称显示。
+
 两页的 `PrimaryTabRow` 共用 [PagerTabIndicator](../app/src/main/java/moe/kirakira/ui/components/PagerTabIndicator.kt)，并关闭默认底部分隔线；视频页也不在 Tab 栏下方绘制容器阴影。在测量阶段读取 `currentPage + currentPageOffsetFraction`。参考 [Material Components 的 Elastic 指示器](https://github.com/material-components/material-components-android/blob/master/lib/java/com/google/android/material/tabs/ElasticTabIndicatorInterpolator.java)，分别以 `sin(πt/2)` 和 `1−cos(πt/2)` 插值前缘、后缘，使其先伸长再收缩；RTL 下通过相对布局镜像。指示器直接跟随拖动、回弹和点击切页的实际进度，保持官方主 Tab 指示器的颜色与形状。
 
 点击切页共用 [rememberTabChangeHandler](../app/src/main/java/moe/kirakira/ui/components/TabTransition.kt)，取消上一次点击启动的滚动任务后从当前 Pager 位置转向新目标。滚动与图片查看器复用 [EmphasizedEasing](../app/src/main/java/moe/kirakira/ui/components/EmphasizedEasing.kt) 提供的 [Material 3 emphasized easing](https://github.com/material-components/material-components-android/blob/master/docs/theming/Motion.md#curves-easing--duration) 双段路径：API 28+ 读取路径相同的公开系统资源 `fast_out_extra_slow_in`，API 27 使用 Compose `PathEasing` 兼容。动画快速推进后平缓收尾，不越过目标页；相邻页为 500ms，跨页按距离延长至最多 650ms。Tab 的选中状态统一使用 `currentPage`。

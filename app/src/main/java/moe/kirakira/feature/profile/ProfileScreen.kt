@@ -34,7 +34,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -48,11 +50,14 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
@@ -98,6 +103,13 @@ internal fun ProfileScreen(
     val background = ThemeColorDefaults.pageBackgroundColor()
     val coverHeight = 160.dp + WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val profileListState = rememberLazyListState()
+    var nameBottom by remember(state.profile.uid) { mutableFloatStateOf(Float.NaN) }
+    var viewportTop by remember { mutableFloatStateOf(Float.NaN) }
+    val showToolbarName by remember(profileListState, state.profile.uid) {
+        derivedStateOf {
+            profileListState.firstVisibleItemIndex > 0 || nameBottom <= viewportTop
+        }
+    }
     var tabRowHeight by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val headerScrollConnection = remember(profileListState) {
@@ -121,7 +133,15 @@ internal fun ProfileScreen(
             containerColor = Color.Transparent,
             topBar = {
                 TopAppBar(
-                    title = {},
+                    title = {
+                        if (showToolbarName) {
+                            Text(
+                                text = state.profile.name.ifBlank { stringResource(R.string.content_unknown_author) },
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    },
                     navigationIcon = {
                         FilledTonalIconButton(onClick = onBack) {
                             Icon(
@@ -170,7 +190,9 @@ internal fun ProfileScreen(
                         val pagerHeight = (maxHeight - with(density) { tabRowHeight.toDp() }).coerceAtLeast(0.dp)
                         LazyColumn(
                             state = profileListState,
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .onGloballyPositioned { viewportTop = it.positionInWindow().y },
                         ) {
                             item(key = "profile_header") {
                                 ProfileHeader(
@@ -182,6 +204,7 @@ internal fun ProfileScreen(
                                     onOpenAvatar = onOpenAvatar,
                                     modifier = Modifier.fillMaxWidth(),
                                     coverRemainderHeight = (coverHeight - innerPadding.calculateTopPadding()).coerceAtLeast(0.dp),
+                                    onNameBottomChange = { nameBottom = it },
                                 )
                             }
                             if (profileError != null) {

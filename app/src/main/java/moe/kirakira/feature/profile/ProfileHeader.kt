@@ -28,6 +28,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -64,6 +66,7 @@ internal fun ProfileHeader(
     onOpenAvatar: () -> Unit,
     modifier: Modifier = Modifier,
     coverRemainderHeight: Dp = 96.dp,
+    onNameBottomChange: (Float) -> Unit = {},
 ) {
     val profile = state.profile
     val name = profile.name.ifBlank { stringResource(R.string.content_unknown_author) }
@@ -129,7 +132,11 @@ internal fun ProfileHeader(
                     Text(
                         text = name,
                         style = MaterialTheme.typography.headlineLarge,
-                        modifier = Modifier.semantics { heading() },
+                        modifier = Modifier
+                            .semantics { heading() }
+                            .onGloballyPositioned { coordinates ->
+                                onNameBottomChange(coordinates.positionInWindow().y + coordinates.size.height)
+                            },
                     )
                 }
                 if (username != null) {
