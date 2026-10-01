@@ -21,6 +21,8 @@
 
 注册入口复用现有 `add` 图标，品牌标识复用应用自身的 `logo_kirakira`。
 
+密码按钮的划线过渡由 `ui/components/AnimatedSlashIcon.kt` 绘制，主体读取上述原始资源，斜线轮廓取自 `visibility_off` 的对应边界；静止端点保留原始路径，中间帧为应用定义的裁剪及主体差异区域渐变。沿用 Apache 2.0 许可，没有新增图标来源。
+
 步骤图标来自同一官方 Rounded 资源，2026-09-29 核对；保留原始 pathData，认证页在固定 AppBar 中按 32dp 渲染，登录 Logo 按 40dp 渲染。
 
 | 图标 | 用途 |
@@ -61,7 +63,7 @@
 - [`speed`](https://github.com/google/material-design-icons/blob/master/symbols/android/speed/materialsymbolsrounded/speed_24px.xml)：播放器倍速入口。
 - [`picture_in_picture_alt`](https://github.com/google/material-design-icons/blob/master/symbols/android/picture_in_picture_alt/materialsymbolsrounded/picture_in_picture_alt_24px.xml)
 
-`AnimatedPlaybackIcon.kt` 基于上述播放／暂停 FILL 1 路径制作形变：播放三角形沿 y=480 拆成两个同向闭合轮廓，直线转换为等价二次曲线；暂停双竖条重新选择起点并拆分直边，使每个轮廓具有十六段二次曲线。端点保持官方外轮廓，形变中间态为自定义插值。两个方向都对目标控制点反向旋转 90°，再随动画顺时针旋转 90°；中断时从当前可见控制点重新插值，保持连续。未新增第三方图标或依赖，沿用 Apache 2.0 许可。
+`AnimatedPlaybackIcon.kt` 基于上述播放／暂停 FILL 1 路径制作形变：播放三角形沿 y=480 拆成两个同向闭合轮廓，直线转换为等价二次曲线；暂停双竖条重新选择起点并拆分直边，使每个轮廓具有十六段二次曲线。端点保持官方外轮廓，形变中间态为自定义插值。两个方向都对目标控制点反向旋转 90°，再随动画顺时针旋转 90°；采用主题的 Material 3 Expressive `fastSpatialSpec` 弹簧，形变与旋转稍微超过目标后回弹；中断时从当前可见控制点重新插值，保持连续。未新增第三方图标或依赖，沿用 Apache 2.0 许可。
 
 ## 视频卡片元数据图标
 

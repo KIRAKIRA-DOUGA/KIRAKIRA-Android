@@ -1,11 +1,11 @@
 package moe.kirakira.feature.player
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -25,7 +25,8 @@ internal fun rememberPlaybackIconMotion(
     playing: Boolean,
 ): PlaybackIconMotion {
     val motion = remember { PlaybackIconMotion(playing) }
-    LaunchedEffect(playing) { motion.animateTo(playing) }
+    val spatialSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+    LaunchedEffect(playing, spatialSpec) { motion.animateTo(playing, spatialSpec) }
     return motion
 }
 
@@ -52,7 +53,7 @@ internal class PlaybackIconMotion(initialPlaying: Boolean) {
     private val drawingPath = Path()
     private var rotating = false
 
-    suspend fun animateTo(playing: Boolean) {
+    suspend fun animateTo(playing: Boolean, animationSpec: FiniteAnimationSpec<Float>) {
         if (this.playing == playing) return
         this.playing = playing
         // Capture the displayed geometry before resetting the clock, including an interrupted turn.
@@ -64,7 +65,7 @@ internal class PlaybackIconMotion(initialPlaying: Boolean) {
         start = source
         end = matchedTarget
         rotating = true
-        progress.animateTo(1f, tween(durationMillis = 300, easing = FastOutSlowInEasing))
+        progress.animateTo(1f, animationSpec)
         // No renderer swap: both endpoints use the same exact Material Symbols contours.
         evaluate()
         start = current.copyOf()

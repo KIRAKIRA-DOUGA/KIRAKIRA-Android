@@ -31,7 +31,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RippleConfiguration
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
@@ -39,6 +41,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSliderState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -73,9 +76,12 @@ import moe.kirakira.data.content.DanmakuEntry
 import moe.kirakira.feature.settings.DanmakuSettings
 import moe.kirakira.feature.video.VideoArtwork
 import moe.kirakira.feature.video.durationText
+import moe.kirakira.ui.components.AnimatedSlashIcon
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
+import moe.kirakira.ui.components.SlashIconType
+import moe.kirakira.ui.components.rememberSlashIconProgress
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 internal data class PlayerUiState(
@@ -123,6 +129,10 @@ internal fun VideoPlayer(
 ) {
     val playbackIconMotion = rememberPlaybackIconMotion(
         playing = state.showPauseIcon,
+    )
+    val danmakuIconProgress = rememberSlashIconProgress(
+        slashed = danmakuSettings?.enabled != true,
+        ready = danmakuSettings != null,
     )
     var settingsPanel by remember { mutableStateOf<PlayerSettingsPanel?>(null) }
     var controlsVisible by remember { mutableStateOf(true) }
@@ -195,200 +205,220 @@ internal fun VideoPlayer(
             ) {
                 if (keepVisible) interact() else { controlsVisible = !controlsVisible; interaction++ }
             })
-            AnimatedVisibility(
-                visible = controlsVisible || state.buffering,
-                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
-                exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+            CompositionLocalProvider(
+                LocalRippleConfiguration provides RippleConfiguration(color = Color.White),
             ) {
-                Box(
-                    Modifier.fillMaxSize()
-                        .then(if (!controlsVisible) Modifier.clearAndSetSemantics { } else Modifier)
-                        .focusProperties {
-                            onEnter = { if (!controlsVisible) cancelFocusChange() }
-                        }
-                        .onFocusChanged { controlsHaveFocus = it.hasFocus }
-                        .focusGroup()
-                        .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.3f), Color.Transparent, Color.Black.copy(alpha = 0.7f))))
-                        .then(if (fullscreen) Modifier.windowInsetsPadding(WindowInsets.safeDrawing) else Modifier)
-                        .padding(8.dp),
+                AnimatedVisibility(
+                    visible = controlsVisible || state.buffering,
+                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                    exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
                 ) {
-                    val iconColors = IconButtonDefaults.iconButtonColors(
-                        contentColor = Color.White,
-                        disabledContentColor = Color.White.copy(alpha = 0.38f),
-                    )
-                    IconButton(
-                        colors = iconColors,
-                        onClick = { controlAction(onBack) },
-                        modifier = Modifier.align(Alignment.TopStart),
+                    Box(
+                        Modifier.fillMaxSize()
+                            .then(if (!controlsVisible) Modifier.clearAndSetSemantics { } else Modifier)
+                            .focusProperties {
+                                onEnter = { if (!controlsVisible) cancelFocusChange() }
+                            }
+                            .onFocusChanged { controlsHaveFocus = it.hasFocus }
+                            .focusGroup()
+                            .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.3f), Color.Transparent, Color.Black.copy(alpha = 0.7f))))
+                            .then(if (fullscreen) Modifier.windowInsetsPadding(WindowInsets.safeDrawing) else Modifier)
+                            .padding(8.dp),
                     ) {
-                        Icon(painterResource(R.drawable.ic_symbol_arrow_back), stringResource(
-                            if (fullscreen) R.string.player_exit_fullscreen else R.string.navigate_back,
-                        ))
-                    }
-                    if (state.failed) {
-                        ContentUnavailableView(
-                            state = ContentUnavailableState.ERROR,
-                            title = stringResource(R.string.player_error),
-                            description = null,
-                            onRetry = { controlAction(onRetry) },
-                            retryEnabled = state.available,
-                            presentation = ContentUnavailablePresentation.MEDIA,
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 48.dp),
+                        val iconColors = IconButtonDefaults.iconButtonColors(
+                            contentColor = Color.White,
+                            disabledContentColor = Color.White.copy(alpha = 0.38f),
                         )
                         IconButton(
-                            onClick = { controlAction(onFullscreen) },
                             colors = iconColors,
-                            modifier = Modifier.align(Alignment.TopEnd),
+                            onClick = { controlAction(onBack) },
+                            modifier = Modifier.align(Alignment.TopStart),
                         ) {
-                            Icon(
-                                painterResource(if (fullscreen) R.drawable.ic_symbol_fullscreen_exit else R.drawable.ic_symbol_fullscreen),
-                                stringResource(if (fullscreen) R.string.player_exit_fullscreen else R.string.player_fullscreen),
-                            )
+                            Icon(painterResource(R.drawable.ic_symbol_arrow_back), stringResource(
+                                if (fullscreen) R.string.player_exit_fullscreen else R.string.navigate_back,
+                            ))
                         }
-                    } else {
-                        PlayerSettingsButtons(
-                            state = state,
-                            enabled = active,
-                            onOpen = { panel -> controlAction { settingsPanel = panel } },
-                            modifier = Modifier.align(Alignment.TopEnd).padding(start = 48.dp),
-                        )
-                        Box(
-                            modifier = Modifier.align(Alignment.Center).size(64.dp)
-                                .background(Color.Black.copy(alpha = 0.45f), CircleShape),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            if (state.buffering) {
-                                LoadingIndicator(modifier = Modifier.size(48.dp), color = Color.White)
-                            } else {
-                                IconButton(
-                                    onClick = { controlAction(onToggle) },
-                                    enabled = state.available,
-                                    colors = IconButtonDefaults.iconButtonColors(
-                                        contentColor = Color.White,
-                                        disabledContentColor = Color.White.copy(alpha = 0.38f),
-                                    ),
-                                    modifier = Modifier.fillMaxSize(),
-                                ) {
-                                    AnimatedPlaybackIcon(
-                                        motion = playbackIconMotion,
-                                        description = stringResource(
-                                            if (state.showPauseIcon) R.string.player_pause else R.string.player_play,
+                        if (state.failed) {
+                            ContentUnavailableView(
+                                state = ContentUnavailableState.ERROR,
+                                title = stringResource(R.string.player_error),
+                                description = null,
+                                onRetry = { controlAction(onRetry) },
+                                retryEnabled = state.available,
+                                presentation = ContentUnavailablePresentation.MEDIA,
+                                modifier = Modifier.fillMaxSize().padding(horizontal = 48.dp),
+                            )
+                            IconButton(
+                                onClick = { controlAction(onFullscreen) },
+                                colors = iconColors,
+                                modifier = Modifier.align(Alignment.TopEnd),
+                            ) {
+                                Icon(
+                                    painterResource(if (fullscreen) R.drawable.ic_symbol_fullscreen_exit else R.drawable.ic_symbol_fullscreen),
+                                    stringResource(if (fullscreen) R.string.player_exit_fullscreen else R.string.player_fullscreen),
+                                )
+                            }
+                        } else {
+                            PlayerSettingsButtons(
+                                state = state,
+                                enabled = active,
+                                onOpen = { panel -> controlAction { settingsPanel = panel } },
+                                modifier = Modifier.align(Alignment.TopEnd).padding(start = 48.dp),
+                            )
+                            Box(
+                                modifier = Modifier.align(Alignment.Center).size(64.dp)
+                                    .background(Color.Black.copy(alpha = 0.45f), CircleShape),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                if (state.buffering) {
+                                    LoadingIndicator(modifier = Modifier.size(48.dp), color = Color.White)
+                                } else {
+                                    IconButton(
+                                        onClick = { controlAction(onToggle) },
+                                        enabled = state.available,
+                                        colors = IconButtonDefaults.iconButtonColors(
+                                            contentColor = Color.White,
+                                            disabledContentColor = Color.White.copy(alpha = 0.38f),
                                         ),
-                                        modifier = Modifier.size(48.dp),
-                                    )
+                                        modifier = Modifier.fillMaxSize(),
+                                    ) {
+                                        AnimatedPlaybackIcon(
+                                            motion = playbackIconMotion,
+                                            description = stringResource(
+                                                if (state.showPauseIcon) R.string.player_pause else R.string.player_play,
+                                            ),
+                                            modifier = Modifier.size(48.dp),
+                                        )
+                                    }
                                 }
                             }
-                        }
-                        Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 8.dp)) {
-                            val seekLabel = stringResource(R.string.player_seek)
-                            val seekThumbSize = DpSize(16.dp, 16.dp)
-                            val sliderColors = SliderDefaults.colors(
-                                activeTrackColor = MaterialTheme.colorScheme.primary,
-                                inactiveTrackColor = Color.Transparent,
-                                disabledThumbColor = Color.White.copy(alpha = 0.38f),
-                                disabledActiveTrackColor = Color.White.copy(alpha = 0.38f),
-                                disabledInactiveTrackColor = Color.Transparent,
-                            )
-                            val bufferColors = SliderDefaults.colors(
-                                activeTrackColor = Color.White.copy(alpha = 0.55f),
-                                inactiveTrackColor = Color.White.copy(alpha = 0.2f),
-                                disabledActiveTrackColor = Color.White.copy(alpha = 0.3f),
-                                disabledInactiveTrackColor = Color.White.copy(alpha = 0.15f),
-                            )
-                            val slider = rememberSliderState()
-                            val bufferSlider = rememberSliderState()
-                            SideEffect {
-                                bufferSlider.value = (state.bufferedPositionMs.toFloat() / state.durationMs.coerceAtLeast(1)).coerceIn(0f, 1f)
-                                slider.value = dragged ?: (state.positionMs.toFloat() / state.durationMs.coerceAtLeast(1)).coerceIn(0f, 1f)
-                            }
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(
-                                    "${durationText(dragged?.let { (it * state.durationMs).toLong() } ?: state.positionMs)} / ${durationText(state.durationMs)}",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = Color.White,
-                                    modifier = Modifier.weight(1f).padding(start = seekThumbSize.width / 2),
+                            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 8.dp)) {
+                                val seekLabel = stringResource(R.string.player_seek)
+                                val seekThumbSize = DpSize(16.dp, 16.dp)
+                                val sliderColors = SliderDefaults.colors(
+                                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                                    inactiveTrackColor = Color.Transparent,
+                                    disabledThumbColor = Color.White.copy(alpha = 0.38f),
+                                    disabledActiveTrackColor = Color.White.copy(alpha = 0.38f),
+                                    disabledInactiveTrackColor = Color.Transparent,
                                 )
-                                val danmakuLabel = stringResource(R.string.danmaku_display)
-                                Switch(
-                                    checked = danmakuSettings?.enabled == true,
-                                    onCheckedChange = { enabled -> controlAction { onDanmakuEnabled(enabled) } },
-                                    enabled = active && danmakuSettings != null,
-                                    modifier = Modifier.semantics { contentDescription = danmakuLabel },
-                                    thumbContent = {
+                                val bufferColors = SliderDefaults.colors(
+                                    activeTrackColor = Color.White.copy(alpha = 0.55f),
+                                    inactiveTrackColor = Color.White.copy(alpha = 0.2f),
+                                    disabledActiveTrackColor = Color.White.copy(alpha = 0.3f),
+                                    disabledInactiveTrackColor = Color.White.copy(alpha = 0.15f),
+                                )
+                                val slider = rememberSliderState()
+                                val bufferSlider = rememberSliderState()
+                                SideEffect {
+                                    bufferSlider.value = (state.bufferedPositionMs.toFloat() / state.durationMs.coerceAtLeast(1)).coerceIn(0f, 1f)
+                                    slider.value = dragged ?: (state.positionMs.toFloat() / state.durationMs.coerceAtLeast(1)).coerceIn(0f, 1f)
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(
+                                        "${durationText(dragged?.let { (it * state.durationMs).toLong() } ?: state.positionMs)} / ${durationText(state.durationMs)}",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = Color.White,
+                                        modifier = Modifier.weight(1f).padding(start = seekThumbSize.width / 2),
+                                    )
+                                    val danmakuLabel = stringResource(R.string.danmaku_display)
+                                    Switch(
+                                        checked = danmakuSettings?.enabled == true,
+                                        onCheckedChange = { enabled -> controlAction { onDanmakuEnabled(enabled) } },
+                                        enabled = active && danmakuSettings != null,
+                                        colors = SwitchDefaults.colors(
+                                            checkedThumbColor = Color.Black,
+                                            checkedTrackColor = Color.White,
+                                            checkedBorderColor = Color.Transparent,
+                                            checkedIconColor = Color.White,
+                                            uncheckedThumbColor = Color.White,
+                                            uncheckedTrackColor = Color.Transparent,
+                                            uncheckedBorderColor = Color.White,
+                                            uncheckedIconColor = Color.Black,
+                                            disabledCheckedThumbColor = Color.Black.copy(alpha = 0.38f),
+                                            disabledCheckedTrackColor = Color.White.copy(alpha = 0.12f),
+                                            disabledCheckedBorderColor = Color.Transparent,
+                                            disabledCheckedIconColor = Color.White.copy(alpha = 0.38f),
+                                            disabledUncheckedThumbColor = Color.White.copy(alpha = 0.38f),
+                                            disabledUncheckedTrackColor = Color.Transparent,
+                                            disabledUncheckedBorderColor = Color.White.copy(alpha = 0.12f),
+                                            disabledUncheckedIconColor = Color.Black.copy(alpha = 0.38f),
+                                        ),
+                                        modifier = Modifier.semantics { contentDescription = danmakuLabel },
+                                        thumbContent = {
+                                            AnimatedSlashIcon(
+                                                type = SlashIconType.DANMAKU,
+                                                progress = { danmakuIconProgress.value },
+                                                description = null,
+                                                modifier = Modifier.size(SwitchDefaults.IconSize),
+                                            )
+                                        },
+                                    )
+                                    IconButton(
+                                        onClick = { controlAction(onPictureInPicture) },
+                                        enabled = active && player != null && state.available,
+                                        colors = iconColors,
+                                    ) {
+                                        Icon(painterResource(R.drawable.ic_symbol_picture_in_picture_alt), stringResource(R.string.player_pip))
+                                    }
+                                    IconButton(onClick = { controlAction(onFullscreen) }, colors = iconColors) {
                                         Icon(
-                                            painterResource(
-                                                if (danmakuSettings?.enabled == true) R.drawable.ic_custom_danmaku
-                                                else R.drawable.ic_custom_danmaku_off,
-                                            ),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(SwitchDefaults.IconSize),
+                                            painterResource(if (fullscreen) R.drawable.ic_symbol_fullscreen_exit else R.drawable.ic_symbol_fullscreen),
+                                            stringResource(if (fullscreen) R.string.player_exit_fullscreen else R.string.player_fullscreen),
+                                        )
+                                    }
+                                }
+                                Slider(
+                                    state = slider,
+                                    colors = sliderColors,
+                                    onValueChange = { value ->
+                                        controlAction { slider.value = value; dragged = value }
+                                    },
+                                    onValueChangeFinished = {
+                                        controlAction {
+                                            dragged?.let { onSeek((it * state.durationMs).toLong()) }
+                                        }
+                                        dragged = null
+                                    },
+                                    enabled = state.durationMs > 0,
+                                    interactionSource = sliderInteraction,
+                                    modifier = Modifier.fillMaxWidth().height(32.dp).semantics { contentDescription = seekLabel },
+                                    thumb = {
+                                        SliderDefaults.Thumb(
+                                            interactionSource = sliderInteraction,
+                                            isVertical = false,
+                                            colors = sliderColors,
+                                            enabled = state.durationMs > 0,
+                                            thumbSize = seekThumbSize,
                                         )
                                     },
+                                    track = { sliderState ->
+                                        // Both layers share the official geometry; only the upper layer is seekable.
+                                        Box {
+                                            SliderDefaults.Track(
+                                                sliderState = bufferSlider,
+                                                colors = bufferColors,
+                                                modifier = Modifier.height(6.dp).clearAndSetSemantics { },
+                                                enabled = state.durationMs > 0,
+                                                trackCornerSize = 3.dp,
+                                                trackInsideCornerSize = 3.dp,
+                                                thumbTrackGapSize = 0.dp,
+                                                drawStopIndicator = null,
+                                            )
+                                            SliderDefaults.Track(
+                                                sliderState = sliderState,
+                                                colors = sliderColors,
+                                                modifier = Modifier.height(6.dp),
+                                                enabled = state.durationMs > 0,
+                                                trackCornerSize = 3.dp,
+                                                trackInsideCornerSize = 3.dp,
+                                                thumbTrackGapSize = 0.dp,
+                                                drawStopIndicator = null,
+                                            )
+                                        }
+                                    },
                                 )
-                                IconButton(
-                                    onClick = { controlAction(onPictureInPicture) },
-                                    enabled = active && player != null && state.available,
-                                    colors = iconColors,
-                                ) {
-                                    Icon(painterResource(R.drawable.ic_symbol_picture_in_picture_alt), stringResource(R.string.player_pip))
-                                }
-                                IconButton(onClick = { controlAction(onFullscreen) }, colors = iconColors) {
-                                    Icon(
-                                        painterResource(if (fullscreen) R.drawable.ic_symbol_fullscreen_exit else R.drawable.ic_symbol_fullscreen),
-                                        stringResource(if (fullscreen) R.string.player_exit_fullscreen else R.string.player_fullscreen),
-                                    )
-                                }
                             }
-                            Slider(
-                                state = slider,
-                                colors = sliderColors,
-                                onValueChange = { value ->
-                                    controlAction { slider.value = value; dragged = value }
-                                },
-                                onValueChangeFinished = {
-                                    controlAction {
-                                        dragged?.let { onSeek((it * state.durationMs).toLong()) }
-                                    }
-                                    dragged = null
-                                },
-                                enabled = state.durationMs > 0,
-                                interactionSource = sliderInteraction,
-                                modifier = Modifier.fillMaxWidth().height(32.dp).semantics { contentDescription = seekLabel },
-                                thumb = {
-                                    SliderDefaults.Thumb(
-                                        interactionSource = sliderInteraction,
-                                        isVertical = false,
-                                        colors = sliderColors,
-                                        enabled = state.durationMs > 0,
-                                        thumbSize = seekThumbSize,
-                                    )
-                                },
-                                track = { sliderState ->
-                                    // Both layers share the official geometry; only the upper layer is seekable.
-                                    Box {
-                                        SliderDefaults.Track(
-                                            sliderState = bufferSlider,
-                                            colors = bufferColors,
-                                            modifier = Modifier.height(6.dp).clearAndSetSemantics { },
-                                            enabled = state.durationMs > 0,
-                                            trackCornerSize = 3.dp,
-                                            trackInsideCornerSize = 3.dp,
-                                            thumbTrackGapSize = 0.dp,
-                                            drawStopIndicator = null,
-                                        )
-                                        SliderDefaults.Track(
-                                            sliderState = sliderState,
-                                            colors = sliderColors,
-                                            modifier = Modifier.height(6.dp),
-                                            enabled = state.durationMs > 0,
-                                            trackCornerSize = 3.dp,
-                                            trackInsideCornerSize = 3.dp,
-                                            thumbTrackGapSize = 0.dp,
-                                            drawStopIndicator = null,
-                                        )
-                                    }
-                                },
-                            )
                         }
                     }
                 }

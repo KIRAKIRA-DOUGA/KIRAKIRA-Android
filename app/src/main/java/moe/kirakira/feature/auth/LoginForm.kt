@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -18,7 +17,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.semantics
@@ -29,6 +27,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
+import moe.kirakira.ui.components.AnimatedSlashIcon
+import moe.kirakira.ui.components.SlashIconType
 
 @Composable
 internal fun LoginForm(
@@ -88,15 +88,10 @@ internal fun LoginForm(
             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
                 IconButton(onClick = onPasswordVisibilityChange, enabled = state.canEdit) {
-                    Icon(
-                        painter = painterResource(
-                            if (passwordVisible) {
-                                R.drawable.ic_symbol_visibility_off
-                            } else {
-                                R.drawable.ic_symbol_visibility
-                            },
-                        ),
-                        contentDescription = stringResource(
+                    AnimatedSlashIcon(
+                        type = SlashIconType.VISIBILITY,
+                        slashed = passwordVisible,
+                        description = stringResource(
                             if (passwordVisible) R.string.auth_hide_password else R.string.auth_show_password,
                         ),
                     )
