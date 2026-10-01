@@ -263,7 +263,10 @@
     <string name="player_pip_unavailable">Picture in picture is unavailable on this device.</string>
     <string name="player_part">Part %1$d</string>
     <string name="content_mutation_uncertain">The request could not be confirmed. Refresh before sending again.</string>
-    <string name="settings_auto_pip">Automatically enter picture-in-picture</string>
+    <string name="settings_in_app_mini_player">In-app mini player</string>
+    <string name="settings_outside_app_mini_player">Outside-app mini player</string>
+    <string name="player_mini_restore">Return to video</string>
+    <string name="player_mini_close">Close mini player</string>
     <string name="settings_autoplay">Autoplay</string>
     <string name="player_show_controls">Show playback controls</string>
     <string name="player_hide_controls">Hide playback controls</string>

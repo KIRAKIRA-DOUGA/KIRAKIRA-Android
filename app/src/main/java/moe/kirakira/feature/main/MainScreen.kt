@@ -50,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -99,6 +100,7 @@ internal fun MainScreen(
     videos: ContentState<List<VideoSummary>> = ContentState(),
     onRefreshVideos: () -> Unit = {},
     videosLayout: VideoCardLayout = VideoCardLayout.GRID,
+    onBottomBarHeightChange: (Int) -> Unit = {},
 ) {
     var destination by rememberSaveable { mutableStateOf(AppDestination.HOME) }
     val meScrollState = rememberScrollState()
@@ -116,6 +118,7 @@ internal fun MainScreen(
             MainBottomBar(
                 destination = destination,
                 onDestinationChange = { destination = it },
+                modifier = Modifier.onSizeChanged { onBottomBarHeightChange(it.height) },
             )
         },
     ) { bottomBarPadding ->

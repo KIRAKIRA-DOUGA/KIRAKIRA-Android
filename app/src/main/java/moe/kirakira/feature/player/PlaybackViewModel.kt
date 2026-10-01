@@ -1,6 +1,7 @@
 package moe.kirakira.feature.player
 
 import android.content.Context
+import android.graphics.Rect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -34,9 +35,82 @@ internal data class VideoQualityOption(val height: Int, val bitrate: Int?)
 
 internal val playbackSpeeds = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f, 3f, 4f)
 
-/** Route-owned playback, paused on restoration; never stores URLs or credentials in SavedState. */
+/** Host-owned playback, paused on restoration; never stores URLs or credentials in SavedState. */
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 internal class PlaybackViewModel(private val context: Context, private val savedState: SavedStateHandle) : ViewModel() {
+    var videoId by mutableStateOf<Int?>(null)
+        private set
+    var miniPlayer by mutableStateOf(false)
+        private set
+    private var pageVideoId: Int? = null
+    var bounds by mutableStateOf<Rect?>(null)
+        private set
+
+    fun updateBounds(value: Rect) {
+        if (bounds != value) bounds = value
+    }
+
+    private var sessionRevision: Long? = null
+
+    fun syncSession(revision: Long): Boolean {
+        val changed = sessionRevision != null && sessionRevision != revision
+        sessionRevision = revision
+        if (changed) clearSession()
+        return changed
+    }
+
+    fun showVideo(id: Int) {
+        if (videoId != id) {
+            release()
+            bounds = null
+            parts = emptyList()
+            title = ""
+            if (savedState.get<Int>("video_id") != id) {
+                selectedPart = 0
+                positionMs = 0L
+                durationMs = 0L
+                speed = 1f
+                continuousSpeed = false
+                preservesPitch = true
+                savedState["part"] = 0
+                savedState["position"] = 0L
+                savedState["speed"] = speed
+                savedState["continuous_speed"] = false
+                savedState["preserves_pitch"] = true
+                autoplayHandled = false
+            }
+            failed = false
+            videoId = id
+            savedState["video_id"] = id
+        }
+        pageVideoId = id
+        miniPlayer = false
+    }
+
+    fun leaveVideo(allowMiniPlayer: Boolean) {
+        if (pageVideoId == null) return
+        pageVideoId = null
+        bounds = null
+        cancelAutoplay()
+        miniPlayer = allowMiniPlayer && showPauseIcon && player != null && !failed
+        if (!miniPlayer) release()
+    }
+
+    fun closeMiniPlayer() {
+        miniPlayer = false
+        bounds = null
+        cancelAutoplay()
+        release()
+    }
+
+    fun clearSession() {
+        closeMiniPlayer()
+        videoId = null
+        pageVideoId = null
+        parts = emptyList()
+        savedState.remove<Int>("video_id")
+    }
+
     var player by mutableStateOf<ExoPlayer?>(null)
         private set
     var selectedPart by mutableStateOf(savedState.get<Int>("part") ?: 0)
@@ -142,7 +216,10 @@ internal class PlaybackViewModel(private val context: Context, private val saved
     private var progress: Job? = null
 
     fun setContent(title: String, parts: List<VideoPart>) {
-        if (this.parts.isNotEmpty() && this.parts != parts) release()
+        // Refetching the same video can rotate media URLs; keep the current playback uninterrupted.
+        if (this.parts.isNotEmpty() && this.parts.getOrNull(selectedPart)?.id != parts.getOrNull(selectedPart)?.id) {
+            release()
+        }
         this.title = title
         this.parts = parts
         if (selectedPart !in parts.indices) selectedPart = 0
@@ -181,7 +258,12 @@ internal class PlaybackViewModel(private val context: Context, private val saved
                         positionMs = player.currentPosition.coerceAtLeast(0)
                         bufferedPositionMs = player.bufferedPosition.coerceIn(0, durationMs)
                     }
-                    override fun onPlayerError(error: PlaybackException) { failed = true; buffering = false; showPauseIcon = false }
+                    override fun onPlayerError(error: PlaybackException) {
+                        failed = true
+                        buffering = false
+                        showPauseIcon = false
+                        if (miniPlayer) closeMiniPlayer()
+                    }
                 })
                 setMediaItem(MediaItem.Builder().setUri(part.url).setMediaId(part.id.toString())
                     .setMediaMetadata(MediaMetadata.Builder().setTitle(title).setSubtitle(part.title).build()).build())

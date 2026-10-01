@@ -260,7 +260,10 @@
     <string name="player_pip_unavailable">此设备无法进入画中画。</string>
     <string name="player_part">第 %1$d P</string>
     <string name="content_mutation_uncertain">无法确认请求结果，请刷新后再决定是否重新发送。</string>
-    <string name="settings_auto_pip">自动进入画中画</string>
+    <string name="settings_in_app_mini_player">应用内小窗播放</string>
+    <string name="settings_outside_app_mini_player">应用外小窗播放</string>
+    <string name="player_mini_restore">返回视频页</string>
+    <string name="player_mini_close">关闭小窗播放</string>
     <string name="settings_autoplay">自动播放</string>
     <string name="player_show_controls">显示播放控件</string>
     <string name="player_hide_controls">隐藏播放控件</string>

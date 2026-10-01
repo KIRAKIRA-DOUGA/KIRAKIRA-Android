@@ -38,7 +38,8 @@ import moe.kirakira.ui.theme.KIRAKIRATheme
 @Composable
 internal fun PlaybackSettingsScreen(
     settings: PlaybackSettings?,
-    onAutoPictureInPictureChange: (Boolean) -> Unit,
+    onOutsideAppMiniPlayerChange: (Boolean) -> Unit,
+    onInAppMiniPlayerChange: (Boolean) -> Unit,
     onAutoplayChange: (Boolean) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -65,22 +66,38 @@ internal fun PlaybackSettingsScreen(
                         top = 16.dp,
                         bottom = padding.calculateBottomPadding() + 16.dp,
                     ),
-                verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
                 val values = settings ?: PlaybackSettings()
-                PlaybackSetting(R.string.settings_auto_pip, values.autoPictureInPicture, settings != null, 0, onAutoPictureInPictureChange)
-                PlaybackSetting(R.string.settings_autoplay, values.autoplay, settings != null, 1, onAutoplayChange)
+                Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
+                    PlaybackSetting(
+                        R.string.settings_in_app_mini_player, values.inAppMiniPlayer, settings != null,
+                        0, 2, onInAppMiniPlayerChange,
+                    )
+                    PlaybackSetting(
+                        R.string.settings_outside_app_mini_player, values.outsideAppMiniPlayer, settings != null,
+                        1, 2, onOutsideAppMiniPlayerChange,
+                    )
+                }
+                PlaybackSetting(R.string.settings_autoplay, values.autoplay, settings != null, 0, 1, onAutoplayChange)
             }
         }
     }
 }
 
 @Composable
-private fun PlaybackSetting(label: Int, checked: Boolean, enabled: Boolean, index: Int, onChange: (Boolean) -> Unit) {
+private fun PlaybackSetting(
+    label: Int,
+    checked: Boolean,
+    enabled: Boolean,
+    index: Int,
+    count: Int,
+    onChange: (Boolean) -> Unit,
+) {
     SegmentedListItem(
         onClick = { onChange(!checked) },
         enabled = enabled,
-        shapes = ListItemDefaults.segmentedShapes(index, 2),
+        shapes = ListItemDefaults.segmentedShapes(index, count),
         modifier = Modifier.fillMaxWidth().semantics {
             role = Role.Switch
             toggleableState = ToggleableState(checked)
@@ -94,5 +111,5 @@ private fun PlaybackSetting(label: Int, checked: Boolean, enabled: Boolean, inde
 @Preview(locale = "en", showBackground = true)
 @Composable
 private fun PlaybackSettingsPreview() {
-    KIRAKIRATheme { PlaybackSettingsScreen(PlaybackSettings(), {}, {}, {}) }
+    KIRAKIRATheme { PlaybackSettingsScreen(PlaybackSettings(), {}, {}, {}, {}) }
 }

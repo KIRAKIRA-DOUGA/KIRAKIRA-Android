@@ -114,7 +114,6 @@ internal fun VideoPlayer(
     onSeek: (Long) -> Unit,
     onBack: () -> Unit,
     onFullscreen: () -> Unit,
-    onPictureInPicture: () -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
     active: Boolean = true,
@@ -354,13 +353,6 @@ internal fun VideoPlayer(
                                             )
                                         },
                                     )
-                                    IconButton(
-                                        onClick = { controlAction(onPictureInPicture) },
-                                        enabled = active && player != null && state.available,
-                                        colors = iconColors,
-                                    ) {
-                                        Icon(painterResource(R.drawable.ic_symbol_picture_in_picture_alt), stringResource(R.string.player_pip))
-                                    }
                                     IconButton(onClick = { controlAction(onFullscreen) }, colors = iconColors) {
                                         Icon(
                                             painterResource(if (fullscreen) R.drawable.ic_symbol_fullscreen_exit else R.drawable.ic_symbol_fullscreen),
@@ -445,6 +437,6 @@ private fun rememberTouchExplorationEnabled(): Boolean {
 @Composable
 private fun VideoPlayerPreview() {
     KIRAKIRATheme {
-        VideoPlayer(null, PlayerUiState(available = true, durationMs = 180_000, positionMs = 45_000, bufferedPositionMs = 120_000), null, false, false, {}, {}, {}, {}, {}, {})
+        VideoPlayer(null, PlayerUiState(available = true, durationMs = 180_000, positionMs = 45_000, bufferedPositionMs = 120_000), null, false, false, {}, {}, {}, {}, {})
     }
 }

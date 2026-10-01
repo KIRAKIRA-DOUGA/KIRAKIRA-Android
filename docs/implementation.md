@@ -69,7 +69,7 @@
 
 视频画面的控制层局部提供 `LocalRippleConfiguration`，统一使用白色水波纹并保留官方透明度与动效，包含进度条和媒体错误页重试按钮；弹出的清晰度与倍速设置面板继续跟随应用主题，进度条本身保留主题色。弹幕 Switch 开启时使用白色轨道、黑色滑块与白色图标，关闭时使用透明轨道、白色描边及滑块与黑色图标；禁用状态显式使用半透明配色，不随浅深色主题变化，保留官方尺寸、状态语义和划线过渡。
 
-`PlaybackSettingsViewModel` 通过独立存储封装异步读取 `kirakira_settings` 的 `playback_auto_pip`（默认 true）与 `playback_autoplay`（默认 false），使用 SharedPreferences apply 异步落盘。应用级状态经导航传入视频页与播放设置页，不绑定账号。
+`PlaybackSettingsViewModel` 通过独立存储封装异步读取 `kirakira_settings` 的 `playback_in_app_mini_player`、`playback_outside_app_mini_player`（均默认 true）与 `playback_autoplay`（默认 false），使用 SharedPreferences apply 异步落盘。不迁移旧画中画开关。应用级状态经导航传入视频页与播放设置页，不绑定账号。
 
 `VideoPlayer` 接收播放状态、Media3 画面实例和事件回调，不持有 ViewModel。返回按钮和控制栏共享显隐状态与三秒计时器；暂停、结束、失败、进度交互及触摸探索阻止自动隐藏。控件使用主题效果动效，退出动画期间禁用交互并清除语义。控制层以黑色渐变遮罩衬托白色图标和文字，播放／暂停按钮居中，使用 45% 不透明度的黑色圆形容器和 Rounded FILL 1 白色图标，加载时同一 64dp 圆形容器内改为 48dp 白色 LoadingIndicator，不提供播放点击动作；底部不再使用主题 Surface。Slider 使用官方 `SliderDefaults.Thumb`（16dp 等宽高，保留默认按压／拖动形变），以两层 `SliderDefaults.Track` 显示缓冲和已播放位置；上层未播放轨道透明，底层只绘制、不添加交互或语义。两层使用相同圆头尺寸，保留官方定位手势与无障碍语义。`PlaybackViewModel` 在 Media3 事件及现有 500ms 进度轮询中读取 `bufferedPosition`，按有效时长限制范围；未知时长与播放器释放时显示零缓冲，不持久化缓冲位置。
 
@@ -92,7 +92,7 @@
 
 图片地址由 `core/image/DeliveryImage.kt` 统一解析。Cloudflare ID 追加到 Apple 端同款生产地址 `https://kirafile.com/cdn-cgi/imagedelivery/Gyz90amG54C4b_dtJiRpYg/`，缩略图使用宽度变体，全屏和导出使用 `f=auto`；兼容完整合法 HTTPS URL。图片配置本轮固定为生产分发，不随 API 地址自动猜测测试环境。
 
-播放器使用 Media3 ExoPlayer、DASH/HLS、OkHttp data source、Compose `ContentFrame` 和 MediaSession。Media3 的画面组件封装了平台 Surface 的互操作，按钮和进度条采用项目 Material 3 控件，不使用 XML PlayerView。独立媒体客户端拒绝 HTTP 和 URL 凭据，清单及分片均不携带账号会话。页面条目持有播放器，SavedState 保留分 P 索引、播放毫秒数与禁止恢复自动播放的标记；重建时暂停。新页面在设置已加载、路由处于前台且有可播放内容时，可按设置自动准备媒体一次；手动操作、账号变化或离开页面会消耗自动播放资格。公开媒体读取允许播放器的标准恢复行为，API 写请求仍不自动重放。
+播放器使用 Media3 ExoPlayer、DASH/HLS、OkHttp data source、Compose `ContentFrame` 和 MediaSession。Media3 的画面组件封装了平台 Surface 的互操作，按钮和进度条采用项目 Material 3 控件，不使用 XML PlayerView。独立媒体客户端拒绝 HTTP 和 URL 凭据，清单及分片均不携带账号会话。导航宿主持有共享播放会话，SavedState 保留视频 ID、分 P 索引、播放毫秒数与禁止恢复自动播放的标记；进程重建时暂停，不恢复小窗。新页面在设置已加载、路由处于前台且有可播放内容时，可按设置自动准备媒体一次；手动操作、账号变化或离开页面会消耗自动播放资格。公开媒体读取允许播放器的标准恢复行为，API 写请求仍不自动重放。
 
 播放器控制层的显隐独立于控件业务可用状态：`AnimatedVisibility` 使用主题淡入淡出动效，隐藏时按钮、开关与进度条保持原有配色，退出完成后移出组合；`enabled` 仅表达媒体、轨道或页面等实际可用条件。开始隐藏时将画面点击层提升到控制层上方，点击只恢复控制层并重置计时，不触发底下控件。退出期间清除控制层语义、阻止焦点进入并释放该层已有焦点，操作回调再次检查显隐状态，避免未结束的交互提交操作。三秒自动隐藏及暂停、缓冲、错误、进度拖动、设置面板和 TalkBack 触摸探索期间保持显示的规则不变。
 
@@ -100,11 +100,13 @@
 
 画质选项由 `PlaybackViewModel` 在 `EVENT_TRACKS_CHANGED` 中读取 `currentTracks`，仅包含解码支持且高度有效的视频轨道，同高度去重并降序排列；同高度候选优先当前视频组，再按码率选择。画质领域选项同时携带该候选轨道的高度与有效码率，确保显示码率与手动选择一致；UI 将 bit/s 除以 1000 并四舍五入，以 Kbps 显示在行尾，缺失或非正数时不显示。手动模式通过 `TrackSelectionOverride` 覆盖视频轨道，自动模式仅清理视频覆盖，不改音轨和播放位置。每次准备新媒体重新匹配首选高度；未匹配到时显示自动而不改持久偏好。实际清晰度从 `videoFormat` 获取，并随进度轮询更新，避免将自适应组的多个选中轨道误认为当前画质；释放时清空轨道状态。
 
-`PlaybackSettings` 增加 `autoQuality` 和 `preferredVideoHeight`，由既有应用级设置存储保存为 `playback_auto_quality` 与 `playback_video_height`，默认自动且没有首选高度；UI 通过导航宿主回调更新。倍率、连续调速、保持音调由页面条目 `PlaybackViewModel` 管理，以非敏感标量存入 SavedState；重建播放器时应用 `PlaybackParameters(speed, pitch)`，保持音调时 pitch 为 1，否则为 speed。无级值限制在 0.25–4 并保留两位小数，有级模式吸附既定倍率。
+`PlaybackSettings` 增加 `autoQuality` 和 `preferredVideoHeight`，由既有应用级设置存储保存为 `playback_auto_quality` 与 `playback_video_height`，默认自动且没有首选高度；UI 通过导航宿主回调更新。倍率、连续调速、保持音调由导航宿主 `PlaybackViewModel` 管理，以非敏感标量存入 SavedState；重建播放器时应用 `PlaybackParameters(speed, pitch)`，保持音调时 pitch 为 1，否则为 speed。无级值限制在 0.25–4 并保留两位小数，有级模式吸附既定倍率。
 
 `PlayerSettingsSheet` 使用官方 `ModalBottomSheet`，宽度上限 640dp，只允许展开和隐藏状态；内容滚动并承载底部安全内边距。画质单选及倍速开关使用官方分段列表；倍速滑杆以 log2 映射 -2–2，默认 1× 位于中心，并为无障碍有级调整提供相邻倍率操作。面板局部状态参与控制栏显隐计时，关闭后重新计时；全屏、画中画、失去活动状态或播放错误时关闭，不持久化面板打开状态。
 
-MainActivity 负责平台画中画桥接和系统栏；窗口全屏状态统一参与系统栏外观与显隐计算，退出全屏、方向配置变化及重新获得窗口焦点时重新应用，视频页状态栏保持浅色图标；页面负责资格、来源矩形与播放器状态。画中画开启期间保留播放器，其他后台／页面退出路径释放。播放器弹幕开关使用官方 `Switch`，通过 `thumbContent` 和 `SwitchDefaults.IconSize` 显示 Cerasus 的 `danmaku`／`danmaku_off` 图标，沿用主题配色及组件的选中、禁用语义，无障碍标签放在开关本身。暂停不移除弹幕开关或画中画按钮；手动资格要求页面活动、播放器存在且没有播放错误，自动进入另要求正在播放。手动画中画资格与自动进入偏好独立：Android 12+ 将两者组合传给 `setAutoEnterEnabled`，旧系统在 `onUserLeaveHint` 检查自动进入偏好；比例限制在系统支持区间，Activity 声明 PiP 和相关屏幕配置处理。MediaSession 提供画中画播放控制，无前台服务或后台音频播放。全屏使用当前窗口并请求 `SCREEN_ORIENTATION_SENSOR_LANDSCAPE`，退出时恢复此前方向策略；进入画中画暂时解除方向请求，展开后恢复全屏；返回手势先退出全屏，普通页面仍走原导航宿主。
+`AppNavHost` 持有共享 `PlaybackViewModel`，视频页、小窗与系统画中画使用同一 ExoPlayer／MediaSession。视频页只在活动且匹配当前视频时绑定 `ContentFrame`；小窗位于导航内容上层，系统画中画从小窗进入时切换为全窗口视频。同一时刻仅一个画面绑定。导航完成后根据 `showPauseIcon`（含缓冲待播放）决定是否保留应用内小窗；预测性返回取消不修改模式，返回全屏先退出全屏。回到视频页重新读取详情时，同分 P 的媒体 URL 更新不打断当前播放。关闭小窗、账号修订变化和普通后台路径释放会话；旋转保留 ViewModel，进程恢复只读取非敏感标量并保持暂停，不保存 URL 或凭据。
+
+`PlaybackHost` 统一管理 Activity 生命周期、屏幕常亮、系统画中画资格和来源矩形；小窗位置以可用区域的横纵比例保存，拖动结束贴左右边缘，布局用 safeDrawing 与 IME Insets 并扣除实测主界面底栏高度。MainActivity 负责平台画中画桥接和系统栏，Android 12+ 使用 `setAutoEnterEnabled`，Android 8–11 在 `onUserLeaveHint` 检查应用外开关与播放资格；比例限制在系统支持区间。不新增悬浮窗权限、前台服务或后台音频播放。全屏使用 `SCREEN_ORIENTATION_SENSOR_LANDSCAPE`，退出恢复此前方向策略；进入系统画中画暂时解除方向请求，展开后恢复全屏。播放器弹幕开关继续使用官方 Switch 和 Cerasus 图标，暂停时保留，手动画中画按钮已移除。
 
 ## 主题实现
 

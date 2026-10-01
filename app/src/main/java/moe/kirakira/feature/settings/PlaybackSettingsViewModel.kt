@@ -12,7 +12,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 internal data class PlaybackSettings(
-    val autoPictureInPicture: Boolean = true,
+    val outsideAppMiniPlayer: Boolean = true,
+    val inAppMiniPlayer: Boolean = true,
     val autoplay: Boolean = false,
     val autoQuality: Boolean = true,
     val preferredVideoHeight: Int? = null,
@@ -22,7 +23,8 @@ private class PlaybackSettingsStore(context: Context) {
     private val preferences = context.getSharedPreferences("kirakira_settings", Context.MODE_PRIVATE)
 
     fun read() = PlaybackSettings(
-        autoPictureInPicture = preferences.getBoolean("playback_auto_pip", true),
+        outsideAppMiniPlayer = preferences.getBoolean("playback_outside_app_mini_player", true),
+        inAppMiniPlayer = preferences.getBoolean("playback_in_app_mini_player", true),
         autoplay = preferences.getBoolean("playback_autoplay", false),
         autoQuality = preferences.getBoolean("playback_auto_quality", true),
         preferredVideoHeight = preferences.getInt("playback_video_height", 0).takeIf { it > 0 },
@@ -30,7 +32,8 @@ private class PlaybackSettingsStore(context: Context) {
 
     fun write(settings: PlaybackSettings) {
         preferences.edit {
-            putBoolean("playback_auto_pip", settings.autoPictureInPicture)
+            putBoolean("playback_outside_app_mini_player", settings.outsideAppMiniPlayer)
+            putBoolean("playback_in_app_mini_player", settings.inAppMiniPlayer)
             putBoolean("playback_autoplay", settings.autoplay)
             putBoolean("playback_auto_quality", settings.autoQuality)
             putInt("playback_video_height", settings.preferredVideoHeight ?: 0)
@@ -52,7 +55,8 @@ internal class PlaybackSettingsViewModel(application: Application) : AndroidView
         }
     }
 
-    fun setAutoPictureInPicture(enabled: Boolean) = update { copy(autoPictureInPicture = enabled) }
+    fun setOutsideAppMiniPlayer(enabled: Boolean) = update { copy(outsideAppMiniPlayer = enabled) }
+    fun setInAppMiniPlayer(enabled: Boolean) = update { copy(inAppMiniPlayer = enabled) }
     fun setAutoplay(enabled: Boolean) = update { copy(autoplay = enabled) }
 
     fun setQuality(height: Int?) = update {
