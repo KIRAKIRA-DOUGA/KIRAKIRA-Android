@@ -54,6 +54,8 @@
 
 ## 播放器控制图标
 
+倍速码表 `feature/player/PlaybackSpeedGauge.kt` 为应用自绘组件：指针参考 Expressive 时钟的圆头短杆，中心端稍厚、外端稍细，以缓存的闭合路径保持两端圆润，并使用小圆轴明确转动中心；外围参考 Material 3 Slider 的轨道、断口和轨道内圆点，大刻度为细圆头径向短杆，每段弧线中心均衡放置一个小圆点，复用 Slider 的圆点尺寸，与下方 Slider 共享官方默认的主题主色、次要容器色。弧段为填充环形路径，断口平整且有小圆角，不使用第三方轮廓，也不属于官方图标变体。零刻度位于 150°，避免与 0.25× 之间形成孤立圆点；轨道、大刻度与指针的比例经实际 Compose 浅深色和窄屏大字体渲染检查。此比例适合大表盘，避免直接放大 [`speed_24px.xml`](https://github.com/google/material-design-icons/blob/master/symbols/android/speed/materialsymbolsrounded/speed_24px.xml) 的宽圆底；播放器速度入口仍使用未修改路径的 `ic_symbol_speed.xml`。
+
 以下图标来自上述官方 Rounded、24dp、wght 400 路径；播放／暂停采用 FILL 1，其余采用 FILL 0，保留原始路径数据并移除 tint，由主题着色：
 
 - [`play_arrow`](https://github.com/google/material-design-icons/blob/master/symbols/android/play_arrow/materialsymbolsrounded/play_arrow_fill1_24px.xml)
@@ -71,6 +73,18 @@
 - 播放量复用 `play_circle`，发布时间复用 `calendar_today`。
 - 时长使用官方 Rounded、24dp、wght 400、GRAD 0、FILL 0 的 [schedule_24px.xml](https://github.com/google/material-design-icons/blob/master/symbols/android/schedule/materialsymbolsrounded/schedule_24px.xml)，本地为 `ic_symbol_schedule.xml`；仅移除 theme tint、整理缩进并增加来源注释，保留原始路径数据。
 
+## 视频搜索图标
+
+以下官方 Rounded、24dp、wght 400、GRAD 0、FILL 0 图标用于搜索结果工具栏；仅移除 theme tint、整理缩进并增加来源注释，保留原始路径及上游 RTL 自动镜像设置：
+
+| 图标 | 官方来源 | 用途 |
+| --- | --- | --- |
+| `grid_view` | [grid_view_24px.xml](https://github.com/google/material-design-icons/blob/master/symbols/android/grid_view/materialsymbolsrounded/grid_view_24px.xml) | 网格布局 |
+| `view_list` | [view_list_24px.xml](https://github.com/google/material-design-icons/blob/master/symbols/android/view_list/materialsymbolsrounded/view_list_24px.xml) | 列表布局，保留自动镜像 |
+| `sort` | [sort_24px.xml](https://github.com/google/material-design-icons/blob/master/symbols/android/sort/materialsymbolsrounded/sort_24px.xml) | 排序菜单，保留自动镜像 |
+
+搜索、添加／移除标签、关闭、选择状态及升降序复用现有 `search`、`add`、`close`、`label`、`check`、`arrow_upward` 与 `arrow_downward`。
+
 ## 屏蔽规则图标
 
 分类总览、规则列表、空状态和添加面板共用以下官方 Rounded、24dp、wght 400、GRAD 0、FILL 0 图标；仅移除 theme tint、整理缩进并增加来源注释，保留路径数据及 Label 的 RTL 自动镜像。
@@ -83,6 +97,14 @@
 
 屏蔽用户和隐藏用户分别复用 `block`、`visibility_off`。
 
+## 资料编辑图标
+
+- [`edit`](https://github.com/google/material-design-icons/blob/master/symbols/android/edit/materialsymbolsrounded/edit_24px.xml)：编辑头像与简介。
+- [`alternate_email`](https://github.com/google/material-design-icons/blob/master/symbols/android/alternate_email/materialsymbolsrounded/alternate_email_24px.xml)：用户名输入框。
+- [`rotate_right`](https://github.com/google/material-design-icons/blob/master/symbols/android/rotate_right/materialsymbolsrounded/rotate_right_24px.xml)：头像裁剪的顺时针旋转，保留上游自动镜像。
+
+均使用官方 Rounded、24dp、wght 400、GRAD 0、FILL 0，保留路径数据，移除 theme tint。日期、标签、保存及删除操作复用已有图标。
+
 ## 发送栏图标
 
 - [`send`](https://github.com/google/material-design-icons/blob/master/symbols/android/send/materialsymbolsrounded/send_24px.xml)：评论与弹幕发送，保留上游 RTL 自动镜像。
@@ -93,3 +115,30 @@
 ## 颜文字输入面板
 
 - [`keyboard`](https://github.com/google/material-design-icons/blob/master/symbols/android/keyboard/materialsymbolsrounded/keyboard_24px.xml)：切换回系统键盘。沿用 Rounded、24dp、wght 400、GRAD 0、FILL 0，保留原始路径并移除 theme tint。
+
+## 设置子页面图标
+
+设置子页面行首图标块与按钮使用以下官方 Rounded、24dp、wght 400、GRAD 0、FILL 0 路径；仅移除 theme tint、整理 XML 缩进并增加来源注释。`east`、`west` 上游未设 `autoMirrored`，表示弹幕的绝对方向，RTL 下不镜像。
+
+| 图标 | 用途 |
+| --- | --- |
+| [`light_mode`](https://github.com/google/material-design-icons/blob/master/symbols/android/light_mode/materialsymbolsrounded/light_mode_24px.xml) | 外观：浅色 |
+| [`dark_mode`](https://github.com/google/material-design-icons/blob/master/symbols/android/dark_mode/materialsymbolsrounded/dark_mode_24px.xml) | 外观：深色 |
+| [`brightness_auto`](https://github.com/google/material-design-icons/blob/master/symbols/android/brightness_auto/materialsymbolsrounded/brightness_auto_24px.xml) | 外观：跟随系统 |
+| [`pip`](https://github.com/google/material-design-icons/blob/master/symbols/android/pip/materialsymbolsrounded/pip_24px.xml) | 播放：应用外／应用内小窗 |
+| [`autoplay`](https://github.com/google/material-design-icons/blob/master/symbols/android/autoplay/materialsymbolsrounded/autoplay_24px.xml) | 播放：自动播放 |
+| [`opacity`](https://github.com/google/material-design-icons/blob/master/symbols/android/opacity/materialsymbolsrounded/opacity_24px.xml) | 弹幕：不透明度 |
+| [`format_size`](https://github.com/google/material-design-icons/blob/master/symbols/android/format_size/materialsymbolsrounded/format_size_24px.xml) | 弹幕：字号 |
+| [`fit_screen`](https://github.com/google/material-design-icons/blob/master/symbols/android/fit_screen/materialsymbolsrounded/fit_screen_24px.xml) | 弹幕：显示区域 |
+| [`vertical_align_top`](https://github.com/google/material-design-icons/blob/master/symbols/android/vertical_align_top/materialsymbolsrounded/vertical_align_top_24px.xml) | 弹幕：顶部弹幕 |
+| [`vertical_align_bottom`](https://github.com/google/material-design-icons/blob/master/symbols/android/vertical_align_bottom/materialsymbolsrounded/vertical_align_bottom_24px.xml) | 弹幕：底部弹幕 |
+| [`east`](https://github.com/google/material-design-icons/blob/master/symbols/android/east/materialsymbolsrounded/east_24px.xml) | 弹幕：从左到右 |
+| [`west`](https://github.com/google/material-design-icons/blob/master/symbols/android/west/materialsymbolsrounded/west_24px.xml) | 弹幕：从右到左（滚动） |
+| [`code`](https://github.com/google/material-design-icons/blob/master/symbols/android/code/materialsymbolsrounded/code_24px.xml) | 关于：源代码 |
+| [`description`](https://github.com/google/material-design-icons/blob/master/symbols/android/description/materialsymbolsrounded/description_24px.xml) | 关于：开源许可 |
+| [`policy`](https://github.com/google/material-design-icons/blob/master/symbols/android/policy/materialsymbolsrounded/policy_24px.xml) | 关于：隐私政策 |
+| [`gavel`](https://github.com/google/material-design-icons/blob/master/symbols/android/gavel/materialsymbolsrounded/gavel_24px.xml) | 关于：服务条款 |
+
+## 下拉刷新箭头
+
+下拉刷新复用现有官方 Rounded `chevron_right` 资源作为圆弧末端的开放式箭头，保留原始 pathData，不引入旧版 Material Icons 或自绘实心三角箭头。绘制时按手势缩放、沿圆弧切线旋转并应用主题强调色；指示器局部固定 LTR，避免资源的 RTL 自动镜像改变顺时针刷新方向。圆弧与拉动计算见 [Android 刷新指示器说明](../android-refresh/README.md)。

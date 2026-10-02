@@ -86,6 +86,8 @@ android {
 }
 
 dependencies {
+    implementation(libs.haze)
+    implementation(libs.haze.blur)
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.exoplayer.dash)
     implementation(libs.media3.exoplayer.hls)
@@ -96,6 +98,7 @@ dependencies {
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.okhttp)
+    implementation(libs.image.cropper)
     implementation(libs.coil.network.okhttp)
     implementation(libs.telephoto.coil3)
     implementation(libs.coil.compose)
@@ -104,6 +107,7 @@ dependencies {
     implementation(libs.aboutlibraries.compose.m3)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.compose.material)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
@@ -117,6 +121,7 @@ dependencies {
     implementation(libs.androidx.navigation3.runtime)
     implementation(libs.androidx.navigation3.ui)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.zxing.core)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(platform(libs.androidx.compose.bom))

@@ -17,6 +17,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.KIRAKIRA"
         tools:targetApi="33">
+        <!-- Only CropImageView is used; remove the library's exported Activity and unused file provider. -->
+        <activity android:name="com.canhub.cropper.CropImageActivity" tools:node="remove" />
+        <provider android:name="com.canhub.cropper.CropFileProvider" tools:node="remove" />
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.images"
