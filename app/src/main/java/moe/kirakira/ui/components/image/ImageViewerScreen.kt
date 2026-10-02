@@ -17,13 +17,11 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -56,10 +54,12 @@ import me.saket.telephoto.zoomable.EnabledZoomGestures
 import me.saket.telephoto.zoomable.ZoomableImageState
 import me.saket.telephoto.zoomable.coil3.ZoomableAsyncImage
 import me.saket.telephoto.zoomable.rememberZoomableImageState
+import moe.kirakira.ui.components.ShadowFilledIconButton
 import moe.kirakira.R
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
+import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 /** Stateless navigation/operation surface; zoom state and image requests can be shared by callers. */
@@ -155,7 +155,7 @@ fun ImageViewerScreen(
                     .padding(top = 80.dp, bottom = 96.dp),
             )
         } else if (busy || (!imageState.isImageDisplayed && !transitioning)) {
-            LoadingIndicator(color = Color.White)
+            IndeterminateCircularProgressIndicator(color = Color.White)
         }
         AnimatedVisibility(
             visible = controlsVisible,
@@ -166,7 +166,7 @@ fun ImageViewerScreen(
             TopAppBar(
                 title = {},
                 navigationIcon = {
-                    FilledIconButton(
+                    ShadowFilledIconButton(
                         onClick = onBack,
                         enabled = controlsVisible && !transitioning,
                         shape = CircleShape,

@@ -4,20 +4,21 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import moe.kirakira.R
 import moe.kirakira.ui.theme.KIRAKIRATheme
-import moe.kirakira.ui.theme.ThemeColorDefaults
-import moe.kirakira.ui.theme.topAppBarShadow
 
 /**
  * 可选的大标题顶栏。页面需将同一个 [scrollBehavior] 的 nestedScrollConnection
@@ -33,8 +34,8 @@ fun CollapsibleTopAppBar(
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     LargeFlexibleTopAppBar(
-        title = { Text(title) },
-        modifier = modifier.topAppBarShadow(),
+        title = { Text(title, fontWeight = FontWeight.SemiBold) },
+        modifier = modifier,
         scrollBehavior = scrollBehavior,
         navigationIcon = {
             IconButton(onClick = onBack, modifier = backButtonModifier) {
@@ -46,8 +47,9 @@ fun CollapsibleTopAppBar(
         },
         actions = actions,
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = ThemeColorDefaults.appBarContainerColor(),
-            scrolledContainerColor = ThemeColorDefaults.appBarContainerColor(),
+            containerColor = Color.Transparent,
+            scrolledContainerColor = Color.Transparent,
+            titleContentColor = MaterialTheme.colorScheme.primary,
         ),
     )
 }

@@ -1,11 +1,13 @@
 package moe.kirakira.ui.components
 
 import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.TabIndicatorScope
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import kotlin.math.PI
 import kotlin.math.cos
@@ -48,5 +50,6 @@ internal fun TabIndicatorScope.PagerTabIndicator(
             }
         },
         width = Dp.Unspecified,
+        shape = RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp),
     )
 }

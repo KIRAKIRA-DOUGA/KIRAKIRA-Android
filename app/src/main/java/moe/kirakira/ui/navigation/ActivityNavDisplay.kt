@@ -63,6 +63,8 @@ internal fun <T : Any> ActivityNavDisplay(
     backStack: List<T>,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    onBackRequested: () -> Boolean = { true },
+    canNavigateBack: () -> Boolean = { true },
     entryProvider: (T) -> NavEntry<T>,
 ) {
     val ordinaryMotion = rememberNavigationMotion()
@@ -106,6 +108,8 @@ internal fun <T : Any> ActivityNavDisplay(
     val darkTheme = isSystemInDarkTheme()
     val currentEntries by rememberUpdatedState(entries)
     val currentOnBack by rememberUpdatedState(onBack)
+    val currentBackRequest by rememberUpdatedState(onBackRequested)
+    val currentCanNavigateBack by rememberUpdatedState(canNavigateBack)
     val startGesture by rememberUpdatedState<(NavigationEvent) -> Unit> { event ->
         val current = currentEntries.lastOrNull()
         val previous = currentEntries.getOrNull(currentEntries.lastIndex - 1)
@@ -126,13 +130,33 @@ internal fun <T : Any> ActivityNavDisplay(
             initialInfo = SceneInfo(sceneState.currentScene),
             isBackEnabled = false,
         ) {
-            override fun onBackStarted(event: NavigationEvent) = startGesture(event)
+            private var backStarted = false
+            private var backAllowed = true
 
-            override fun onBackProgressed(event: NavigationEvent) = motion.progress(event)
+            override fun onBackStarted(event: NavigationEvent) {
+                backStarted = true
+                backAllowed = currentCanNavigateBack()
+                if (backAllowed) startGesture(event)
+            }
 
-            override fun onBackCancelled() = motion.cancel()
+            override fun onBackProgressed(event: NavigationEvent) {
+                if (backAllowed) motion.progress(event)
+            }
+
+            override fun onBackCancelled() {
+                backStarted = false
+                motion.cancel()
+            }
 
             override fun onBackCompleted() {
+                val wasStarted = backStarted
+                if (!backStarted) backAllowed = currentBackRequest()
+                backStarted = false
+                if (!backAllowed) {
+                    motion.reset()
+                    if (wasStarted) currentBackRequest()
+                    return
+                }
                 val key = currentEntries.lastOrNull()?.contentKey
                 motion.complete {
                     // Ignore stale terminal events if another navigation already changed the stack.

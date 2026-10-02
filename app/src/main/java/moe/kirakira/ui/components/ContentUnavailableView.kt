@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -147,7 +146,7 @@ fun ContentUnavailableView(
             }
             val buttonModifier = Modifier.widthIn(max = 280.dp).fillMaxWidth()
             if (action != null) {
-                Button(
+                ShadowButton(
                     onClick = action.onClick,
                     enabled = action.enabled,
                     modifier = buttonModifier,
