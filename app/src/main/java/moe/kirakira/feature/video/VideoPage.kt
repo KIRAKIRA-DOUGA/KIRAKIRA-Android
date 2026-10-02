@@ -6,7 +6,6 @@ import android.graphics.Rect
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -48,6 +47,7 @@ import kotlinx.coroutines.launch
 import moe.kirakira.MainActivity
 import moe.kirakira.R
 import moe.kirakira.data.content.ContentRepository
+import moe.kirakira.data.history.HistoryRepository
 import moe.kirakira.feature.player.PlaybackViewModel
 import moe.kirakira.feature.player.PlayerUiState
 import moe.kirakira.feature.player.VideoPlayer
@@ -66,18 +66,21 @@ internal fun VideoPage(
     onBack: () -> Unit,
     onOpenProfile: (Long) -> Unit,
     onLogin: () -> Unit,
+    onOpenTag: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    historyRepository: HistoryRepository? = null,
     isActive: Boolean = true,
     onQualityPreference: (Int?) -> Unit = {},
     danmakuSettings: DanmakuSettings? = null,
     onDanmakuEnabled: (Boolean) -> Unit = {},
     onPlayerBounds: (Rect) -> Unit = {},
 ) {
-    val model = viewModel { VideoViewModel(videoId, repository) }
+    val model = viewModel { VideoViewModel(videoId, repository, historyRepository) }
     val kaomojiModel: KaomojiViewModel = viewModel()
     val recentKaomoji by kaomojiModel.recent.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val detail by model.detail.collectAsStateWithLifecycle()
+    val resume by model.resume.collectAsStateWithLifecycle()
     val comments by model.comments.collectAsStateWithLifecycle()
     val danmaku by model.danmaku.collectAsStateWithLifecycle()
     val busy by model.busy.collectAsStateWithLifecycle()
@@ -103,11 +106,12 @@ internal fun VideoPage(
     fun unavailable() { scope.launch { snackbar.showSnackbar(context.getString(R.string.video_action_unavailable)) } }
     val lifecycleOwner = LocalLifecycleOwner.current
     val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsStateWithLifecycle()
-    LaunchedEffect(value, playbackSettings, isActive, lifecycleState, session.revision) {
+    LaunchedEffect(value, resume, playbackSettings, isActive, lifecycleState, session.revision) {
         if (!isActive || playback.videoId != videoId) return@LaunchedEffect
         if (value != null) {
-            playback.setContent(value.summary.title, value.parts)
-            if (isActive && lifecycleState == Lifecycle.State.RESUMED && playbackSettings != null) {
+            playback.setContent(value.summary.title, value.parts,
+                resume.positionMs, resume.ready)
+            if (resume.ready && lifecycleState == Lifecycle.State.RESUMED && playbackSettings != null) {
                 playback.maybeAutoplay(playbackSettings.autoplay)
             }
         }
@@ -145,7 +149,7 @@ internal fun VideoPage(
                 end = if (fullscreen || pip) 0.dp else padding.calculateEndPadding(layoutDirection),
             )) {
                 val playerHeight = (maxWidth * 9f / 16f).coerceAtMost(maxHeight * 0.42f)
-                Column(Modifier.fillMaxSize()) {
+                val playerContent: @Composable () -> Unit = {
                     Box(
                         modifier = (if (fullscreen || pip) Modifier.fillMaxSize() else Modifier.fillMaxWidth()
                             .height(playerHeight))
@@ -201,26 +205,30 @@ internal fun VideoPage(
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
-                    if (!fullscreen && !pip) {
-                        VideoScreen(
-                            VideoUiState(detail, comments, danmaku, busy, signedIn, session.revision, commentDraft, danmakuDraft, posted, danmakuStyle),
-                            model::refresh, { requireLogin(model::follow) }, { requireLogin { model.vote(it) } },
-                            { comment, reaction -> requireLogin { model.voteComment(comment, reaction) } },
-                            model::comments, model::refreshComments, model::retryComments,
-                            model::loadAdjacentComments, model::consumeCommentLocation, model::ensureTab,
-                            { model.commentDraft.value = it }, { model.danmakuDraft.value = it },
-                            { requireLogin(model::sendComment) }, { requireLogin { model.sendDanmaku(playback.positionMs) } },
-                            model::refreshDanmaku, onOpenProfile,
-                            ::unavailable, { requireLogin {} }, padding.calculateBottomPadding(),
-                            onDanmakuStyle = model::updateDanmakuStyle,
-                            commentComposer = commentComposer, danmakuComposer = danmakuComposer,
-                            recentKaomoji = recentKaomoji, onKaomojiInserted = kaomojiModel::record,
-                            isActive = isActive,
-                            selectedPart = playback.selectedPart,
-                            onSelectPart = playback::selectPart,
-                            modifier = Modifier.fillMaxWidth().weight(1f),
-                        )
-                    }
+                }
+                if (fullscreen || pip) {
+                    playerContent()
+                } else {
+                    VideoScreen(
+                        VideoUiState(detail, comments, danmaku, busy, signedIn, session.revision, commentDraft, danmakuDraft, posted, danmakuStyle),
+                        model::refresh, { requireLogin(model::follow) }, { requireLogin { model.vote(it) } },
+                        { comment, reaction -> requireLogin { model.voteComment(comment, reaction) } },
+                        model::comments, model::refreshComments, model::retryComments,
+                        model::loadAdjacentComments, model::consumeCommentLocation, model::ensureTab,
+                        { model.commentDraft.value = it }, { model.danmakuDraft.value = it },
+                        { requireLogin(model::sendComment) }, { requireLogin { model.sendDanmaku(playback.positionMs) } },
+                        model::refreshDanmaku, onOpenProfile,
+                        ::unavailable, { requireLogin {} }, padding.calculateBottomPadding(),
+                        onDanmakuStyle = model::updateDanmakuStyle,
+                        commentComposer = commentComposer, danmakuComposer = danmakuComposer,
+                        recentKaomoji = recentKaomoji, onKaomojiInserted = kaomojiModel::record,
+                        isActive = isActive,
+                        selectedPart = playback.selectedPart,
+                        onSelectPart = playback::selectPart,
+                        onOpenTag = onOpenTag,
+                        modifier = Modifier.fillMaxSize(),
+                        playerContent = playerContent,
+                    )
                 }
             }
         }

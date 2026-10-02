@@ -20,7 +20,6 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -37,6 +36,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import kotlin.math.ceil
+import moe.kirakira.ui.components.ShadowFilledTonalButton
 import moe.kirakira.R
 import moe.kirakira.data.kaomoji.kaomojiCatalog
 import moe.kirakira.ui.theme.KIRAKIRATheme
@@ -103,7 +103,7 @@ internal fun KaomojiPicker(
                         ) {
                             itemsIndexed(entries, key = { index, text -> if (category == "recent") text else "$category:$index" },
                                 span = { index, _ -> GridItemSpan(spans[index]) }) { _, text ->
-                                FilledTonalButton(
+                                ShadowFilledTonalButton(
                                     onClick = { onSelect(text) },
                                     enabled = enabled,
                                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),

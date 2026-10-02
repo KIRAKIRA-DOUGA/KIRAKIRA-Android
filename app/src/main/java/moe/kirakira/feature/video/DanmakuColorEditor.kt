@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -39,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import com.github.skydoves.colorpicker.compose.BrightnessSlider
 import com.github.skydoves.colorpicker.compose.HsvColorPicker
 import com.github.skydoves.colorpicker.compose.rememberColorPickerController
+import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.R
 
 @Composable
@@ -128,7 +128,7 @@ internal fun DanmakuColorEditor(
         )
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.theme_color_cancel)) }
-            Button(onClick = { parsedColor?.let { onConfirm(it and 0xFFFFFF) } }, enabled = parsedColor != null) {
+            ShadowButton(onClick = { parsedColor?.let { onConfirm(it and 0xFFFFFF) } }, enabled = parsedColor != null) {
                 Text(stringResource(R.string.theme_color_apply))
             }
         }

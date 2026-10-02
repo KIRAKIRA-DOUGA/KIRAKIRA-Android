@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
@@ -48,6 +47,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.filter
+import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.R
 
 private enum class AccountSwipeValue { CLOSED, REVEALED, REMOVE }
@@ -137,7 +137,7 @@ internal fun SwipeToRemoveAccount(
                 .semantics { if (!revealed) hideFromAccessibility() },
             contentAlignment = Alignment.CenterEnd,
         ) {
-            Button(
+            ShadowButton(
                 onClick = onRemove,
                 enabled = revealed,
                 modifier = Modifier

@@ -16,13 +16,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Surface
@@ -46,8 +42,17 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.toShape
+import androidx.compose.foundation.layout.heightIn
+import moe.kirakira.ui.components.ShadowButton
+import moe.kirakira.ui.components.IconBadgeTone
 import moe.kirakira.R
 import moe.kirakira.data.settings.Invitation
+import moe.kirakira.ui.components.connectedListItemShadow
+import moe.kirakira.ui.components.connectedListItemShapes
+import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 @Composable
@@ -92,28 +97,59 @@ internal fun InvitationsScreen(
     ) {
         item {
             Surface(
-                shape = RoundedCornerShape(32.dp), color = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.fillMaxWidth().animateContentSize(),
             ) {
                 Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
-                        Column {
+                        Column(Modifier.weight(1f)) {
                             Text(stringResource(R.string.invitation_unused), style = MaterialTheme.typography.titleMedium)
                             Text(if (state.data == null) "—" else unused.toString(), style = MaterialTheme.typography.displayLarge)
                         }
-                        Icon(painterResource(R.drawable.ic_symbol_confirmation_number), null, modifier = Modifier.size(48.dp))
+                        Surface(
+                            modifier = Modifier.size(64.dp),
+                            shape = MaterialShapes.Cookie12Sided.toShape(),
+                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.12f),
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    painterResource(R.drawable.ic_symbol_confirmation_number),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(32.dp),
+                                )
+                            }
+                        }
                     }
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(32.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         InvitationStatistic(stringResource(R.string.invitation_total), state.data?.size)
                         InvitationStatistic(stringResource(R.string.invitation_used), state.data?.let { it.size - unused })
                     }
-                    Button(onClick = onCreate, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-                        Icon(painterResource(R.drawable.ic_symbol_add), null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.invitation_generate))
+                    ShadowButton(
+                        onClick = onCreate,
+                        enabled = !busy,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = ButtonDefaults.MediumContainerHeight),
+                        shapes = ButtonDefaults.shapesFor(ButtonDefaults.MediumContainerHeight),
+                        contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight, hasStartIcon = true),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            disabledContainerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.12f),
+                            disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.38f),
+                        ),
+                    ) {
+                        Icon(painterResource(R.drawable.ic_symbol_add), null,
+                            Modifier.size(ButtonDefaults.iconSizeFor(ButtonDefaults.MediumContainerHeight)))
+                        Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(ButtonDefaults.MediumContainerHeight)))
+                        Text(stringResource(R.string.invitation_generate),
+                            style = ButtonDefaults.textStyleFor(ButtonDefaults.MediumContainerHeight))
                     }
-                    if (busy) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { LoadingIndicator() }
+                    if (busy) {
+                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            IndeterminateCircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
+                        }
+                    }
                 }
             }
         }
@@ -132,8 +168,15 @@ internal fun InvitationsScreen(
         }
         itemsIndexed(visible, key = { _, code -> code.code }) { index, invitation ->
             SegmentedListItem(
-                shapes = ListItemDefaults.segmentedShapes(index, visible.size),
-                leadingContent = { ManagementIcon(if (invitation.used) R.drawable.ic_symbol_check else R.drawable.ic_symbol_confirmation_number) },
+                shapes = connectedListItemShapes(index, visible.size),
+                modifier = Modifier.connectedListItemShadow(index, visible.size),
+                leadingContent = {
+                    ManagementIcon(
+                        if (invitation.used) R.drawable.ic_symbol_check else R.drawable.ic_symbol_confirmation_number,
+                        shape = (if (invitation.used) MaterialShapes.Circle else MaterialShapes.Cookie9Sided).toShape(),
+                        tone = if (invitation.used) IconBadgeTone.NEUTRAL else IconBadgeTone.PRIMARY,
+                    )
+                },
                 supportingContent = {
                     Text(stringResource(if (invitation.used) R.string.invitation_used else R.string.invitation_unused),
                         color = if (invitation.used) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary)
@@ -151,7 +194,7 @@ internal fun InvitationsScreen(
                             }
                         }
                     }) {
-                        Icon(painterResource(R.drawable.ic_symbol_content_copy), stringResource(R.string.invitation_copy_named, invitation.code))
+                        Icon(painterResource(R.drawable.ic_symbol_content_copy), stringResource(R.string.invitation_copy_named, invitation.code), Modifier.size(24.dp))
                     }
                 },
                 content = { Text(invitation.code, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.titleMedium) },

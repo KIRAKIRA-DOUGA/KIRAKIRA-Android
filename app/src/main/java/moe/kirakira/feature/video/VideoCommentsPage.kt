@@ -1,7 +1,5 @@
 package moe.kirakira.feature.video
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,8 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.ListItemDefaults
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -153,11 +150,11 @@ internal fun VideoCommentsPage(
             isRefreshing = state.refreshing,
             enabled = state.firstPage == 1 && atTop && (!state.loading || state.refreshing),
             onRefresh = onRefresh,
-            modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainer),
+            modifier = Modifier.fillMaxSize(),
         ) {
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val statusHeight = (maxHeight - listBottomPadding - 8.dp -
-                    with(density) { headerHeight.toDp() } - ListItemDefaults.SegmentedGap).coerceAtLeast(0.dp)
+                    with(density) { headerHeight.toDp() }).coerceAtLeast(0.dp)
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
@@ -167,7 +164,6 @@ internal fun VideoCommentsPage(
                         top = 8.dp,
                         bottom = listBottomPadding,
                     ),
-                    verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
                 ) {
                     item("count") {
                         CommentCountHeader(
@@ -197,10 +193,10 @@ internal fun VideoCommentsPage(
                     if (showPosted) {
                         item("posted") { Text(stringResource(R.string.comment_posted, posted.text)) }
                     }
-                    itemsIndexed(entries, key = { _, entry -> entry.comment.id }) { index, entry ->
+                    items(entries, key = { entry -> entry.comment.id }) { entry ->
                         val comment = entry.comment
                         VideoCommentItem(
-                            comment, index, entries.size,
+                            comment,
                             vote = when (comment.reaction) {
                                 Reaction.LIKE -> 1
                                 Reaction.DISLIKE -> -1

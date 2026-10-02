@@ -15,13 +15,16 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
@@ -51,6 +55,8 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import moe.kirakira.ui.components.ShadowFilledTonalIconButton
 import moe.kirakira.R
 import moe.kirakira.data.content.DanmakuStyle
 import moe.kirakira.data.content.DanmakuEntry
@@ -63,6 +69,7 @@ import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.PagerTabIndicator
 import moe.kirakira.ui.components.rememberTabChangeHandler
+import moe.kirakira.ui.theme.bottomEdgeShadow
 
 internal enum class VideoTab { INTRODUCTION, COMMENTS, DANMAKU }
 
@@ -103,6 +110,7 @@ internal fun VideoScreen(
     bottomPadding: Dp,
     selectedPart: Int,
     onSelectPart: (Int) -> Unit,
+    onOpenTag: (Long) -> Unit,
     modifier: Modifier = Modifier,
     onDanmakuStyle: (DanmakuStyle) -> Unit = {},
     commentComposer: ComposerState = remember { ComposerState() },
@@ -110,6 +118,7 @@ internal fun VideoScreen(
     recentKaomoji: List<String> = emptyList(),
     onKaomojiInserted: (String) -> Unit = {},
     isActive: Boolean = true,
+    playerContent: @Composable () -> Unit = {},
 ) {
     val pager = rememberPagerState(pageCount = { VideoTab.entries.size })
     val changeTab = rememberTabChangeHandler(pager)
@@ -124,21 +133,29 @@ internal fun VideoScreen(
     val detail = state.detail.data
     LaunchedEffect(pager.currentPage, state.sessionRevision) { onLoadTab(VideoTab.entries[pager.currentPage]) }
     Column(modifier) {
-        PrimaryTabRow(
-            selectedTabIndex = pager.currentPage,
-            indicator = { PagerTabIndicator(pager) },
-            divider = {},
-        ) {
-            VideoTab.entries.forEach { tab ->
-                Tab(selected = pager.currentPage == tab.ordinal, onClick = { changeTab(tab.ordinal) },
-                    text = { Text(stringResource(when (tab) {
-                        VideoTab.INTRODUCTION -> R.string.video_tab_introduction
-                        VideoTab.COMMENTS -> R.string.video_tab_comments
-                        VideoTab.DANMAKU -> R.string.video_tab_danmaku
-                    })) })
+        Column(Modifier.fillMaxWidth().zIndex(1f).bottomEdgeShadow()) {
+            playerContent()
+            PrimaryTabRow(
+                selectedTabIndex = pager.currentPage,
+                indicator = { PagerTabIndicator(pager) },
+                divider = {},
+            ) {
+                VideoTab.entries.forEach { tab ->
+                    Tab(selected = pager.currentPage == tab.ordinal, onClick = { changeTab(tab.ordinal) },
+                        selectedContentColor = MaterialTheme.colorScheme.primary,
+                        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = { Text(stringResource(when (tab) {
+                            VideoTab.INTRODUCTION -> R.string.video_tab_introduction
+                            VideoTab.COMMENTS -> R.string.video_tab_comments
+                            VideoTab.DANMAKU -> R.string.video_tab_danmaku
+                        })) })
+                }
             }
         }
-        HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth().weight(1f)) { page ->
+        HorizontalPager(
+            state = pager,
+            modifier = Modifier.fillMaxWidth().weight(1f),
+        ) { page ->
             when (VideoTab.entries[page]) {
                 VideoTab.INTRODUCTION -> ContentPullToRefresh(
                     isRefreshing = state.detail.loading && detail != null,
@@ -192,6 +209,25 @@ internal fun VideoScreen(
                                     }
                                 }
                                 item("description") { SelectionContainer { Text(detail.description, style = MaterialTheme.typography.bodyLarge) } }
+                                if (detail.tags.isNotEmpty()) {
+                                    item("tags") {
+                                        val language = LocalConfiguration.current.locales[0].toLanguageTag()
+                                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            detail.tags.forEach { tag ->
+                                                AssistChip(
+                                                    onClick = { onOpenTag(tag.id) },
+                                                    label = { Text(tag.displayName(language)) },
+                                                    shape = CircleShape,
+                                                    colors = AssistChipDefaults.assistChipColors(
+                                                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                                                        labelColor = MaterialTheme.colorScheme.onSurface,
+                                                    ),
+                                                    border = null,
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                                 item("actions") { VideoActions(detail, state.busy, onVote, onUnavailable) }
                             }
                         }
@@ -254,8 +290,8 @@ internal fun VideoScreen(
                                         )
                                     }
                                 }
-                                itemsIndexed(state.danmaku.data.orEmpty()) { index, entry ->
-                                    DanmakuListItem(durationText((entry.timeSeconds * 1000).toLong()), entry.text, index, state.danmaku.data?.size ?: 0)
+                                items(state.danmaku.data.orEmpty()) { entry ->
+                                    DanmakuListItem(durationText((entry.timeSeconds * 1000).toLong()), entry.text)
                                 }
                             }
                         }
@@ -344,13 +380,13 @@ private fun VideoActions(
         ReactionAction(detail.reaction == Reaction.LIKE, R.drawable.ic_symbol_thumb_up, R.string.video_like, detail.upvotes, busy || detail.blockedByOther) { onVote(Reaction.LIKE) }
         ReactionAction(detail.reaction == Reaction.DISLIKE, R.drawable.ic_symbol_thumb_down, R.string.video_dislike, detail.downvotes, busy || detail.blockedByOther) { onVote(Reaction.DISLIKE) }
         ReactionAction(false, R.drawable.ic_symbol_star, R.string.video_save, null, busy = false, onClick = onUnavailable)
-        FilledTonalIconButton(onClick = onUnavailable) {
+        ShadowFilledTonalIconButton(onClick = onUnavailable) {
             Icon(painterResource(R.drawable.ic_symbol_download), stringResource(R.string.video_download))
         }
-        FilledTonalIconButton(onClick = onUnavailable) {
+        ShadowFilledTonalIconButton(onClick = onUnavailable) {
             Icon(painterResource(R.drawable.ic_symbol_share), stringResource(R.string.video_share))
         }
-        FilledTonalIconButton(onClick = onUnavailable) {
+        ShadowFilledTonalIconButton(onClick = onUnavailable) {
             Icon(painterResource(R.drawable.ic_symbol_more_horiz), stringResource(R.string.video_more))
         }
     }

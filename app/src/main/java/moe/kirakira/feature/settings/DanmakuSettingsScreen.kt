@@ -1,45 +1,10 @@
 package moe.kirakira.feature.settings
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedListItem
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberSliderState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.semantics.toggleableState
-import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import kotlin.math.roundToInt
 import moe.kirakira.R
-import moe.kirakira.ui.components.CollapsibleTopAppBar
-import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 @Composable
@@ -49,115 +14,66 @@ internal fun DanmakuSettingsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val scroll = rememberCollapsibleTopAppBarScrollBehavior()
-    val direction = LocalLayoutDirection.current
     val value = settings ?: DanmakuSettings()
     val ready = settings != null
-    Scaffold(
-        modifier = modifier.fillMaxSize().nestedScroll(scroll.nestedScrollConnection),
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        topBar = {
-            CollapsibleTopAppBar(stringResource(R.string.settings_danmaku), onBack, scrollBehavior = scroll)
-        },
-    ) { padding ->
-        Box(Modifier.fillMaxSize().padding(top = padding.calculateTopPadding()), contentAlignment = Alignment.TopCenter) {
-            Column(
-                Modifier.widthIn(max = 640.dp).fillMaxSize().verticalScroll(rememberScrollState())
-                    .padding(
-                        start = padding.calculateStartPadding(direction) + 16.dp,
-                        end = padding.calculateEndPadding(direction) + 16.dp,
-                        top = 16.dp,
-                        bottom = padding.calculateBottomPadding() + 16.dp,
-                    ),
-                verticalArrangement = Arrangement.spacedBy(24.dp),
-            ) {
-                SegmentedListItem(
-                    checked = value.enabled,
-                    onCheckedChange = { onChange(value.copy(enabled = it)) },
-                    enabled = ready,
-                    shapes = ListItemDefaults.segmentedShapes(index = 0, count = 1),
-                    modifier = Modifier.fillMaxWidth().semantics { role = Role.Switch },
-                    trailingContent = { Switch(value.enabled, onCheckedChange = null, enabled = ready) },
-                    content = { Text(stringResource(R.string.danmaku_display)) },
-                )
-                Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
-                    DanmakuSlider(R.string.danmaku_opacity, value.opacityPercent, 10..100, 5, ready, 0,
-                        stringResource(R.string.danmaku_percent, value.opacityPercent)) { onChange(value.copy(opacityPercent = it)) }
-                    DanmakuSlider(R.string.danmaku_font_scale, value.fontScalePercent, 50..200, 5, ready, 1,
-                        stringResource(R.string.danmaku_percent, value.fontScalePercent)) { onChange(value.copy(fontScalePercent = it)) }
-                    DanmakuSlider(R.string.danmaku_area, value.areaPercent, 25..100, 25, ready, 2,
-                        stringResource(R.string.danmaku_percent, value.areaPercent)) { onChange(value.copy(areaPercent = it)) }
-                    DanmakuSlider(R.string.danmaku_speed, value.speedTenths, 5..20, 1, ready, 3,
-                        stringResource(R.string.danmaku_speed_value, value.speedTenths / 10f)) { onChange(value.copy(speedTenths = it)) }
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
-                    DanmakuToggle(R.string.danmaku_style_rtl, value.showRtl, ready, 0, 4) { onChange(value.copy(showRtl = it)) }
-                    DanmakuToggle(R.string.danmaku_style_top, value.showTop, ready, 1, 4) { onChange(value.copy(showTop = it)) }
-                    DanmakuToggle(R.string.danmaku_style_bottom, value.showBottom, ready, 2, 4) { onChange(value.copy(showBottom = it)) }
-                    DanmakuToggle(R.string.danmaku_style_ltr, value.showLtr, ready, 3, 4) { onChange(value.copy(showLtr = it)) }
-                }
-            }
+    SettingsPage(title = stringResource(R.string.settings_danmaku), onBack = onBack, modifier = modifier) {
+        SettingsMasterSwitchItem(
+            title = stringResource(R.string.danmaku_display),
+            checked = value.enabled,
+            onCheckedChange = { onChange(value.copy(enabled = it)) },
+            icon = R.drawable.ic_custom_danmaku,
+            enabled = ready,
+        )
+        SettingsSection(stringResource(R.string.danmaku_section_display)) {
+            SettingsSliderItem(
+                title = stringResource(R.string.danmaku_opacity),
+                value = value.opacityPercent, range = 10..100, step = 5,
+                valueLabel = stringResource(R.string.danmaku_percent, value.opacityPercent),
+                onValueChange = { onChange(value.copy(opacityPercent = it)) },
+                index = 0, count = 4, icon = R.drawable.ic_symbol_opacity, enabled = ready,
+            )
+            SettingsSliderItem(
+                title = stringResource(R.string.danmaku_font_scale),
+                value = value.fontScalePercent, range = 50..200, step = 5,
+                valueLabel = stringResource(R.string.danmaku_percent, value.fontScalePercent),
+                onValueChange = { onChange(value.copy(fontScalePercent = it)) },
+                index = 1, count = 4, icon = R.drawable.ic_symbol_format_size, enabled = ready,
+            )
+            SettingsSliderItem(
+                title = stringResource(R.string.danmaku_area),
+                value = value.areaPercent, range = 25..100, step = 25,
+                valueLabel = stringResource(R.string.danmaku_percent, value.areaPercent),
+                onValueChange = { onChange(value.copy(areaPercent = it)) },
+                index = 2, count = 4, icon = R.drawable.ic_symbol_fit_screen, enabled = ready,
+            )
+            SettingsSliderItem(
+                title = stringResource(R.string.danmaku_speed),
+                value = value.speedTenths, range = 5..20, step = 1,
+                valueLabel = stringResource(R.string.danmaku_speed_value, value.speedTenths / 10f),
+                onValueChange = { onChange(value.copy(speedTenths = it)) },
+                index = 3, count = 4, icon = R.drawable.ic_symbol_speed, enabled = ready,
+            )
+        }
+        SettingsSection(stringResource(R.string.danmaku_section_types)) {
+            SettingsSwitchItem(
+                stringResource(R.string.danmaku_style_rtl), value.showRtl, { onChange(value.copy(showRtl = it)) },
+                0, 4, icon = R.drawable.ic_symbol_west, enabled = ready,
+            )
+            SettingsSwitchItem(
+                stringResource(R.string.danmaku_style_top), value.showTop, { onChange(value.copy(showTop = it)) },
+                1, 4, icon = R.drawable.ic_symbol_vertical_align_top, enabled = ready,
+            )
+            SettingsSwitchItem(
+                stringResource(R.string.danmaku_style_bottom), value.showBottom,
+                { onChange(value.copy(showBottom = it)) },
+                2, 4, icon = R.drawable.ic_symbol_vertical_align_bottom, enabled = ready,
+            )
+            SettingsSwitchItem(
+                stringResource(R.string.danmaku_style_ltr), value.showLtr, { onChange(value.copy(showLtr = it)) },
+                3, 4, icon = R.drawable.ic_symbol_east, enabled = ready,
+            )
         }
     }
-}
-
-@Composable
-private fun DanmakuToggle(label: Int, checked: Boolean, enabled: Boolean, index: Int, count: Int, onChange: (Boolean) -> Unit) {
-    SegmentedListItem(
-        onClick = { onChange(!checked) },
-        enabled = enabled,
-        shapes = ListItemDefaults.segmentedShapes(index, count),
-        modifier = Modifier.fillMaxWidth().semantics {
-            role = Role.Switch
-            toggleableState = ToggleableState(checked)
-        },
-        trailingContent = { Switch(checked, onCheckedChange = null, enabled = enabled) },
-        content = { Text(stringResource(label)) },
-    )
-}
-
-@Composable
-private fun DanmakuSlider(
-    label: Int,
-    value: Int,
-    range: IntRange,
-    step: Int,
-    enabled: Boolean,
-    index: Int,
-    formatted: String,
-    onChange: (Int) -> Unit,
-) {
-    val title = stringResource(label)
-    val slider = rememberSliderState(
-        steps = (range.last - range.first) / step - 1,
-        trackRange = range.first.toFloat()..range.last.toFloat(),
-    )
-    SideEffect { slider.value = value.toFloat() }
-    SegmentedListItem(
-        shapes = ListItemDefaults.segmentedShapes(index, 4),
-        modifier = Modifier.fillMaxWidth(),
-        content = {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(title, modifier = Modifier.weight(1f))
-                Text(formatted)
-            }
-        },
-        supportingContent = {
-            Slider(
-                state = slider,
-                onValueChange = { onChange((it / step).roundToInt() * step) },
-                enabled = enabled,
-                modifier = Modifier.fillMaxWidth().semantics {
-                    contentDescription = title
-                    stateDescription = formatted
-                },
-            )
-        },
-    )
 }
 
 @Preview(locale = "zh", showBackground = true)

@@ -19,11 +19,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -55,6 +52,11 @@ import moe.kirakira.data.auth.SessionOperation
 import moe.kirakira.data.auth.SessionOperationType
 import moe.kirakira.ui.components.AccountAvatar
 import moe.kirakira.ui.components.CollapsibleTopAppBar
+import moe.kirakira.ui.components.ConnectedListGroup
+import moe.kirakira.ui.components.FrostedScaffold
+import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.connectedListItemShadow
+import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
@@ -82,7 +84,7 @@ internal fun AccountSwitchScreen(
         if (editing || scrollState.isScrollInProgress) swipedAccountId = null
     }
 
-    Scaffold(
+    FrostedScaffold(
         modifier = modifier
             .fillMaxSize()
             .nestedScroll(scrollBehavior.nestedScrollConnection)
@@ -115,7 +117,6 @@ internal fun AccountSwitchScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = innerPadding.calculateTopPadding())
                 .consumeWindowInsets(innerPadding),
             contentAlignment = Alignment.TopCenter,
         ) {
@@ -128,14 +129,14 @@ internal fun AccountSwitchScreen(
                     .padding(
                         start = innerPadding.calculateStartPadding(layoutDirection) + 16.dp,
                         end = innerPadding.calculateEndPadding(layoutDirection) + 16.dp,
-                        top = 16.dp,
+                        top = innerPadding.calculateTopPadding() + 16.dp,
                         bottom = innerPadding.calculateBottomPadding() + 16.dp,
                     ),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Column(
+                ConnectedListGroup(
                     modifier = Modifier.selectableGroup(),
-                    verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+                    clipContent = true,
                 ) {
                     accounts.forEachIndexed { index, account ->
                         key(account.id) {
@@ -187,9 +188,12 @@ internal fun AccountSwitchScreen(
                         onAddAccount()
                     },
                     enabled = !editing && !busy,
-                    shapes = ListItemDefaults.segmentedShapes(index = 0, count = 1),
+                    shapes = connectedListItemShapes(index = 0, count = 1),
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth().testTag("account_add"),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("account_add")
+                        .connectedListItemShadow(index = 0, count = 1),
                     leadingContent = {
                         Surface(
                             shape = CircleShape,
@@ -230,7 +234,7 @@ private fun AccountRow(
         selected = isSelected
         if (isSelected) stateDescription = currentAccount
     }
-    val shapes = ListItemDefaults.segmentedShapes(index = index, count = count)
+    val shapes = connectedListItemShapes(index = index, count = count)
     val avatar: @Composable () -> Unit = { AccountAvatar(url = account.avatar, size = 48.dp) }
     val headline: @Composable () -> Unit = {
         Text(account.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -260,7 +264,10 @@ private fun AccountRow(
         Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
             when {
                 operationType != null -> {
-                    LoadingIndicator(modifier = Modifier.size(32.dp).testTag("account_loading_${account.id}"))
+                    IndeterminateCircularProgressIndicator(
+                        modifier = Modifier.size(24.dp).testTag("account_loading_${account.id}"),
+                        strokeWidth = 2.dp,
+                    )
                 }
                 !editing -> {
                     RadioButton(selected = isSelected, onClick = null, enabled = enabled)
@@ -287,7 +294,7 @@ private fun AccountRow(
         SegmentedListItem(
             shapes = shapes,
             verticalAlignment = Alignment.CenterVertically,
-            modifier = rowModifier,
+            modifier = rowModifier.connectedListItemShadow(index, count),
             leadingContent = avatar,
             supportingContent = supporting,
             trailingContent = trailing,
@@ -300,7 +307,7 @@ private fun AccountRow(
             onClick = onSelect,
             shapes = shapes,
             verticalAlignment = Alignment.CenterVertically,
-            modifier = rowModifier,
+            modifier = rowModifier.connectedListItemShadow(index, count),
             leadingContent = avatar,
             supportingContent = supporting,
             trailingContent = trailing,
@@ -321,9 +328,9 @@ private fun AccountSwitchPreview() {
     }
 }
 
-@Preview(name = "Accounts · Dynamic color", showBackground = true)
+@Preview(name = "Accounts · Wallpaper accent", showBackground = true)
 @Composable
-private fun AccountDynamicColorPreview() {
+private fun AccountWallpaperAccentPreview() {
     KIRAKIRATheme(dynamicColor = true) {
         AccountPreviewContent()
     }

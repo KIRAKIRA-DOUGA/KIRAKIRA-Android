@@ -6,10 +6,11 @@ import java.util.Locale
 data class ThemeColorSettings(
     val useSystemColors: Boolean = false,
     val seedColorArgb: Int = KIRAKIRAPink.toArgb(),
-    val algorithm: ThemeColorAlgorithm = ThemeColorAlgorithm.TONAL_SPOT,
     val customColorArgb: Int = KIRAKIRAPink.toArgb(),
     val useCustomColor: Boolean = false,
 ) {
+    fun selectWallpaperColor(): ThemeColorSettings = copy(useSystemColors = true)
+
     fun selectPreset(preset: ThemePresetColor): ThemeColorSettings = copy(
         useSystemColors = false,
         seedColorArgb = preset.color.toArgb(),

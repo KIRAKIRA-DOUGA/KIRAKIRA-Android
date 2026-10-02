@@ -15,9 +15,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -36,10 +33,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
 import moe.kirakira.ui.components.CollapsibleTopAppBar
+import moe.kirakira.ui.components.ConnectedListGroup
+import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.SectionHeader
 import moe.kirakira.ui.components.SegmentedMenuItem
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.theme.KIRAKIRATheme
+import moe.kirakira.ui.theme.ThemeColorDefaults
 
 private data class SettingsEntry(@param:StringRes val title: Int, @param:DrawableRes val icon: Int)
 
@@ -54,6 +54,9 @@ fun SettingsScreen(
     onNavigateToDanmaku: () -> Unit = {},
     onNavigateToBlocking: () -> Unit = {},
     onNavigateToInvitations: () -> Unit = {},
+    onNavigateToProfile: () -> Unit = {},
+    onNavigateToPrivacy: () -> Unit = {},
+    onNavigateToSecurity: () -> Unit = {},
     signedIn: Boolean = false,
     accountBusy: Boolean = false,
     onLogout: () -> Unit = {},
@@ -102,12 +105,12 @@ fun SettingsScreen(
         )
     }
 
-    Scaffold(
+    FrostedScaffold(
         modifier = modifier
             .fillMaxSize()
             .nestedScroll(scrollBehavior.nestedScrollConnection)
             .testTag("settings_screen"),
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = ThemeColorDefaults.settingsBackgroundColor(),
         topBar = {
             CollapsibleTopAppBar(
                 title = stringResource(R.string.me_settings),
@@ -120,7 +123,6 @@ fun SettingsScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = innerPadding.calculateTopPadding())
                 .consumeWindowInsets(innerPadding),
             contentAlignment = Alignment.TopCenter,
         ) {
@@ -133,7 +135,7 @@ fun SettingsScreen(
                     .padding(
                         start = innerPadding.calculateStartPadding(layoutDirection) + 16.dp,
                         end = innerPadding.calculateEndPadding(layoutDirection) + 16.dp,
-                        top = 16.dp,
+                        top = innerPadding.calculateTopPadding() + 16.dp,
                         bottom = innerPadding.calculateBottomPadding() + 16.dp,
                     ),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
@@ -143,6 +145,9 @@ fun SettingsScreen(
                     entries = personalSettings,
                     onBlockingClick = onNavigateToBlocking,
                     onInvitationsClick = onNavigateToInvitations,
+                    onProfileClick = onNavigateToProfile,
+                    onPrivacyClick = onNavigateToPrivacy,
+                    onSecurityClick = onNavigateToSecurity,
                 )
                 SettingsGroup(
                     title = stringResource(R.string.settings_general),
@@ -157,7 +162,7 @@ fun SettingsScreen(
                         title = stringResource(R.string.settings_account),
                         modifier = Modifier.padding(horizontal = 16.dp),
                     )
-                    Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
+                    ConnectedListGroup {
                         SegmentedMenuItem(
                             title = stringResource(R.string.settings_switch_account),
                             icon = R.drawable.ic_symbol_switch_account,
@@ -192,13 +197,16 @@ private fun SettingsGroup(
     onInvitationsClick: (() -> Unit)? = null,
     onAboutClick: (() -> Unit)? = null,
     onAppearanceClick: (() -> Unit)? = null,
+    onProfileClick: (() -> Unit)? = null,
+    onPrivacyClick: (() -> Unit)? = null,
+    onSecurityClick: (() -> Unit)? = null,
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionHeader(
             title = title,
             modifier = Modifier.padding(horizontal = 16.dp),
         )
-        Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
+        ConnectedListGroup {
             entries.forEachIndexed { index, entry ->
                 SegmentedMenuItem(
                     title = stringResource(entry.title),
@@ -206,6 +214,9 @@ private fun SettingsGroup(
                     index = index,
                     count = entries.size,
                     onClick = when (entry.title) {
+                        R.string.settings_profile -> onProfileClick
+                        R.string.settings_privacy -> onPrivacyClick
+                        R.string.settings_security -> onSecurityClick
                         R.string.settings_blocking -> onBlockingClick
                         R.string.settings_invitation_code -> onInvitationsClick
                         R.string.settings_playback -> onPlaybackClick

@@ -4,10 +4,14 @@ import android.content.res.Configuration
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -27,19 +31,22 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.ScaffoldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -48,6 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
@@ -55,8 +63,10 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -65,6 +75,7 @@ import moe.kirakira.data.auth.AccountProfile
 import moe.kirakira.data.content.VideoSummary
 import moe.kirakira.feature.me.MeScreen
 import moe.kirakira.feature.search.SearchScreen
+import moe.kirakira.feature.search.SearchUiState
 import moe.kirakira.feature.settings.VideoCardLayout
 import moe.kirakira.feature.video.ContentState
 import moe.kirakira.feature.video.VideoCardRow
@@ -73,12 +84,14 @@ import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
+import moe.kirakira.ui.components.FrostedScaffold
+import moe.kirakira.ui.components.frostedBarBackground
 import moe.kirakira.ui.navigation.rememberNavigationMotion
 import moe.kirakira.ui.theme.KIRAKIRATheme
-import moe.kirakira.ui.theme.LocalClassicAccent
 import moe.kirakira.ui.theme.ThemeColorDefaults
 import moe.kirakira.ui.theme.navigationBarShadow
-import moe.kirakira.ui.theme.topAppBarShadow
+
+private const val NavigationBarSelectedBackgroundAlpha = 0.08f
 
 private enum class AppDestination(
     @param:StringRes val label: Int,
@@ -96,11 +109,15 @@ internal fun MainScreen(
     modifier: Modifier = Modifier,
     onOpenVideo: (Int) -> Unit = {},
     onOpenProfile: () -> Unit = {},
+    onOpenHistory: () -> Unit = {},
     profile: AccountProfile? = null,
     videos: ContentState<List<VideoSummary>> = ContentState(),
     onRefreshVideos: () -> Unit = {},
     videosLayout: VideoCardLayout = VideoCardLayout.GRID,
     onBottomBarHeightChange: (Int) -> Unit = {},
+    searchContent: @Composable (PaddingValues) -> Unit = { padding ->
+        SearchScreen(SearchUiState(ready = true), {}, onOpenVideo, contentPadding = padding)
+    },
 ) {
     var destination by rememberSaveable { mutableStateOf(AppDestination.HOME) }
     val meScrollState = rememberScrollState()
@@ -109,7 +126,7 @@ internal fun MainScreen(
     val motion = rememberNavigationMotion()
     val tabStateHolder = rememberSaveableStateHolder()
 
-    Scaffold(
+    FrostedScaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = ThemeColorDefaults.pageBackgroundColor(),
         // Each animated page owns its top and horizontal insets; the bottom bar owns the bottom inset.
@@ -140,7 +157,7 @@ internal fun MainScreen(
             label = "Main tab transition",
         ) { page ->
             tabStateHolder.SaveableStateProvider(page.name) {
-                Scaffold(
+                FrostedScaffold(
                     modifier = Modifier.fillMaxSize(),
                     containerColor = ThemeColorDefaults.pageBackgroundColor(),
                     contentWindowInsets = ScaffoldDefaults.contentWindowInsets.only(
@@ -158,10 +175,10 @@ internal fun MainScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(
-                                top = innerPadding.calculateTopPadding(),
+                                top = if (page == AppDestination.FOLLOWING) innerPadding.calculateTopPadding() else 0.dp,
                                 start = innerPadding.calculateStartPadding(layoutDirection),
                                 end = innerPadding.calculateEndPadding(layoutDirection),
-                                bottom = if (page == AppDestination.HOME) {
+                                bottom = if (page != AppDestination.FOLLOWING) {
                                     0.dp
                                 } else {
                                     bottomBarPadding.calculateBottomPadding()
@@ -174,16 +191,17 @@ internal fun MainScreen(
                             AppDestination.HOME -> ContentPullToRefresh(
                                 isRefreshing = videos.loading && videos.data != null,
                                 onRefresh = onRefreshVideos,
+                                indicatorTopPadding = innerPadding.calculateTopPadding(),
                                 modifier = Modifier.fillMaxSize(),
                             ) {
                                 BoxWithConstraints(Modifier.fillMaxSize()) {
-                                    val statusHeight = (maxHeight - bottomBarPadding.calculateBottomPadding() - 32.dp)
+                                    val statusHeight = (maxHeight - innerPadding.calculateTopPadding() - bottomBarPadding.calculateBottomPadding() - 32.dp)
                                         .coerceAtLeast(0.dp)
                                     LazyColumn(
                                         state = homeScrollState,
                                         modifier = Modifier.fillMaxSize().testTag("home_screen"),
                                         contentPadding = PaddingValues(
-                                            top = 16.dp,
+                                            top = innerPadding.calculateTopPadding() + 16.dp,
                                             bottom = bottomBarPadding.calculateBottomPadding() + 16.dp,
                                             start = 16.dp,
                                             end = 16.dp,
@@ -210,7 +228,10 @@ internal fun MainScreen(
                                 }
                             }
 
-                            AppDestination.SEARCH -> SearchScreen()
+                            AppDestination.SEARCH -> searchContent(PaddingValues(
+                                top = innerPadding.calculateTopPadding(),
+                                bottom = bottomBarPadding.calculateBottomPadding(),
+                            ))
                             AppDestination.FOLLOWING -> ContentUnavailableView(
                                 state = ContentUnavailableState.EMPTY,
                                 title = stringResource(R.string.content_not_available_yet),
@@ -223,7 +244,12 @@ internal fun MainScreen(
                                 profile = profile,
                                 onOpenSettings = onOpenSettings,
                                 onOpenProfile = onOpenProfile,
+                                onOpenHistory = onOpenHistory,
                                 scrollState = meScrollState,
+                                contentPadding = PaddingValues(
+                                    top = innerPadding.calculateTopPadding(),
+                                    bottom = bottomBarPadding.calculateBottomPadding(),
+                                ),
                             )
                         }
                     }
@@ -243,15 +269,13 @@ private fun MainTopBar(
         AppDestination.HOME -> HomeTopBar(onOpenMe = onOpenMe, avatar = avatar)
 
         AppDestination.FOLLOWING -> TopAppBar(
-            modifier = Modifier.topAppBarShadow(),
-            title = { Text(stringResource(R.string.nav_following)) },
+            title = { Text(stringResource(R.string.nav_following), fontWeight = FontWeight.SemiBold) },
             colors = mainTopAppBarColors(),
         )
 
         AppDestination.ME -> TopAppBar(
-            modifier = Modifier.topAppBarShadow(),
-            title = { Text(stringResource(R.string.nav_me)) },
-            colors = mainTopAppBarColors(defaultContainer = MaterialTheme.colorScheme.surfaceContainer),
+            title = { Text(stringResource(R.string.nav_me), fontWeight = FontWeight.SemiBold) },
+            colors = mainTopAppBarColors(),
         )
 
         AppDestination.SEARCH -> Unit
@@ -264,9 +288,7 @@ private fun HomeTopBar(onOpenMe: () -> Unit, avatar: String?) {
     val colors = mainTopAppBarColors()
     Box(
         modifier = Modifier
-            .topAppBarShadow()
-            .clipToBounds()
-            .background(colors.containerColor),
+            .clipToBounds(),
     ) {
         // Draw outside the title slot so the decoration can extend behind the status bar.
         Box(
@@ -312,15 +334,11 @@ private fun HomeTopBar(onOpenMe: () -> Unit, avatar: String?) {
 }
 
 @Composable
-private fun mainTopAppBarColors(defaultContainer: Color = MaterialTheme.colorScheme.surface): TopAppBarColors =
-    if (LocalClassicAccent.current) {
-        TopAppBarDefaults.topAppBarColors(
-            containerColor = ThemeColorDefaults.appBarContainerColor(),
-            scrolledContainerColor = ThemeColorDefaults.appBarContainerColor(),
-        )
-    } else {
-        TopAppBarDefaults.topAppBarColors(containerColor = defaultContainer)
-    }
+private fun mainTopAppBarColors(): TopAppBarColors = TopAppBarDefaults.topAppBarColors(
+    containerColor = Color.Transparent,
+    scrolledContainerColor = Color.Transparent,
+    titleContentColor = MaterialTheme.colorScheme.primary,
+)
 
 @Composable
 private fun MainBottomBar(
@@ -328,35 +346,68 @@ private fun MainBottomBar(
     onDestinationChange: (AppDestination) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    NavigationBar(
-        modifier = modifier.navigationBarShadow(),
-        containerColor = ThemeColorDefaults.appBarContainerColor(),
+    val shape = RoundedCornerShape(50)
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(NavigationBarDefaults.windowInsets)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        contentAlignment = Alignment.BottomCenter,
     ) {
-        AppDestination.entries.forEach { item ->
-            NavigationBarItem(
-                selected = destination == item,
-                colors = if (LocalClassicAccent.current) {
-                    NavigationBarItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+        Surface(
+            modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().navigationBarShadow(shape).frostedBarBackground(shape),
+            shape = shape,
+            color = Color.Transparent,
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(4.dp)
+                    .selectableGroup(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                AppDestination.entries.forEach { item ->
+                    val selected = destination == item
+                    val containerColor by animateColorAsState(
+                        targetValue = if (selected) {
+                            MaterialTheme.colorScheme.primary.copy(alpha = NavigationBarSelectedBackgroundAlpha)
+                        } else {
+                            Color.Transparent
+                        },
+                        label = "Tab container color",
                     )
-                } else {
-                    NavigationBarItemDefaults.colors()
-                },
-                onClick = { onDestinationChange(item) },
-                icon = {
-                    AnimatedTabIcon(icon = item.icon, selected = destination == item)
-                },
-                label = {
-                    Text(
-                        text = stringResource(item.label),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                    val contentColor by animateColorAsState(
+                        targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        label = "Tab content color",
                     )
-                },
-                modifier = Modifier.testTag("nav_${item.name.lowercase()}"),
-            )
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(shape)
+                            .background(containerColor)
+                            .selectable(
+                                selected = selected,
+                                role = Role.Tab,
+                                onClick = { onDestinationChange(item) },
+                            )
+                            .heightIn(min = 64.dp)
+                            .padding(horizontal = 4.dp, vertical = 8.dp)
+                            .testTag("nav_${item.name.lowercase()}"),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
+                    ) {
+                        CompositionLocalProvider(LocalContentColor provides contentColor) {
+                            AnimatedTabIcon(icon = item.icon, selected = selected)
+                            Text(
+                                text = stringResource(item.label),
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -4,7 +4,6 @@ package moe.kirakira.feature.settings.management
 
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -13,31 +12,28 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.R
 import moe.kirakira.data.settings.RuleCategory
 import moe.kirakira.ui.components.CollapsibleTopAppBar
@@ -45,7 +41,12 @@ import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
+import moe.kirakira.ui.components.FrostedScaffold
+import moe.kirakira.ui.components.IconBadge
+import moe.kirakira.ui.components.IconBadgeTone
+import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
+import moe.kirakira.ui.theme.ThemeColorDefaults
 
 @StringRes
 internal fun RuleCategory.titleRes(): Int = when (this) {
@@ -66,15 +67,13 @@ internal fun RuleCategory.iconRes(): Int = when (this) {
 }
 
 @Composable
-internal fun ManagementIcon(@DrawableRes icon: Int, modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier.size(48.dp),
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-    ) {
-        Box(contentAlignment = Alignment.Center) { Icon(painterResource(icon), contentDescription = null) }
-    }
+internal fun ManagementIcon(
+    @DrawableRes icon: Int,
+    modifier: Modifier = Modifier,
+    shape: Shape = MaterialShapes.Cookie9Sided.toShape(),
+    tone: IconBadgeTone = IconBadgeTone.SECONDARY,
+) {
+    IconBadge(icon = icon, modifier = modifier, shape = shape, tone = tone)
 }
 
 @Composable
@@ -105,9 +104,9 @@ internal fun ManagementFrame(
             onDismissMessage()
         }
     }
-    Scaffold(
+    FrostedScaffold(
         modifier = modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = ThemeColorDefaults.settingsBackgroundColor(),
         topBar = { CollapsibleTopAppBar(title = title, onBack = onBack, scrollBehavior = scrollBehavior) },
         snackbarHost = { SnackbarHost(snackbar) },
         floatingActionButton = { if (signedIn) floatingActionButton() },
@@ -116,33 +115,38 @@ internal fun ManagementFrame(
             isRefreshing = loaded && loading && !appending,
             onRefresh = onRefresh,
             enabled = signedIn,
-            modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding()).consumeWindowInsets(padding),
+            indicatorTopPadding = padding.calculateTopPadding(),
+            modifier = Modifier.fillMaxSize().consumeWindowInsets(padding),
         ) {
             LazyColumn(
                 modifier = Modifier.align(Alignment.TopCenter).widthIn(max = 640.dp).fillMaxSize(),
                 contentPadding = PaddingValues(
                     start = padding.calculateStartPadding(direction) + 16.dp,
                     end = padding.calculateEndPadding(direction) + 16.dp,
-                    top = 16.dp,
+                    top = padding.calculateTopPadding() + 16.dp,
                     bottom = padding.calculateBottomPadding() + 104.dp,
                 ),
-                verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
             ) {
                 when {
                     !signedIn -> item {
                         ManagementEmpty(R.drawable.ic_symbol_lock, stringResource(R.string.management_sign_in))
                         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            Button(onClick = onLogin) { Text(stringResource(R.string.management_login)) }
+                            ShadowButton(onClick = onLogin, shapes = ButtonDefaults.shapes()) {
+                                Text(stringResource(R.string.management_login))
+                            }
                         }
                     }
                     !loaded && loading -> item {
-                        Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) { LoadingIndicator() }
+                        Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
+                            IndeterminateCircularProgressIndicator()
+                        }
                     }
                     else -> {
                         content()
                         if (error != null) item {
                             ContentUnavailableView(
                                 state = ContentUnavailableState.ERROR,
+                                modifier = Modifier.padding(top = 8.dp),
                                 description = stringResource(error),
                                 onRetry = onRetry,
                                 presentation = ContentUnavailablePresentation.INLINE,

@@ -11,8 +11,20 @@ import moe.kirakira.feature.imageviewer.ViewerImage
 internal data object MainRoute : NavKey
 
 @Serializable
+internal data object HistoryRoute : NavKey
+
+@Serializable
 @SerialName("moe.kirakira.SettingsRoute")
 internal data object SettingsRoute : NavKey
+
+@Serializable
+internal data object ProfileEditorRoute : NavKey
+
+@Serializable
+internal data object PrivacySettingsRoute : NavKey
+
+@Serializable
+internal data object SecuritySettingsRoute : NavKey
 
 @Serializable
 @SerialName("moe.kirakira.AboutRoute")
@@ -37,6 +49,9 @@ internal data object TestRoute : NavKey
 
 @Serializable
 internal data class VideoRoute(val videoId: Int = -1) : NavKey
+
+@Serializable
+internal data class TagRoute(val tagId: Long) : NavKey
 
 @Serializable
 internal data class ProfileRoute(val uid: Long = -1) : NavKey

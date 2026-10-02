@@ -7,11 +7,12 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -21,9 +22,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import moe.kirakira.R
@@ -32,12 +35,13 @@ import moe.kirakira.feature.imageviewer.ImageSource
 import moe.kirakira.feature.imageviewer.ViewerImage
 import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.ContentUnavailablePresentation
+import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.components.rememberTabChangeHandler
 
 internal enum class ProfileTab { VIDEOS, COLLECTIONS }
 internal enum class ProfileAction(@param:StringRes val messageRes: Int) {
-    EDIT(R.string.profile_edit_unavailable), FOLLOWING_LIST(R.string.profile_following_unavailable),
+    FOLLOWING_LIST(R.string.profile_following_unavailable),
     FOLLOWERS_LIST(R.string.profile_followers_unavailable), MORE(R.string.profile_more_unavailable),
 }
 
@@ -48,6 +52,7 @@ internal fun ProfilePage(
     onOpenVideo: (Int) -> Unit,
     onOpenImage: (ViewerImage) -> Unit,
     onLogin: () -> Unit,
+    onEditProfile: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val profile by model.profile.collectAsStateWithLifecycle()
@@ -64,10 +69,23 @@ internal fun ProfilePage(
     }
     val value = profile.data
     if (value == null) {
-        Scaffold(modifier, snackbarHost = { SnackbarHost(snackbar) }, topBar = {
-            TopAppBar(title = { Text(stringResource(R.string.me_profile)) }, navigationIcon = {
-                IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_symbol_arrow_back), stringResource(R.string.navigate_back)) }
-            })
+        FrostedScaffold(modifier, snackbarHost = { SnackbarHost(snackbar) }, topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.me_profile), fontWeight = FontWeight.SemiBold) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
+                    titleContentColor = MaterialTheme.colorScheme.primary,
+                ),
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            painterResource(R.drawable.ic_symbol_arrow_back),
+                            stringResource(R.string.navigate_back),
+                        )
+                    }
+                },
+            )
         }) { padding -> ContentStatus(profile, model::refresh, Modifier.fillMaxSize().padding(padding), presentation = ContentUnavailablePresentation.PAGE) }
         return
     }
@@ -83,6 +101,9 @@ internal fun ProfilePage(
         bioExpanded = expanded, snackbarHostState = snackbar,
         onTabChange = { onTabChange(it.ordinal) }, onBioExpandedChange = { expanded = it },
         onFollowingChange = { if (session.activeUuid == null) onLogin() else model.follow() },
+        onEditProfile = {
+            if (model.uid == model.session.value.activeProfile?.uid) onEditProfile()
+        },
         onUnavailableAction = { action -> scope.launch { snackbar.showSnackbar(context.getString(action.messageRes)) } },
         onOpenAvatar = {
             deliveryImageUrl(value.avatar)?.let { url ->

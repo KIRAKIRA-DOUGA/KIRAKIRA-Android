@@ -1,17 +1,12 @@
 package moe.kirakira
 
-import android.content.pm.ActivityInfo
-import android.os.Bundle
 import android.app.PictureInPictureParams
+import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.graphics.Rect
 import android.os.Build
+import android.os.Bundle
 import android.util.Rational
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -20,11 +15,16 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import moe.kirakira.ui.splash.SplashReveal
@@ -119,7 +119,6 @@ class MainActivity : ComponentActivity() {
             if (!isReady) return@setContent
             val themeMode by themeViewModel.themeMode.collectAsStateWithLifecycle()
             val themeColors by themeViewModel.themeColors.collectAsStateWithLifecycle()
-            val shadowsEnabled by themeViewModel.shadowsEnabled.collectAsStateWithLifecycle()
             val revealInfo = splashRevealController.revealInfo
             val darkTheme = when (themeMode) {
                 ThemeMode.SYSTEM -> isSystemInDarkTheme()
@@ -130,8 +129,6 @@ class MainActivity : ComponentActivity() {
                 darkTheme = darkTheme,
                 dynamicColor = themeColors.useSystemColors,
                 seedColor = Color(themeColors.seedColorArgb),
-                colorAlgorithm = themeColors.algorithm,
-                shadowsEnabled = shadowsEnabled,
             ) {
                 Box(
                     Modifier
@@ -143,8 +140,6 @@ class MainActivity : ComponentActivity() {
                         onThemeModeChange = themeViewModel::setThemeMode,
                         themeColors = themeColors,
                         onThemeColorsChange = themeViewModel::setThemeColors,
-                        shadowsEnabled = shadowsEnabled,
-                        onShadowsEnabledChange = themeViewModel::setShadowsEnabled,
                         modifier = if (revealInfo != null) Modifier.clearAndSetSemantics { } else Modifier,
                         onVideoPageActiveChange = { active ->
                             // Keep the latest page style while the launch overlay owns the bars.

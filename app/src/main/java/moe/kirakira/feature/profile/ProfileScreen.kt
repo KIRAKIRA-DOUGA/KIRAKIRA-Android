@@ -1,5 +1,6 @@
 package moe.kirakira.feature.profile
 
+import android.os.Build
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -23,10 +24,9 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
@@ -57,9 +57,14 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
+import moe.kirakira.ui.components.ShadowFilledTonalIconButton
 import moe.kirakira.R
 import moe.kirakira.core.network.ApiFailure
 import moe.kirakira.data.content.VideoSummary
@@ -71,9 +76,11 @@ import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
+import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.PagerTabIndicator
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.theme.ThemeColorDefaults
+import moe.kirakira.ui.theme.bottomEdgeShadow
 
 @Composable
 internal fun ProfileScreen(
@@ -87,6 +94,7 @@ internal fun ProfileScreen(
     onTabChange: (ProfileTab) -> Unit,
     onBioExpandedChange: (Boolean) -> Unit,
     onFollowingChange: (Boolean) -> Unit,
+    onEditProfile: () -> Unit,
     onUnavailableAction: (ProfileAction) -> Unit,
     onOpenAvatar: () -> Unit,
     onOpenVideo: (Int) -> Unit,
@@ -124,12 +132,20 @@ internal fun ProfileScreen(
         }
     }
 
+    val hazeState = rememberHazeState()
     Box(modifier
         .fillMaxSize()
         .background(background)) {
-        ProfileCover(profileListState, coverHeight)
-        Scaffold(
+        Box(
+            Modifier.matchParentSize().then(
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Modifier.hazeSource(hazeState) else Modifier,
+            ),
+        ) {
+            ProfileCover(profileListState, coverHeight)
+        }
+        FrostedScaffold(
             modifier = Modifier.fillMaxSize(),
+            hazeState = hazeState,
             containerColor = Color.Transparent,
             topBar = {
                 TopAppBar(
@@ -137,13 +153,14 @@ internal fun ProfileScreen(
                         if (showToolbarName) {
                             Text(
                                 text = state.profile.name.ifBlank { stringResource(R.string.content_unknown_author) },
+                                fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
                     },
                     navigationIcon = {
-                        FilledTonalIconButton(onClick = onBack) {
+                        ShadowFilledTonalIconButton(onClick = onBack) {
                             Icon(
                                 painterResource(R.drawable.ic_symbol_arrow_back),
                                 stringResource(R.string.navigate_back),
@@ -152,7 +169,7 @@ internal fun ProfileScreen(
                     },
                     actions = {
                         if (!state.isSelf) {
-                            FilledTonalIconButton(
+                            ShadowFilledTonalIconButton(
                                 onClick = { onUnavailableAction(ProfileAction.MORE) },
                             ) {
                                 Icon(
@@ -165,6 +182,7 @@ internal fun ProfileScreen(
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = Color.Transparent,
                         scrolledContainerColor = Color.Transparent,
+                        titleContentColor = MaterialTheme.colorScheme.primary,
                     ),
                 )
             },
@@ -200,6 +218,7 @@ internal fun ProfileScreen(
                                     bioExpanded = bioExpanded,
                                     onBioExpandedChange = onBioExpandedChange,
                                     onFollowingChange = onFollowingChange,
+                                    onEditProfile = onEditProfile,
                                     onUnavailableAction = onUnavailableAction,
                                     onOpenAvatar = onOpenAvatar,
                                     modifier = Modifier.fillMaxWidth(),
@@ -232,7 +251,11 @@ internal fun ProfileScreen(
                             stickyHeader(key = "profile_tabs") {
                                 PrimaryTabRow(
                                     selectedTabIndex = pagerState.currentPage,
-                                    modifier = Modifier.fillMaxWidth().onSizeChanged { tabRowHeight = it.height },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .zIndex(1f)
+                                        .bottomEdgeShadow()
+                                        .onSizeChanged { tabRowHeight = it.height },
                                     containerColor = background,
                                     indicator = { PagerTabIndicator(pagerState) },
                                     divider = {},
@@ -241,6 +264,8 @@ internal fun ProfileScreen(
                                         Tab(
                                             selected = pagerState.currentPage == index,
                                             onClick = { onTabChange(tab) },
+                                            selectedContentColor = MaterialTheme.colorScheme.primary,
+                                            unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                             text = {
                                                 Text(
                                                     stringResource(

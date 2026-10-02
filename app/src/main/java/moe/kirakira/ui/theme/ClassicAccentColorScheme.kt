@@ -17,6 +17,7 @@ internal fun classicAccentColorScheme(seed: Color, darkTheme: Boolean, neutral: 
     val fixed = accentTone(primary, 90.0)
     val fixedDim = accentTone(primary, 80.0)
     val surface = if (darkTheme) neutral.surfaceContainerLow else Color.White
+    val pageBackground = if (darkTheme) neutral.surfaceContainer else Color(0xFFF5F5F5)
     return neutral.copy(
         primary = primary,
         onPrimary = preferredWhiteOnAccent(primary, minimumContrast = 2.5),
@@ -24,12 +25,17 @@ internal fun classicAccentColorScheme(seed: Color, darkTheme: Boolean, neutral: 
         onPrimaryContainer = readableAccent(
             accentTone(primary, if (darkTheme) 90.0 else 10.0), container,
         ),
+        secondaryContainer = container,
+        onSecondaryContainer = readableAccent(
+            accentTone(primary, if (darkTheme) 90.0 else 10.0), container,
+        ),
         inversePrimary = readableAccent(primary, neutral.inverseSurface),
         primaryFixed = fixed,
         primaryFixedDim = fixedDim,
         onPrimaryFixed = accentTone(primary, 10.0),
         onPrimaryFixedVariant = accentTone(primary, 30.0),
-        background = neutral.surfaceContainer,
+        background = if (darkTheme) pageBackground else Color.White,
+        surfaceContainer = pageBackground,
         surface = surface,
         // surfaceColorAtElevation replaces the tint's alpha, so Transparent would turn into black.
         // Matching the surface also keeps direct calls neutral when tonal elevation is disabled.

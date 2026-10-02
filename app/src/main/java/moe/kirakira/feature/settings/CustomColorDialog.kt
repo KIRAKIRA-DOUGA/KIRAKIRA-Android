@@ -9,12 +9,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -34,6 +36,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -41,14 +44,12 @@ import com.github.skydoves.colorpicker.compose.BrightnessSlider
 import com.github.skydoves.colorpicker.compose.HsvColorPicker
 import com.github.skydoves.colorpicker.compose.rememberColorPickerController
 import moe.kirakira.R
-import moe.kirakira.ui.theme.ThemeColorAlgorithm
 import moe.kirakira.ui.theme.formatThemeColor
 import moe.kirakira.ui.theme.parseThemeColor
 
 @Composable
 internal fun CustomColorDialog(
     seedColorArgb: Int,
-    algorithm: ThemeColorAlgorithm,
     onDismiss: () -> Unit,
     onConfirm: (Int) -> Unit,
 ) {
@@ -90,7 +91,11 @@ internal fun CustomColorDialog(
                         }
                     },
                 )
-                Text(text = brightnessLabel, style = MaterialTheme.typography.labelLarge)
+                Text(
+                    text = brightnessLabel,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 BrightnessSlider(
                     controller = controller,
                     initialColor = initialColor,
@@ -109,20 +114,30 @@ internal fun CustomColorDialog(
                     borderSize = 1.dp,
                     borderRadius = 24.dp,
                 )
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                Surface(
+                    shape = MaterialTheme.shapes.large,
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(Color(draftArgb), MaterialTheme.shapes.small),
-                    )
-                    ThemePaletteSwatch(
-                        seedColor = Color(draftArgb),
-                        modifier = Modifier.size(40.dp),
-                        algorithm = algorithm,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(Color(draftArgb), CircleShape),
+                        )
+                        ThemePaletteSwatch(
+                            seedColor = Color(draftArgb),
+                            modifier = Modifier.size(40.dp),
+                        )
+                        Text(
+                            text = formatThemeColor(draftArgb),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontFamily = FontFamily.Monospace,
+                        )
+                    }
                 }
                 OutlinedTextField(
                     value = hex,
@@ -134,6 +149,7 @@ internal fun CustomColorDialog(
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
                     label = { Text(stringResource(R.string.theme_color_hex)) },
                     singleLine = true,
                     isError = parsedColor == null,

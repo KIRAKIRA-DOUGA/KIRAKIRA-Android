@@ -23,7 +23,6 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -56,6 +55,7 @@ import kotlin.math.roundToInt
 import moe.kirakira.MainActivity
 import moe.kirakira.R
 import moe.kirakira.feature.settings.PlaybackSettings
+import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -83,6 +83,7 @@ internal fun PlaybackHost(
     }
     DisposableEffect(activity, playback) {
         val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP && activity?.isChangingConfigurations != true) playback.flushHistory()
             if (event == Lifecycle.Event.ON_STOP && activity?.isChangingConfigurations != true &&
                 activity?.isInPictureInPictureMode != true) {
                 playback.closeMiniPlayer()
@@ -178,7 +179,11 @@ internal fun PlaybackHost(
                         },
                     ) {
                         if (playback.buffering) {
-                            LoadingIndicator(Modifier.size(24.dp), color = Color.White)
+                            IndeterminateCircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp,
+                            )
                         } else {
                             AnimatedPlaybackIcon(
                                 motion = iconMotion,

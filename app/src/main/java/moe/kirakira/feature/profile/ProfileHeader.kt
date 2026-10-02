@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -38,6 +37,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.R
 import moe.kirakira.core.image.deliveryImageUrl
 import moe.kirakira.ui.components.AccountAvatar
@@ -62,6 +62,7 @@ internal fun ProfileHeader(
     bioExpanded: Boolean,
     onBioExpandedChange: (Boolean) -> Unit,
     onFollowingChange: (Boolean) -> Unit,
+    onEditProfile: () -> Unit,
     onUnavailableAction: (ProfileAction) -> Unit,
     onOpenAvatar: () -> Unit,
     modifier: Modifier = Modifier,
@@ -172,15 +173,19 @@ internal fun ProfileHeader(
                 }
             }
             if (state.isSelf) {
-                Button(
-                    onClick = { onUnavailableAction(ProfileAction.EDIT) },
+                val buttonHeight = ButtonDefaults.MediumContainerHeight
+                ShadowButton(
+                    onClick = onEditProfile,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 56.dp),
-                    shapes = ButtonDefaults.shapesFor(56.dp),
-                    contentPadding = ButtonDefaults.contentPaddingFor(56.dp),
+                        .heightIn(min = buttonHeight),
+                    shapes = ButtonDefaults.shapesFor(buttonHeight),
+                    contentPadding = ButtonDefaults.contentPaddingFor(buttonHeight),
                 ) {
-                    Text(stringResource(R.string.profile_edit))
+                    Text(
+                        text = stringResource(R.string.profile_edit),
+                        style = ButtonDefaults.textStyleFor(buttonHeight),
+                    )
                 }
             } else {
                 ToggleButton(

@@ -18,7 +18,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -34,8 +33,6 @@ import moe.kirakira.ui.components.AccountAvatar
 @Composable
 internal fun VideoCommentItem(
     comment: VideoComment,
-    index: Int,
-    count: Int,
     vote: Int,
     enabled: Boolean,
     onOpenAuthor: () -> Unit,
@@ -50,29 +47,23 @@ internal fun VideoCommentItem(
     val actionButtonModifier = Modifier
         .width(24.dp)
         .wrapContentWidth(unbounded = true)
-    SegmentedListItem(
-        shapes = ListItemDefaults.segmentedShapes(
-            index = index,
-            count = count,
-            defaultShapes = ListItemDefaults.shapes(shape = MaterialTheme.shapes.extraSmall),
+    Row(
+        modifier = modifier.fillMaxWidth().padding(
+            PaddingValues(
+                start = defaultPadding.calculateStartPadding(layoutDirection),
+                top = defaultPadding.calculateTopPadding(),
+                end = defaultPadding.calculateEndPadding(layoutDirection),
+            ),
         ),
-        modifier = modifier.fillMaxWidth(),
-        leadingContent = {
-            AccountAvatar(
-                comment.author.avatar,
-                Modifier.clickable(onClick = onOpenAuthor),
-                size = 40.dp,
-            )
-        },
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top,
-        // 操作按钮已保留触摸区域，底部只补少量视觉留白。
-        contentPadding = PaddingValues(
-            start = defaultPadding.calculateStartPadding(layoutDirection),
-            top = defaultPadding.calculateTopPadding(),
-            end = defaultPadding.calculateEndPadding(layoutDirection),
-        ),
     ) {
-        Column(Modifier.fillMaxWidth()) {
+        AccountAvatar(
+            comment.author.avatar,
+            Modifier.clickable(onClick = onOpenAuthor),
+            size = 40.dp,
+        )
+        Column(Modifier.weight(1f)) {
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

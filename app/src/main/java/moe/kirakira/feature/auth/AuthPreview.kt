@@ -47,9 +47,9 @@ private fun AuthFormStatePreview(@PreviewParameter(AuthPreviewStateProvider::cla
     )
 }
 
-@Preview(name = "Auth · Dynamic color", showBackground = true)
+@Preview(name = "Auth · Wallpaper accent", showBackground = true)
 @Composable
-private fun AuthDynamicColorPreview() {
+private fun AuthWallpaperAccentPreview() {
     AuthPreviewContent(AuthUiState(), dynamicColor = true)
 }
 

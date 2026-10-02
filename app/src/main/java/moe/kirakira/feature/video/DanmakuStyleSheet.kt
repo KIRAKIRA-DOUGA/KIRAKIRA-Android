@@ -13,13 +13,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SegmentedButton
@@ -55,10 +53,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.R
 import moe.kirakira.data.content.DanmakuFontSize
 import moe.kirakira.data.content.DanmakuMode
 import moe.kirakira.data.content.DanmakuStyle
+import moe.kirakira.ui.components.connectedListItemShadow
+import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 private val danmakuColors =
@@ -247,14 +248,14 @@ internal fun DanmakuStyleContent(
         SegmentedListItem(
             checked = style.enableRainbow,
             onCheckedChange = { onStyle(style.copy(enableRainbow = it)) },
-            shapes = ListItemDefaults.segmentedShapes(0, 1),
+            shapes = connectedListItemShapes(0, 1),
             modifier = Modifier
                 .fillMaxWidth()
-                .semantics { role = Role.Switch },
+                .semantics { role = Role.Switch }.connectedListItemShadow(0, 1),
             trailingContent = { Switch(style.enableRainbow, onCheckedChange = null) },
             content = { Text(stringResource(R.string.danmaku_style_rainbow)) },
         )
-        Button(
+        ShadowButton(
             onClick = onDone,
             modifier = Modifier
                 .fillMaxWidth()

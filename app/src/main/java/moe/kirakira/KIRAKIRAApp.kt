@@ -21,8 +21,6 @@ fun KIRAKIRAApp(
     modifier: Modifier = Modifier,
     themeColors: ThemeColorSettings = ThemeColorSettings(),
     onThemeColorsChange: (ThemeColorSettings) -> Unit = {},
-    shadowsEnabled: Boolean = false,
-    onShadowsEnabledChange: (Boolean) -> Unit = {},
     onVideoPageActiveChange: (Boolean) -> Unit = {},
     onImageViewerActiveChange: (Boolean) -> Unit = {},
 ) {
@@ -34,8 +32,6 @@ fun KIRAKIRAApp(
         onThemeModeChange = onThemeModeChange,
         themeColors = themeColors,
         onThemeColorsChange = onThemeColorsChange,
-        shadowsEnabled = shadowsEnabled,
-        onShadowsEnabledChange = onShadowsEnabledChange,
         onVideoPageActiveChange = onVideoPageActiveChange,
         onImageViewerActiveChange = onImageViewerActiveChange,
         accountState = accountState,

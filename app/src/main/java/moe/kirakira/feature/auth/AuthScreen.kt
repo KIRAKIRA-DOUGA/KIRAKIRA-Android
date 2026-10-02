@@ -18,26 +18,25 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
+import androidx.compose.material.ButtonDefaults as Material2ButtonDefaults
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -52,7 +51,11 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
+import moe.kirakira.ui.components.ShadowButton
+import moe.kirakira.ui.components.ShadowFilledTonalIconButton
 import moe.kirakira.R
+import moe.kirakira.ui.components.FrostedScaffold
+import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -131,11 +134,16 @@ internal fun AuthScreen(
     }
     val signInLabel = stringResource(title)
     val signingInDescription = stringResource(R.string.auth_working)
-    Scaffold(
+    FrostedScaffold(
         modifier = modifier.fillMaxSize().testTag("auth_${state.step.name}"),
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             CenterAlignedTopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
+                    titleContentColor = MaterialTheme.colorScheme.primary,
+                ),
                 title = {
                     Icon(
                         painter = painterResource(stepIcon),
@@ -146,7 +154,7 @@ internal fun AuthScreen(
                 },
                 navigationIcon = {
                     if (state.step != AuthStep.LOGIN) {
-                        FilledTonalIconButton(onClick = onBack, modifier = Modifier.testTag("auth_back")) {
+                        ShadowFilledTonalIconButton(onClick = onBack, modifier = Modifier.testTag("auth_back")) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_symbol_arrow_back),
                                 contentDescription = stringResource(R.string.navigate_back),
@@ -155,7 +163,7 @@ internal fun AuthScreen(
                     }
                 },
                 actions = {
-                    FilledTonalIconButton(onClick = onClose, modifier = Modifier.testTag("auth_close")) {
+                    ShadowFilledTonalIconButton(onClick = onClose, modifier = Modifier.testTag("auth_close")) {
                         Icon(
                             painter = painterResource(R.drawable.ic_symbol_close),
                             contentDescription = stringResource(R.string.auth_close),
@@ -170,7 +178,6 @@ internal fun AuthScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
-                    top = innerPadding.calculateTopPadding(),
                     start = innerPadding.calculateStartPadding(layoutDirection),
                     end = innerPadding.calculateEndPadding(layoutDirection),
                 )
@@ -185,7 +192,7 @@ internal fun AuthScreen(
                     .imePadding()
                     .verticalScroll(rememberScrollState())
                     // Keep the viewport edge-to-edge; the final inset scrolls with the button.
-                    .padding(top = 24.dp, bottom = innerPadding.calculateBottomPadding() + 24.dp),
+                    .padding(top = innerPadding.calculateTopPadding() + 24.dp, bottom = innerPadding.calculateBottomPadding() + 24.dp),
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     if (registrationStep > 0) {
@@ -264,7 +271,7 @@ internal fun AuthScreen(
                         )
                     }
                     if (state.step != AuthStep.TOTP_HELP) {
-                        Button(
+                        ShadowButton(
                             onClick = onSubmit,
                             enabled = state.canSubmit,
                             shapes = ButtonDefaults.shapesFor(56.dp),
@@ -301,7 +308,10 @@ internal fun AuthScreen(
                                     },
                                 )
                                 if (state.isSubmitting) {
-                                    LoadingIndicator(modifier = Modifier.size(24.dp).clearAndSetSemantics { })
+                                    IndeterminateCircularProgressIndicator(
+                                        modifier = Modifier.size(Material2ButtonDefaults.IconSize).clearAndSetSemantics { },
+                                        strokeWidth = 2.dp,
+                                    )
                                 }
                             }
                         }

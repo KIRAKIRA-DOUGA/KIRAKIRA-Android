@@ -29,6 +29,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.round
 import moe.kirakira.data.content.VideoPart
+import moe.kirakira.data.history.HistoryRepository
 import okhttp3.OkHttpClient
 
 internal data class VideoQualityOption(val height: Int, val bitrate: Int?)
@@ -37,7 +38,11 @@ internal val playbackSpeeds = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f,
 
 /** Host-owned playback, paused on restoration; never stores URLs or credentials in SavedState. */
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
-internal class PlaybackViewModel(private val context: Context, private val savedState: SavedStateHandle) : ViewModel() {
+internal class PlaybackViewModel(
+    private val context: Context,
+    private val savedState: SavedStateHandle,
+    private val history: HistoryRepository? = null,
+) : ViewModel() {
     var videoId by mutableStateOf<Int?>(null)
         private set
     var miniPlayer by mutableStateOf(false)
@@ -51,17 +56,22 @@ internal class PlaybackViewModel(private val context: Context, private val saved
     }
 
     private var sessionRevision: Long? = null
+    private var resumeHandled = true
+    private var cloudPositionToValidate: Long? = null
+    private var lastRecordedPosition = 0L
 
     fun syncSession(revision: Long): Boolean {
         val changed = sessionRevision != null && sessionRevision != revision
-        sessionRevision = revision
         if (changed) clearSession()
+        sessionRevision = revision
         return changed
     }
 
     fun showVideo(id: Int) {
         if (videoId != id) {
             release()
+            resumeHandled = savedState.get<Int>("video_id") == id
+            cloudPositionToValidate = null
             bounds = null
             parts = emptyList()
             title = ""
@@ -80,6 +90,7 @@ internal class PlaybackViewModel(private val context: Context, private val saved
                 autoplayHandled = false
             }
             failed = false
+            lastRecordedPosition = positionMs
             videoId = id
             savedState["video_id"] = id
         }
@@ -215,7 +226,7 @@ internal class PlaybackViewModel(private val context: Context, private val saved
     private var mediaSession: MediaSession? = null
     private var progress: Job? = null
 
-    fun setContent(title: String, parts: List<VideoPart>) {
+    fun setContent(title: String, parts: List<VideoPart>, resumePosition: Long? = null, resumeReady: Boolean = true) {
         // Refetching the same video can rotate media URLs; keep the current playback uninterrupted.
         if (this.parts.isNotEmpty() && this.parts.getOrNull(selectedPart)?.id != parts.getOrNull(selectedPart)?.id) {
             release()
@@ -223,10 +234,20 @@ internal class PlaybackViewModel(private val context: Context, private val saved
         this.title = title
         this.parts = parts
         if (selectedPart !in parts.indices) selectedPart = 0
+        if (!resumeHandled && resumeReady && parts.isNotEmpty()) {
+            resumeHandled = true
+            if (selectedPart == 0 && player == null && positionMs == 0L && resumePosition != null) {
+                positionMs = resumePosition
+                savedState["position"] = resumePosition
+                lastRecordedPosition = resumePosition
+                cloudPositionToValidate = resumePosition
+            }
+        }
     }
 
     fun play() {
         autoplayHandled = true
+        resumeHandled = true
         val part = parts.getOrNull(selectedPart)
         if (part?.url == null) { failed = true; return }
         val current = player
@@ -255,8 +276,18 @@ internal class PlaybackViewModel(private val context: Context, private val saved
                             player.playerError == null
                         buffering = player.playbackState == Player.STATE_BUFFERING
                         durationMs = player.duration.takeIf { it != C.TIME_UNSET }?.coerceAtLeast(0) ?: 0
+                        cloudPositionToValidate?.takeIf { durationMs > 0 }?.let { position ->
+                            cloudPositionToValidate = null
+                            if (position >= durationMs - 10_000) {
+                                lastRecordedPosition = 0L
+                                savedState["position"] = 0L
+                                player.seekTo(0)
+                            }
+                        }
                         positionMs = player.currentPosition.coerceAtLeast(0)
                         bufferedPositionMs = player.bufferedPosition.coerceIn(0, durationMs)
+                        if ((!player.playWhenReady && events.contains(Player.EVENT_PLAY_WHEN_READY_CHANGED)) ||
+                            player.playbackState == Player.STATE_ENDED) flushHistory()
                     }
                     override fun onPlayerError(error: PlaybackException) {
                         failed = true
@@ -275,12 +306,17 @@ internal class PlaybackViewModel(private val context: Context, private val saved
         mediaSession = MediaSession.Builder(context, next).setId("video-${hashCode()}").build()
         next.play()
         progress = viewModelScope.launch {
+            var samples = 0
             while (true) {
                 actualVideoHeight = next.videoFormat?.height?.takeIf { it > 0 }
                 positionMs = next.currentPosition.coerceAtLeast(0)
                 bufferedPositionMs = next.bufferedPosition.coerceIn(0, durationMs)
                 savedState["position"] = positionMs
                 delay(500)
+                if (++samples >= 10) {
+                    samples = 0
+                    recordHistory(15_000)
+                }
             }
         }
     }
@@ -294,6 +330,8 @@ internal class PlaybackViewModel(private val context: Context, private val saved
         }
     }
     fun seek(position: Long) {
+        resumeHandled = true
+        cloudPositionToValidate = null
         positionMs = position.coerceIn(0, durationMs.coerceAtLeast(0))
         player?.seekTo(positionMs)
         bufferedPositionMs = player?.bufferedPosition?.coerceIn(0, durationMs) ?: 0L
@@ -304,16 +342,34 @@ internal class PlaybackViewModel(private val context: Context, private val saved
         if (index == selectedPart || index !in parts.indices) return
         val continuePlaying = player?.playWhenReady == true
         release()
+        resumeHandled = true
+        cloudPositionToValidate = null
         selectedPart = index
         positionMs = 0
+        lastRecordedPosition = 0L
         durationMs = 0
         failed = false
         savedState["part"] = index
         savedState["position"] = 0L
         if (continuePlaying) play()
     }
-    fun pause() { autoplayHandled = true; player?.pause() }
+    fun pause() { autoplayHandled = true; player?.pause(); flushHistory() }
+    fun flushHistory() = recordHistory(1_000)
+
+    private fun recordHistory(minimumChange: Long) {
+        val current = player ?: return
+        val id = videoId ?: return
+        val revision = sessionRevision ?: return
+        if (selectedPart != 0 || cloudPositionToValidate != null) return
+        val position = current.currentPosition.coerceAtLeast(0)
+        if (abs(position - lastRecordedPosition) < minimumChange) return
+        lastRecordedPosition = position
+        if (durationMs > 0) history?.rememberDuration(id, durationMs, revision)
+        history?.enqueue(id, position, revision)
+    }
+
     fun release() {
+        flushHistory()
         player?.let { positionMs = it.currentPosition.coerceAtLeast(0) }
         savedState["position"] = positionMs
         savedState["part"] = selectedPart

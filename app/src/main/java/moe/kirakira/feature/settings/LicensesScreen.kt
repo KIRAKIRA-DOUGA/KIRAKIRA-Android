@@ -11,12 +11,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -30,12 +27,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.mikepenz.aboutlibraries.Libs
@@ -53,10 +52,10 @@ import kotlinx.coroutines.withContext
 import moe.kirakira.R
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
+import moe.kirakira.ui.components.FrostedScaffold
+import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.theme.KIRAKIRATheme
-import moe.kirakira.ui.theme.LocalClassicAccent
 import moe.kirakira.ui.theme.ThemeColorDefaults
-import moe.kirakira.ui.theme.topAppBarShadow
 
 internal sealed interface LicensesUiState {
     data object Loading : LicensesUiState
@@ -92,7 +91,7 @@ fun LicensesScreen(
 }
 
 @Composable
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 internal fun LicensesContent(
     state: LicensesUiState,
     onBack: () -> Unit,
@@ -103,15 +102,14 @@ internal fun LicensesContent(
     val layoutDirection = LocalLayoutDirection.current
     var sheetLibraryId by rememberSaveable { mutableStateOf<String?>(null) }
 
-    Scaffold(
+    FrostedScaffold(
         modifier = modifier
             .fillMaxSize()
             .testTag("licenses_screen"),
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = ThemeColorDefaults.settingsBackgroundColor(),
         topBar = {
             TopAppBar(
-                modifier = Modifier.topAppBarShadow(),
-                title = { Text(stringResource(R.string.about_licenses)) },
+                title = { Text(stringResource(R.string.about_licenses), fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack, modifier = Modifier.testTag("licenses_back")) {
                         Icon(
@@ -121,8 +119,9 @@ internal fun LicensesContent(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = ThemeColorDefaults.appBarContainerColor(),
-                    scrolledContainerColor = ThemeColorDefaults.appBarContainerColor(),
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
+                    titleContentColor = MaterialTheme.colorScheme.primary,
                 ),
             )
         },
@@ -174,7 +173,7 @@ internal fun LicensesContent(
                 ) {
                     when (state) {
                         LicensesUiState.Loading -> {
-                            LoadingIndicator()
+                            IndeterminateCircularProgressIndicator()
                         }
 
                         LicensesUiState.Failed -> ContentUnavailableView(
@@ -197,7 +196,6 @@ internal fun LicensesContent(
 
 @Composable
 private fun licensesVariantColors(): VariantColors {
-    if (!LocalClassicAccent.current) return LibraryDefaults.m3VariantColors()
     val scheme = MaterialTheme.colorScheme
     return LibraryDefaults.m3VariantColors(
         tabActiveBackground = scheme.primaryContainer,

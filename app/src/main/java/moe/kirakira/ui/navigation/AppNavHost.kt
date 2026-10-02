@@ -11,6 +11,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -30,17 +31,23 @@ import moe.kirakira.data.auth.AuthRepository
 import moe.kirakira.data.auth.SessionState
 import moe.kirakira.data.content.ContentRepository
 import moe.kirakira.data.settings.AccountSettingsRepository
+import moe.kirakira.data.security.SecurityRepository
 import moe.kirakira.feature.account.AccountSwitchPage
 import moe.kirakira.feature.account.GUEST_ACCOUNT_ID
 import moe.kirakira.feature.account.SessionFeedback
 import moe.kirakira.feature.auth.AuthPage
 import moe.kirakira.feature.auth.AuthRoute
 import moe.kirakira.feature.imageviewer.ImageViewerPage
+import moe.kirakira.feature.history.HistoryHostViewModel
+import moe.kirakira.feature.history.HistoryPage
+import moe.kirakira.feature.history.HistoryViewModel
 import moe.kirakira.feature.main.HomeViewModel
 import moe.kirakira.feature.main.MainScreen
 import moe.kirakira.feature.player.PlaybackHost
 import moe.kirakira.feature.player.PlaybackViewModel
 import moe.kirakira.feature.profile.ProfilePage
+import moe.kirakira.feature.search.SearchPage
+import moe.kirakira.feature.search.SearchViewModel
 import moe.kirakira.feature.settings.AboutScreen
 import moe.kirakira.feature.settings.AppearanceScreen
 import moe.kirakira.feature.settings.DanmakuSettings
@@ -51,6 +58,13 @@ import moe.kirakira.feature.settings.PlaybackSettings
 import moe.kirakira.feature.settings.PlaybackSettingsScreen
 import moe.kirakira.feature.settings.PlaybackSettingsViewModel
 import moe.kirakira.feature.settings.SettingsScreen
+import moe.kirakira.feature.settings.security.SecuritySettingsPage
+import moe.kirakira.feature.settings.security.SecuritySettingsViewModel
+import moe.kirakira.feature.settings.privacy.PrivacySettingsPage
+import moe.kirakira.feature.settings.privacy.PrivacySettingsViewModel
+import moe.kirakira.feature.settings.profile.ProfileEditorPage
+import moe.kirakira.feature.settings.profile.ProfileEditorViewModel
+import moe.kirakira.data.profile.ProfileRepository
 import moe.kirakira.feature.settings.management.BlockingOverviewPage
 import moe.kirakira.feature.settings.management.BlockingOverviewViewModel
 import moe.kirakira.feature.settings.management.InvitationsPage
@@ -58,6 +72,8 @@ import moe.kirakira.feature.settings.management.InvitationsViewModel
 import moe.kirakira.feature.settings.management.RuleManagementPage
 import moe.kirakira.feature.settings.management.RuleManagementViewModel
 import moe.kirakira.feature.video.VideoPage
+import moe.kirakira.feature.tag.TagPage
+import moe.kirakira.feature.tag.TagViewModel
 import moe.kirakira.ui.components.rememberEmphasizedEasing
 import moe.kirakira.ui.theme.ThemeColorSettings
 import moe.kirakira.ui.theme.ThemeMode
@@ -77,15 +93,10 @@ internal fun AppNavHost(
     onSelectAccount: (String?) -> Unit,
     onRemoveAccount: (String) -> Unit,
     modifier: Modifier = Modifier,
-    shadowsEnabled: Boolean = false,
-    onShadowsEnabledChange: (Boolean) -> Unit = {},
     onVideoPageActiveChange: (Boolean) -> Unit = {},
     onImageViewerActiveChange: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
-    val playback = if (LocalInspectionMode.current) {
-        remember { PlaybackViewModel(context.applicationContext, SavedStateHandle()) }
-    } else viewModel { PlaybackViewModel(context.applicationContext, createSavedStateHandle()) }
     var bottomBarHeightPx by remember { mutableIntStateOf(0) }
     val playbackSettingsModel = if (LocalInspectionMode.current) null else viewModel<PlaybackSettingsViewModel>()
     val playbackSettings = if (LocalInspectionMode.current) PlaybackSettings()
@@ -94,10 +105,14 @@ internal fun AppNavHost(
     val danmakuSettings = if (LocalInspectionMode.current) DanmakuSettings()
         else danmakuSettingsModel?.settings?.collectAsStateWithLifecycle()?.value
     val backStack = rememberNavBackStack(MainRoute)
+    var profileBackGuard by remember { mutableStateOf<ProfileEditorViewModel?>(null) }
+    var privacyBackGuard by remember { mutableStateOf<PrivacySettingsViewModel?>(null) }
+    var securityBackGuard by remember { mutableStateOf<SecuritySettingsViewModel?>(null) }
     // Discard retired demo destinations when restoring navigation after an upgrade.
     LaunchedEffect(Unit) {
         backStack.removeAll {
-            it is TestRoute || (it is VideoRoute && it.videoId <= 0) || (it is ProfileRoute && it.uid <= 0)
+            it is TestRoute || (it is VideoRoute && it.videoId <= 0) || (it is ProfileRoute && it.uid <= 0) ||
+                (it is TagRoute && it.tagId <= 0)
         }
     }
     val autofill = LocalAutofillManager.current
@@ -110,7 +125,14 @@ internal fun AppNavHost(
     val settingsRepository = remember(authRepository, apiClient) {
         authRepository?.let { AccountSettingsRepository(apiClient, it) }
     }
+    val historyRepository = if (LocalInspectionMode.current) null else authRepository?.let { auth ->
+        viewModel { HistoryHostViewModel(apiClient, auth) }.repository
+    }
+    val playback = if (LocalInspectionMode.current) {
+        remember { PlaybackViewModel(context.applicationContext, SavedStateHandle()) }
+    } else viewModel { PlaybackViewModel(context.applicationContext, createSavedStateHandle(), historyRepository) }
     val homeViewModel = contentRepository?.let { viewModel { HomeViewModel(it) } }
+    val searchViewModel = contentRepository?.let { viewModel { SearchViewModel(it) } }
     val homeVideos = homeViewModel?.videos?.collectAsStateWithLifecycle()?.value
         ?: moe.kirakira.feature.video.ContentState<List<moe.kirakira.data.content.VideoSummary>>()
     fun openFrom(source: NavKey, target: NavKey) {
@@ -150,6 +172,25 @@ internal fun AppNavHost(
     Box(modifier.fillMaxSize()) {
         ActivityNavDisplay(
             backStack = backStack,
+            onBackRequested = {
+                when (backStack.lastOrNull()) {
+                    ProfileEditorRoute -> profileBackGuard?.requestBack() == true
+                    PrivacySettingsRoute -> privacyBackGuard?.requestBack() == true
+                    SecuritySettingsRoute -> {
+                        autofill?.cancel()
+                        securityBackGuard?.requestBack() == true
+                    }
+                    else -> true
+                }
+            },
+            canNavigateBack = {
+                when (backStack.lastOrNull()) {
+                    ProfileEditorRoute -> profileBackGuard?.canNavigateBack == true
+                    PrivacySettingsRoute -> privacyBackGuard?.canNavigateBack == true
+                    SecuritySettingsRoute -> securityBackGuard?.canNavigateBack == true
+                    else -> true
+                }
+            },
             modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainer),
             onBack = {
                 if (backStack.lastOrNull() is AuthRoute) autofill?.cancel()
@@ -167,6 +208,7 @@ internal fun AppNavHost(
                             onOpenProfile = {
                                 openFrom(MainRoute, if (accountState.activeProfile == null) AuthRoute() else SelfProfileRoute)
                             },
+                            onOpenHistory = { openFrom(MainRoute, HistoryRoute) },
                             onOpenSettings = {
                                 if (backStack.lastOrNull() == MainRoute) backStack.add(SettingsRoute)
                             },
@@ -174,6 +216,13 @@ internal fun AppNavHost(
                                 if (backStack.lastOrNull() == MainRoute) backStack.add(VideoRoute(id))
                             },
                             videos = homeVideos, onRefreshVideos = { homeViewModel?.refresh() },
+                            searchContent = { padding ->
+                                SearchPage(
+                                    model = searchViewModel,
+                                    onOpenVideo = { id -> openFrom(MainRoute, VideoRoute(id)) },
+                                    contentPadding = padding,
+                                )
+                            },
                         )
                     }
                 }
@@ -191,8 +240,10 @@ internal fun AppNavHost(
                                 playbackSettings = playbackSettings,
                                 videoId = route.videoId,
                                 repository = contentRepository,
+                                historyRepository = historyRepository,
                                 isActive = backStack.lastOrNull() == route,
                                 onOpenProfile = { uid -> openFrom(route, ProfileRoute(uid)) },
+                                onOpenTag = { id -> openFrom(route, TagRoute(id)) },
                                 onLogin = {
                                     if (backStack.lastOrNull() == route) backStack.add(AuthRoute())
                                 },
@@ -201,10 +252,33 @@ internal fun AppNavHost(
                         }
                     }
                 }
+                entry<HistoryRoute> {
+                    NavigationPage {
+                        if (historyRepository != null) HistoryPage(
+                            model = viewModel { HistoryViewModel(historyRepository) },
+                            isActive = backStack.lastOrNull() == HistoryRoute,
+                            onBack = { if (backStack.lastOrNull() == HistoryRoute) backStack.removeLastOrNull() },
+                            onLogin = { openFrom(HistoryRoute, AuthRoute()) },
+                            onOpenVideo = { id -> openFrom(HistoryRoute, VideoRoute(id)) },
+                        )
+                    }
+                }
+                entry<TagRoute> { route ->
+                    NavigationPage {
+                        if (contentRepository != null && route.tagId > 0) {
+                            TagPage(
+                                model = viewModel { TagViewModel(route.tagId, contentRepository) },
+                                onBack = { if (backStack.lastOrNull() == route) backStack.removeLastOrNull() },
+                                onOpenVideo = { id -> openFrom(route, VideoRoute(id)) },
+                            )
+                        }
+                    }
+                }
                 entry<ProfileRoute> { route ->
                     NavigationPage {
                         if (contentRepository == null || route.uid <= 0) Text(stringResource(R.string.content_login_to_interact))
                         else ProfilePage(model = viewModel { moe.kirakira.feature.profile.ProfileViewModel(route.uid, contentRepository) },
+                            onEditProfile = { openFrom(route, ProfileEditorRoute) },
                             onOpenVideo = { id -> openFrom(route, VideoRoute(id)) },
                             onOpenImage = { openFrom(route, ImageViewerRoute(it)) }, onLogin = { backStack.add(AuthRoute()) },
                             onBack = { if (backStack.lastOrNull() == route) backStack.removeLastOrNull() })
@@ -216,6 +290,7 @@ internal fun AppNavHost(
                         if (account == null || contentRepository == null) LaunchedEffect(Unit) {
                             if (backStack.lastOrNull() == SelfProfileRoute) backStack.removeLastOrNull()
                         } else ProfilePage(model = viewModel(key = "profile-${account.uid}") { moe.kirakira.feature.profile.ProfileViewModel(account.uid, contentRepository) },
+                            onEditProfile = { openFrom(SelfProfileRoute, ProfileEditorRoute) },
                             onOpenVideo = { id -> openFrom(SelfProfileRoute, VideoRoute(id)) },
                             onOpenImage = { openFrom(SelfProfileRoute, ImageViewerRoute(it)) }, onLogin = {},
                             onBack = { if (backStack.lastOrNull() == SelfProfileRoute) backStack.removeLastOrNull() })
@@ -243,6 +318,10 @@ internal fun AppNavHost(
                 entry<SettingsRoute> {
                     NavigationPage {
                         SettingsScreen(
+                            onNavigateToProfile = { openFrom(SettingsRoute, ProfileEditorRoute) },
+                            onNavigateToPrivacy = { openFrom(SettingsRoute, PrivacySettingsRoute) },
+                            onNavigateToSecurity = { openFrom(SettingsRoute,
+                                if (accountState.activeProfile == null) AuthRoute() else SecuritySettingsRoute) },
                             onNavigateToBlocking = { openFrom(SettingsRoute, BlockingOverviewRoute) },
                             onNavigateToInvitations = { openFrom(SettingsRoute, InvitationsRoute) },
                             onNavigateToDanmaku = { openFrom(SettingsRoute, DanmakuSettingsRoute) },
@@ -265,6 +344,59 @@ internal fun AppNavHost(
                                 if (backStack.lastOrNull() == SettingsRoute) backStack.add(AccountSwitchRoute)
                             },
                         )
+                    }
+                }
+                entry<ProfileEditorRoute> {
+                    NavigationPage {
+                        if (authRepository != null) {
+                            val model = viewModel {
+                                ProfileEditorViewModel(ProfileRepository(apiClient, authRepository), context)
+                            }
+                            DisposableEffect(model) {
+                                profileBackGuard = model
+                                onDispose { if (profileBackGuard === model) profileBackGuard = null }
+                            }
+                            ProfileEditorPage(model,
+                                onBack = { if (backStack.lastOrNull() == ProfileEditorRoute) backStack.removeLastOrNull() },
+                                onLogin = { openFrom(ProfileEditorRoute, AuthRoute()) })
+                        }
+                    }
+                }
+                entry<PrivacySettingsRoute> {
+                    NavigationPage {
+                        if (settingsRepository != null) {
+                            val model = viewModel { PrivacySettingsViewModel(settingsRepository) }
+                            DisposableEffect(model) {
+                                privacyBackGuard = model
+                                onDispose { if (privacyBackGuard === model) privacyBackGuard = null }
+                            }
+                            PrivacySettingsPage(
+                                model = model,
+                                onBack = {
+                                    if (backStack.lastOrNull() == PrivacySettingsRoute) backStack.removeLastOrNull()
+                                },
+                                onLogin = { openFrom(PrivacySettingsRoute, AuthRoute()) },
+                            )
+                        }
+                    }
+                }
+                entry<SecuritySettingsRoute> {
+                    NavigationPage {
+                        if (authRepository != null) {
+                            val model = viewModel { SecuritySettingsViewModel(SecurityRepository(apiClient, authRepository)) }
+                            DisposableEffect(model) {
+                                securityBackGuard = model
+                                onDispose { if (securityBackGuard === model) securityBackGuard = null }
+                            }
+                            SecuritySettingsPage(
+                                model = model,
+                                isActive = backStack.lastOrNull() == SecuritySettingsRoute,
+                                onBack = { if (backStack.lastOrNull() == SecuritySettingsRoute) backStack.removeLastOrNull() },
+                                onLogin = { email ->
+                                    openFrom(SecuritySettingsRoute, AuthRoute(email))
+                                },
+                            )
+                        }
                     }
                 }
                 entry<BlockingOverviewRoute> {
@@ -364,8 +496,6 @@ internal fun AppNavHost(
                             onThemeModeChange = onThemeModeChange,
                             themeColors = themeColors,
                             onThemeColorsChange = onThemeColorsChange,
-                            shadowsEnabled = shadowsEnabled,
-                            onShadowsEnabledChange = onShadowsEnabledChange,
                             onBack = {
                                 if (backStack.lastOrNull() == AppearanceRoute) backStack.removeLastOrNull()
                             },

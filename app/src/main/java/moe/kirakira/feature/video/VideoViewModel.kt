@@ -1,19 +1,32 @@
 package moe.kirakira.feature.video
 
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withTimeoutOrNull
+import moe.kirakira.core.network.ApiException
 import moe.kirakira.data.content.ContentRepository
-import moe.kirakira.data.content.DanmakuStyle
 import moe.kirakira.data.content.DanmakuEntry
+import moe.kirakira.data.content.DanmakuStyle
 import moe.kirakira.data.content.Reaction
 import moe.kirakira.data.content.VideoComment
 import moe.kirakira.data.content.VideoDetail
+import moe.kirakira.data.history.HistoryRepository
 
-internal class VideoViewModel(val videoId: Int, repository: ContentRepository) : ContentViewModel(repository) {
+internal data class VideoResumeState(val ready: Boolean = false, val positionMs: Long? = null)
+
+internal class VideoViewModel(
+    val videoId: Int,
+    repository: ContentRepository,
+    private val history: HistoryRepository? = null,
+) : ContentViewModel(repository) {
     private val _detail = MutableStateFlow(ContentState<VideoDetail>(loading = true))
     val detail = _detail.asStateFlow()
+    private val _resume = MutableStateFlow(VideoResumeState())
+    val resume = _resume.asStateFlow()
+    private var resumeTask: Job? = null
     private val commentList = CommentListLoader(videoId, repository, ::launchTask)
     val comments = commentList.state
     private val _danmaku = MutableStateFlow(ContentState<List<DanmakuEntry>>())
@@ -34,6 +47,8 @@ internal class VideoViewModel(val videoId: Int, repository: ContentRepository) :
     init {
         observeAccount({
             _detail.value = ContentState(loading = true)
+            _resume.value = VideoResumeState()
+            resumeTask = null
             commentList.reset()
             _danmaku.value = ContentState()
             commentDraft.value = ""
@@ -48,7 +63,35 @@ internal class VideoViewModel(val videoId: Int, repository: ContentRepository) :
         })
     }
 
-    fun refresh() = load(_detail) { repository.video(videoId, it) }
+    fun refresh() {
+        prepareResume()
+        load(_detail) { expected ->
+            repository.video(videoId, expected).also {
+                history?.rememberVideo(it.summary.copy(author = it.author.username), expected)
+            }
+        }
+    }
+
+    private fun prepareResume() {
+        if (!session.value.isReadyForContent || revision != session.value.revision ||
+            _resume.value.ready || resumeTask?.isActive == true) return
+        val expected = revision
+        resumeTask = launchTask {
+            val positionMs = try {
+                withTimeoutOrNull(1_500L) {
+                    history?.awaitPending(expected)
+                    history?.loadIfNeeded(expected)
+                    history?.resumePosition(videoId, expected)
+                }
+            } catch (_: ApiException) {
+                null
+            }
+            currentCoroutineContext().ensureActive()
+            if (expected == session.value.revision) {
+                _resume.value = VideoResumeState(ready = true, positionMs = positionMs)
+            }
+        }
+    }
     fun ensureComments() { if (!commentsRequested) comments(1) }
     fun ensureTab(tab: VideoTab) { if (tab == VideoTab.COMMENTS) ensureComments() else if (tab == VideoTab.DANMAKU) ensureDanmaku() }
     fun ensureDanmaku() { if (!danmakuRequested) refreshDanmaku() }
