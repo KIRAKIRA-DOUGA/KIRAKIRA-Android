@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import moe.kirakira.core.image.publicMediaUrl
@@ -14,12 +16,57 @@ import moe.kirakira.core.network.ApiClient
 import moe.kirakira.core.network.ApiException
 import moe.kirakira.core.network.ApiFailure
 import moe.kirakira.data.auth.AuthRepository
+import moe.kirakira.data.content.TagDto
 
 /** Account-scoped settings. Only the server applies these rules to content. */
 internal class AccountSettingsRepository(private val api: ApiClient, private val auth: AuthRepository) {
     val session = auth.session
     private val _ruleVersion = MutableStateFlow(0L)
     val ruleVersion = _ruleVersion.asStateFlow()
+
+    suspend fun privacy(revision: Long): PrivacySettings = request(revision) { cookie ->
+        val result = api.post<PrivacyResponseDto>("user/settings", "{}", cookie)
+        checkSuccess(result.success)
+        (result.userSettings ?: invalidResponse()).domain(session.value.activeProfile?.uid)
+    }
+
+    suspend fun savePrivacy(
+        original: PrivacySettings,
+        values: Map<PrivacyItem, PrivacyVisibility>,
+        revision: Long,
+    ): PrivacySettings = request(revision) { cookie ->
+        if (values.keys != PrivacyItem.entries.toSet()) invalidResponse()
+        val entries = original.entries.filter { entry -> PrivacyItem.entries.none { it.wireName == entry.id } } +
+            PrivacyItem.entries.map { PrivacyEntry(it.wireName, values.getValue(it)) }
+        val body = buildJsonObject {
+            put("userPrivaryVisibilitiesSetting", buildJsonArray {
+                entries.forEach { entry -> add(buildJsonObject {
+                    put("privaryId", entry.id)
+                    put("visibilitiesType", entry.visibility.wireName)
+                }) }
+            })
+            put("userLinkedAccountsVisibilitiesSetting", buildJsonArray {
+                original.linkedAccounts.forEach { entry -> add(buildJsonObject {
+                    put("platformId", entry.platformId)
+                    put("visibilitiesType", entry.visibility.wireName)
+                }) }
+            })
+        }
+        val result = api.post<PrivacyResponseDto>("user/settings/update", body.toString(), cookie)
+        checkSuccess(result.success)
+        // Rosales can return its update payload without uid; confirm that response through a fresh read.
+        val returned = result.userSettings
+        val confirmed = if (returned?.uid == null) {
+            val read = api.post<PrivacyResponseDto>("user/settings", "{}", cookie)
+            checkSuccess(read.success)
+            read.userSettings ?: invalidResponse()
+        } else returned
+        val saved = confirmed.domain(session.value.activeProfile?.uid)
+        if (saved.values != values || PrivacyItem.entries.any { item ->
+            saved.entries.none { it.id == item.wireName }
+        }) invalidResponse()
+        saved
+    }
 
     private suspend fun <T> request(revision: Long, block: suspend (String) -> T): T {
         val snapshot = auth.requestSession()
@@ -98,6 +145,36 @@ private fun checkSuccess(success: Boolean) { if (!success) throw ApiException(Ap
 private fun invalidResponse(): Nothing = throw ApiException(ApiFailure.INVALID_RESPONSE)
 
 @Serializable
+private data class PrivacyResponseDto(val success: Boolean, val userSettings: PrivacySettingsDto? = null)
+@Serializable
+private data class PrivacySettingsDto(
+    val uid: Long? = null,
+    val userPrivaryVisibilitiesSetting: List<PrivacyEntryDto> = emptyList(),
+    val userLinkedAccountsVisibilitiesSetting: List<LinkedPrivacyEntryDto> = emptyList(),
+) {
+    fun domain(expectedUid: Long?): PrivacySettings {
+        if (uid == null || uid != expectedUid || uid <= 0) invalidResponse()
+        val entries = userPrivaryVisibilitiesSetting.map {
+            if (it.privaryId.isBlank()) invalidResponse()
+            PrivacyEntry(it.privaryId, visibility(it.visibilitiesType))
+        }
+        val linked = userLinkedAccountsVisibilitiesSetting.map {
+            if (it.platformId.isBlank()) invalidResponse()
+            LinkedPrivacyEntry(it.platformId, visibility(it.visibilitiesType))
+        }
+        if (entries.distinctBy { it.id }.size != entries.size ||
+            linked.distinctBy { it.platformId }.size != linked.size) invalidResponse()
+        return PrivacySettings(entries, linked)
+    }
+}
+private fun visibility(value: String): PrivacyVisibility =
+    PrivacyVisibility.entries.find { it.wireName == value } ?: invalidResponse()
+@Serializable
+private data class PrivacyEntryDto(val privaryId: String, val visibilitiesType: String)
+@Serializable
+private data class LinkedPrivacyEntryDto(val platformId: String, val visibilitiesType: String)
+
+@Serializable
 private data class RulesDto(val success: Boolean, val blocklistCount: Int? = null, val result: List<RuleDto>? = null)
 @Serializable
 private data class RuleDto(
@@ -114,19 +191,6 @@ private data class RuleDto(
 private data class MutationDto(val success: Boolean, val unsafeRegex: Boolean = false)
 @Serializable
 private data class TagsDto(val success: Boolean, val result: List<TagDto>? = null)
-@Serializable
-private data class TagDto(val tagId: Long, val tagNameList: List<TagLanguageDto> = emptyList()) {
-    fun domain(): RuleTag {
-        if (tagId <= 0) invalidResponse()
-        return RuleTag(tagId, tagNameList.map { language ->
-            TagLanguage(language.lang, language.tagName.map { TagName(it.name, it.isDefault, it.isOriginalTagName) })
-        })
-    }
-}
-@Serializable
-private data class TagLanguageDto(val lang: String, val tagName: List<TagNameDto> = emptyList())
-@Serializable
-private data class TagNameDto(val name: String, val isDefault: Boolean = false, val isOriginalTagName: Boolean = false)
 @Serializable
 private data class InvitationsDto(val success: Boolean, val invitationCodeResult: List<InvitationDto>? = null)
 @Serializable

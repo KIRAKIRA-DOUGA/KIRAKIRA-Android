@@ -101,6 +101,9 @@ internal class AuthApi(private val client: ApiClient) {
             avatar = profile.avatar?.trim()?.takeIf { it.isNotEmpty() },
             signature = profile.signature.orEmpty(),
             banner = profile.userBannerImage,
+            birthday = profile.userBirthday.orEmpty(),
+            gender = profile.gender.orEmpty(),
+            labels = profile.label.orEmpty(),
         )
         return StoredAccount(updated, account.token, userDataBootstrapHint =
             profile.userDataBootstrapHint.validHint() ?: account.userDataBootstrapHint)
@@ -195,6 +198,9 @@ private class ProfileDto(
     val avatar: String? = null,
     val signature: String? = null,
     val userBannerImage: String? = null,
+    val userBirthday: String? = null,
+    val gender: String? = null,
+    val label: List<ProfileLabel>? = null,
     val userDataBootstrapHint: String? = null,
 )
 

@@ -5,6 +5,8 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import moe.kirakira.core.image.publicMediaUrl
@@ -59,6 +61,7 @@ internal class ContentRepository(private val api: ApiClient, private val auth: A
             reaction = reaction(value.userHasUpvoted, value.userHasDownvoted),
             blocked = response.isBlocked,
             blockedByOther = response.isBlockedByOther,
+            tags = value.videoTagList.map { it.domain() }.distinctBy { it.id },
         )
     }
 
@@ -68,6 +71,43 @@ internal class ContentRepository(private val api: ApiClient, private val auth: A
         if (response.isBlocked) throw ApiException(ApiFailure.REJECTED)
         (response.result ?: throw ApiException(ApiFailure.INVALID_RESPONSE)).profile(uid)
             .copy(blockedByOther = response.isBlockedByOther)
+    }
+
+    suspend fun tag(id: Long, revision: Long): VideoTag? = request(revision) { _, _ ->
+        val response = api.post<TagResponse>("video/tag/get", tagBody(id), cookie = null)
+        response.check()
+        val tags = response.result ?: throw ApiException(ApiFailure.INVALID_RESPONSE)
+        val values = tags.map { it.domain() }
+        if (values.any { it.id != id }) throw ApiException(ApiFailure.INVALID_RESPONSE)
+        values.firstOrNull()
+    }
+
+    suspend fun searchVideos(keyword: String, revision: Long): List<VideoSummary> = request(revision) { _, _ ->
+        val query = keyword.trim()
+        if (query.isEmpty()) return@request emptyList()
+        val response = api.get<SearchVideosDto>("video/search", mapOf("keyword" to query), cookie = null)
+        response.summaries()
+    }
+
+    suspend fun searchTags(name: String, revision: Long): List<VideoTag> = request(revision) { _, _ ->
+        val query = name.trim()
+        if (query.isEmpty()) return@request emptyList()
+        val response = api.get<TagResponse>("video/tag/search", mapOf("tagName" to query), cookie = null)
+        response.check()
+        (response.result ?: throw ApiException(ApiFailure.INVALID_RESPONSE)).map { it.domain() }.distinctBy { it.id }
+    }
+
+    suspend fun tagVideos(id: Long, revision: Long): List<VideoSummary> = tagVideos(listOf(id), revision)
+
+    suspend fun tagVideos(ids: List<Long>, revision: Long): List<VideoSummary> = request(revision) { _, _ ->
+        api.post<SearchVideosDto>("video/search/tag", tagBody(ids), cookie = null).summaries()
+    }
+
+    private fun tagBody(id: Long): String = tagBody(listOf(id))
+
+    private fun tagBody(ids: List<Long>): String {
+        if (ids.isEmpty() || ids.any { it <= 0 }) throw ApiException(ApiFailure.INVALID_RESPONSE)
+        return buildJsonObject { put("tagId", buildJsonArray { ids.distinct().forEach { add(it) } }) }.toString()
     }
 
     suspend fun stats(uid: Long, revision: Long): FollowStats = request(revision) { cookie, _ ->
@@ -149,6 +189,20 @@ private fun reaction(up: Boolean, down: Boolean) = when { up -> Reaction.LIKE; d
 private data class ResultDto(override val success: Boolean) : ApiResult
 
 @Serializable
+private data class TagResponse(override val success: Boolean, val result: List<TagDto>? = null) : ApiResult
+
+@Serializable
+private data class SearchVideosDto(
+    override val success: Boolean,
+    val videos: List<VideoDto>? = null,
+) : ApiResult {
+    fun summaries(): List<VideoSummary> {
+        check()
+        return (videos ?: throw ApiException(ApiFailure.INVALID_RESPONSE)).map { it.summary() }.distinctBy { it.id }
+    }
+}
+
+@Serializable
 private data class VideosDto(
     override val success: Boolean,
     val videos: List<VideoDto> = emptyList(),
@@ -182,6 +236,7 @@ private data class VideoDto(
     val uploadDate: Long? = null,
     val description: String? = null,
     val videoCategory: String? = null,
+    val videoTagList: List<TagDto> = emptyList(),
     val videoPart: List<PartDto> = emptyList(),
     val uploaderInfo: ProfileDto? = null,
     val videoUpvoteCount: Long? = null,
@@ -191,8 +246,12 @@ private data class VideoDto(
 ) {
     fun summary(): VideoSummary {
         if (videoId <= 0 || title.isBlank()) throw ApiException(ApiFailure.INVALID_RESPONSE)
-        return VideoSummary(videoId, title, image, uploaderNickname?.takeIf { it.isNotBlank() } ?: uploader.orEmpty(),
-            uploaderId, watchedCount?.coerceAtLeast(0), duration?.takeIf { it.isFinite() && it >= 0 }?.toLong(), uploadDate)
+        val author = uploaderNickname?.takeIf { it.isNotBlank() }
+            ?: uploaderInfo?.userNickname?.takeIf { it.isNotBlank() }
+            ?: uploaderInfo?.username?.takeIf { it.isNotBlank() } ?: uploader.orEmpty()
+        return VideoSummary(videoId, title, image, author,
+            uploaderId ?: uploaderInfo?.uid, watchedCount?.coerceAtLeast(0),
+            secondsToMilliseconds(duration), uploadDate)
     }
 }
 

@@ -13,9 +13,15 @@ internal data class AccountProfile(
     val avatar: String? = null,
     val signature: String = "",
     val banner: String? = null,
+    val birthday: String = "",
+    val gender: String = "",
+    val labels: List<ProfileLabel> = emptyList(),
 ) {
     val displayName: String get() = nickname.ifBlank { username }.ifBlank { email }
 }
+
+@Serializable
+internal data class ProfileLabel(val id: Int, val labelName: String)
 
 internal data class SavedAccount(val profile: AccountProfile, val needsLogin: Boolean)
 

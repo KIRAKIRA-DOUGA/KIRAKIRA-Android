@@ -39,6 +39,7 @@ internal data class VideoDetail(
     val reaction: Reaction,
     val blocked: Boolean = false,
     val blockedByOther: Boolean = false,
+    val tags: List<VideoTag> = emptyList(),
 )
 
 internal data class VideoComment(

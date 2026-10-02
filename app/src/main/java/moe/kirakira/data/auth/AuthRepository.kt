@@ -59,6 +59,32 @@ internal class AuthRepository(
 
     internal fun isCurrent(request: RequestSession): Boolean = request.revision == _session.value.revision
 
+    internal suspend fun fetchProfile(request: RequestSession): AccountProfile {
+        val account = request.account ?: throw ApiException(ApiFailure.SESSION_EXPIRED)
+        if (!isCurrent(request)) throw kotlinx.coroutines.CancellationException("Account changed")
+        val profile = api.profile(account)
+        if (!isCurrent(request)) throw kotlinx.coroutines.CancellationException("Account changed")
+        return profile
+    }
+
+    internal suspend fun publishProfile(
+        request: RequestSession,
+        profile: AccountProfile,
+        onPublishing: (Long) -> Unit = {},
+    ) = mutex.withLock {
+        if (!isCurrent(request)) throw kotlinx.coroutines.CancellationException("Account changed")
+        val previous = stored ?: throw ApiException(ApiFailure.STORAGE)
+        val account = request.account ?: throw ApiException(ApiFailure.SESSION_EXPIRED)
+        if (profile.uuid != account.profile.uuid || profile.uid != account.profile.uid) {
+            throw ApiException(ApiFailure.INVALID_RESPONSE)
+        }
+        commit(StoredSessions(baseUrl = baseUrl, activeUuid = previous.activeUuid,
+            accounts = previous.accounts.map {
+                if (it.profile.uuid == profile.uuid) StoredAccount(profile, it.token, it.requiresLogin,
+                    it.userDataBootstrapHint) else it
+            }), onPublishing)
+    }
+
     internal suspend fun expireRequestSession(request: RequestSession) = mutex.withLock {
         if (!isCurrent(request)) return@withLock
         val previous = stored ?: return@withLock
@@ -82,11 +108,14 @@ internal class AuthRepository(
         return ((remaining.coerceAtLeast(0) + 999) / 1_000).toInt()
     }
 
-    suspend fun sendCode(email: String, purpose: VerificationPurpose, language: String) = codeMutex.withLock {
+    suspend fun sendCode(email: String, purpose: VerificationPurpose, language: String) =
+        withVerificationCooldown(email) { api.sendCode(email, purpose, language) }
+
+    internal suspend fun withVerificationCooldown(email: String, send: suspend () -> Unit) = codeMutex.withLock {
         // Rosales applies the cooldown per email, across all verification purposes.
         if (resendSeconds(email) > 0) throw ApiException(ApiFailure.RATE_LIMITED)
         try {
-            api.sendCode(email, purpose, language)
+            send()
             codeDeadlines[email.lowercase()] = elapsedRealtime() + 60_000
         } catch (error: ApiException) {
             if (error.failure == ApiFailure.RATE_LIMITED) {
@@ -98,7 +127,7 @@ internal class AuthRepository(
 
     suspend fun login(email: String, password: String, code: String, factor: SecondFactor, owner: AuthFlowOwner) {
         requireStorage()
-        pendingAuthentication = PendingAuthentication(api.login(email, hash(password), code, factor), owner)
+        pendingAuthentication = PendingAuthentication(api.login(email, hashPassword(password), code, factor), owner)
         finishAuthentication(owner)
     }
 
@@ -114,7 +143,7 @@ internal class AuthRepository(
     ) {
         requireStorage()
         pendingAuthentication = PendingAuthentication(
-            api.register(email, hash(password), code, invitation, username, nickname, passwordHint),
+            api.register(email, hashPassword(password), code, invitation, username, nickname, passwordHint),
             owner,
         )
         finishAuthentication(owner)
@@ -216,9 +245,17 @@ internal class AuthRepository(
         )
     }
 
+    internal suspend fun removeRequestSession(request: RequestSession, onPublishing: (Long) -> Unit) = mutex.withLock {
+        if (!isCurrent(request)) throw kotlinx.coroutines.CancellationException("Account changed")
+        val previous = stored ?: throw ApiException(ApiFailure.STORAGE)
+        val uuid = request.account?.profile?.uuid ?: throw ApiException(ApiFailure.SESSION_EXPIRED)
+        commit(StoredSessions(baseUrl = baseUrl, accounts = previous.accounts.filterNot { it.profile.uuid == uuid },
+            activeUuid = previous.activeUuid.takeUnless { it == uuid }), onPublishing)
+    }
+
     suspend fun resetPassword(email: String, password: String, code: String, owner: AuthFlowOwner) {
         requireStorage()
-        api.resetPassword(email, hash(password), code)
+        api.resetPassword(email, hashPassword(password), code)
         pendingPasswordReset = PendingPasswordReset(email, owner)
         finishPasswordReset(owner)
     }
@@ -256,30 +293,32 @@ internal class AuthRepository(
         }
     }
 
-    private suspend fun commit(next: StoredSessions) {
+    private suspend fun commit(next: StoredSessions, onPublishing: (Long) -> Unit = {}) {
         currentCoroutineContext().ensureActive()
         // Keep disk and the published active identity consistent even if an entry is popped during the write.
         withContext(NonCancellable) {
             store.write(next)
             stored = next
-            publish()
+            publish(onPublishing)
         }
     }
 
-    private fun publish() {
+    private fun publish(onPublishing: (Long) -> Unit = {}) {
         val state = stored ?: return
+        val nextRevision = _session.value.revision + 1
+        onPublishing(nextRevision)
         _session.value = SessionState(
             accounts = state.accounts.map { SavedAccount(it.profile, it.token == null || it.requiresLogin) },
             activeUuid = state.activeUuid.takeIf { id ->
                 state.accounts.any { it.profile.uuid == id && it.token != null && !it.requiresLogin }
             },
             isLoading = false,
-            revision = _session.value.revision + 1,
+            revision = nextRevision,
             operation = _session.value.operation,
         )
     }
 
-    private suspend fun hash(password: String): String = withContext(hashDispatcher) {
+    internal suspend fun hashPassword(password: String): String = withContext(hashDispatcher) {
         val input = password.toByteArray(Charsets.UTF_8)
         try {
             val digest = MessageDigest.getInstance("SHA-256").digest(input)

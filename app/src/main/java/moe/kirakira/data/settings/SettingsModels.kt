@@ -1,6 +1,5 @@
 package moe.kirakira.data.settings
 
-import java.util.Locale
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -22,24 +21,7 @@ internal data class RuleEntry(
 )
 
 internal data class RulePage(val entries: List<RuleEntry>, val total: Int, val page: Int)
-internal data class TagName(val name: String, val default: Boolean, val original: Boolean)
-internal data class TagLanguage(val language: String, val names: List<TagName>)
-internal data class RuleTag(val id: Long, val languages: List<TagLanguage>) {
-    fun displayName(language: String): String {
-        val locale = Locale.forLanguageTag(language)
-        val cerasusLanguage = when (locale.language) {
-            "zh" -> if (locale.script == "Hant" || locale.country in setOf("TW", "HK", "MO")) "zht" else "zhs"
-            else -> locale.language
-        }
-        val names = (languages.find { it.language == cerasusLanguage }
-            ?: languages.find { it.language.equals(language, ignoreCase = true) }
-            ?: languages.find { it.language == "other" } ?: languages.firstOrNull())?.names.orEmpty()
-        return names.find { it.default && it.name.isNotBlank() }?.name
-            ?: names.firstOrNull { it.name.isNotBlank() }?.name ?: "#$id"
-    }
-
-    fun originalName(): String? = languages.flatMap { it.names }.lastOrNull { it.original }?.name
-}
+internal typealias RuleTag = moe.kirakira.data.content.VideoTag
 
 internal data class Invitation(val code: String, val createdAt: Long, val used: Boolean)
 internal sealed interface InvitationCreation {
@@ -47,3 +29,27 @@ internal sealed interface InvitationCreation {
     data object CoolingDown : InvitationCreation
 }
 internal class UnsafeRuleException : Exception()
+
+internal enum class PrivacyItem(val wireName: String) {
+    BIRTHDAY("privary.birthday"),
+    AGE("privary.age"),
+    FOLLOWING("privary.follow"),
+    FOLLOWERS("privary.fans"),
+    FAVORITES("privary.favorites"),
+}
+
+internal enum class PrivacyVisibility(val wireName: String) {
+    PUBLIC("public"), FOLLOWING("following"), PRIVATE("private"),
+}
+
+internal data class PrivacyEntry(val id: String, val visibility: PrivacyVisibility)
+internal data class LinkedPrivacyEntry(val platformId: String, val visibility: PrivacyVisibility)
+internal data class PrivacySettings(
+    val entries: List<PrivacyEntry>,
+    val linkedAccounts: List<LinkedPrivacyEntry>,
+) {
+    val values: Map<PrivacyItem, PrivacyVisibility>
+        get() = PrivacyItem.entries.associateWith { item ->
+            entries.find { it.id == item.wireName }?.visibility ?: PrivacyVisibility.PUBLIC
+        }
+}
