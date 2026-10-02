@@ -11,24 +11,10 @@
 | 应用 ID / namespace | `moe.kirakira` |
 | Android 最低版本 | API 27 |
 | compileSdk / targetSdk | 37（minor API 2）/ 37 |
-| Gradle Wrapper | 9.7.1 |
-| Android Gradle Plugin | 9.4.1 |
-| Kotlin Compose 插件 | 2.4.20 |
-| Compose BOM | 2026.09.00 |
-| Material 3 Expressive | 1.5.0-alpha29（显式版本例外） |
-| AndroidX Credentials / Play Services auth | 1.6.0 |
-| Navigation 3 | 1.2.0（runtime / ui） |
-| Lifecycle | 2.11.0 |
-| AboutLibraries | 15.2.0 |
-| MaterialKolor | 5.0.1 |
-| colorpicker-compose | 1.3.0 |
-| Telephoto / Coil 3 | 0.19.0 / 3.2.0（含网络图片适配） |
-| Media3 | 1.11.0（ExoPlayer、DASH、HLS、Compose、MediaSession、OkHttp data source） |
-| OkHttp | 5.3.0 |
 | Gradle Daemon JDK | 25 |
 | Java 源码 / 字节码兼容级别 | 11 |
 
-以上记录仓库配置，不代表上游最新版本。版本来源为[版本目录](../gradle/libs.versions.toml)、[应用构建配置](../app/build.gradle.kts)、[Gradle Wrapper](../gradle/wrapper/gradle-wrapper.properties) 与 [Daemon JDK 配置](../gradle/gradle-daemon-jvm.properties)。使用支持这些版本的 Android Studio，并安装匹配 compileSdk 37、minor API 2 的 Android SDK Platform。JDK 25 用于运行 Gradle，与 Java 11 的编译兼容设置用途不同。
+依赖与插件版本以[版本目录](../gradle/libs.versions.toml)为准，文档不重复记录具体版本号。环境配置来源为[应用构建配置](../app/build.gradle.kts)、[Gradle Wrapper](../gradle/wrapper/gradle-wrapper.properties) 与 [Daemon JDK 配置](../gradle/gradle-daemon-jvm.properties)。使用兼容项目工具链的 Android Studio，并安装匹配 compileSdk 37、minor API 2 的 Android SDK Platform。JDK 25 用于运行 Gradle，与 Java 11 的编译兼容设置用途不同。
 
 Material 3 单独使用公开 Expressive 主题与分段列表 API 的版本，其余 Compose 库仍由 BOM 管理；原因和升级要求见[贡献指南](../CONTRIBUTING.md#依赖与配置)。
 
@@ -72,7 +58,7 @@ Keystore 专项设备测试通过 `-Pkirakira.cryptoCheck=true` 选择 `cryptoCh
 
 也可在用户级 Gradle 属性配置 `kirakira.apiBaseUrl`；不要提交个人环境文件。地址经 HTTPS／host／无凭据／无 query 与 fragment 校验后生成 `BuildConfig.API_BASE_URL`，支持路径前缀，尾部斜杠自动补齐。模拟器访问开发机应使用设备可达、证书可信的 HTTPS 地址，不能把设备的 localhost 当作开发机，也不能关闭证书校验。
 
-增加的 `INTERNET` 是普通权限，不弹运行时请求。Manifest 禁用明文流量；OkHttp API 客户端禁止重定向、自动连接重试、响应缓存和请求日志，Coil 头像请求使用独立客户端。版本表中的 OkHttp 用于 API 超时、取消、TLS 与 URL 编码，`coil-network-okhttp` 为已有 Coil 添加远程头像支持；复用现有 serialization，无新 DI／数据库框架。Media3 用于真实视频播放，按同一固定版本声明，不升级现有 Compose BOM。播放器使用无账号会话的独立媒体客户端。体积增量未测量，许可证由 AboutLibraries 收集。
+增加的 `INTERNET` 是普通权限，不弹运行时请求。Manifest 禁用明文流量；OkHttp API 客户端禁止重定向、自动连接重试、响应缓存和请求日志，Coil 头像请求使用独立客户端。OkHttp 用于 API 超时、取消、TLS 与 URL 编码，`coil-network-okhttp` 为已有 Coil 添加远程头像支持；复用现有 serialization，无新 DI／数据库框架。Media3 用于真实视频播放，按同一固定版本声明，不升级现有 Compose BOM。播放器使用无账号会话的独立媒体客户端。体积增量未测量，许可证由 AboutLibraries 收集。
 
 非生产 API 根地址构建的 `SYSTEM_CREDENTIALS_ENABLED=false`，禁用真实系统密码提供者；仅完整的默认生产根地址启用。
 

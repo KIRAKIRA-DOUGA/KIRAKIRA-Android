@@ -4,7 +4,7 @@
 
 本页记录用户明确要求的认证专项测试，不改变[贡献指南](../CONTRIBUTING.md#构建与检查)中默认只执行 Debug 构建的约定。
 
-认证 JVM 测试使用现有 JUnit 4，新增 `kotlinx-coroutines-test` 1.10.2，与当前解析到的协程运行库版本一致。它仅位于 `testImplementation`，不进入 APK；继续使用构造参数注入，不添加 DI 或 Mock 框架。
+认证 JVM 测试使用现有 JUnit 4 和 `kotlinx-coroutines-test`，协程测试库与协程运行库共用版本目录中的版本。它仅位于 `testImplementation`，不进入 APK；继续使用构造参数注入，不添加 DI 或 Mock 框架。
 
 - [ScriptedApi](../app/src/authTestShared/java/moe/kirakira/testing/ScriptedApi.kt) 直接实现 OkHttp `Call.Factory`，在内存中返回测试指定的响应或失败，**不建立 Socket、不进行 DNS 查询**。只接受 `auth.example.invalid`，未预设的请求立即失败，没有真实网络回退路径。
 - 测试不读取 `BuildConfig.API_BASE_URL`，不运行应用或 `SessionViewModel` 的生产初始化，不读取本机真实账号、密码或 token。邮箱和 token 均为固定的虚构数据。

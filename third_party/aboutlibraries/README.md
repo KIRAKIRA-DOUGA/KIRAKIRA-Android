@@ -1,6 +1,6 @@
 # App 内开源声明
 
-AboutLibraries 15.2.0 的 Android Gradle 插件为每个构建变体自动生成
+AboutLibraries 的 Android Gradle 插件为每个构建变体自动生成
 `app/build/generated/aboutLibraries/<variant>/res/raw/aboutlibraries.json`，随 APK 打包。
 应用通过 AboutLibraries 的 Material 3 `LibrariesContainer` 和组件详情 Sheet 展示，支持离线阅读。
 入口名为“开源组件 / Open source components”；点击组件展示名称、作者、版本、简介与许可证全文，
@@ -22,7 +22,7 @@ AboutLibraries 15.2.0 的 Android Gradle 插件为每个构建变体自动生成
 - 新增依赖后检查生成的 JSON：每项必须有正确许可证和非空全文。缺失时依据上游固定版本的
   LICENSE / NOTICE，在本目录补充信息，不按库名称猜测许可证。
 
-图片查看器新增 Telephoto 0.19.0（含 Coil 3 适配）和 Coil 3.2.0，均通过 Gradle 元数据自动收集；构建后检查生成清单中 Telephoto、Coil 及其传递依赖的 Apache-2.0 正文。
+图片查看器使用 Telephoto（含 Coil 3 适配）和 Coil，均通过 Gradle 元数据自动收集；构建后检查生成清单中 Telephoto、Coil 及其传递依赖的 Apache-2.0 正文。
 
 生成 JSON 只放在 build 目录，不提交。构建时可能需要联网获取 Maven 元数据和 SPDX 正文；
 不需要 GitHub Token，不开启远程许可证或资助信息抓取。App 读取声明不发起网络请求。
@@ -49,6 +49,6 @@ Release 不包含 `ui-tooling`、`ui-tooling-data`、`ui-test-manifest`、JUnit 
 插件与 UI 版本由版本目录统一管理。升级时检查实际解析的 Compose / Material 3 版本，
 避免传递依赖意外改变项目 BOM 或 Expressive 版本，并完成默认 Debug 构建；页面交互测试仅在用户要求时执行。
 
-参考：[AboutLibraries 15.2.0](https://github.com/mikepenz/AboutLibraries/tree/15.2.0)。
+参考：[AboutLibraries](https://github.com/mikepenz/AboutLibraries)。
 
 API 使用 OkHttp，远程头像使用 Coil 的 OkHttp 适配；两者由 Gradle 依赖与 AboutLibraries 自动收集许可证，不复制依赖源码或手工生成许可证文件。
