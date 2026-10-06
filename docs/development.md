@@ -31,6 +31,8 @@ Material 3 单独使用公开 Expressive 主题与分段列表 API 的版本，�
 | --- | --- |
 | `./gradlew :app:assembleDebug` | 默认检查：编译并生成 `app/build/outputs/apk/debug/` 下的 APK，不运行测试 |
 | `./gradlew :app:installDebug` | 安装到设备，随后从设备桌面打开应用 |
+| `./gradlew :app:assemblePerformance` | 生成非调试、可采样且启用 R8 优化的本地性能 APK，不运行测试 |
+| `./gradlew :app:installPerformance` | 安装本地性能 APK，使用默认 Debug 签名与相同应用 ID |
 | `./gradlew verify` | 仅在用户明确要求时：构建 Debug、单元测试、Android Lint |
 | `./gradlew :app:testDebugUnitTest` | 仅在用户明确要求时：运行本机 JUnit 4 测试 |
 | `./gradlew :app:lintDebug` | 仅在用户明确要求时：运行 Android Lint |
@@ -47,6 +49,14 @@ Keystore 专项设备测试通过 `-Pkirakira.cryptoCheck=true` 选择 `cryptoCh
 仓库未配置 CI 工作流、ktlint、Detekt 或覆盖率门槛；远端 CI 和分支保护需维护者自行配置。PR 默认报告构建结果，纯文档修改报告内容与链接检查结果。
 
 认证 UI 专项使用 `-Pkirakira.authUiCheck=true`，包名 `moe.kirakira.authuicheck`，无 INTERNET 权限、无生产入口，使用内存 HTTP / Store 和凭据替身。`authUiCheck` 与 `cryptoCheck` 两个开关不能同时启用；两者保留独立测试源目录。共享认证替身在 `app/src/authTestShared/`，不进入生产 APK。命令与结果见[认证专项验证](auth-testing.md#认证体验与系统密码专项)。
+
+### 动画性能采样
+
+Android Studio 的 Build Variants 可选择 `performance`，再以 Run 启动；命令行也可使用 `:app:installPerformance`。此变体沿用 Release 代码、依赖和配置，使用 `isDebuggable=false`、`isProfileable=true` 与 R8 优化；Debug 保留日常调试用途。Debug 执行开销会显著放大 Compose 页面首帧的组合、子组合和布局耗时，性能比较应分别记录构建类型，不能把非调试包的结果算作同配置 Debug 优化收益。依据见 [Compose 性能配置](https://developer.android.com/develop/ui/compose/performance#properly-configure)。
+
+性能包包含依赖提供的 Baseline Profiles，不新增采集测试或依赖。Gradle 安装时同时提交 APK 和 `.dm` 编译元数据；此次 Android 17 实机安装后自动采用了 `speed-profile`，无需手动编译。每次采样仍应使用 `adb shell dumpsys package moe.kirakira` 核对实际 Dexopt 状态，并记录首次进入和重复进入。未预编译的设备也可在应用启动并等待 ProfileInstaller 写入后执行 `adb shell cmd package compile -m speed-profile -f moe.kirakira`，冷启动重录；预编译前后的样本分开报告。Debug 请求编译可能被设备限制为 `verify`，命令返回成功不代表代码已预编译。
+
+`performance` 使用本机默认 Debug 密钥，仅供本地采样，禁用真实系统凭据提供者。它与 Debug 使用相同应用 ID 和签名，互相覆盖安装时保留同一后端的数据；不要将此 APK 作为正式发行包。采样完成后可通过 `:app:installDebug` 恢复调试包。默认检查入口仍是 `:app:assembleDebug`，性能采样只在用户要求时执行。
 
 ## API 环境配置
 

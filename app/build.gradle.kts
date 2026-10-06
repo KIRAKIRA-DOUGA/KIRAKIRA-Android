@@ -58,6 +58,17 @@ android {
                 enable = false
             }
         }
+        create("performance") {
+            initWith(getByName("release"))
+            isDebuggable = false
+            isProfileable = true
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += "release"
+            optimization {
+                enable = true
+            }
+            buildConfigField("boolean", "SYSTEM_CREDENTIALS_ENABLED", "false")
+        }
     }
     testBuildType = when {
         cryptoCheck -> "cryptoCheck"
