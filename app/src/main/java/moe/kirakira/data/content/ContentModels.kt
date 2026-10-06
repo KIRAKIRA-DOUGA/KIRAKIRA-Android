@@ -1,6 +1,20 @@
 package moe.kirakira.data.content
 
+import kotlinx.serialization.Serializable
+
 internal enum class Reaction { NONE, LIKE, DISLIKE }
+
+@Serializable
+internal enum class FollowListKind { FOLLOWING, FOLLOWERS }
+
+internal data class FollowListUser(
+    val uid: Long,
+    val name: String,
+    val username: String,
+    val avatar: String?,
+)
+
+internal data class FollowListPage(val users: List<FollowListUser>, val totalCount: Int)
 
 internal data class VideoSummary(
     val id: Int,

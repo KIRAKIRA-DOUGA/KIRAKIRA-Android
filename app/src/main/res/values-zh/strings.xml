@@ -271,8 +271,10 @@
     <string name="image_storage_denied">此 Android 版本需要存储权限才能保存图片。</string>
     <string name="image_open_settings">设置</string>
     <string name="profile_view_avatar">查看%1$s的头像</string>
-    <string name="profile_followers_unavailable">粉丝列表暂未开放。</string>
-    <string name="profile_following_unavailable">关注列表暂未开放。</string>
+    <string name="follow_list_following_title">关注</string>
+    <string name="follow_list_followers_title">粉丝</string>
+    <string name="follow_list_following_empty">暂无关注</string>
+    <string name="follow_list_followers_empty">暂无粉丝</string>
     <string name="profile_more_unavailable">更多操作暂未开放。</string>
     <string name="profile_edit">编辑资料</string>
     <string name="profile_stat_description">%1$d %2$s</string>
@@ -468,10 +470,10 @@
     <string name="danmaku_percent">%1$d%%</string>
     <string name="danmaku_speed_value">%1$.1f×</string>
     <string name="settings_section_mini_player">小窗播放</string>
-    <string name="danmaku_section_display">显示</string>
-    <string name="danmaku_section_types">弹幕类型</string>
     <string name="settings_section_animations">动画</string>
     <string name="settings_predictive_back">预测性返回</string>
+    <string name="danmaku_section_display">显示</string>
+    <string name="danmaku_section_types">弹幕类型</string>
 
     <string name="about_section_more">更多</string>
     <string name="tag_title">标签</string>

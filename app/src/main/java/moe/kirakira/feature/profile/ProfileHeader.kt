@@ -6,20 +6,22 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -27,21 +29,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInWindow
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.R
 import moe.kirakira.core.image.deliveryImageUrl
+import moe.kirakira.data.content.FollowListKind
 import moe.kirakira.ui.components.AccountAvatar
 import moe.kirakira.ui.components.ExpandableText
+import moe.kirakira.ui.components.FollowButton
+import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.navigation.LocalImageSharedScope
 import moe.kirakira.ui.navigation.imageSharedBounds
 import moe.kirakira.ui.theme.ThemeColorDefaults
@@ -63,11 +65,10 @@ internal fun ProfileHeader(
     onBioExpandedChange: (Boolean) -> Unit,
     onFollowingChange: (Boolean) -> Unit,
     onEditProfile: () -> Unit,
-    onUnavailableAction: (ProfileAction) -> Unit,
+    onOpenFollowList: (FollowListKind) -> Unit,
     onOpenAvatar: () -> Unit,
     modifier: Modifier = Modifier,
     coverRemainderHeight: Dp = 96.dp,
-    onNameBottomChange: (Float) -> Unit = {},
 ) {
     val profile = state.profile
     val name = profile.name.ifBlank { stringResource(R.string.content_unknown_author) }
@@ -133,11 +134,7 @@ internal fun ProfileHeader(
                     Text(
                         text = name,
                         style = MaterialTheme.typography.headlineLarge,
-                        modifier = Modifier
-                            .semantics { heading() }
-                            .onGloballyPositioned { coordinates ->
-                                onNameBottomChange(coordinates.positionInWindow().y + coordinates.size.height)
-                            },
+                        modifier = Modifier.semantics { heading() },
                     )
                 }
                 if (username != null) {
@@ -163,12 +160,12 @@ internal fun ProfileHeader(
                     ProfileStat(
                         count = state.followingCount,
                         label = stringResource(R.string.me_following_count),
-                        onClick = { onUnavailableAction(ProfileAction.FOLLOWING_LIST) },
+                        onClick = { onOpenFollowList(FollowListKind.FOLLOWING) },
                     )
                     ProfileStat(
                         count = state.followerCount,
                         label = stringResource(R.string.me_followers_count),
-                        onClick = { onUnavailableAction(ProfileAction.FOLLOWERS_LIST) },
+                        onClick = { onOpenFollowList(FollowListKind.FOLLOWERS) },
                     )
                 }
             }
@@ -188,23 +185,13 @@ internal fun ProfileHeader(
                     )
                 }
             } else {
-                ToggleButton(
-                    checked = state.following,
+                FollowButton(
+                    following = state.following,
                     enabled = !state.busy && !state.profile.blockedByOther,
-                    onCheckedChange = onFollowingChange,
+                    onFollowingChange = onFollowingChange,
                     modifier = Modifier.fillMaxWidth(),
                     buttonSize = ToggleButtonSize.Medium,
-                    icon = {
-                        Icon(
-                            painterResource(
-                                if (state.following) R.drawable.ic_symbol_check else R.drawable.ic_symbol_add,
-                            ),
-                            contentDescription = null,
-                        )
-                    },
-                ) {
-                    Text(stringResource(if (state.following) R.string.video_following else R.string.video_follow))
-                }
+                )
             }
         }
     }
@@ -215,11 +202,22 @@ private fun ProfileStat(count: Int, label: String, onClick: () -> Unit) {
     val description = stringResource(R.string.profile_stat_description, count, label)
     TextButton(
         onClick = onClick,
-        modifier = Modifier.semantics { contentDescription = description },
+        modifier = Modifier
+            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+            .semantics { contentDescription = description },
+        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface),
+        contentPadding = PaddingValues(0.dp),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(stringResource(R.string.video_count, count), style = MaterialTheme.typography.titleLarge)
-            Text(label, style = MaterialTheme.typography.labelMedium)
-        }
+        Text(
+            text = stringResource(R.string.video_count, count),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }

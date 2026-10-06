@@ -25,18 +25,18 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -50,9 +50,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
@@ -64,9 +62,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
-import moe.kirakira.ui.components.ShadowFilledTonalIconButton
 import moe.kirakira.R
 import moe.kirakira.core.network.ApiFailure
+import moe.kirakira.data.content.FollowListKind
 import moe.kirakira.data.content.VideoSummary
 import moe.kirakira.feature.settings.VideoCardLayout
 import moe.kirakira.feature.video.ContentState
@@ -76,11 +74,16 @@ import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
-import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.PagerTabIndicator
+import moe.kirakira.ui.components.ShadowFilledTonalIconButton
+import moe.kirakira.ui.components.appTopAppBarColors
+import moe.kirakira.ui.components.appTopAppBarTonalIconButtonColors
+import moe.kirakira.ui.components.frostedBarBackground
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.theme.ThemeColorDefaults
 import moe.kirakira.ui.theme.bottomEdgeShadow
+
+private const val PROFILE_TABS_KEY = "profile_tabs"
 
 @Composable
 internal fun ProfileScreen(
@@ -95,6 +98,7 @@ internal fun ProfileScreen(
     onBioExpandedChange: (Boolean) -> Unit,
     onFollowingChange: (Boolean) -> Unit,
     onEditProfile: () -> Unit,
+    onOpenFollowList: (FollowListKind) -> Unit,
     onUnavailableAction: (ProfileAction) -> Unit,
     onOpenAvatar: () -> Unit,
     onOpenVideo: (Int) -> Unit,
@@ -111,11 +115,11 @@ internal fun ProfileScreen(
     val background = ThemeColorDefaults.pageBackgroundColor()
     val coverHeight = 160.dp + WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val profileListState = rememberLazyListState()
-    var nameBottom by remember(state.profile.uid) { mutableFloatStateOf(Float.NaN) }
-    var viewportTop by remember { mutableFloatStateOf(Float.NaN) }
-    val showToolbarName by remember(profileListState, state.profile.uid) {
+    val tabsPinned by remember(profileListState) {
         derivedStateOf {
-            profileListState.firstVisibleItemIndex > 0 || nameBottom <= viewportTop
+            val layoutInfo = profileListState.layoutInfo
+            val tabs = layoutInfo.visibleItemsInfo.firstOrNull { it.key == PROFILE_TABS_KEY }
+            tabs != null && tabs.offset <= layoutInfo.viewportStartOffset + layoutInfo.beforeContentPadding
         }
     }
     var tabRowHeight by remember { mutableIntStateOf(0) }
@@ -143,56 +147,63 @@ internal fun ProfileScreen(
         ) {
             ProfileCover(profileListState, coverHeight)
         }
-        FrostedScaffold(
+        Scaffold(
             modifier = Modifier.fillMaxSize(),
-            hazeState = hazeState,
             containerColor = Color.Transparent,
+            contentColor = MaterialTheme.colorScheme.onSurface,
             topBar = {
-                TopAppBar(
-                    title = {
-                        if (showToolbarName) {
-                            Text(
-                                text = state.profile.name.ifBlank { stringResource(R.string.content_unknown_author) },
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    },
-                    navigationIcon = {
-                        ShadowFilledTonalIconButton(onClick = onBack) {
-                            Icon(
-                                painterResource(R.drawable.ic_symbol_arrow_back),
-                                stringResource(R.string.navigate_back),
-                            )
-                        }
-                    },
-                    actions = {
-                        if (!state.isSelf) {
-                            ShadowFilledTonalIconButton(
-                                onClick = { onUnavailableAction(ProfileAction.MORE) },
-                            ) {
-                                Icon(
-                                    painterResource(R.drawable.ic_symbol_more_horiz),
-                                    stringResource(R.string.video_more),
+                Box {
+                    if (tabsPinned) {
+                        Box(Modifier.matchParentSize().frostedBarBackground(hazeState = hazeState))
+                    }
+                    TopAppBar(
+                        title = {
+                            if (tabsPinned) {
+                                Text(
+                                    text = state.profile.name.ifBlank { stringResource(R.string.content_unknown_author) },
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                             }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
-                        scrolledContainerColor = Color.Transparent,
-                        titleContentColor = MaterialTheme.colorScheme.primary,
-                    ),
-                )
+                        },
+                        navigationIcon = {
+                            ProfileTopBarIconButton(
+                                tabsPinned = tabsPinned,
+                                onClick = onBack,
+                            ) {
+                                Icon(
+                                    painterResource(R.drawable.ic_symbol_arrow_back),
+                                    stringResource(R.string.navigate_back),
+                                )
+                            }
+                        },
+                        actions = {
+                            if (!state.isSelf) {
+                                ProfileTopBarIconButton(
+                                    tabsPinned = tabsPinned,
+                                    onClick = { onUnavailableAction(ProfileAction.MORE) },
+                                ) {
+                                    Icon(
+                                        painterResource(R.drawable.ic_symbol_more_horiz),
+                                        stringResource(R.string.video_more),
+                                    )
+                                }
+                            }
+                        },
+                        colors = appTopAppBarColors(),
+                    )
+                }
             },
             snackbarHost = { SnackbarHost(snackbarHostState) },
         ) { innerPadding ->
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .then(
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Modifier.hazeSource(hazeState) else Modifier,
+                    )
                     .padding(
-                        top = innerPadding.calculateTopPadding(),
                         start = innerPadding.calculateStartPadding(layoutDirection),
                         end = innerPadding.calculateEndPadding(layoutDirection),
                     )
@@ -203,14 +214,18 @@ internal fun ProfileScreen(
                     isRefreshing = isRefreshing,
                     onRefresh = onRetry,
                     modifier = Modifier.widthIn(max = 640.dp).fillMaxSize(),
+                    indicatorTopPadding = innerPadding.calculateTopPadding(),
                 ) {
                     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                        val pagerHeight = (maxHeight - with(density) { tabRowHeight.toDp() }).coerceAtLeast(0.dp)
+                        // The pager fills the area below the toolbar and tabs, so the outer
+                        // list stops with the tabs at the toolbar edge while drawing behind it.
+                        val pagerHeight = (
+                            maxHeight - innerPadding.calculateTopPadding() - with(density) { tabRowHeight.toDp() }
+                        ).coerceAtLeast(0.dp)
                         LazyColumn(
                             state = profileListState,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .onGloballyPositioned { viewportTop = it.positionInWindow().y },
+                            contentPadding = PaddingValues(top = innerPadding.calculateTopPadding()),
+                            modifier = Modifier.fillMaxSize(),
                         ) {
                             item(key = "profile_header") {
                                 ProfileHeader(
@@ -219,11 +234,10 @@ internal fun ProfileScreen(
                                     onBioExpandedChange = onBioExpandedChange,
                                     onFollowingChange = onFollowingChange,
                                     onEditProfile = onEditProfile,
-                                    onUnavailableAction = onUnavailableAction,
+                                    onOpenFollowList = onOpenFollowList,
                                     onOpenAvatar = onOpenAvatar,
                                     modifier = Modifier.fillMaxWidth(),
                                     coverRemainderHeight = (coverHeight - innerPadding.calculateTopPadding()).coerceAtLeast(0.dp),
-                                    onNameBottomChange = { nameBottom = it },
                                 )
                             }
                             if (profileError != null) {
@@ -248,7 +262,7 @@ internal fun ProfileScreen(
                                     )
                                 }
                             }
-                            stickyHeader(key = "profile_tabs") {
+                            stickyHeader(key = PROFILE_TABS_KEY) {
                                 PrimaryTabRow(
                                     selectedTabIndex = pagerState.currentPage,
                                     modifier = Modifier
@@ -356,6 +370,25 @@ internal fun ProfileScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ProfileTopBarIconButton(
+    tabsPinned: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    if (tabsPinned) {
+        IconButton(onClick = onClick, modifier = modifier, content = content)
+    } else {
+        ShadowFilledTonalIconButton(
+            onClick = onClick,
+            modifier = modifier,
+            colors = appTopAppBarTonalIconButtonColors(),
+            content = content,
+        )
     }
 }
 

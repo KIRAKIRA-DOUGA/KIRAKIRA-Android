@@ -38,6 +38,8 @@ import moe.kirakira.feature.account.SessionFeedback
 import moe.kirakira.feature.auth.AuthPage
 import moe.kirakira.feature.auth.AuthRoute
 import moe.kirakira.feature.imageviewer.ImageViewerPage
+import moe.kirakira.feature.follow.FollowListPage
+import moe.kirakira.feature.follow.FollowListViewModel
 import moe.kirakira.feature.history.HistoryHostViewModel
 import moe.kirakira.feature.history.HistoryPage
 import moe.kirakira.feature.history.HistoryViewModel
@@ -116,7 +118,7 @@ internal fun AppNavHost(
     LaunchedEffect(Unit) {
         backStack.removeAll {
             it is TestRoute || (it is VideoRoute && it.videoId <= 0) || (it is ProfileRoute && it.uid <= 0) ||
-                (it is TagRoute && it.tagId <= 0)
+                (it is TagRoute && it.tagId <= 0) || (it is FollowListRoute && it.uid <= 0)
         }
     }
     val autofill = LocalAutofillManager.current
@@ -288,6 +290,7 @@ internal fun AppNavHost(
                         if (contentRepository == null || route.uid <= 0) Text(stringResource(R.string.content_login_to_interact))
                         else ProfilePage(model = viewModel { moe.kirakira.feature.profile.ProfileViewModel(route.uid, contentRepository) },
                             onEditProfile = { openFrom(route, ProfileEditorRoute) },
+                            onOpenFollowList = { kind -> openFrom(route, FollowListRoute(route.uid, kind)) },
                             onOpenVideo = { id -> openFrom(route, VideoRoute(id)) },
                             onOpenImage = { openFrom(route, ImageViewerRoute(it)) }, onLogin = { backStack.add(AuthRoute()) },
                             onBack = { if (backStack.lastOrNull() == route) backStack.removeLastOrNull() })
@@ -300,9 +303,22 @@ internal fun AppNavHost(
                             if (backStack.lastOrNull() == SelfProfileRoute) backStack.removeLastOrNull()
                         } else ProfilePage(model = viewModel(key = "profile-${account.uid}") { moe.kirakira.feature.profile.ProfileViewModel(account.uid, contentRepository) },
                             onEditProfile = { openFrom(SelfProfileRoute, ProfileEditorRoute) },
+                            onOpenFollowList = { kind -> openFrom(SelfProfileRoute, FollowListRoute(account.uid, kind)) },
                             onOpenVideo = { id -> openFrom(SelfProfileRoute, VideoRoute(id)) },
                             onOpenImage = { openFrom(SelfProfileRoute, ImageViewerRoute(it)) }, onLogin = {},
                             onBack = { if (backStack.lastOrNull() == SelfProfileRoute) backStack.removeLastOrNull() })
+                    }
+                }
+                entry<FollowListRoute> { route ->
+                    NavigationPage {
+                        if (contentRepository != null && route.uid > 0) {
+                            FollowListPage(
+                                model = viewModel { FollowListViewModel(route.uid, route.kind, contentRepository) },
+                                isActive = backStack.lastOrNull() == route,
+                                onBack = { if (backStack.lastOrNull() == route) backStack.removeLastOrNull() },
+                                onOpenProfile = { uid -> openFrom(route, ProfileRoute(uid)) },
+                            )
+                        }
                     }
                 }
                 entry<ImageViewerRoute>(metadata = imageMetadata) { route ->

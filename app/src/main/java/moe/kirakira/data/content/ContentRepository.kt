@@ -116,6 +116,30 @@ internal class ContentRepository(private val api: ApiClient, private val auth: A
         FollowStats(response.followingCount, response.followerCount)
     }
 
+    suspend fun followList(
+        uid: Long,
+        kind: FollowListKind,
+        page: Int,
+        revision: Long,
+    ): FollowListPage = request(revision) { cookie, _ ->
+        if (uid <= 0 || page <= 0) throw ApiException(ApiFailure.INVALID_RESPONSE)
+        val path = when (kind) {
+            FollowListKind.FOLLOWING -> "feed/following/list"
+            FollowListKind.FOLLOWERS -> "feed/follower/list"
+        }
+        val response = api.get<FollowListDto>(path, mapOf(
+            "targetUid" to uid.toString(), "page" to page.toString(), "pageSize" to "50",
+        ), cookie)
+        response.check()
+        val total = response.totalCount?.takeIf { it >= 0 } ?: throw ApiException(ApiFailure.INVALID_RESPONSE)
+        val users = response.result ?: throw ApiException(ApiFailure.INVALID_RESPONSE)
+        FollowListPage(users.map { value ->
+            val id = value.uid?.takeIf { it > 0 } ?: throw ApiException(ApiFailure.INVALID_RESPONSE)
+            val profile = value.profile(id)
+            FollowListUser(id, profile.name, profile.username, profile.avatar)
+        }, total)
+    }
+
     suspend fun follow(uid: Long, following: Boolean, revision: Long) = request(revision, true) { cookie, _ ->
         val path = if (following) "feed/following" else "feed/unfollowing"
         val key = if (following) "followingUid" else "unfollowingUid"
@@ -285,6 +309,13 @@ private data class ProfileDto(
         )
     }
 }
+
+@Serializable
+private data class FollowListDto(
+    override val success: Boolean,
+    val totalCount: Int? = null,
+    val result: List<ProfileDto>? = null,
+) : ApiResult
 
 @Serializable
 private data class StatsDto(

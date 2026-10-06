@@ -3,6 +3,7 @@ package moe.kirakira.ui.navigation
 import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import moe.kirakira.data.content.FollowListKind
 import moe.kirakira.feature.imageviewer.ViewerImage
 
 // Preserve the serialized route names when moving routes into the navigation package.
@@ -55,6 +56,9 @@ internal data class TagRoute(val tagId: Long) : NavKey
 
 @Serializable
 internal data class ProfileRoute(val uid: Long = -1) : NavKey
+
+@Serializable
+internal data class FollowListRoute(val uid: Long, val kind: FollowListKind) : NavKey
 
 @Serializable
 internal data object SelfProfileRoute : NavKey

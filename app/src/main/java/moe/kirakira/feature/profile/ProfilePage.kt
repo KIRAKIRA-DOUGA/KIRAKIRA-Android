@@ -7,12 +7,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -22,7 +20,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -31,18 +28,19 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import moe.kirakira.R
 import moe.kirakira.core.image.deliveryImageUrl
+import moe.kirakira.data.content.FollowListKind
 import moe.kirakira.feature.imageviewer.ImageSource
 import moe.kirakira.feature.imageviewer.ViewerImage
 import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.FrostedScaffold
+import moe.kirakira.ui.components.appTopAppBarColors
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.components.rememberTabChangeHandler
 
 internal enum class ProfileTab { VIDEOS, COLLECTIONS }
 internal enum class ProfileAction(@param:StringRes val messageRes: Int) {
-    FOLLOWING_LIST(R.string.profile_following_unavailable),
-    FOLLOWERS_LIST(R.string.profile_followers_unavailable), MORE(R.string.profile_more_unavailable),
+    MORE(R.string.profile_more_unavailable),
 }
 
 @Composable
@@ -53,6 +51,7 @@ internal fun ProfilePage(
     onOpenImage: (ViewerImage) -> Unit,
     onLogin: () -> Unit,
     onEditProfile: () -> Unit,
+    onOpenFollowList: (FollowListKind) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val profile by model.profile.collectAsStateWithLifecycle()
@@ -71,12 +70,12 @@ internal fun ProfilePage(
     if (value == null) {
         FrostedScaffold(modifier, snackbarHost = { SnackbarHost(snackbar) }, topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.me_profile), fontWeight = FontWeight.SemiBold) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = Color.Transparent,
-                    titleContentColor = MaterialTheme.colorScheme.primary,
-                ),
+                title = {
+                    if (!profile.loading) {
+                        Text(stringResource(R.string.me_profile), fontWeight = FontWeight.SemiBold)
+                    }
+                },
+                colors = appTopAppBarColors(),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -101,6 +100,7 @@ internal fun ProfilePage(
         bioExpanded = expanded, snackbarHostState = snackbar,
         onTabChange = { onTabChange(it.ordinal) }, onBioExpandedChange = { expanded = it },
         onFollowingChange = { if (session.activeUuid == null) onLogin() else model.follow() },
+        onOpenFollowList = onOpenFollowList,
         onEditProfile = {
             if (model.uid == model.session.value.activeProfile?.uid) onEditProfile()
         },

@@ -278,8 +278,10 @@
     <string name="image_storage_denied">Storage permission is needed to save images on this Android version.</string>
     <string name="image_open_settings">Settings</string>
     <string name="profile_view_avatar">View %1$s’s avatar</string>
-    <string name="profile_followers_unavailable">Followers are coming later.</string>
-    <string name="profile_following_unavailable">Following list is coming later.</string>
+    <string name="follow_list_following_title">Following</string>
+    <string name="follow_list_followers_title">Followers</string>
+    <string name="follow_list_following_empty">No following yet</string>
+    <string name="follow_list_followers_empty">No followers yet</string>
     <string name="profile_more_unavailable">More actions are coming later.</string>
     <string name="profile_edit">Edit profile</string>
     <string name="profile_stat_description">%1$d %2$s</string>
@@ -475,10 +477,10 @@
     <string name="danmaku_percent">%1$d%%</string>
     <string name="danmaku_speed_value">%1$.1f×</string>
     <string name="settings_section_mini_player">Mini player</string>
-    <string name="danmaku_section_display">Display</string>
-    <string name="danmaku_section_types">Danmaku types</string>
     <string name="settings_section_animations">Animations</string>
     <string name="settings_predictive_back">Predictive back</string>
+    <string name="danmaku_section_display">Display</string>
+    <string name="danmaku_section_types">Danmaku types</string>
     <string name="about_section_more">More</string>
     <string name="tag_title">Tag</string>
     <string name="tag_related_videos">Related videos</string>
