@@ -8,10 +8,14 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -26,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -35,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
 import moe.kirakira.R
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
@@ -54,6 +60,8 @@ fun ExpandableText(
     val textMeasurer = rememberTextMeasurer()
     val textStyle = LocalTextStyle.current.merge(style)
     val density = LocalDensity.current
+    val buttonContentPadding = ButtonDefaults.TextButtonContentPadding
+    val buttonStartPadding = buttonContentPadding.calculateStartPadding(LocalLayoutDirection.current)
     val expandLabel = stringResource(R.string.expandable_text_expand)
     val collapseLabel = stringResource(R.string.expandable_text_collapse)
     val stateLabel = stringResource(
@@ -105,12 +113,16 @@ fun ExpandableText(
             }
             AnimatedVisibility(
                 visible = expanded || collapsedLayout.hasVisualOverflow,
+                modifier = Modifier.offset(x = -buttonStartPadding),
                 enter = expandVertically(spatial, expandFrom = Alignment.Top),
                 exit = shrinkVertically(spatial, shrinkTowards = Alignment.Top),
             ) {
                 TextButton(
                     onClick = { onExpandedChange(!expanded) },
-                    modifier = Modifier.semantics { stateDescription = stateLabel },
+                    modifier = Modifier
+                        .defaultMinSize(minWidth = 48.dp)
+                        .semantics { stateDescription = stateLabel },
+                    contentPadding = buttonContentPadding,
                 ) {
                     Text(
                         text = if (expanded) collapseLabel else expandLabel,

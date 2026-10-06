@@ -103,6 +103,7 @@
     <string name="search_mode_tag">标签</string>
     <string name="search_submit">搜索视频</string>
     <string name="search_clear">清空搜索</string>
+    <string name="search_close">退出搜索</string>
     <string name="search_choose_tags">选择标签</string>
     <string name="search_close_tags">关闭标签选择</string>
     <string name="search_remove_tag">移除标签：%1$s</string>

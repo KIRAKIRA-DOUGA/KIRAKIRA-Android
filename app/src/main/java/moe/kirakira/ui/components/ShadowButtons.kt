@@ -11,6 +11,7 @@ import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
@@ -33,7 +34,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -161,8 +161,8 @@ internal fun ShadowFloatingActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    shape: Shape = FloatingActionButtonDefaults.shape,
-    containerColor: Color = FloatingActionButtonDefaults.containerColor,
+    shape: Shape = CircleShape,
+    containerColor: Color = MaterialTheme.colorScheme.primary,
     contentColor: Color = contentColorFor(containerColor),
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
@@ -202,7 +202,7 @@ private fun rememberButtonShadowShape(
 }
 
 @Composable
-private fun Modifier.buttonShadow(
+internal fun Modifier.buttonShadow(
     shape: Shape,
     containerColor: Color,
     enabled: Boolean,
@@ -225,9 +225,6 @@ private fun Modifier.buttonShadow(
         label = "buttonShadowElevation",
     )
     if (!enabled) return this
-    val maximum = maxOf(containerColor.red, containerColor.green, containerColor.blue)
-    val minimum = minOf(containerColor.red, containerColor.green, containerColor.blue)
-    val shadowColor = if (maximum - minimum <= 0.02f) Color.Black else containerColor.copy(alpha = 1f)
     return layout { measurable, constraints ->
         val placeable = measurable.measure(constraints)
         visualInset = IntOffset(
@@ -237,19 +234,7 @@ private fun Modifier.buttonShadow(
         layout(placeable.width, placeable.height) {
             placeable.place(0, 0)
         }
-    }.dropShadow(shadowShape) {
-        radius = (elevation * 0.75f).dp.toPx()
-        spread = 0f
-        color = shadowColor
-        alpha = (0.08f + elevation * 0.005f) * containerColor.alpha
-        offset = Offset.Zero
-    }.dropShadow(shadowShape) {
-        radius = elevation.dp.toPx()
-        spread = 0f
-        color = shadowColor
-        alpha = (0.14f + elevation * 0.012f) * containerColor.alpha
-        offset = Offset(0f, (elevation * 0.5f).dp.toPx())
-    }
+    }.materialColorShadow(shadowShape, containerColor) { elevation }
 }
 
 private class ButtonShadowOutline(

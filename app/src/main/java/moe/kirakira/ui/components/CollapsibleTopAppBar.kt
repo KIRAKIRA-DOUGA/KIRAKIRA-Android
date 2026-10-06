@@ -4,21 +4,22 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import moe.kirakira.R
 import moe.kirakira.ui.theme.KIRAKIRATheme
+
+private val CollapsibleTopAppBarExpandedHeight = 136.dp
 
 /**
  * 可选的大标题顶栏。页面需将同一个 [scrollBehavior] 的 nestedScrollConnection
@@ -36,6 +37,7 @@ fun CollapsibleTopAppBar(
     LargeFlexibleTopAppBar(
         title = { Text(title, fontWeight = FontWeight.SemiBold) },
         modifier = modifier,
+        expandedHeight = CollapsibleTopAppBarExpandedHeight,
         scrollBehavior = scrollBehavior,
         navigationIcon = {
             IconButton(onClick = onBack, modifier = backButtonModifier) {
@@ -46,11 +48,7 @@ fun CollapsibleTopAppBar(
             }
         },
         actions = actions,
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.Transparent,
-            scrolledContainerColor = Color.Transparent,
-            titleContentColor = MaterialTheme.colorScheme.primary,
-        ),
+        colors = appTopAppBarColors(),
     )
 }
 
@@ -63,7 +61,7 @@ fun rememberCollapsibleTopAppBarScrollBehavior(
     initialCollapsed: Boolean = true,
 ): TopAppBarScrollBehavior {
     val heightOffsetLimit = with(LocalDensity.current) {
-        -(TopAppBarDefaults.LargeFlexibleAppBarWithoutSubtitleExpandedHeight -
+        -(CollapsibleTopAppBarExpandedHeight -
             TopAppBarDefaults.LargeAppBarCollapsedHeight).toPx()
     }
     val state = rememberTopAppBarState(

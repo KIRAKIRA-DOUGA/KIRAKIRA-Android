@@ -13,6 +13,7 @@ import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,24 +34,32 @@ import moe.kirakira.ui.theme.topAppBarShadow
 private val LocalAppBarHazeState = staticCompositionLocalOf<HazeState?> { null }
 
 @Composable
-internal fun Modifier.frostedBarBackground(shape: Shape = RectangleShape): Modifier {
-    val state = LocalAppBarHazeState.current
+internal fun Modifier.frostedBarBackground(
+    shape: Shape = RectangleShape,
+    hazeState: HazeState? = LocalAppBarHazeState.current,
+): Modifier {
     val surface = MaterialTheme.colorScheme.surface
     val clipped = clip(shape)
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || state == null) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || hazeState == null) {
         return clipped.background(surface.copy(alpha = 0.9f))
     }
-    return clipped.hazeBlur(
-        input = HazeInput.Sources(
-            state = state,
+    val input = remember(hazeState) {
+        HazeInput.Sources(
+            state = hazeState,
             retention = HazeSourceRetention.ClearWhenUnavailable,
-        ),
-        style = HazeBlurStyle {
+        )
+    }
+    val style = remember(surface) {
+        HazeBlurStyle {
             backgroundColor(surface)
             blurRadius(20.dp)
             noiseFactor(0f)
             colorEffects(listOf(HazeColorEffect.tint(surface.copy(alpha = 0.8f))))
-        },
+        }
+    }
+    return clipped.hazeBlur(
+        input = input,
+        style = style,
     )
 }
 

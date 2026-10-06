@@ -104,6 +104,7 @@
     <string name="search_mode_tag">Tags</string>
     <string name="search_submit">Search videos</string>
     <string name="search_clear">Clear search</string>
+    <string name="search_close">Close search</string>
     <string name="search_choose_tags">Choose tags</string>
     <string name="search_close_tags">Close tag picker</string>
     <string name="search_remove_tag">Remove tag: %1$s</string>

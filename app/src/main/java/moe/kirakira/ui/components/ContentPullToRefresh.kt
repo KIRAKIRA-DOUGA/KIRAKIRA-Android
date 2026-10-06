@@ -24,22 +24,24 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.first
-import moe.kirakira.R
 
 @Composable
 internal fun ContentPullToRefresh(
@@ -116,8 +118,8 @@ private fun PullRefreshArrowIndicator(
         animationSpec = tween(durationMillis = REFRESH_ALPHA_DURATION_MILLIS, easing = LinearEasing),
         label = "RefreshArrowAlpha",
     )
-    val arrow = painterResource(R.drawable.ic_symbol_chevron_right)
-    val tint = remember(color) { ColorFilter.tint(color) }
+    val arrow = remember { Path() }
+    val opacityPaint = remember { Paint() }
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         Canvas(modifier.progressSemantics(progress().coerceIn(0f, 1f))) {
             val pullProgress = progress().coerceAtLeast(0f)
@@ -131,26 +133,43 @@ private fun PullRefreshArrowIndicator(
             val strokeWidth = RefreshStrokeWidth.toPx()
             val radius = (size.minDimension - strokeWidth) / 2f
             val arrowSize = RefreshArrowSize.toPx() * adjustedProgress
-            rotate(degrees = rotation) {
-                drawArc(
-                    color = color,
-                    startAngle = startAngle,
-                    sweepAngle = sweepAngle,
-                    useCenter = false,
-                    topLeft = Offset(center.x - radius, center.y - radius),
-                    size = Size(radius * 2f, radius * 2f),
-                    alpha = alpha,
-                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+            val stroke = Stroke(width = strokeWidth, cap = StrokeCap.Round, join = StrokeJoin.Round)
+            // Rounded chevron_right centerline in its 960-unit viewport; scale length, not stroke.
+            val arrowScale = arrowSize / 960f
+            arrow.reset()
+            arrow.moveTo(-104f * arrowScale, -184f * arrowScale)
+            arrow.lineTo(80f * arrowScale, 0f)
+            arrow.lineTo(-104f * arrowScale, 184f * arrowScale)
+            opacityPaint.alpha = alpha * color.alpha
+            val opaqueColor = color.copy(alpha = 1f)
+            drawIntoCanvas { canvas ->
+                // Composite both strokes before fading, with room for the arrow outside the arc.
+                val outset = arrowSize + strokeWidth
+                canvas.saveLayer(
+                    bounds = Rect(-outset, -outset, size.width + outset, size.height + outset),
+                    paint = opacityPaint,
                 )
-                withTransform({
-                    rotate(degrees = startAngle + sweepAngle)
-                    translate(left = center.x + radius, top = center.y)
-                    rotate(degrees = 90f, pivot = Offset.Zero)
-                    translate(left = -arrowSize / 2f, top = -arrowSize / 2f)
-                }) {
-                    with(arrow) {
-                        draw(size = Size(arrowSize, arrowSize), alpha = alpha, colorFilter = tint)
+                try {
+                    rotate(degrees = rotation) {
+                        drawArc(
+                            color = opaqueColor,
+                            startAngle = startAngle,
+                            sweepAngle = sweepAngle,
+                            useCenter = false,
+                            topLeft = Offset(center.x - radius, center.y - radius),
+                            size = Size(radius * 2f, radius * 2f),
+                            style = stroke,
+                        )
+                        withTransform({
+                            rotate(degrees = startAngle + sweepAngle)
+                            translate(left = center.x + radius, top = center.y)
+                            rotate(degrees = 90f, pivot = Offset.Zero)
+                        }) {
+                            drawPath(path = arrow, color = opaqueColor, style = stroke)
+                        }
                     }
+                } finally {
+                    canvas.restore()
                 }
             }
         }
