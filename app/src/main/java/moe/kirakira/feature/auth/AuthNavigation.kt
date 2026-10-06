@@ -38,6 +38,7 @@ internal fun AuthNavigation(
     isActive: Boolean,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
+    predictiveBackEnabled: Boolean = false,
 ) {
     val backStack = rememberNavBackStack(*state.step.routePath().toTypedArray())
     val dispatcherOwner = rememberNavigationEventDispatcherOwner(enabled = isActive)
@@ -68,10 +69,11 @@ internal fun AuthNavigation(
     CompositionLocalProvider(
         LocalNavigationEventDispatcherOwner provides dispatcherOwner,
         // The outer AuthRoute has already applied its transform. Child pages apply only their own.
-        LocalNavigationPageTransform provides NavigationPageTransform(),
+        LocalNavigationPageTransform provides { NavigationPageTransform() },
     ) {
         ActivityNavDisplay(
             backStack = backStack,
+            predictiveBackEnabled = predictiveBackEnabled,
             onBack = { (backStack.lastOrNull() as? AuthStepRoute)?.let { back(it.step) } },
             modifier = modifier.background(MaterialTheme.colorScheme.surface),
             entryProvider = entryProvider {

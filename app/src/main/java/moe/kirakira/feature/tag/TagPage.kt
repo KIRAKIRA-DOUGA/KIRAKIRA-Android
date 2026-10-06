@@ -56,7 +56,8 @@ import moe.kirakira.ui.components.CollapsibleTopAppBar
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.FrostedScaffold
-import moe.kirakira.ui.components.connectedListItemShadow
+import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.ConnectedLazyColumn
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.theme.KIRAKIRATheme
@@ -110,51 +111,58 @@ internal fun TagScreen(
             indicatorTopPadding = padding.calculateTopPadding(),
             modifier = Modifier.fillMaxSize().consumeWindowInsets(padding),
         ) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.widthIn(max = 840.dp).fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        start = padding.calculateStartPadding(direction) + 20.dp,
-                        end = padding.calculateEndPadding(direction) + 20.dp,
-                        top = padding.calculateTopPadding() + 28.dp,
-                        bottom = padding.calculateBottomPadding() + 24.dp,
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    item("identity") {
-                        Column(
-                            Modifier.fillMaxWidth().animateContentSize(),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Text(name, style = MaterialTheme.typography.headlineLarge,
-                                color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { heading() })
-                            value?.originalName()?.takeIf { it != name }?.let {
-                                Text(it, style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val initialLoading = tag.loading && tag.data == null && videos.loading && videos.data == null
+            if (initialLoading) {
+                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    IndeterminateCircularProgressIndicator()
+                }
+            } else {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.widthIn(max = 840.dp).fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = padding.calculateStartPadding(direction) + 20.dp,
+                            end = padding.calculateEndPadding(direction) + 20.dp,
+                            top = padding.calculateTopPadding() + 28.dp,
+                            bottom = padding.calculateBottomPadding() + 24.dp,
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        item("identity") {
+                            Column(
+                                Modifier.fillMaxWidth().animateContentSize(),
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                Text(name, style = MaterialTheme.typography.headlineLarge,
+                                    color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { heading() })
+                                value?.originalName()?.takeIf { it != name }?.let {
+                                    Text(it, style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
                             }
                         }
-                    }
-                    if (tag.error != null || value == null) item("tag-status") {
-                        ContentStatus(tag.copy(loading = tag.loading && tag.data == null), onRetryTag,
-                            Modifier.fillMaxWidth(), emptyTitle = stringResource(R.string.tag_not_found),
-                            emptyIconRes = R.drawable.ic_symbol_label, empty = tag.data != null && value == null)
-                    }
-                    item("count") {
-                        Text(videos.data?.let { pluralStringResource(R.plurals.tag_video_count, it.size, it.size) }
-                            ?: stringResource(R.string.tag_related_videos),
-                            style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.fillMaxWidth().semantics { heading() })
-                    }
-                    if (videos.error != null || videos.data.isNullOrEmpty()) item("video-status") {
-                        ContentStatus(videos.copy(loading = videos.loading && videos.data == null), onRetryVideos,
-                            Modifier.fillMaxWidth().heightIn(min = 180.dp), empty = videos.data.isNullOrEmpty(),
-                            emptyTitle = stringResource(R.string.tag_videos_empty),
-                            emptyIconRes = R.drawable.ic_symbol_video_library)
-                    }
-                    itemsIndexed(rows, key = { _, row -> row.first().id }) { _, row ->
-                        VideoCardRow(row, layout, onOpenVideo, Modifier.fillMaxWidth())
+                        if (tag.error != null || value == null) item("tag-status") {
+                            ContentStatus(tag.copy(loading = tag.loading && tag.data == null), onRetryTag,
+                                Modifier.fillMaxWidth(), emptyTitle = stringResource(R.string.tag_not_found),
+                                emptyIconRes = R.drawable.ic_symbol_label, empty = tag.data != null && value == null)
+                        }
+                        item("count") {
+                            Text(videos.data?.let { pluralStringResource(R.plurals.tag_video_count, it.size, it.size) }
+                                ?: stringResource(R.string.tag_related_videos),
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.fillMaxWidth().semantics { heading() })
+                        }
+                        if (videos.error != null || videos.data.isNullOrEmpty()) item("video-status") {
+                            ContentStatus(videos.copy(loading = videos.loading && videos.data == null), onRetryVideos,
+                                Modifier.fillMaxWidth().heightIn(min = 180.dp), empty = videos.data.isNullOrEmpty(),
+                                emptyTitle = stringResource(R.string.tag_videos_empty),
+                                emptyIconRes = R.drawable.ic_symbol_video_library)
+                        }
+                        itemsIndexed(rows, key = { _, row -> row.first().id }) { _, row ->
+                            VideoCardRow(row, layout, onOpenVideo, Modifier.fillMaxWidth())
+                        }
                     }
                 }
             }
@@ -170,12 +178,17 @@ internal fun TagScreen(
 private fun TagNamesSheet(tag: VideoTag, onDismiss: () -> Unit) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        containerColor = if (tag.languages.any { it.names.isNotEmpty() }) {
+            MaterialTheme.colorScheme.surfaceContainerLow
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
         sheetState = rememberBottomSheetState(
             initialValue = SheetValue.Hidden,
             enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
         ),
     ) {
-        LazyColumn(contentPadding = PaddingValues(20.dp, 8.dp, 20.dp, 24.dp)) {
+        ConnectedLazyColumn(contentPadding = PaddingValues(20.dp, 8.dp, 20.dp, 24.dp)) {
             item {
                 Text(stringResource(R.string.tag_names), style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.padding(bottom = 20.dp).semantics { heading() })
@@ -188,14 +201,17 @@ private fun TagNamesSheet(tag: VideoTag, onDismiss: () -> Unit) {
                         modifier = Modifier.padding(top = 16.dp, bottom = 8.dp).semantics { heading() })
                 }
                 if (group.names.isEmpty()) item("empty-$groupIndex") { Text(stringResource(R.string.tag_names_empty)) }
-                itemsIndexed(group.names, key = { index, _ -> "$groupIndex-$index" }) { index, entry ->
+                connectedItemsIndexed(
+                    groupKey = "language-$groupIndex",
+                    items = group.names,
+                    key = { index, _ -> "$groupIndex-$index" },
+                ) { index, entry ->
                     val labels = listOfNotNull(
                         if (entry.default) stringResource(R.string.tag_default_name) else null,
                         if (entry.original) stringResource(R.string.tag_original_name) else null,
                     )
                     SegmentedListItem(
                         shapes = connectedListItemShapes(index, group.names.size),
-                        modifier = Modifier.connectedListItemShadow(index, group.names.size),
                         supportingContent = if (labels.isEmpty()) null else {
                             { FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 labels.forEach { Text(it, color = MaterialTheme.colorScheme.primary) }

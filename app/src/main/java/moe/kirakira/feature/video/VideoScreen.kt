@@ -1,9 +1,11 @@
 package moe.kirakira.feature.video
 
+import android.os.Build
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -31,7 +33,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalConfiguration
@@ -53,9 +55,12 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import moe.kirakira.ui.components.ShadowFilledTonalIconButton
 import moe.kirakira.R
 import moe.kirakira.data.content.DanmakuStyle
@@ -67,7 +72,9 @@ import moe.kirakira.data.content.VideoDetail
 import moe.kirakira.ui.components.AccountAvatar
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
+import moe.kirakira.ui.components.FollowButton
 import moe.kirakira.ui.components.PagerTabIndicator
+import moe.kirakira.ui.components.frostedBarBackground
 import moe.kirakira.ui.components.rememberTabChangeHandler
 import moe.kirakira.ui.theme.bottomEdgeShadow
 
@@ -132,169 +139,185 @@ internal fun VideoScreen(
     }
     val detail = state.detail.data
     LaunchedEffect(pager.currentPage, state.sessionRevision) { onLoadTab(VideoTab.entries[pager.currentPage]) }
+    val hazeState = rememberHazeState()
+    var tabRowHeight by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    val tabPadding = with(density) { tabRowHeight.toDp() }
     Column(modifier) {
-        Column(Modifier.fillMaxWidth().zIndex(1f).bottomEdgeShadow()) {
-            playerContent()
-            PrimaryTabRow(
-                selectedTabIndex = pager.currentPage,
-                indicator = { PagerTabIndicator(pager) },
-                divider = {},
-            ) {
-                VideoTab.entries.forEach { tab ->
-                    Tab(selected = pager.currentPage == tab.ordinal, onClick = { changeTab(tab.ordinal) },
-                        selectedContentColor = MaterialTheme.colorScheme.primary,
-                        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        text = { Text(stringResource(when (tab) {
-                            VideoTab.INTRODUCTION -> R.string.video_tab_introduction
-                            VideoTab.COMMENTS -> R.string.video_tab_comments
-                            VideoTab.DANMAKU -> R.string.video_tab_danmaku
-                        })) })
-                }
-            }
-        }
-        HorizontalPager(
-            state = pager,
-            modifier = Modifier.fillMaxWidth().weight(1f),
-        ) { page ->
-            when (VideoTab.entries[page]) {
-                VideoTab.INTRODUCTION -> ContentPullToRefresh(
-                    isRefreshing = state.detail.loading && detail != null,
-                    onRefresh = onRetry,
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    BoxWithConstraints(Modifier.fillMaxSize()) {
-                        val statusHeight = (maxHeight - bottomPadding - 48.dp).coerceAtLeast(0.dp)
-                        LazyColumn(contentPadding = PaddingValues(20.dp, 24.dp, 20.dp, bottomPadding + 24.dp),
-                            verticalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.fillMaxSize()) {
-                            if (state.detail.error != null || detail == null) {
-                                item("status") {
-                                    ContentStatus(
-                                        state.detail, onRetry,
-                                        Modifier.fillMaxWidth().then(if (detail == null) Modifier.heightIn(min = statusHeight) else Modifier),
-                                    )
+        playerContent()
+        Box(Modifier.fillMaxWidth().weight(1f)) {
+            HorizontalPager(
+                state = pager,
+                modifier = Modifier.fillMaxSize().then(
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Modifier.hazeSource(hazeState) else Modifier,
+                ),
+            ) { page ->
+                when (VideoTab.entries[page]) {
+                    VideoTab.INTRODUCTION -> ContentPullToRefresh(
+                        isRefreshing = state.detail.loading && detail != null,
+                        onRefresh = onRetry,
+                        modifier = Modifier.fillMaxSize(),
+                        indicatorTopPadding = tabPadding,
+                    ) {
+                        BoxWithConstraints(Modifier.fillMaxSize()) {
+                            val statusHeight = (maxHeight - tabPadding - bottomPadding - 48.dp).coerceAtLeast(0.dp)
+                            LazyColumn(contentPadding = PaddingValues(20.dp, tabPadding + 24.dp, 20.dp, bottomPadding + 24.dp),
+                                verticalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.fillMaxSize()) {
+                                if (state.detail.error != null || detail == null) {
+                                    item("status") {
+                                        ContentStatus(
+                                            state.detail, onRetry,
+                                            Modifier.fillMaxWidth().then(if (detail == null) Modifier.heightIn(min = statusHeight) else Modifier),
+                                        )
+                                    }
                                 }
-                            }
-                            if (detail != null) {
-                                if (detail.parts.size > 1) {
-                                    item("parts") {
-                                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            itemsIndexed(detail.parts, key = { _, part -> part.id }) { index, part ->
-                                                FilterChip(
-                                                    selected = selectedPart == index,
-                                                    onClick = { onSelectPart(index) },
-                                                    label = {
-                                                        Text(part.title.ifBlank { stringResource(R.string.player_part, index + 1) })
-                                                    },
-                                                )
+                                if (detail != null) {
+                                    if (detail.parts.size > 1) {
+                                        item("parts") {
+                                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                itemsIndexed(detail.parts, key = { _, part -> part.id }) { index, part ->
+                                                    FilterChip(
+                                                        selected = selectedPart == index,
+                                                        onClick = { onSelectPart(index) },
+                                                        label = {
+                                                            Text(part.title.ifBlank { stringResource(R.string.player_part, index + 1) })
+                                                        },
+                                                    )
+                                                }
                                             }
                                         }
                                     }
-                                }
-                                item("author") { VideoAuthor(detail.author, onOpenProfile, onFollow, state.busy || detail.blockedByOther) }
-                                item("title") { SelectionContainer { Text(detail.summary.title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() }) } }
-                                item("metadata") {
-                                    FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        detail.summary.views?.let {
-                                            val count = stringResource(R.string.video_views, it)
-                                            VideoMetadata(
-                                                R.drawable.ic_symbol_play_circle,
-                                                count,
-                                                description = stringResource(R.string.video_views_description, count),
-                                            )
-                                        }
-                                        VideoMetadata(R.drawable.ic_symbol_calendar_today, dateText(detail.summary.uploadedAt))
-                                        if (detail.category.isNotBlank()) {
-                                            VideoMetadata(R.drawable.ic_symbol_category, categoryText(detail.category))
-                                        }
-                                    }
-                                }
-                                item("description") { SelectionContainer { Text(detail.description, style = MaterialTheme.typography.bodyLarge) } }
-                                if (detail.tags.isNotEmpty()) {
-                                    item("tags") {
-                                        val language = LocalConfiguration.current.locales[0].toLanguageTag()
-                                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            detail.tags.forEach { tag ->
-                                                AssistChip(
-                                                    onClick = { onOpenTag(tag.id) },
-                                                    label = { Text(tag.displayName(language)) },
-                                                    shape = CircleShape,
-                                                    colors = AssistChipDefaults.assistChipColors(
-                                                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                                                        labelColor = MaterialTheme.colorScheme.onSurface,
-                                                    ),
-                                                    border = null,
+                                    item("author") { VideoAuthor(detail.author, onOpenProfile, onFollow, state.busy || detail.blockedByOther) }
+                                    item("title") { SelectionContainer { Text(detail.summary.title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() }) } }
+                                    item("metadata") {
+                                        FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            detail.summary.views?.let {
+                                                val count = stringResource(R.string.video_views, it)
+                                                VideoMetadata(
+                                                    R.drawable.ic_symbol_play_circle,
+                                                    count,
+                                                    description = stringResource(R.string.video_views_description, count),
                                                 )
+                                            }
+                                            VideoMetadata(R.drawable.ic_symbol_calendar_today, dateText(detail.summary.uploadedAt))
+                                            if (detail.category.isNotBlank()) {
+                                                VideoMetadata(R.drawable.ic_symbol_category, categoryText(detail.category))
                                             }
                                         }
                                     }
+                                    item("description") { SelectionContainer { Text(detail.description, style = MaterialTheme.typography.bodyLarge) } }
+                                    if (detail.tags.isNotEmpty()) {
+                                        item("tags") {
+                                            val language = LocalConfiguration.current.locales[0].toLanguageTag()
+                                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                detail.tags.forEach { tag ->
+                                                    AssistChip(
+                                                        onClick = { onOpenTag(tag.id) },
+                                                        label = { Text(tag.displayName(language)) },
+                                                        shape = CircleShape,
+                                                        colors = AssistChipDefaults.assistChipColors(
+                                                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                                                            labelColor = MaterialTheme.colorScheme.onSurface,
+                                                        ),
+                                                        border = null,
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                    item("actions") { VideoActions(detail, state.busy, onVote, onUnavailable) }
                                 }
-                                item("actions") { VideoActions(detail, state.busy, onVote, onUnavailable) }
                             }
                         }
                     }
-                }
-                VideoTab.COMMENTS -> Column {
-                    if (!state.signedIn) TextButton(onClick = onLogin) { Text(stringResource(R.string.content_login_to_interact)) }
-                    VideoCommentsPage(state.comments, state.posted, state.commentDraft, state.busy,
+                    VideoTab.COMMENTS -> VideoCommentsPage(
+                        state.comments, state.posted, state.commentDraft, state.busy,
                         detail != null && !detail.blockedByOther, onCommentDraft, onSendComment, onCommentsPage,
                         onCommentVote, onOpenProfile, onUnavailable, onCommentsPageRefresh,
                         onCommentsRetry, onCommentsAdjacent, onCommentLocationConsumed,
                         rememberLazyListState(), bottomPadding,
+                        topPadding = tabPadding,
+                        onLogin = onLogin.takeUnless { state.signedIn },
                         composerState = commentComposer,
                         composerActive = isActive && pager.currentPage == page && !pager.isScrollInProgress,
-                        recentKaomoji = recentKaomoji, onKaomojiInserted = onKaomojiInserted)
-                }
-                VideoTab.DANMAKU -> FloatingComposerLayout(
-                    bottomPadding = bottomPadding,
-                    composer = { availableHeight ->
-                        DanmakuComposer(
-                            state.danmakuDraft, state.danmakuStyle, state.sessionRevision,
-                            onDanmakuDraft, onSendDanmaku, onDanmakuStyle,
-                            enabled = detail != null && !detail.blockedByOther,
-                            busy = state.busy,
-                            composerState = danmakuComposer,
-                            composerActive = isActive && pager.currentPage == page && !pager.isScrollInProgress,
-                            availableHeight = availableHeight,
-                            recentKaomoji = recentKaomoji, onKaomojiInserted = onKaomojiInserted,
-                        )
-                    },
-                ) { listBottomPadding ->
-                    ContentPullToRefresh(
-                        isRefreshing = state.danmaku.loading && state.danmaku.data != null,
-                        onRefresh = onRefreshDanmaku,
-                        modifier = Modifier.fillMaxSize(),
-                    ) {
-                        BoxWithConstraints(Modifier.fillMaxSize()) {
-                            var headerHeight by remember { mutableIntStateOf(0) }
-                            val density = LocalDensity.current
-                            val statusHeight = (maxHeight - listBottomPadding - 8.dp -
-                                with(density) { headerHeight.toDp() }).coerceAtLeast(0.dp)
-                            LazyColumn(modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(8.dp, 8.dp, 8.dp, listBottomPadding)) {
-                                item("count") {
-                                    Column(Modifier.onSizeChanged { headerHeight = it.height }) {
-                                        VideoListCount(R.plurals.video_danmaku_total, state.danmaku.data?.size ?: 0)
-                                        if (!state.signedIn) TextButton(onClick = onLogin) { Text(stringResource(R.string.content_login_to_interact)) }
+                        recentKaomoji = recentKaomoji, onKaomojiInserted = onKaomojiInserted,
+                    )
+                    VideoTab.DANMAKU -> FloatingComposerLayout(
+                        bottomPadding = bottomPadding,
+                        topPadding = tabPadding,
+                        composer = { availableHeight ->
+                            DanmakuComposer(
+                                state.danmakuDraft, state.danmakuStyle, state.sessionRevision,
+                                onDanmakuDraft, onSendDanmaku, onDanmakuStyle,
+                                enabled = detail != null && !detail.blockedByOther,
+                                busy = state.busy,
+                                onLogin = onLogin.takeUnless { state.signedIn },
+                                composerState = danmakuComposer,
+                                composerActive = isActive && pager.currentPage == page && !pager.isScrollInProgress,
+                                availableHeight = availableHeight,
+                                recentKaomoji = recentKaomoji, onKaomojiInserted = onKaomojiInserted,
+                            )
+                        },
+                    ) { listBottomPadding ->
+                        ContentPullToRefresh(
+                            isRefreshing = state.danmaku.loading && state.danmaku.data != null,
+                            onRefresh = onRefreshDanmaku,
+                            modifier = Modifier.fillMaxSize(),
+                            indicatorTopPadding = tabPadding,
+                        ) {
+                            BoxWithConstraints(Modifier.fillMaxSize()) {
+                                var headerHeight by remember { mutableIntStateOf(0) }
+                                val statusHeight = (maxHeight - tabPadding - listBottomPadding - 8.dp -
+                                    with(density) { headerHeight.toDp() }).coerceAtLeast(0.dp)
+                                LazyColumn(modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(8.dp, tabPadding + 8.dp, 8.dp, listBottomPadding)) {
+                                    item("count") {
+                                        Column(Modifier.onSizeChanged { headerHeight = it.height }) {
+                                            VideoListCount(R.plurals.video_danmaku_total, state.danmaku.data?.size ?: 0)
+                                        }
                                     }
-                                }
-                                item("status") {
-                                    if (state.danmaku.error != null || state.danmaku.data.isNullOrEmpty()) {
-                                        ContentStatus(
-                                            state.danmaku.copy(loading = state.danmaku.loading && state.danmaku.data == null), onRefreshDanmaku,
-                                            Modifier.fillMaxWidth().then(
-                                                if (state.danmaku.data.isNullOrEmpty()) Modifier.heightIn(min = statusHeight) else Modifier,
-                                            ),
-                                            state.danmaku.data.isNullOrEmpty(),
-                                            emptyTitle = stringResource(R.string.video_danmaku_empty),
-                                            emptyIconRes = R.drawable.ic_custom_danmaku,
-                                        )
+                                    item("status") {
+                                        if (state.danmaku.error != null || state.danmaku.data.isNullOrEmpty()) {
+                                            ContentStatus(
+                                                state.danmaku.copy(loading = state.danmaku.loading && state.danmaku.data == null), onRefreshDanmaku,
+                                                Modifier.fillMaxWidth().then(
+                                                    if (state.danmaku.data.isNullOrEmpty()) Modifier.heightIn(min = statusHeight) else Modifier,
+                                                ),
+                                                state.danmaku.data.isNullOrEmpty(),
+                                                emptyTitle = stringResource(R.string.video_danmaku_empty),
+                                                emptyIconRes = R.drawable.ic_custom_danmaku,
+                                            )
+                                        }
                                     }
-                                }
-                                items(state.danmaku.data.orEmpty()) { entry ->
-                                    DanmakuListItem(durationText((entry.timeSeconds * 1000).toLong()), entry.text)
+                                    items(state.danmaku.data.orEmpty()) { entry ->
+                                        DanmakuListItem(durationText((entry.timeSeconds * 1000).toLong()), entry.text)
+                                    }
                                 }
                             }
                         }
+                    }
+                }
+            }
+            Box(
+                Modifier.fillMaxWidth().zIndex(1f).bottomEdgeShadow()
+                    .onSizeChanged { tabRowHeight = it.height },
+            ) {
+                Box(Modifier.matchParentSize().frostedBarBackground(hazeState = hazeState))
+                PrimaryTabRow(
+                    selectedTabIndex = pager.currentPage,
+                    containerColor = Color.Transparent,
+                    indicator = { PagerTabIndicator(pager) },
+                    divider = {},
+                ) {
+                    VideoTab.entries.forEach { tab ->
+                        Tab(selected = pager.currentPage == tab.ordinal, onClick = { changeTab(tab.ordinal) },
+                            selectedContentColor = MaterialTheme.colorScheme.primary,
+                            unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            text = { Text(stringResource(when (tab) {
+                                VideoTab.INTRODUCTION -> R.string.video_tab_introduction
+                                VideoTab.COMMENTS -> R.string.video_tab_comments
+                                VideoTab.DANMAKU -> R.string.video_tab_danmaku
+                            })) })
                     }
                 }
             }
@@ -323,33 +346,29 @@ private fun VideoAuthor(
                 AccountAvatar(author.avatar, size = 48.dp)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(author.name.ifBlank { stringResource(R.string.content_unknown_author) }, style = MaterialTheme.typography.titleMedium)
-                    if (author.username.isNotBlank()) Text(author.username, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (author.username.isNotBlank()) {
+                        Text(
+                            text = "@${author.username}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontFamily = FontFamily.Monospace,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         }
         if (stackButton) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 identity(Modifier.fillMaxWidth())
-                if (!author.isSelf) FollowButton(author.following, onFollow, busy)
+                if (!author.isSelf) FollowButton(author.following, { onFollow() }, enabled = !busy)
             }
         } else {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 identity(Modifier.weight(1f))
-                if (!author.isSelf) FollowButton(author.following, onFollow, busy)
+                if (!author.isSelf) FollowButton(author.following, { onFollow() }, enabled = !busy)
             }
         }
     }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun FollowButton(following: Boolean, onFollow: () -> Unit, busy: Boolean) {
-    ToggleButton(
-        checked = following,
-        onCheckedChange = { onFollow() },
-        enabled = !busy,
-        icon = { Icon(painterResource(if (following) R.drawable.ic_symbol_check else R.drawable.ic_symbol_add), null) },
-    ) { Text(stringResource(if (following) R.string.video_following else R.string.video_follow)) }
 }
 
 @Composable

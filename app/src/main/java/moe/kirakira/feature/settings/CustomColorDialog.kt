@@ -69,6 +69,7 @@ internal fun CustomColorDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface,
         title = { Text(stringResource(R.string.theme_color_custom)) },
         text = {
             Column(

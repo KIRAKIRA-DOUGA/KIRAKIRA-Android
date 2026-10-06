@@ -21,6 +21,8 @@ fun KIRAKIRAApp(
     modifier: Modifier = Modifier,
     themeColors: ThemeColorSettings = ThemeColorSettings(),
     onThemeColorsChange: (ThemeColorSettings) -> Unit = {},
+    predictiveBackEnabled: Boolean = false,
+    onPredictiveBackEnabledChange: (Boolean) -> Unit = {},
     onVideoPageActiveChange: (Boolean) -> Unit = {},
     onImageViewerActiveChange: (Boolean) -> Unit = {},
 ) {
@@ -32,6 +34,8 @@ fun KIRAKIRAApp(
         onThemeModeChange = onThemeModeChange,
         themeColors = themeColors,
         onThemeColorsChange = onThemeColorsChange,
+        predictiveBackEnabled = predictiveBackEnabled,
+        onPredictiveBackEnabledChange = onPredictiveBackEnabledChange,
         onVideoPageActiveChange = onVideoPageActiveChange,
         onImageViewerActiveChange = onImageViewerActiveChange,
         accountState = accountState,

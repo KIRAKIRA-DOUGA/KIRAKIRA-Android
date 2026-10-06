@@ -58,7 +58,7 @@ import moe.kirakira.R
 import moe.kirakira.data.content.DanmakuFontSize
 import moe.kirakira.data.content.DanmakuMode
 import moe.kirakira.data.content.DanmakuStyle
-import moe.kirakira.ui.components.connectedListItemShadow
+import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
@@ -81,15 +81,17 @@ internal fun DanmakuComposer(
     composerActive: Boolean = true,
     availableHeight: Dp = 460.dp,
     recentKaomoji: List<String> = emptyList(),
+    onLogin: (() -> Unit)? = null,
     onKaomojiInserted: (String) -> Unit = {},
 ) {
-    var open by rememberSaveable(sessionRevision) { mutableStateOf(false) }
+    var open by rememberSaveable(sessionRevision, onLogin != null) { mutableStateOf(false) }
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     ContentComposer(
         draft, R.string.danmaku_write, onDraft, onSend, modifier, enabled, busy,
         state = composerState, active = composerActive, availableHeight = availableHeight,
         recent = recentKaomoji, onKaomojiInserted = onKaomojiInserted,
+        onLogin = onLogin,
     ) { closeKaomoji ->
         IconButton(
             onClick = {
@@ -107,15 +109,20 @@ internal fun DanmakuComposer(
             )
         }
     }
-    if (open && enabled && !busy) {
+    if (open && onLogin == null && enabled && !busy) {
+        var custom by rememberSaveable { mutableStateOf(false) }
         ModalBottomSheet(
             onDismissRequest = { open = false },
+            containerColor = if (custom) {
+                MaterialTheme.colorScheme.surface
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerLow
+            },
             sheetState = rememberBottomSheetState(
                 initialValue = SheetValue.Hidden,
                 enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
             ),
         ) {
-            var custom by rememberSaveable { mutableStateOf(false) }
             if (custom) {
                 DanmakuColorEditor(
                     style.color,
@@ -245,16 +252,18 @@ internal fun DanmakuStyleContent(
                 )
             }
         }
-        SegmentedListItem(
-            checked = style.enableRainbow,
-            onCheckedChange = { onStyle(style.copy(enableRainbow = it)) },
-            shapes = connectedListItemShapes(0, 1),
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics { role = Role.Switch }.connectedListItemShadow(0, 1),
-            trailingContent = { Switch(style.enableRainbow, onCheckedChange = null) },
-            content = { Text(stringResource(R.string.danmaku_style_rainbow)) },
-        )
+        ConnectedListGroup {
+            SegmentedListItem(
+                checked = style.enableRainbow,
+                onCheckedChange = { onStyle(style.copy(enableRainbow = it)) },
+                shapes = connectedListItemShapes(0, 1),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics { role = Role.Switch },
+                trailingContent = { Switch(style.enableRainbow, onCheckedChange = null) },
+                content = { Text(stringResource(R.string.danmaku_style_rainbow)) },
+            )
+        }
         ShadowButton(
             onClick = onDone,
             modifier = Modifier

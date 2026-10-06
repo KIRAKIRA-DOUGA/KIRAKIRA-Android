@@ -19,7 +19,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PlainTooltip
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -28,7 +27,6 @@ import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,10 +46,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.canhub.cropper.CropImageView
 import java.io.File
-import moe.kirakira.ui.components.ShadowFilledTonalIconButton
 import moe.kirakira.R
 import moe.kirakira.feature.settings.SettingsPrimaryButton
+import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.ShadowFilledTonalIconButton
+import moe.kirakira.ui.components.appTopAppBarColors
 import moe.kirakira.ui.theme.ThemeColorDefaults
 
 /** Only the proven crop engine is a View; controls, state and surrounding UI are Compose. */
@@ -89,16 +89,25 @@ internal fun AvatarCropScreen(
                 options = CropImageView.RequestSizeOptions.RESIZE_INSIDE, customOutputUri = Uri.fromFile(output))
         }
     }
-    Scaffold(
+    FrostedScaffold(
         modifier = modifier.fillMaxSize(), containerColor = MaterialTheme.colorScheme.surface,
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.profile_edit_avatar), fontWeight = FontWeight.SemiBold) },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = ThemeColorDefaults.appBarContainerColor(),
-                titleContentColor = MaterialTheme.colorScheme.primary,
-            ),
-            navigationIcon = { IconButton(onClick = onCancel, enabled = !state.cropBusy, shapes = IconButtonDefaults.shapes()) {
-                ProfileIcon(R.drawable.ic_symbol_close, stringResource(R.string.account_cancel))
-            } }) },
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(stringResource(R.string.profile_edit_avatar), fontWeight = FontWeight.SemiBold)
+                },
+                colors = appTopAppBarColors(),
+                navigationIcon = {
+                    IconButton(
+                        onClick = onCancel,
+                        enabled = !state.cropBusy,
+                        shapes = IconButtonDefaults.shapes(),
+                    ) {
+                        ProfileIcon(R.drawable.ic_symbol_close, stringResource(R.string.account_cancel))
+                    }
+                },
+            )
+        },
         snackbarHost = { SnackbarHost(snackbar) },
         // Same tone as the top bar so the crop canvas reads as one framed surface.
         bottomBar = { Surface(color = ThemeColorDefaults.appBarContainerColor()) {

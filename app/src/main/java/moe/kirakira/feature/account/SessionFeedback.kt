@@ -2,6 +2,7 @@ package moe.kirakira.feature.account
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -28,6 +29,7 @@ internal fun SessionFeedback(
     if (confirmingReset) {
         AlertDialog(
             onDismissRequest = { confirmingReset = false },
+            containerColor = MaterialTheme.colorScheme.surface,
             title = { Text(stringResource(R.string.account_reset_local)) },
             text = { Text(stringResource(R.string.account_reset_local_message)) },
             confirmButton = {
@@ -47,6 +49,7 @@ internal fun SessionFeedback(
     }
     AlertDialog(
         onDismissRequest = onDismissError,
+        containerColor = MaterialTheme.colorScheme.surface,
         title = { Text(stringResource(R.string.account_session_problem)) },
         text = {
             val message = if (error == ApiFailure.REJECTED) {

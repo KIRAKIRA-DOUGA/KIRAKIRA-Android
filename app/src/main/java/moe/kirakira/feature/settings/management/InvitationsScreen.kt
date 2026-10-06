@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -50,7 +49,6 @@ import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.IconBadgeTone
 import moe.kirakira.R
 import moe.kirakira.data.settings.Invitation
-import moe.kirakira.ui.components.connectedListItemShadow
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.theme.KIRAKIRATheme
@@ -89,7 +87,9 @@ internal fun InvitationsScreen(
     val visible = codes.filter { filter == 0 || (if (filter == 1) !it.used else it.used) }
         .sortedWith(compareBy<Invitation> { it.used }.thenByDescending { it.createdAt })
     ManagementFrame(
-        title = stringResource(R.string.settings_invitation_code), signedIn = signedIn,
+        title = stringResource(R.string.settings_invitation_code),
+        shadingIcon = R.drawable.ic_symbol_confirmation_number,
+        signedIn = signedIn,
         loading = state.loading, loaded = state.data != null, error = state.error,
         onBack = onBack, onLogin = onLogin, onRefresh = onRefresh, modifier = modifier,
         message = copyMessage ?: message,
@@ -166,10 +166,9 @@ internal fun InvitationsScreen(
         if (state.data != null && visible.isEmpty()) item {
             ManagementEmpty(R.drawable.ic_symbol_confirmation_number, stringResource(R.string.invitation_empty))
         }
-        itemsIndexed(visible, key = { _, code -> code.code }) { index, invitation ->
+        connectedItemsIndexed("invitations", visible, key = { _, code -> code.code }) { index, invitation ->
             SegmentedListItem(
                 shapes = connectedListItemShapes(index, visible.size),
-                modifier = Modifier.connectedListItemShadow(index, visible.size),
                 leadingContent = {
                     ManagementIcon(
                         if (invitation.used) R.drawable.ic_symbol_check else R.drawable.ic_symbol_confirmation_number,

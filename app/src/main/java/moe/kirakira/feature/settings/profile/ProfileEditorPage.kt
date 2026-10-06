@@ -4,6 +4,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -38,6 +39,7 @@ internal fun ProfileEditorPage(model: ProfileEditorViewModel, onBack: () -> Unit
     }
     if (state.confirmDiscard) AlertDialog(
         onDismissRequest = model::dismissDiscard,
+        containerColor = MaterialTheme.colorScheme.surface,
         title = { Text(stringResource(R.string.profile_discard_title)) },
         text = { Text(stringResource(if (state.completionOnly) R.string.profile_saved_pending else R.string.profile_discard_message)) },
         confirmButton = { TextButton(onClick = onBack) { Text(stringResource(R.string.profile_discard)) } },

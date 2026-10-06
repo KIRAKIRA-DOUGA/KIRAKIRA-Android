@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -35,8 +33,8 @@ import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
+import moe.kirakira.ui.components.ConnectedLazyColumn
 import moe.kirakira.ui.components.ContentStatus
-import moe.kirakira.ui.components.connectedListItemShadow
 import moe.kirakira.ui.components.connectedListItemShapes
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,6 +46,11 @@ internal fun TagSearchSheet(state: SearchUiState, onEvent: (SearchEvent) -> Unit
     val candidates = state.candidates.data.orEmpty()
     ModalBottomSheet(
         onDismissRequest = { onEvent(SearchEvent.CloseTags) },
+        containerColor = if (candidates.isNotEmpty()) {
+            MaterialTheme.colorScheme.surfaceContainerLow
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
         sheetState = rememberBottomSheetState(
             initialValue = SheetValue.Hidden,
             enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
@@ -74,7 +77,7 @@ internal fun TagSearchSheet(state: SearchUiState, onEvent: (SearchEvent) -> Unit
                 onClear = { onEvent(SearchEvent.TagQueryChanged("")) },
                 searchDescription = stringResource(R.string.management_search_tags),
             )
-            LazyColumn(
+            ConnectedLazyColumn(
                 modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
                 contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp),
             ) {
@@ -85,7 +88,7 @@ internal fun TagSearchSheet(state: SearchUiState, onEvent: (SearchEvent) -> Unit
                             emptyTitle = stringResource(R.string.search_tags_empty), emptyIconRes = R.drawable.ic_symbol_label)
                     }
                 }
-                itemsIndexed(candidates, key = { _, tag -> tag.id }) { index, tag ->
+                connectedItemsIndexed("tags", candidates, key = { _, tag -> tag.id }) { index, tag ->
                     val checked = tag.id in selected
                     val name = tag.displayName(language)
                     val original = tag.originalName()?.takeIf { it != name }
@@ -96,7 +99,7 @@ internal fun TagSearchSheet(state: SearchUiState, onEvent: (SearchEvent) -> Unit
                         modifier = Modifier.semantics {
                             role = Role.Checkbox
                             toggleableState = ToggleableState(checked)
-                        }.connectedListItemShadow(index, candidates.size),
+                        },
                         leadingContent = { Icon(painterResource(R.drawable.ic_symbol_label), null, Modifier.size(20.dp)) },
                         trailingContent = { Checkbox(checked = checked, onCheckedChange = null, enabled = state.ready) },
                         supportingContent = original?.let { { Text(it) } },

@@ -2,6 +2,7 @@ package moe.kirakira.ui.theme
 
 import android.app.Application
 import android.content.Context
+import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.edit
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -23,16 +24,20 @@ class ThemeViewModel(application: Application) : AndroidViewModel(application) {
     private val _themeColors = MutableStateFlow(ThemeColorSettings())
     val themeColors: StateFlow<ThemeColorSettings> = _themeColors.asStateFlow()
 
+    private val _predictiveBackEnabled = MutableStateFlow(false)
+    val predictiveBackEnabled: StateFlow<Boolean> = _predictiveBackEnabled.asStateFlow()
+
     private val _isReady = MutableStateFlow(false)
     val isReady: StateFlow<Boolean> = _isReady.asStateFlow()
 
     init {
         viewModelScope.launch {
-            val (mode, colors) = withContext(Dispatchers.IO) {
-                loadThemeMode() to loadThemeColors()
+            val (mode, colors, predictiveBack) = withContext(Dispatchers.IO) {
+                Triple(loadThemeMode(), loadThemeColors(), loadPredictiveBackEnabled())
             }
             _themeMode.value = mode
             _themeColors.value = colors
+            _predictiveBackEnabled.value = predictiveBack
             _isReady.value = true
         }
     }
@@ -56,15 +61,33 @@ class ThemeViewModel(application: Application) : AndroidViewModel(application) {
         _themeColors.value = opaqueColors
     }
 
+    fun setPredictiveBackEnabled(enabled: Boolean) {
+        sharedPreferences.edit { putBoolean("predictive_back_enabled", enabled) }
+        _predictiveBackEnabled.value = enabled
+    }
+
     private fun loadThemeColors(): ThemeColorSettings {
         val defaults = ThemeColorSettings()
-        return ThemeColorSettings(
+        val colors = ThemeColorSettings(
             useSystemColors = sharedPreferences.getBoolean("theme_system_colors", false),
             seedColorArgb = sharedPreferences.getInt("theme_seed_color", defaults.seedColorArgb) or 0xFF000000.toInt(),
             customColorArgb = sharedPreferences.getInt("theme_custom_color", defaults.customColorArgb) or
                 0xFF000000.toInt(),
             useCustomColor = sharedPreferences.getBoolean("theme_use_custom_color", false),
         )
+        if (colors.useCustomColor) return colors
+        val preset = when (colors.seedColorArgb) {
+            0xFF537FE7.toInt() -> ThemePresetColor.BLUE
+            0xFF9C6ADE.toInt() -> ThemePresetColor.PURPLE
+            0xFF008577.toInt() -> ThemePresetColor.GREEN
+            0xFFE5A23D.toInt() -> ThemePresetColor.YELLOW
+            0xFFD97757.toInt() -> ThemePresetColor.RED
+            else -> return colors
+        }
+        // Migrate only the stored manual preset, including when wallpaper colors are active.
+        val migrated = colors.copy(seedColorArgb = preset.color.toArgb())
+        sharedPreferences.edit { putInt("theme_seed_color", migrated.seedColorArgb) }
+        return migrated
     }
 
     private fun loadThemeMode(): ThemeMode {
@@ -75,4 +98,7 @@ class ThemeViewModel(application: Application) : AndroidViewModel(application) {
             ThemeMode.SYSTEM
         }
     }
+
+    private fun loadPredictiveBackEnabled(): Boolean =
+        sharedPreferences.getBoolean("predictive_back_enabled", false)
 }

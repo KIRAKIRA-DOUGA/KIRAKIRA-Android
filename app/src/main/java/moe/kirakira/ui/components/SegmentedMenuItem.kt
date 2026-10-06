@@ -46,7 +46,7 @@ fun SegmentedMenuItem(
         // Static destinations must not expose a click action before they are implemented.
         SegmentedListItem(
             shapes = shapes,
-            modifier = modifier.fillMaxWidth().connectedListItemShadow(index, count),
+            modifier = modifier.fillMaxWidth(),
             leadingContent = leadingContent,
             trailingContent = trailingContent,
             content = content,
@@ -55,7 +55,7 @@ fun SegmentedMenuItem(
         SegmentedListItem(
             onClick = onClick,
             shapes = shapes,
-            modifier = modifier.fillMaxWidth().connectedListItemShadow(index, count),
+            modifier = modifier.fillMaxWidth(),
             leadingContent = leadingContent,
             trailingContent = trailingContent,
             content = content,

@@ -6,6 +6,7 @@ import androidx.annotation.InterpolatorRes
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.TweenSpec
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -30,6 +31,9 @@ import androidx.compose.ui.unit.dp
 
 internal const val ACTIVITY_TRANSITION_MILLIS = 450
 internal const val ACTIVITY_OFFSET_DP = 96
+
+internal fun activityCloseFadeSpec(): TweenSpec<Float> =
+    tween(durationMillis = 83, delayMillis = 35, easing = LinearEasing)
 
 @InterpolatorRes
 internal fun activityInterpolatorResource(): Int =
@@ -73,13 +77,15 @@ internal fun rememberNavigationMotion(): NavigationMotion {
                 ) togetherWith slideOutHorizontally(slideSpec, targetOffsetX = { -offset }),
             backward = slideInHorizontally(slideSpec, initialOffsetX = { -offset }) togetherWith (
                 slideOutHorizontally(slideSpec, targetOffsetX = { offset }) +
-                    fadeOut(tween(durationMillis = 83, delayMillis = 35, easing = LinearEasing))
+                    fadeOut(activityCloseFadeSpec())
                 ),
         )
     }
 }
 
-internal val LocalNavigationPageTransform = compositionLocalOf { NavigationPageTransform() }
+internal val LocalNavigationPageTransform = compositionLocalOf<() -> NavigationPageTransform> {
+    { NavigationPageTransform() }
+}
 
 internal data class NavigationPageTransform(
     val scale: Float = 1f,
@@ -95,11 +101,12 @@ internal fun NavigationPage(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    val transform = LocalNavigationPageTransform.current
+    val readTransform = LocalNavigationPageTransform.current
     Box(
         modifier = modifier
             .fillMaxSize()
             .graphicsLayer {
+                val transform = readTransform()
                 transformOrigin = TransformOrigin(0f, 0f)
                 scaleX = transform.scale
                 scaleY = transform.scale

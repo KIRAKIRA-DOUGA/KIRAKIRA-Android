@@ -3,6 +3,7 @@
 package moe.kirakira.feature.settings
 
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -24,7 +25,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.ButtonDefaults as Material2ButtonDefaults
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -32,7 +32,6 @@ import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -41,9 +40,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSliderState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
@@ -56,19 +55,22 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
-import kotlin.math.roundToInt
-import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.R
 import moe.kirakira.ui.components.CollapsibleTopAppBar
 import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.SectionHeader
-import moe.kirakira.ui.components.connectedListItemShadow
+import moe.kirakira.ui.components.ShadingIcon
+import moe.kirakira.ui.components.ShadowButton
+import moe.kirakira.ui.components.ShadowRadioButton
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.theme.ThemeColorDefaults
+import kotlin.math.roundToInt
+import androidx.compose.material.ButtonDefaults as Material2ButtonDefaults
 
 /** Shared spacing for settings subpages so every page lines up with the settings list. */
 internal object SettingsDefaults {
@@ -94,6 +96,7 @@ internal object SettingsDefaults {
 internal fun SettingsScaffold(
     title: String,
     onBack: () -> Unit,
+    @DrawableRes shadingIcon: Int,
     modifier: Modifier = Modifier,
     backButtonModifier: Modifier = Modifier,
     imePadding: Boolean = false,
@@ -110,13 +113,22 @@ internal fun SettingsScaffold(
             .nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = ThemeColorDefaults.settingsBackgroundColor(),
         topBar = {
-            CollapsibleTopAppBar(
-                title = title,
-                onBack = onBack,
-                scrollBehavior = scrollBehavior,
-                backButtonModifier = backButtonModifier,
-                actions = actions,
-            )
+            Box {
+                ShadingIcon(
+                    icon = shadingIcon,
+                    modifier = Modifier.matchParentSize(),
+                    alignment = Alignment.BottomEnd,
+                    endPadding = 0.dp,
+                    offset = DpOffset(32.dp, 32.dp),
+                )
+                CollapsibleTopAppBar(
+                    title = title,
+                    onBack = onBack,
+                    scrollBehavior = scrollBehavior,
+                    backButtonModifier = backButtonModifier,
+                    actions = actions,
+                )
+            }
         },
         snackbarHost = snackbarHost,
         floatingActionButton = floatingActionButton,
@@ -166,11 +178,18 @@ internal fun SettingsColumn(
 internal fun SettingsPage(
     title: String,
     onBack: () -> Unit,
+    @DrawableRes shadingIcon: Int,
     modifier: Modifier = Modifier,
     backButtonModifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    SettingsScaffold(title, onBack, modifier, backButtonModifier) { padding ->
+    SettingsScaffold(
+        title = title,
+        onBack = onBack,
+        shadingIcon = shadingIcon,
+        modifier = modifier,
+        backButtonModifier = backButtonModifier,
+    ) { padding ->
         SettingsColumn(padding, content = content)
     }
 }
@@ -197,6 +216,7 @@ internal fun SettingsSection(
         )
     }
 }
+
 /** Common segmented row with a standard leading icon. Pass [onClick] = null for a static row. */
 @Composable
 internal fun SettingsItem(
@@ -208,6 +228,7 @@ internal fun SettingsItem(
     supporting: String? = null,
     enabled: Boolean = true,
     onClick: (() -> Unit)? = null,
+    interactionSource: MutableInteractionSource? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     val shapes = connectedListItemShapes(index = index, count = count)
@@ -218,7 +239,7 @@ internal fun SettingsItem(
     if (onClick == null) {
         SegmentedListItem(
             shapes = shapes,
-            modifier = modifier.fillMaxWidth().connectedListItemShadow(index, count),
+            modifier = modifier.fillMaxWidth(),
             enabled = enabled,
             leadingContent = leading,
             trailingContent = trailing,
@@ -228,8 +249,9 @@ internal fun SettingsItem(
     } else {
         SegmentedListItem(
             onClick = onClick,
+            interactionSource = interactionSource,
             shapes = shapes,
-            modifier = modifier.fillMaxWidth().connectedListItemShadow(index, count),
+            modifier = modifier.fillMaxWidth(),
             enabled = enabled,
             leadingContent = leading,
             trailingContent = trailing,
@@ -255,7 +277,11 @@ internal fun SettingsNavigationItem(
         title = title, index = index, count = count, modifier = modifier, icon = icon,
         supporting = supporting, enabled = enabled, onClick = onClick,
         trailing = {
-            Icon(painterResource(R.drawable.ic_symbol_chevron_right), contentDescription = null, modifier = Modifier.size(24.dp))
+            Icon(
+                painterResource(R.drawable.ic_symbol_chevron_right),
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+            )
         },
     )
 }
@@ -304,8 +330,7 @@ internal fun SettingsMasterSwitchItem(
         shapes = connectedListItemShapes(index = 0, count = 1),
         modifier = modifier
             .fillMaxWidth()
-            .semantics { role = Role.Switch }
-            .connectedListItemShadow(index = 0, count = 1),
+            .semantics { role = Role.Switch },
         leadingContent = icon?.let {
             {
                 Icon(painterResource(it), contentDescription = null, modifier = Modifier.size(24.dp))
@@ -329,6 +354,7 @@ internal fun SettingsRadioItem(
     supporting: String? = null,
     enabled: Boolean = true,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     SettingsItem(
         title = title, index = index, count = count, icon = icon, supporting = supporting, enabled = enabled,
         modifier = modifier.semantics {
@@ -336,9 +362,18 @@ internal fun SettingsRadioItem(
             this.selected = selected
         },
         onClick = onClick,
-        trailing = { RadioButton(selected = selected, onClick = null, enabled = enabled) },
+        interactionSource = interactionSource,
+        trailing = {
+            ShadowRadioButton(
+                selected = selected,
+                onClick = null,
+                enabled = enabled,
+                interactionSource = interactionSource,
+            )
+        },
     )
 }
+
 /** Stepped slider row; the value label is shown in primary next to the title. */
 @Composable
 internal fun SettingsSliderItem(
@@ -361,7 +396,7 @@ internal fun SettingsSliderItem(
     SideEffect { slider.value = value.toFloat() }
     SegmentedListItem(
         shapes = connectedListItemShapes(index, count),
-        modifier = modifier.fillMaxWidth().connectedListItemShadow(index, count),
+        modifier = modifier.fillMaxWidth(),
         enabled = enabled,
         leadingContent = icon?.let {
             { Icon(painterResource(it), contentDescription = null, modifier = Modifier.size(24.dp)) }
@@ -376,7 +411,6 @@ internal fun SettingsSliderItem(
                 Text(
                     valueLabel,
                     style = MaterialTheme.typography.labelLarge,
-                    color = if (enabled) MaterialTheme.colorScheme.primary else Color.Unspecified,
                 )
             }
         },
@@ -385,10 +419,12 @@ internal fun SettingsSliderItem(
                 state = slider,
                 onValueChange = { onValueChange((it / step).roundToInt() * step) },
                 enabled = enabled,
-                modifier = Modifier.fillMaxWidth().semantics {
-                    contentDescription = title
-                    stateDescription = valueLabel
-                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        contentDescription = title
+                        stateDescription = valueLabel
+                    },
             )
         },
     )
@@ -459,7 +495,9 @@ internal fun SettingsPrimaryButton(
     ShadowButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.fillMaxWidth().heightIn(min = height),
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = height),
         shapes = ButtonDefaults.shapesFor(height),
         colors = colors,
         contentPadding = ButtonDefaults.contentPaddingFor(height, hasStartIcon = icon != null || busy),

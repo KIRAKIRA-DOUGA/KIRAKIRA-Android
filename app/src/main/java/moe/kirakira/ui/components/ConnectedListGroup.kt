@@ -7,14 +7,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ListItemShapes
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
 
 internal val ConnectedListShadowElevation = 1.dp
-internal val LocalConnectedListGroup = staticCompositionLocalOf { false }
 
 @Composable
 fun ConnectedListGroup(
@@ -27,9 +24,7 @@ fun ConnectedListGroup(
         modifier = modifier.fillMaxWidth()
             .shadow(ConnectedListShadowElevation, shape, clip = clipContent),
     ) {
-        CompositionLocalProvider(LocalConnectedListGroup provides true) {
-            content()
-        }
+        content()
     }
 }
 

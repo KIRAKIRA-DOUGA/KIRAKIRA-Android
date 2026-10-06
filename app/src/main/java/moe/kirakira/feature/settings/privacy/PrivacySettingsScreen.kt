@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,7 +38,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SheetValue
@@ -86,9 +86,9 @@ import moe.kirakira.feature.settings.SettingsSaveToolbar
 import moe.kirakira.feature.settings.SettingsScaffold
 import moe.kirakira.feature.settings.SettingsSection
 import moe.kirakira.feature.settings.SettingsSectionHeader
-import moe.kirakira.ui.components.connectedListItemShadow
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.ShadowRadioButton
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.theme.KIRAKIRATheme
@@ -144,10 +144,11 @@ internal fun PrivacySettingsScreen(
             onDismissMessage()
         }
     }
-    val toolbarVisible = state.original != null
+    val toolbarVisible = signedIn && state.original != null
     SettingsScaffold(
         title = stringResource(R.string.settings_privacy),
         onBack = onBack,
+        shadingIcon = R.drawable.ic_symbol_shield,
         modifier = modifier,
         snackbarHost = {
             SnackbarHost(
@@ -156,64 +157,68 @@ internal fun PrivacySettingsScreen(
             )
         },
     ) { padding ->
-        SettingsColumn(
-            padding = padding,
-            bottomClearance = if (toolbarVisible) SettingsDefaults.FloatingToolbarClearance else 0.dp,
-            overlay = {
-                AnimatedVisibility(
-                    visible = toolbarVisible,
-                    enter = fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()) +
-                        slideInVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it / 2 },
-                    exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) +
-                        slideOutVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it / 2 },
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                        .navigationBarsPadding()
-                        .padding(bottom = 16.dp),
-                ) {
-                    SettingsSaveToolbar(
-                        label = stringResource(R.string.privacy_apply),
-                        onSave = onSave,
-                        enabled = state.editable && state.dirty,
-                        busy = state.saving,
-                        resetLabel = stringResource(R.string.privacy_reset),
-                        resetBusy = state.loading,
-                        resetEnabled = !state.busy,
-                        onReset = onRefresh,
-                    )
-                }
-            },
-        ) {
-            when {
-                sessionBusy || (state.loading && state.original == null) -> {
-                    Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
-                        IndeterminateCircularProgressIndicator()
+        val initialLoading = sessionBusy || (state.loading && state.original == null)
+        if (initialLoading) {
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                IndeterminateCircularProgressIndicator()
+            }
+        } else if (!signedIn) {
+            ContentUnavailableView(
+                state = ContentUnavailableState.EMPTY,
+                modifier = Modifier.padding(padding),
+                title = stringResource(R.string.management_sign_in),
+                description = null,
+                iconRes = R.drawable.ic_symbol_shield,
+                presentation = ContentUnavailablePresentation.PAGE,
+                primaryAction = ContentUnavailableAction(stringResource(R.string.management_login), onLogin),
+            )
+        } else {
+            SettingsColumn(
+                padding = padding,
+                bottomClearance = if (toolbarVisible) SettingsDefaults.FloatingToolbarClearance else 0.dp,
+                overlay = {
+                    AnimatedVisibility(
+                        visible = toolbarVisible,
+                        enter = fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()) +
+                            slideInVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it / 2 },
+                        exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) +
+                            slideOutVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it / 2 },
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                            .navigationBarsPadding()
+                            .padding(bottom = 16.dp),
+                    ) {
+                        SettingsSaveToolbar(
+                            label = stringResource(R.string.privacy_apply),
+                            onSave = onSave,
+                            enabled = state.editable && state.dirty,
+                            busy = state.saving,
+                            resetLabel = stringResource(R.string.privacy_reset),
+                            resetBusy = state.loading,
+                            resetEnabled = !state.busy,
+                            onReset = onRefresh,
+                        )
                     }
-                }
-                !signedIn -> ContentUnavailableView(
-                    state = ContentUnavailableState.EMPTY,
-                    title = stringResource(R.string.management_sign_in),
-                    description = null,
-                    iconRes = R.drawable.ic_symbol_shield,
-                    presentation = ContentUnavailablePresentation.INLINE,
-                    primaryAction = ContentUnavailableAction(stringResource(R.string.management_login), onLogin),
-                )
-                state.error != null -> ContentUnavailableView(
-                    state = ContentUnavailableState.ERROR,
-                    description = stringResource(state.error.messageRes()),
-                    presentation = ContentUnavailablePresentation.INLINE,
-                    onRetry = onRefresh,
-                )
-                state.original != null -> {
-                    PrivacySetAllGroup(state, onSelectAll)
-                    PrivacyGroup(
-                        R.string.privacy_personal_information,
-                        listOf(PrivacyItem.BIRTHDAY, PrivacyItem.AGE), state, onOpenSelector,
+                },
+            ) {
+                when {
+                    state.error != null -> ContentUnavailableView(
+                        state = ContentUnavailableState.ERROR,
+                        description = stringResource(state.error.messageRes()),
+                        presentation = ContentUnavailablePresentation.INLINE,
+                        onRetry = onRefresh,
                     )
-                    PrivacyGroup(
-                        R.string.privacy_social_collections,
-                        listOf(PrivacyItem.FOLLOWING, PrivacyItem.FOLLOWERS, PrivacyItem.FAVORITES),
-                        state, onOpenSelector,
-                    )
+                    state.original != null -> {
+                        PrivacySetAllGroup(state, onSelectAll)
+                        PrivacyGroup(
+                            R.string.privacy_personal_information,
+                            listOf(PrivacyItem.BIRTHDAY, PrivacyItem.AGE), state, onOpenSelector,
+                        )
+                        PrivacyGroup(
+                            R.string.privacy_social_collections,
+                            listOf(PrivacyItem.FOLLOWING, PrivacyItem.FOLLOWERS, PrivacyItem.FAVORITES),
+                            state, onOpenSelector,
+                        )
+                    }
                 }
             }
         }
@@ -224,6 +229,7 @@ internal fun PrivacySettingsScreen(
     if (state.confirmDiscard) {
         AlertDialog(
             onDismissRequest = onCancelDiscard,
+            containerColor = MaterialTheme.colorScheme.surface,
             title = { Text(stringResource(R.string.privacy_discard_title)) },
             text = { Text(stringResource(R.string.privacy_discard_message)) },
             confirmButton = {
@@ -306,8 +312,7 @@ private fun PrivacyGroup(
                 shapes = connectedListItemShapes(index, items.size),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .semantics { stateDescription = label }
-                    .connectedListItemShadow(index, items.size),
+                    .semantics { stateDescription = label },
                 leadingContent = { PrivacyVisibilityBadge(visibility, state.editable) },
                 supportingContent = {
                     val fadeSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
@@ -342,6 +347,7 @@ private fun PrivacyVisibilitySheet(
         ?: state.draft.values.distinct().singleOrNull()
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         sheetState = rememberBottomSheetState(
             initialValue = SheetValue.Hidden,
             enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
@@ -361,15 +367,23 @@ private fun PrivacyVisibilitySheet(
                 Modifier.selectableGroup(),
             ) {
                 PrivacyVisibility.entries.forEachIndexed { index, visibility ->
+                    val interactionSource = remember { MutableInteractionSource() }
                     SegmentedListItem(
                         onClick = { onSelect(visibility) },
+                        interactionSource = interactionSource,
                         shapes = connectedListItemShapes(index, PrivacyVisibility.entries.size),
                         modifier = Modifier.fillMaxWidth().semantics {
                             role = Role.RadioButton
                             selected = chosen == visibility
-                        }.connectedListItemShadow(index, PrivacyVisibility.entries.size),
+                        },
                         leadingContent = { PrivacyVisibilityBadge(visibility) },
-                        trailingContent = { RadioButton(chosen == visibility, onClick = null) },
+                        trailingContent = {
+                            ShadowRadioButton(
+                                selected = chosen == visibility,
+                                onClick = null,
+                                interactionSource = interactionSource,
+                            )
+                        },
                         content = { Text(stringResource(visibility.titleRes())) },
                     )
                 }

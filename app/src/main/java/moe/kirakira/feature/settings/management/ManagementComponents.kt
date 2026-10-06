@@ -10,18 +10,11 @@ import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialShapes
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,12 +25,15 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
-import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.R
 import moe.kirakira.data.settings.RuleCategory
 import moe.kirakira.ui.components.CollapsibleTopAppBar
+import moe.kirakira.ui.components.ConnectedLazyColumn
+import moe.kirakira.ui.components.ConnectedLazyListScope
 import moe.kirakira.ui.components.ContentPullToRefresh
+import moe.kirakira.ui.components.ContentUnavailableAction
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
@@ -45,6 +41,7 @@ import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.IconBadge
 import moe.kirakira.ui.components.IconBadgeTone
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.ShadingIcon
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.theme.ThemeColorDefaults
 
@@ -79,6 +76,7 @@ internal fun ManagementIcon(
 @Composable
 internal fun ManagementFrame(
     title: String,
+    @DrawableRes shadingIcon: Int,
     signedIn: Boolean,
     loading: Boolean,
     loaded: Boolean,
@@ -92,7 +90,7 @@ internal fun ManagementFrame(
     onDismissMessage: () -> Unit = {},
     onRetry: () -> Unit = onRefresh,
     floatingActionButton: @Composable () -> Unit = {},
-    content: LazyListScope.() -> Unit,
+    content: ConnectedLazyListScope.() -> Unit,
 ) {
     val scrollBehavior = rememberCollapsibleTopAppBarScrollBehavior()
     val direction = LocalLayoutDirection.current
@@ -107,51 +105,61 @@ internal fun ManagementFrame(
     FrostedScaffold(
         modifier = modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = ThemeColorDefaults.settingsBackgroundColor(),
-        topBar = { CollapsibleTopAppBar(title = title, onBack = onBack, scrollBehavior = scrollBehavior) },
+        topBar = {
+            Box {
+                ShadingIcon(
+                    icon = shadingIcon,
+                    modifier = Modifier.matchParentSize(),
+                    alignment = Alignment.BottomEnd,
+                    endPadding = 0.dp,
+                    offset = DpOffset(32.dp, 32.dp),
+                )
+                CollapsibleTopAppBar(title = title, onBack = onBack, scrollBehavior = scrollBehavior)
+            }
+        },
         snackbarHost = { SnackbarHost(snackbar) },
         floatingActionButton = { if (signedIn) floatingActionButton() },
     ) { padding ->
         ContentPullToRefresh(
-            isRefreshing = loaded && loading && !appending,
+            isRefreshing = signedIn && loaded && loading && !appending,
             onRefresh = onRefresh,
             enabled = signedIn,
             indicatorTopPadding = padding.calculateTopPadding(),
             modifier = Modifier.fillMaxSize().consumeWindowInsets(padding),
         ) {
-            LazyColumn(
-                modifier = Modifier.align(Alignment.TopCenter).widthIn(max = 640.dp).fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = padding.calculateStartPadding(direction) + 16.dp,
-                    end = padding.calculateEndPadding(direction) + 16.dp,
-                    top = padding.calculateTopPadding() + 16.dp,
-                    bottom = padding.calculateBottomPadding() + 104.dp,
-                ),
-            ) {
-                when {
-                    !signedIn -> item {
-                        ManagementEmpty(R.drawable.ic_symbol_lock, stringResource(R.string.management_sign_in))
-                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            ShadowButton(onClick = onLogin, shapes = ButtonDefaults.shapes()) {
-                                Text(stringResource(R.string.management_login))
-                            }
-                        }
-                    }
-                    !loaded && loading -> item {
-                        Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
-                            IndeterminateCircularProgressIndicator()
-                        }
-                    }
-                    else -> {
-                        content()
-                        if (error != null) item {
-                            ContentUnavailableView(
-                                state = ContentUnavailableState.ERROR,
-                                modifier = Modifier.padding(top = 8.dp),
-                                description = stringResource(error),
-                                onRetry = onRetry,
-                                presentation = ContentUnavailablePresentation.INLINE,
-                            )
-                        }
+            if (!signedIn) {
+                ContentUnavailableView(
+                    state = ContentUnavailableState.EMPTY,
+                    modifier = Modifier.padding(padding),
+                    title = stringResource(R.string.management_sign_in),
+                    description = null,
+                    iconRes = R.drawable.ic_symbol_lock,
+                    presentation = ContentUnavailablePresentation.PAGE,
+                    primaryAction = ContentUnavailableAction(stringResource(R.string.management_login), onLogin),
+                )
+            } else if (!loaded && loading) {
+                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    IndeterminateCircularProgressIndicator()
+                }
+            } else {
+                ConnectedLazyColumn(
+                    modifier = Modifier.align(Alignment.TopCenter).widthIn(max = 640.dp).fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = padding.calculateStartPadding(direction) + 16.dp,
+                        end = padding.calculateEndPadding(direction) + 16.dp,
+                        top = padding.calculateTopPadding() + 16.dp,
+                        bottom = padding.calculateBottomPadding() + 104.dp,
+                    ),
+                ) {
+                    content()
+                    if (error != null) item {
+                        ContentUnavailableView(
+                            state = ContentUnavailableState.ERROR,
+                            modifier = Modifier.padding(top = 8.dp),
+                            description = stringResource(error),
+                            onRetry = onRetry,
+                            presentation = ContentUnavailablePresentation.INLINE,
+                        )
                     }
                 }
             }

@@ -13,7 +13,7 @@ data class ThemeSemanticColors(
 )
 
 internal fun themeSemanticColors(darkTheme: Boolean): ThemeSemanticColors = ThemeSemanticColors(
-    success = if (darkTheme) Color(0xFF00594F) else ThemePresetColor.GREEN.color,
+    success = if (darkTheme) Color(0xFF00594F) else Color(0xFF008577),
     onSuccess = Color.White,
 )
 

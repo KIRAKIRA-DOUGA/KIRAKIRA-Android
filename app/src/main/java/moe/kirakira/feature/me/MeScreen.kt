@@ -35,7 +35,6 @@ import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.data.auth.AccountProfile
 import moe.kirakira.ui.components.AccountAvatar
 import moe.kirakira.ui.components.SegmentedMenuItem
-import moe.kirakira.ui.components.connectedListItemShadow
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
@@ -65,7 +64,9 @@ internal fun MeScreen(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            ProfileListItem(onOpenProfile, profile)
+            ConnectedListGroup {
+                ProfileListItem(onOpenProfile, profile)
+            }
             ConnectedListGroup {
                 SegmentedMenuItem(
                     title = stringResource(R.string.me_history),
@@ -81,13 +82,15 @@ internal fun MeScreen(
                     count = 2,
                 )
             }
-            SegmentedMenuItem(
-                title = stringResource(R.string.me_settings),
-                icon = R.drawable.ic_symbol_settings,
-                onClick = onOpenSettings,
-                index = 0,
-                count = 1,
-            )
+            ConnectedListGroup {
+                SegmentedMenuItem(
+                    title = stringResource(R.string.me_settings),
+                    icon = R.drawable.ic_symbol_settings,
+                    onClick = onOpenSettings,
+                    index = 0,
+                    count = 1,
+                )
+            }
             Spacer(Modifier.height(8.dp))
         }
     }
@@ -110,7 +113,7 @@ private fun ProfileListItem(
     }
     SegmentedListItem(
         onClick = onOpenProfile,
-        modifier = modifier.fillMaxWidth().connectedListItemShadow(index = 0, count = 1),
+        modifier = modifier.fillMaxWidth(),
         shapes = connectedListItemShapes(index = 0, count = 1),
         verticalAlignment = Alignment.CenterVertically,
         leadingContent = { AccountAvatar(url = profile?.avatar, size = 72.dp) },

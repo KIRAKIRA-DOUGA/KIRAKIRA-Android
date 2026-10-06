@@ -16,7 +16,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -27,7 +26,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalResources
@@ -36,6 +34,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import com.mikepenz.aboutlibraries.Libs
 import com.mikepenz.aboutlibraries.ui.compose.LibraryDefaults
@@ -54,6 +53,8 @@ import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.ShadingIcon
+import moe.kirakira.ui.components.appTopAppBarColors
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorDefaults
 
@@ -108,22 +109,27 @@ internal fun LicensesContent(
             .testTag("licenses_screen"),
         containerColor = ThemeColorDefaults.settingsBackgroundColor(),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.about_licenses), fontWeight = FontWeight.SemiBold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack, modifier = Modifier.testTag("licenses_back")) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_symbol_arrow_back),
-                            contentDescription = stringResource(R.string.navigate_back),
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = Color.Transparent,
-                    titleContentColor = MaterialTheme.colorScheme.primary,
-                ),
-            )
+            Box {
+                ShadingIcon(
+                    icon = R.drawable.ic_symbol_description,
+                    modifier = Modifier.matchParentSize(),
+                    alignment = Alignment.BottomEnd,
+                    endPadding = 0.dp,
+                    offset = DpOffset(32.dp, 32.dp),
+                )
+                TopAppBar(
+                    title = { Text(stringResource(R.string.about_licenses), fontWeight = FontWeight.SemiBold) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack, modifier = Modifier.testTag("licenses_back")) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_symbol_arrow_back),
+                                contentDescription = stringResource(R.string.navigate_back),
+                            )
+                        }
+                    },
+                    colors = appTopAppBarColors(),
+                )
+            }
         },
     ) { innerPadding ->
         Box(
@@ -131,7 +137,7 @@ internal fun LicensesContent(
             contentAlignment = Alignment.TopCenter,
         ) {
             if (state is LicensesUiState.Ready && state.libraries.libraries.isNotEmpty()) {
-                // Keep the upstream Material 3 rows and sheet; only the surrounding page is app-owned.
+                // Keep the upstream Material 3 rows and sheet.
                 LibrariesContainer(
                     libraries = state.libraries,
                     dialogLibrary = null,
@@ -160,6 +166,7 @@ internal fun LicensesContent(
                     ),
                     colors = LibraryDefaults.libraryColors(
                         libraryBackgroundColor = MaterialTheme.colorScheme.surfaceContainer,
+                        dialogBackgroundColor = MaterialTheme.colorScheme.surface,
                     ),
                     variantColors = licensesVariantColors(),
                 )
@@ -200,6 +207,7 @@ private fun licensesVariantColors(): VariantColors {
     return LibraryDefaults.m3VariantColors(
         tabActiveBackground = scheme.primaryContainer,
         tabActiveContent = scheme.onPrimaryContainer,
+        sheetSurface = scheme.surface,
         licenseHueResolver = accentDerivedLicenseHueResolver(isDark = scheme.surface.luminance() < 0.5f),
     )
 }

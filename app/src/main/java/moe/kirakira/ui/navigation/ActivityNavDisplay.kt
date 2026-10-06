@@ -4,10 +4,13 @@ import android.os.Build
 import android.view.RoundedCorner
 import android.view.View
 import android.view.animation.AnimationUtils
+import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -17,6 +20,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,6 +42,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.compose.rememberLifecycleOwner
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavEntry
@@ -47,6 +53,7 @@ import androidx.navigation3.scene.SceneInfo
 import androidx.navigation3.scene.SceneStrategy
 import androidx.navigation3.scene.SceneStrategyScope
 import androidx.navigation3.scene.rememberSceneState
+import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import androidx.navigation3.ui.NavDisplay
 import androidx.navigationevent.NavigationEvent
 import androidx.navigationevent.NavigationEventHandler
@@ -65,6 +72,7 @@ internal fun <T : Any> ActivityNavDisplay(
     modifier: Modifier = Modifier,
     onBackRequested: () -> Boolean = { true },
     canNavigateBack: () -> Boolean = { true },
+    predictiveBackEnabled: Boolean = false,
     entryProvider: (T) -> NavEntry<T>,
 ) {
     val ordinaryMotion = rememberNavigationMotion()
@@ -82,10 +90,11 @@ internal fun <T : Any> ActivityNavDisplay(
         ),
         entryProvider = entryProvider,
     )
+    val currentEntriesState = rememberUpdatedState(entries)
     val imageActive = entries.last().usesImageTransition
     val previewKey = motion.closingKey
-    val strategy = remember(motion, previewKey) {
-        ActivitySceneStrategy<T>(motion, previewKey)
+    val strategy = remember(motion, previewKey, currentEntriesState) {
+        ActivitySceneStrategy(motion, previewKey, currentEntriesState)
     }
     val sceneState = rememberSceneState(entries, listOf(strategy), onBack = onBack)
     val topRoute = backStack.last()
@@ -106,7 +115,7 @@ internal fun <T : Any> ActivityNavDisplay(
     val density = LocalDensity.current.density
     val view = LocalView.current
     val darkTheme = isSystemInDarkTheme()
-    val currentEntries by rememberUpdatedState(entries)
+    val currentEntries by currentEntriesState
     val currentOnBack by rememberUpdatedState(onBack)
     val currentBackRequest by rememberUpdatedState(onBackRequested)
     val currentCanNavigateBack by rememberUpdatedState(canNavigateBack)
@@ -125,39 +134,55 @@ internal fun <T : Any> ActivityNavDisplay(
             )
         }
     }
-    val handler = remember(motion) {
+    val handler = remember(motion, predictiveBackEnabled) {
         object : NavigationEventHandler<SceneInfo<T>>(
             initialInfo = SceneInfo(sceneState.currentScene),
             isBackEnabled = false,
         ) {
             private var backStarted = false
             private var backAllowed = true
+            private var backKey: Any? = null
 
             override fun onBackStarted(event: NavigationEvent) {
                 backStarted = true
                 backAllowed = currentCanNavigateBack()
-                if (backAllowed) startGesture(event)
+                backKey = currentEntries.lastOrNull()?.contentKey
+                if (backAllowed && predictiveBackEnabled) startGesture(event)
             }
 
             override fun onBackProgressed(event: NavigationEvent) {
-                if (backAllowed) motion.progress(event)
+                if (backAllowed && predictiveBackEnabled) motion.progress(event)
             }
 
             override fun onBackCancelled() {
                 backStarted = false
-                motion.cancel()
+                backKey = null
+                if (predictiveBackEnabled) motion.cancel() else motion.reset()
             }
 
             override fun onBackCompleted() {
                 val wasStarted = backStarted
-                if (!backStarted) backAllowed = currentBackRequest()
+                val startedKey = backKey
                 backStarted = false
+                backKey = null
+                if (wasStarted && currentEntries.lastOrNull()?.contentKey != startedKey) {
+                    motion.reset()
+                    return
+                }
+                if (!wasStarted || !predictiveBackEnabled) backAllowed = currentBackRequest()
                 if (!backAllowed) {
                     motion.reset()
-                    if (wasStarted) currentBackRequest()
+                    if (wasStarted && predictiveBackEnabled) currentBackRequest()
                     return
                 }
                 val key = currentEntries.lastOrNull()?.contentKey
+                if (!predictiveBackEnabled) {
+                    motion.reset()
+                    if (currentEntries.size > 1 && currentEntries.lastOrNull()?.contentKey == key) {
+                        currentOnBack()
+                    }
+                    return
+                }
                 motion.complete {
                     // Ignore stale terminal events if another navigation already changed the stack.
                     if (currentEntries.size > 1 && currentEntries.lastOrNull()?.contentKey == key) {
@@ -230,6 +255,7 @@ internal fun <T : Any> ActivityNavDisplay(
 private class ActivitySceneStrategy<T : Any>(
     private val motion: PredictiveBackMotion,
     private val previewKey: Any?,
+    private val currentEntries: State<List<NavEntry<T>>>,
 ) : SceneStrategy<T> {
     override fun SceneStrategyScope<T>.calculateScene(entries: List<NavEntry<T>>): Scene<T> =
         ActivityScene(
@@ -237,6 +263,7 @@ private class ActivitySceneStrategy<T : Any>(
             entries = entries.takeLast(if (entries.last().contentKey == previewKey) 2 else 1),
             previousEntries = entries.dropLast(1),
             motion = motion,
+            currentEntries = currentEntries,
         )
 }
 
@@ -245,6 +272,7 @@ private data class ActivityScene<T : Any>(
     override val entries: List<NavEntry<T>>,
     override val previousEntries: List<NavEntry<T>>,
     val motion: PredictiveBackMotion,
+    val currentEntries: State<List<NavEntry<T>>>,
 ) : Scene<T> {
     override val content: @Composable () -> Unit = {
         DisposableEffect(key, motion) {
@@ -254,12 +282,31 @@ private data class ActivityScene<T : Any>(
         val owner = rememberLifecycleOwner(
             maxLifecycle = if (preview) Lifecycle.State.STARTED else Lifecycle.State.RESUMED,
         )
+        val lifecycleState by owner.lifecycle.currentStateAsState()
+        val visibility = LocalNavAnimatedContentScope.current.transition
+        val stack = currentEntries.value
+        val imageScene = entries.last().usesImageTransition
+        val ordinaryPop = !preview && !imageScene && stack.none { it.contentKey == key } &&
+            motion.completedPop?.first != key
+        val exitOpacity = visibility.animateFloat(
+            transitionSpec = { if (ordinaryPop) activityCloseFadeSpec() else snap() },
+            label = "scene content retention",
+        ) { if (it == EnterExitState.PostExit) 0f else 1f }
+        // Keep the slide running, but retire invisible content so hits reach the incoming page.
+        val retainContent by remember(ordinaryPop, exitOpacity) {
+            derivedStateOf { !ordinaryPop || exitOpacity.value > 0f }
+        }
+        val interactive = !preview && stack.lastOrNull()?.contentKey == key &&
+            lifecycleState.isAtLeast(Lifecycle.State.STARTED) && visibility.targetState == EnterExitState.Visible &&
+            (!imageScene || (
+                lifecycleState == Lifecycle.State.RESUMED && visibility.currentState == EnterExitState.Visible
+                ))
         CompositionLocalProvider(LocalLifecycleOwner provides owner) {
             Box(
                 Modifier
                     .fillMaxSize()
                     .then(
-                        if (preview) Modifier.clearAndSetSemantics {}.pointerInput(Unit) {
+                        if (retainContent && !interactive) Modifier.clearAndSetSemantics {}.pointerInput(Unit) {
                             awaitPointerEventScope {
                                 while (true) {
                                     awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
@@ -268,15 +315,17 @@ private data class ActivityScene<T : Any>(
                         } else Modifier,
                     ),
             ) {
+                if (!retainContent) return@Box
                 if (preview) {
-                    val frame = motion.frame
-                    CompositionLocalProvider(LocalNavigationPageTransform provides frame.pageTransform(true)) {
+                    val enteringTransform = remember(motion) { { motion.frame.pageTransform(true) } }
+                    val closingTransform = remember(motion) { { motion.frame.pageTransform(false) } }
+                    CompositionLocalProvider(LocalNavigationPageTransform provides enteringTransform) {
                         entries.first().Content()
                     }
                     Canvas(Modifier.fillMaxSize()) {
-                        drawRect(Color.Black, alpha = frame.scrimAlpha)
+                        drawRect(Color.Black, alpha = motion.frame.scrimAlpha)
                     }
-                    CompositionLocalProvider(LocalNavigationPageTransform provides frame.pageTransform(false)) {
+                    CompositionLocalProvider(LocalNavigationPageTransform provides closingTransform) {
                         entries.last().Content()
                     }
                 } else {

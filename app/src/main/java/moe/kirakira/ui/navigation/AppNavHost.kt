@@ -47,6 +47,8 @@ import moe.kirakira.feature.player.PlaybackHost
 import moe.kirakira.feature.player.PlaybackViewModel
 import moe.kirakira.feature.profile.ProfilePage
 import moe.kirakira.feature.search.SearchPage
+import moe.kirakira.feature.search.SearchTopBar
+import moe.kirakira.feature.search.SearchUiState
 import moe.kirakira.feature.search.SearchViewModel
 import moe.kirakira.feature.settings.AboutScreen
 import moe.kirakira.feature.settings.AppearanceScreen
@@ -84,6 +86,8 @@ internal fun AppNavHost(
     onThemeModeChange: (ThemeMode) -> Unit,
     themeColors: ThemeColorSettings,
     onThemeColorsChange: (ThemeColorSettings) -> Unit,
+    predictiveBackEnabled: Boolean,
+    onPredictiveBackEnabledChange: (Boolean) -> Unit,
     accountState: SessionState,
     authRepository: AuthRepository?,
     onLogout: () -> Unit,
@@ -172,6 +176,7 @@ internal fun AppNavHost(
     Box(modifier.fillMaxSize()) {
         ActivityNavDisplay(
             backStack = backStack,
+            predictiveBackEnabled = predictiveBackEnabled,
             onBackRequested = {
                 when (backStack.lastOrNull()) {
                     ProfileEditorRoute -> profileBackGuard?.requestBack() == true
@@ -216,6 +221,10 @@ internal fun AppNavHost(
                                 if (backStack.lastOrNull() == MainRoute) backStack.add(VideoRoute(id))
                             },
                             videos = homeVideos, onRefreshVideos = { homeViewModel?.refresh() },
+                            searchTopBar = {
+                                val state = searchViewModel?.state?.collectAsStateWithLifecycle()?.value ?: SearchUiState()
+                                SearchTopBar(state, { searchViewModel?.onEvent(it) })
+                            },
                             searchContent = { padding ->
                                 SearchPage(
                                     model = searchViewModel,
@@ -451,6 +460,7 @@ internal fun AppNavHost(
                             repository = authRepository,
                             initialEmail = route.email,
                             isActive = backStack.lastOrNull() == route,
+                            predictiveBackEnabled = predictiveBackEnabled,
                             onClose = {
                                 if (backStack.lastOrNull() == route) backStack.removeLastOrNull()
                             },
@@ -496,6 +506,8 @@ internal fun AppNavHost(
                             onThemeModeChange = onThemeModeChange,
                             themeColors = themeColors,
                             onThemeColorsChange = onThemeColorsChange,
+                            predictiveBackEnabled = predictiveBackEnabled,
+                            onPredictiveBackEnabledChange = onPredictiveBackEnabledChange,
                             onBack = {
                                 if (backStack.lastOrNull() == AppearanceRoute) backStack.removeLastOrNull()
                             },

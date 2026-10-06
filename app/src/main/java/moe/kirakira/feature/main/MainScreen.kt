@@ -23,10 +23,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -43,8 +41,6 @@ import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarColors
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -54,7 +50,6 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
@@ -75,6 +70,7 @@ import moe.kirakira.data.auth.AccountProfile
 import moe.kirakira.data.content.VideoSummary
 import moe.kirakira.feature.me.MeScreen
 import moe.kirakira.feature.search.SearchScreen
+import moe.kirakira.feature.search.SearchTopBar
 import moe.kirakira.feature.search.SearchUiState
 import moe.kirakira.feature.settings.VideoCardLayout
 import moe.kirakira.feature.video.ContentState
@@ -85,6 +81,8 @@ import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.FrostedScaffold
+import moe.kirakira.ui.components.ShadingIcon
+import moe.kirakira.ui.components.appTopAppBarColors
 import moe.kirakira.ui.components.frostedBarBackground
 import moe.kirakira.ui.navigation.rememberNavigationMotion
 import moe.kirakira.ui.theme.KIRAKIRATheme
@@ -115,6 +113,7 @@ internal fun MainScreen(
     onRefreshVideos: () -> Unit = {},
     videosLayout: VideoCardLayout = VideoCardLayout.GRID,
     onBottomBarHeightChange: (Int) -> Unit = {},
+    searchTopBar: @Composable () -> Unit = { SearchTopBar(SearchUiState(ready = true), {}) },
     searchContent: @Composable (PaddingValues) -> Unit = { padding ->
         SearchScreen(SearchUiState(ready = true), {}, onOpenVideo, contentPadding = padding)
     },
@@ -168,6 +167,7 @@ internal fun MainScreen(
                             avatar = profile?.avatar,
                             destination = page,
                             onOpenMe = { destination = AppDestination.ME },
+                            searchTopBar = searchTopBar,
                         )
                     },
                 ) { innerPadding ->
@@ -264,55 +264,39 @@ private fun MainTopBar(
     destination: AppDestination,
     onOpenMe: () -> Unit,
     avatar: String?,
+    searchTopBar: @Composable () -> Unit,
 ) {
     when (destination) {
         AppDestination.HOME -> HomeTopBar(onOpenMe = onOpenMe, avatar = avatar)
 
         AppDestination.FOLLOWING -> TopAppBar(
             title = { Text(stringResource(R.string.nav_following), fontWeight = FontWeight.SemiBold) },
-            colors = mainTopAppBarColors(),
+            colors = appTopAppBarColors(),
         )
 
         AppDestination.ME -> TopAppBar(
             title = { Text(stringResource(R.string.nav_me), fontWeight = FontWeight.SemiBold) },
-            colors = mainTopAppBarColors(),
+            colors = appTopAppBarColors(),
         )
 
-        AppDestination.SEARCH -> Unit
+        AppDestination.SEARCH -> searchTopBar()
     }
 }
 
 @Composable
 private fun HomeTopBar(onOpenMe: () -> Unit, avatar: String?) {
     val meDescription = stringResource(R.string.nav_me)
-    val colors = mainTopAppBarColors()
     Box(
         modifier = Modifier
             .clipToBounds(),
     ) {
-        // Draw outside the title slot so the decoration can extend behind the status bar.
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .windowInsetsPadding(TopAppBarDefaults.windowInsets.only(WindowInsetsSides.Horizontal))
-                .padding(end = 72.dp),
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.logo_kirakira),
-                contentDescription = null,
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .wrapContentSize(align = Alignment.CenterEnd, unbounded = true)
-                    .requiredSize(128.dp)
-                    .alpha(0.2f),
-                tint = MaterialTheme.colorScheme.primaryFixed,
-            )
-        }
+        ShadingIcon(
+            icon = R.drawable.logo_kirakira,
+            modifier = Modifier.matchParentSize(),
+            endPadding = 72.dp,
+        )
         TopAppBar(
-            colors = colors.copy(
-                containerColor = Color.Transparent,
-                scrolledContainerColor = Color.Transparent,
-            ),
+            colors = appTopAppBarColors(),
             title = {
                 Icon(
                     painter = painterResource(R.drawable.logo_kirakira_wordmark),
@@ -332,13 +316,6 @@ private fun HomeTopBar(onOpenMe: () -> Unit, avatar: String?) {
         )
     }
 }
-
-@Composable
-private fun mainTopAppBarColors(): TopAppBarColors = TopAppBarDefaults.topAppBarColors(
-    containerColor = Color.Transparent,
-    scrolledContainerColor = Color.Transparent,
-    titleContentColor = MaterialTheme.colorScheme.primary,
-)
 
 @Composable
 private fun MainBottomBar(

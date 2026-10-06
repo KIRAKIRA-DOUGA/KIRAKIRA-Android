@@ -119,6 +119,7 @@ class MainActivity : ComponentActivity() {
             if (!isReady) return@setContent
             val themeMode by themeViewModel.themeMode.collectAsStateWithLifecycle()
             val themeColors by themeViewModel.themeColors.collectAsStateWithLifecycle()
+            val predictiveBackEnabled by themeViewModel.predictiveBackEnabled.collectAsStateWithLifecycle()
             val revealInfo = splashRevealController.revealInfo
             val darkTheme = when (themeMode) {
                 ThemeMode.SYSTEM -> isSystemInDarkTheme()
@@ -140,6 +141,8 @@ class MainActivity : ComponentActivity() {
                         onThemeModeChange = themeViewModel::setThemeMode,
                         themeColors = themeColors,
                         onThemeColorsChange = themeViewModel::setThemeColors,
+                        predictiveBackEnabled = predictiveBackEnabled,
+                        onPredictiveBackEnabledChange = themeViewModel::setPredictiveBackEnabled,
                         modifier = if (revealInfo != null) Modifier.clearAndSetSemantics { } else Modifier,
                         onVideoPageActiveChange = { active ->
                             // Keep the latest page style while the launch overlay owns the bars.

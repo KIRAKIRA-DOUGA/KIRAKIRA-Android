@@ -29,6 +29,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -94,7 +95,6 @@ import moe.kirakira.ui.components.AccountAvatar
 import moe.kirakira.ui.components.ContentUnavailableAction
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
-import moe.kirakira.ui.components.connectedListItemShadow
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.messageRes
@@ -119,6 +119,7 @@ internal fun ProfileEditorScreen(
     SettingsScaffold(
         title = stringResource(R.string.settings_profile),
         onBack = onBack,
+        shadingIcon = R.drawable.ic_symbol_person,
         modifier = modifier,
         imePadding = true,
         snackbarHost = {
@@ -271,7 +272,6 @@ private fun PersonalInformation(state: ProfileEditorState, onEdit: (String, Stri
         SegmentedListItem(
             onClick = { showBirthday = true }, enabled = state.editable,
             shapes = connectedListItemShapes(0, 2),
-            modifier = Modifier.connectedListItemShadow(0, 2),
             leadingContent = { ProfileListIcon(R.drawable.ic_symbol_calendar_today) },
             supportingContent = { Text(birthday?.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale))
                 ?: draft.birthday.ifBlank { stringResource(R.string.profile_not_set) }) },
@@ -282,7 +282,6 @@ private fun PersonalInformation(state: ProfileEditorState, onEdit: (String, Stri
             SegmentedListItem(
                 onClick = { showGender = true }, enabled = state.editable,
                 shapes = connectedListItemShapes(1, 2),
-                modifier = Modifier.connectedListItemShadow(1, 2),
                 leadingContent = { ProfileListIcon(R.drawable.ic_symbol_person) },
                 supportingContent = { Text(genderValues.indexOf(draft.gender).takeIf { it >= 0 }?.let {
                     stringResource(genderLabels[it])
@@ -290,7 +289,11 @@ private fun PersonalInformation(state: ProfileEditorState, onEdit: (String, Stri
                 trailingContent = { ProfileListIcon(R.drawable.ic_symbol_chevron_right) },
                 content = { Text(stringResource(R.string.profile_gender)) },
             )
-            DropdownMenu(expanded = showGender, onDismissRequest = { showGender = false }) {
+            DropdownMenu(
+                expanded = showGender,
+                onDismissRequest = { showGender = false },
+                containerColor = MaterialTheme.colorScheme.surface,
+            ) {
                 genderValues.forEachIndexed { index, value ->
                     DropdownMenuItem(text = { Text(stringResource(genderLabels[index])) }, onClick = {
                         onEdit("gender", value); showGender = false
@@ -311,7 +314,9 @@ private fun BirthdayDialog(value: String, onDismiss: () -> Unit, onSelect: (Stri
         selectableDates = object : SelectableDates {
             override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis <= today
         })
+    val dateColors = DatePickerDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
     DatePickerDialog(onDismissRequest = onDismiss,
+        colors = dateColors,
         confirmButton = { TextButton(onClick = {
             dateState.selectedDateMillis?.let { onSelect(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString()) }
         }, enabled = dateState.selectedDateMillis != null) { Text(stringResource(R.string.profile_done)) } },
@@ -319,7 +324,13 @@ private fun BirthdayDialog(value: String, onDismiss: () -> Unit, onSelect: (Stri
             TextButton(onClick = { onSelect("") }) { Text(stringResource(R.string.profile_clear)) }
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.account_cancel)) }
         } },
-    ) { DatePicker(dateState, showModeToggle = true) }
+    ) {
+        DatePicker(
+            state = dateState,
+            showModeToggle = true,
+            colors = dateColors,
+        )
+    }
 }
 
 @Composable

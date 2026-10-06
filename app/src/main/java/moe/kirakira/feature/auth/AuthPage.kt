@@ -40,6 +40,7 @@ internal fun AuthPage(
     isActive: Boolean,
     modifier: Modifier = Modifier,
     credentialGateway: PasswordCredentialGateway? = null,
+    predictiveBackEnabled: Boolean = false,
 ) {
     // Own the form at the outer AuthRoute so all child entries share the same in-memory draft.
     val context = LocalContext.current
@@ -130,6 +131,7 @@ internal fun AuthPage(
                 keyboard?.hide()
                 currentOnClose()
             },
+            predictiveBackEnabled = predictiveBackEnabled,
             modifier = modifier,
         )
     }

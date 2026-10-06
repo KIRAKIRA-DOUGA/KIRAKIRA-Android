@@ -1,6 +1,7 @@
 package moe.kirakira.feature.account
 
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -62,6 +63,7 @@ internal fun AccountSwitchPage(
     if (pendingAccount != null) {
         AlertDialog(
             onDismissRequest = { pendingRemovalId = null },
+            containerColor = MaterialTheme.colorScheme.surface,
             title = { Text(stringResource(R.string.account_remove_title)) },
             text = { Text(stringResource(R.string.account_remove_message, pendingAccount.name)) },
             confirmButton = {

@@ -1,6 +1,7 @@
 package moe.kirakira.feature.video
 
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -62,6 +63,8 @@ internal fun VideoCommentsPage(
     listState: LazyListState,
     bottomPadding: Dp,
     modifier: Modifier = Modifier,
+    topPadding: Dp = 0.dp,
+    onLogin: (() -> Unit)? = null,
     composerState: ComposerState = remember { ComposerState() },
     composerActive: Boolean = true,
     recentKaomoji: List<String> = emptyList(),
@@ -136,12 +139,14 @@ internal fun VideoCommentsPage(
     }
     FloatingComposerLayout(
         bottomPadding = bottomPadding,
+        topPadding = topPadding,
         composer = { availableHeight ->
             ContentComposer(
                 draft, R.string.comment_write, onDraft, onSend,
                 enabled = canInteract, busy = busy, maxLength = 19999,
                 state = composerState, active = composerActive, availableHeight = availableHeight,
                 recent = recentKaomoji, onKaomojiInserted = onKaomojiInserted,
+                onLogin = onLogin,
             )
         },
         modifier = modifier,
@@ -151,9 +156,10 @@ internal fun VideoCommentsPage(
             enabled = state.firstPage == 1 && atTop && (!state.loading || state.refreshing),
             onRefresh = onRefresh,
             modifier = Modifier.fillMaxSize(),
+            indicatorTopPadding = topPadding,
         ) {
             BoxWithConstraints(Modifier.fillMaxSize()) {
-                val statusHeight = (maxHeight - listBottomPadding - 8.dp -
+                val statusHeight = (maxHeight - topPadding - listBottomPadding - 8.dp -
                     with(density) { headerHeight.toDp() }).coerceAtLeast(0.dp)
                 LazyColumn(
                     state = listState,
@@ -161,16 +167,17 @@ internal fun VideoCommentsPage(
                     contentPadding = PaddingValues(
                         start = 8.dp,
                         end = 8.dp,
-                        top = 8.dp,
+                        top = topPadding + 8.dp,
                         bottom = listBottomPadding,
                     ),
                 ) {
                     item("count") {
-                        CommentCountHeader(
-                            count = state.total,
-                            toolbarSize = toolbarSize,
-                            modifier = Modifier.onSizeChanged { headerHeight = it.height },
-                        )
+                        Column(Modifier.onSizeChanged { headerHeight = it.height }) {
+                            CommentCountHeader(
+                                count = state.total,
+                                toolbarSize = toolbarSize,
+                            )
+                        }
                     }
                     item("status") {
                         if (state.error != null || showLoadingStatus || entries.isEmpty()) {
@@ -221,7 +228,7 @@ internal fun VideoCommentsPage(
                     onOpenJump = { showJumpDialog = true },
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(8.dp)
+                        .padding(start = 8.dp, end = 8.dp, top = topPadding + 8.dp, bottom = 8.dp)
                         .onSizeChanged { toolbarSize = it },
                 )
             }

@@ -144,8 +144,10 @@
     <string name="theme_system">Follow system</string>
     <string name="theme_light">Light theme</string>
     <string name="theme_dark">Dark theme</string>
-    <string name="about_version">Version %1$s</string>
-    <string name="about_github">GitHub</string>
+    <string name="about_version">%1$s (%2$d)</string>
+    <string name="about_github" translatable="false">GitHub</string>
+    <string name="about_for_android" translatable="false">for Android</string>
+    <string name="about_alpha" translatable="false">Alpha!</string>
     <string name="about_licenses">Open source components</string>
     <string name="about_privacy_policy">Privacy Policy</string>
     <string name="about_terms">Terms of Service</string>
@@ -175,14 +177,22 @@
     <string name="account_remove">Remove</string>
     <string name="account_cancel">Cancel</string>
 
-    <string name="theme_brightness">Brightness</string>
-    <string name="theme_colors">Theme colors</string>
-    <string name="theme_color_pink">Pink</string>
-    <string name="theme_color_purple">Purple</string>
-    <string name="theme_color_blue">Blue</string>
-    <string name="theme_color_green">Green</string>
-    <string name="theme_color_amber">Amber</string>
-    <string name="theme_color_coral">Coral</string>
+    <string name="theme_brightness">Scheme</string>
+    <string name="theme_colors">Palette</string>
+    <string name="theme_color_pink">Cocoa Pink</string>
+    <string name="theme_color_purple">Rize Purple</string>
+    <string name="theme_color_blue">Chino Blue</string>
+    <string name="theme_color_green">Chiya Green</string>
+    <string name="theme_color_yellow">Syaro Yellow</string>
+    <string name="theme_color_cyan">Maya Cyan</string>
+    <string name="theme_color_red">Megu Red</string>
+    <string name="theme_character_cocoa">保登心愛</string>
+    <string name="theme_character_chino">香風智乃</string>
+    <string name="theme_character_rize">天々座理世</string>
+    <string name="theme_character_chiya">宇治松千夜</string>
+    <string name="theme_character_syaro">桐間紗路</string>
+    <string name="theme_character_maya">条河麻耶</string>
+    <string name="theme_character_megu">奈津恵</string>
     <string name="theme_color_wallpaper">Wallpaper color</string>
     <string name="theme_color_custom">Custom</string>
     <string name="theme_color_hex">HEX color</string>
@@ -467,7 +477,8 @@
     <string name="settings_section_mini_player">Mini player</string>
     <string name="danmaku_section_display">Display</string>
     <string name="danmaku_section_types">Danmaku types</string>
-    <string name="about_for_android">for Android</string>
+    <string name="settings_section_animations">Animations</string>
+    <string name="settings_predictive_back">Predictive back</string>
     <string name="about_section_more">More</string>
     <string name="tag_title">Tag</string>
     <string name="tag_related_videos">Related videos</string>

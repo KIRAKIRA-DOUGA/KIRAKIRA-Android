@@ -1,6 +1,8 @@
 package moe.kirakira.feature.history
 
 import android.content.res.Configuration
+import androidx.compose.animation.core.animate
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -20,12 +22,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -33,24 +36,30 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.text.DateFormat
@@ -59,7 +68,6 @@ import java.time.ZoneId
 import java.util.Date
 import moe.kirakira.R
 import moe.kirakira.data.history.HistoryEntry
-import moe.kirakira.feature.search.QuerySearchBar
 import moe.kirakira.feature.video.ContentState
 import moe.kirakira.feature.video.VideoArtwork
 import moe.kirakira.feature.video.durationText
@@ -72,8 +80,9 @@ import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.FrostedScaffold
-import moe.kirakira.ui.components.connectedListItemShadow
-import moe.kirakira.ui.components.connectedListItemShapes
+import moe.kirakira.ui.components.SearchableTopAppBar
+import moe.kirakira.ui.components.ShadingIcon
+import moe.kirakira.ui.components.TopAppBarSearchButton
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.theme.KIRAKIRATheme
@@ -130,7 +139,23 @@ internal fun HistoryScreen(
     val list = rememberLazyListState()
     val snackbar = remember { SnackbarHostState() }
     val context = LocalContext.current
-    val focus = LocalFocusManager.current
+    var searchExpanded by rememberSaveable { mutableStateOf(query.isNotEmpty()) }
+    var searchOpening by remember { mutableStateOf(false) }
+    val collapseSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+    LaunchedEffect(searchOpening, signedIn, ready, isActive) {
+        if (!signedIn || !ready) {
+            searchExpanded = false
+            searchOpening = false
+        } else if (!isActive) {
+            searchOpening = false
+        } else if (searchOpening) {
+            animate(scroll.state.heightOffset, scroll.state.heightOffsetLimit, animationSpec = collapseSpec) {
+                value, _ -> scroll.state.heightOffset = value
+            }
+            searchExpanded = true
+            searchOpening = false
+        }
+    }
     val direction = LocalLayoutDirection.current
     val locale = LocalConfiguration.current.locales[0]
     val zone = ZoneId.systemDefault()
@@ -149,8 +174,50 @@ internal fun HistoryScreen(
         }
     }
     FrostedScaffold(
-        modifier = modifier.fillMaxSize().nestedScroll(scroll.nestedScrollConnection),
-        topBar = { CollapsibleTopAppBar(stringResource(R.string.me_history), onBack, scroll) },
+        modifier = modifier.fillMaxSize().then(
+            if (searchExpanded || searchOpening) Modifier else Modifier.nestedScroll(scroll.nestedScrollConnection),
+        ),
+        topBar = {
+            SearchableTopAppBar(
+                query = query,
+                expanded = searchExpanded,
+                placeholder = stringResource(R.string.history_search),
+                onQueryChange = onQueryChange,
+                onExpand = { searchOpening = true },
+                onClear = { onQueryChange("") },
+                onClose = {
+                    searchExpanded = false
+                    onQueryChange("")
+                },
+                onSearch = {},
+                enabled = signedIn && ready,
+                isActive = isActive,
+            ) { openSearch ->
+                Box {
+                    ShadingIcon(
+                        icon = R.drawable.ic_symbol_history,
+                        modifier = Modifier.matchParentSize(),
+                        endPadding = 0.dp,
+                        alignment = Alignment.BottomEnd,
+                        offset = DpOffset(32.dp, 32.dp),
+                    )
+                    CollapsibleTopAppBar(
+                        title = stringResource(R.string.me_history),
+                        onBack = onBack,
+                        scrollBehavior = scroll,
+                        actions = {
+                            if (signedIn && ready) {
+                                TopAppBarSearchButton(
+                                    onClick = openSearch,
+                                    contentDescription = stringResource(R.string.history_search),
+                                    enabled = !searchOpening,
+                                )
+                            }
+                        },
+                    )
+                }
+            }
+        },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         Column(
@@ -165,29 +232,24 @@ internal fun HistoryScreen(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
             ) {
                 BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                    val statusHeight = (maxHeight - padding.calculateTopPadding() - padding.calculateBottomPadding() - if (signedIn && ready) 112.dp else 32.dp).coerceAtLeast(0.dp)
+                    val statusHeight = (maxHeight - padding.calculateTopPadding() -
+                        padding.calculateBottomPadding() - 32.dp).coerceAtLeast(0.dp)
                     LazyColumn(
                         state = list,
                         modifier = Modifier.widthIn(max = 840.dp).fillMaxSize(),
                         contentPadding = PaddingValues(
-                            start = padding.calculateStartPadding(direction) + 16.dp,
-                            end = padding.calculateEndPadding(direction) + 16.dp,
+                            start = padding.calculateStartPadding(direction),
+                            end = padding.calculateEndPadding(direction),
                             top = padding.calculateTopPadding() + 8.dp,
                             bottom = padding.calculateBottomPadding() + 24.dp,
                         ),
                     ) {
-                        if (signedIn && ready) item("search") {
-                            QuerySearchBar(
-                                query = query,
-                                onQueryChange = onQueryChange,
-                                onSearch = { focus.clearFocus() },
-                                placeholder = stringResource(R.string.history_search),
-                                onClear = { onQueryChange("") },
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                            )
-                        }
-                        if (!ready || !signedIn || state.data == null || sections.isEmpty()) item("status") {
-                            val statusModifier = Modifier.fillMaxWidth().heightIn(min = statusHeight)
+                        if (!ready || !signedIn || state.data == null || sections.isEmpty()) item(
+                            key = "status",
+                            contentType = "status",
+                        ) {
+                            val statusModifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                                .heightIn(min = statusHeight)
                             if (ready && !signedIn) ContentUnavailableView(
                                 state = ContentUnavailableState.EMPTY,
                                 modifier = statusModifier,
@@ -207,20 +269,27 @@ internal fun HistoryScreen(
                             )
                         }
                         if (ready && signedIn) sections.forEach { (day, entries) ->
-                            item("day-$day") {
+                            item(key = "day-$day", contentType = "date") {
                                 Text(
                                     DateFormat.getDateInstance(DateFormat.MEDIUM, locale).format(
                                         Date.from(day.atStartOfDay(zone).toInstant()),
                                     ),
                                     style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 12.dp)
+                                    modifier = Modifier.fillMaxWidth()
+                                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 12.dp)
                                         .semantics { heading() },
                                 )
                             }
-                            itemsIndexed(entries, key = { _, entry -> "video-${entry.video.id}" }) { index, entry ->
-                                HistoryRow(entry, index, entries.size, { onOpenVideo(entry.video.id) },
-                                    Modifier.fillMaxWidth())
+                            items(
+                                items = entries,
+                                key = { entry -> "video-${entry.video.id}" },
+                                contentType = { "history" },
+                            ) { entry ->
+                                HistoryRow(
+                                    entry = entry,
+                                    onClick = { onOpenVideo(entry.video.id) },
+                                )
                             }
                         }
                     }
@@ -231,14 +300,17 @@ internal fun HistoryScreen(
 }
 
 @Composable
-private fun HistoryRow(entry: HistoryEntry, index: Int, count: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun HistoryRow(
+    entry: HistoryEntry,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val locale = LocalConfiguration.current.locales[0]
     val time = DateFormat.getTimeInstance(DateFormat.SHORT, locale).format(Date(entry.updatedAt))
     // Keeping artwork in the content slot lets the text use the full width with large fonts.
-    SegmentedListItem(
-        onClick = onClick,
-        modifier = modifier.connectedListItemShadow(index, count),
-        shapes = connectedListItemShapes(index, count),
+    ListItem(
+        modifier = modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick),
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         supportingContent = null,
     ) {
         BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -260,7 +332,8 @@ private fun HistoryRow(entry: HistoryEntry, index: Int, count: Int, onClick: () 
                     Text(entry.video.title, style = MaterialTheme.typography.titleMedium,
                         maxLines = 2, overflow = TextOverflow.Ellipsis)
                     if (entry.video.author.isNotBlank()) Text("@${entry.video.author}",
-                        style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         HistoryMetadata(R.drawable.ic_symbol_history, time, stringResource(R.string.history_watched_at, time))

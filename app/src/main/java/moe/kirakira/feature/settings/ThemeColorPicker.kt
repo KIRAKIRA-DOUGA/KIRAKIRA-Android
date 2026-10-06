@@ -1,93 +1,84 @@
 package moe.kirakira.feature.settings
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.material3.SegmentedListItem
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import moe.kirakira.R
-import moe.kirakira.ui.components.connectedListItemShadow
-import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.theme.ThemeColorSettings
 import moe.kirakira.ui.theme.ThemePresetColor
-import moe.kirakira.ui.theme.wallpaperAccentColor
+import moe.kirakira.ui.theme.formatThemeColor
 
 @Composable
-internal fun ThemeColorPicker(
+internal fun ThemeColorCard(
+    option: String,
     settings: ThemeColorSettings,
+    wallpaperColor: Color?,
     onSettingsChange: (ThemeColorSettings) -> Unit,
+    onCustomColor: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var showCustomColor by rememberSaveable { mutableStateOf(false) }
-    val wallpaperColor = wallpaperAccentColor()
     val usesSystemColors = settings.useSystemColors && wallpaperColor != null
-
-    SettingsSection(title = stringResource(R.string.theme_colors), modifier = modifier) {
-        SegmentedListItem(
-            shapes = connectedListItemShapes(index = 0, count = 1),
-            modifier = Modifier.connectedListItemShadow(index = 0, count = 1),
-            contentPadding = PaddingValues(vertical = 12.dp),
-            content = {
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth().selectableGroup(),
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    items(items = ThemePresetColor.entries, key = { it.name }) { preset ->
-                        ThemePaletteOption(
-                            seedColor = preset.color,
-                            label = stringResource(preset.titleRes),
-                            selected = !usesSystemColors && !settings.useCustomColor &&
-                                settings.seedColorArgb == preset.color.toArgb(),
-                            onClick = { onSettingsChange(settings.selectPreset(preset)) },
-                        )
-                    }
-                    if (wallpaperColor != null) {
-                        item(key = "wallpaper") {
-                            ThemePaletteOption(
-                                seedColor = wallpaperColor,
-                                label = stringResource(R.string.theme_color_wallpaper),
-                                selected = usesSystemColors,
-                                onClick = { onSettingsChange(settings.selectWallpaperColor()) },
-                                width = 80.dp,
-                            )
-                        }
-                    }
-                    item(key = "custom") {
-                        ThemePaletteOption(
-                            seedColor = Color(settings.customColorArgb),
-                            label = stringResource(R.string.theme_color_custom),
-                            selected = !usesSystemColors && settings.useCustomColor,
-                            onClick = { showCustomColor = true },
-                        )
-                    }
-                }
+    val preset = ThemePresetColor.entries.firstOrNull { it.name == option }
+    if (preset != null) {
+        val context = LocalContext.current
+        val request = remember(context, preset.artworkRes) {
+            ImageRequest.Builder(context)
+                .data(preset.artworkRes)
+                .crossfade(false)
+                .build()
+        }
+        ThemeSelectionCard(
+            title = stringResource(preset.titleRes),
+            subtitle = stringResource(preset.characterRes),
+            seedColor = preset.color,
+            selected = !usesSystemColors && !settings.useCustomColor &&
+                settings.seedColorArgb == preset.color.toArgb(),
+            onClick = { onSettingsChange(settings.selectPreset(preset)) },
+            modifier = modifier,
+        ) {
+            AsyncImage(
+                model = request,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                alignment = BiasAlignment(0f, -0.84f),
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+    } else {
+        val custom = option == "custom"
+        val color = if (custom) Color(settings.customColorArgb) else wallpaperColor ?: Color(settings.seedColorArgb)
+        ThemeSelectionCard(
+            title = stringResource(if (custom) R.string.theme_color_custom else R.string.theme_color_wallpaper),
+            subtitle = formatThemeColor(color.toArgb()),
+            seedColor = color,
+            leadingIcon = if (custom) R.drawable.ic_symbol_edit else null,
+            selected = if (custom) !usesSystemColors && settings.useCustomColor else usesSystemColors,
+            onClick = {
+                if (custom) onCustomColor() else onSettingsChange(settings.selectWallpaperColor())
             },
-        )
-    }
-
-    if (showCustomColor) {
-        CustomColorDialog(
-            seedColorArgb = settings.customColorArgb,
-            onDismiss = { showCustomColor = false },
-            onConfirm = { argb ->
-                onSettingsChange(settings.selectCustomColor(argb))
-                showCustomColor = false
-            },
-        )
+            modifier = modifier,
+        ) {
+            Icon(
+                painter = painterResource(if (custom) R.drawable.ic_symbol_edit else R.drawable.ic_symbol_wallpaper),
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.align(Alignment.Center).size(48.dp),
+            )
+        }
     }
 }

@@ -142,8 +142,7 @@
     <string name="theme_system">跟随系统</string>
     <string name="theme_light">浅色主题</string>
     <string name="theme_dark">深色主题</string>
-    <string name="about_version">版本 %1$s</string>
-    <string name="about_github">GitHub</string>
+    <string name="about_version">%1$s (%2$d)</string>
     <string name="about_licenses">开源组件</string>
     <string name="about_privacy_policy">隐私政策</string>
     <string name="about_terms">服务协议</string>
@@ -173,14 +172,22 @@
     <string name="account_remove">移除</string>
     <string name="account_cancel">取消</string>
 
-    <string name="theme_brightness">明暗模式</string>
-    <string name="theme_colors">主题配色</string>
-    <string name="theme_color_pink">粉色</string>
-    <string name="theme_color_purple">紫色</string>
-    <string name="theme_color_blue">蓝色</string>
-    <string name="theme_color_green">绿色</string>
-    <string name="theme_color_amber">琥珀色</string>
-    <string name="theme_color_coral">珊瑚色</string>
+    <string name="theme_brightness">主题</string>
+    <string name="theme_colors">个性色</string>
+    <string name="theme_color_pink">心爱粉</string>
+    <string name="theme_color_purple">理世紫</string>
+    <string name="theme_color_blue">智乃蓝</string>
+    <string name="theme_color_green">千夜绿</string>
+    <string name="theme_color_yellow">纱路黄</string>
+    <string name="theme_color_cyan">麻耶青</string>
+    <string name="theme_color_red">小惠红</string>
+    <string name="theme_character_cocoa">保登心愛</string>
+    <string name="theme_character_chino">香風智乃</string>
+    <string name="theme_character_rize">天々座理世</string>
+    <string name="theme_character_chiya">宇治松千夜</string>
+    <string name="theme_character_syaro">桐間紗路</string>
+    <string name="theme_character_maya">条河麻耶</string>
+    <string name="theme_character_megu">奈津恵</string>
     <string name="theme_color_wallpaper">壁纸颜色</string>
     <string name="theme_color_custom">自定义</string>
     <string name="theme_color_hex">HEX 色值</string>
@@ -348,7 +355,7 @@
     <string name="account_removing">正在移除</string>
     <string name="content_unknown_author">未知作者</string>
     <string name="content_send">发送</string>
-    <string name="content_login_to_interact">登录后即可互动。</string>
+    <string name="content_login_to_interact">登录后即可互动</string>
     <string name="comment_write">写评论</string>
     <string name="comment_posted">已发布：%1$s</string>
     <string name="danmaku_write">发送弹幕</string>
@@ -463,7 +470,9 @@
     <string name="settings_section_mini_player">小窗播放</string>
     <string name="danmaku_section_display">显示</string>
     <string name="danmaku_section_types">弹幕类型</string>
-    <string name="about_for_android">for Android</string>
+    <string name="settings_section_animations">动画</string>
+    <string name="settings_predictive_back">预测性返回</string>
+
     <string name="about_section_more">更多</string>
     <string name="tag_title">标签</string>
     <string name="tag_related_videos">相关视频</string>

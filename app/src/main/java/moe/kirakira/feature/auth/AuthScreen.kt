@@ -23,20 +23,19 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -50,12 +49,13 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import moe.kirakira.ui.components.ShadowButton
-import moe.kirakira.ui.components.ShadowFilledTonalIconButton
 import moe.kirakira.R
 import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.ShadowButton
+import moe.kirakira.ui.components.appTopAppBarColors
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -139,11 +139,7 @@ internal fun AuthScreen(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             CenterAlignedTopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = Color.Transparent,
-                    titleContentColor = MaterialTheme.colorScheme.primary,
-                ),
+                colors = appTopAppBarColors(),
                 title = {
                     Icon(
                         painter = painterResource(stepIcon),
@@ -154,7 +150,7 @@ internal fun AuthScreen(
                 },
                 navigationIcon = {
                     if (state.step != AuthStep.LOGIN) {
-                        ShadowFilledTonalIconButton(onClick = onBack, modifier = Modifier.testTag("auth_back")) {
+                        IconButton(onClick = onBack, modifier = Modifier.testTag("auth_back")) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_symbol_arrow_back),
                                 contentDescription = stringResource(R.string.navigate_back),
@@ -163,7 +159,7 @@ internal fun AuthScreen(
                     }
                 },
                 actions = {
-                    ShadowFilledTonalIconButton(onClick = onClose, modifier = Modifier.testTag("auth_close")) {
+                    IconButton(onClick = onClose, modifier = Modifier.testTag("auth_close")) {
                         Icon(
                             painter = painterResource(R.drawable.ic_symbol_close),
                             contentDescription = stringResource(R.string.auth_close),
@@ -206,6 +202,7 @@ internal fun AuthScreen(
                     Text(
                         text = signInLabel,
                         style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.semantics { heading() },
                     )
                     Spacer(Modifier.height(8.dp))

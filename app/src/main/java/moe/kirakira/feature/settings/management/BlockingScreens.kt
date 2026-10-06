@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -56,7 +55,6 @@ import moe.kirakira.data.settings.RuleEntry
 import moe.kirakira.data.settings.RulePage
 import moe.kirakira.data.settings.RuleTag
 import moe.kirakira.ui.components.AccountAvatar
-import moe.kirakira.ui.components.connectedListItemShadow
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.theme.KIRAKIRATheme
@@ -78,8 +76,18 @@ internal fun BlockingOverviewScreen(
     onCategory: (RuleCategory) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    ManagementFrame(stringResource(R.string.settings_blocking), signedIn, state.loading, state.data != null,
-        state.error, onBack, onLogin, onRefresh, modifier) {
+    ManagementFrame(
+        title = stringResource(R.string.settings_blocking),
+        shadingIcon = R.drawable.ic_symbol_block,
+        signedIn = signedIn,
+        loading = state.loading,
+        loaded = state.data != null,
+        error = state.error,
+        onBack = onBack,
+        onLogin = onLogin,
+        onRefresh = onRefresh,
+        modifier = modifier,
+    ) {
         listOf(
             R.string.management_people to listOf(RuleCategory.BLOCK, RuleCategory.HIDE),
             R.string.management_content to listOf(RuleCategory.TAG, RuleCategory.KEYWORD, RuleCategory.REGEX),
@@ -87,24 +95,38 @@ internal fun BlockingOverviewScreen(
             item {
                 SettingsSectionHeader(stringResource(title), modifier = Modifier.padding(bottom = 8.dp))
             }
-            itemsIndexed(categories, key = { _, category -> category.name }) { index, category ->
-                SegmentedListItem(
-                    onClick = { onCategory(category) },
-                    shapes = connectedListItemShapes(index, categories.size),
-                    modifier = Modifier.connectedListItemShadow(index, categories.size),
-                    leadingContent = {
-                        Icon(painterResource(category.iconRes()), contentDescription = null, modifier = Modifier.size(24.dp))
-                    },
-                    trailingContent = {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            state.data?.get(category)?.let {
-                                Text(it.toString(), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                            }
-                            Icon(painterResource(R.drawable.ic_symbol_chevron_right), null, Modifier.size(24.dp))
-                        }
-                    },
-                    content = { Text(stringResource(category.titleRes())) },
-                )
+            item("categories-$title") {
+                ConnectedListGroup {
+                    categories.forEachIndexed { index, category ->
+                        SegmentedListItem(
+                            onClick = { onCategory(category) },
+                            shapes = connectedListItemShapes(index, categories.size),
+                            leadingContent = {
+                                Icon(
+                                    painterResource(category.iconRes()),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp),
+                                )
+                            },
+                            trailingContent = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    state.data?.get(category)?.let {
+                                        Text(
+                                            it.toString(),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                    Icon(painterResource(R.drawable.ic_symbol_chevron_right), null, Modifier.size(24.dp))
+                                }
+                            },
+                            content = { Text(stringResource(category.titleRes())) },
+                        )
+                    }
+                }
             }
             item { Spacer(Modifier.height(16.dp)) }
         }
@@ -145,6 +167,7 @@ internal fun RuleManagementScreen(
     val language = LocalConfiguration.current.locales[0].toLanguageTag()
     ManagementFrame(
         title = stringResource(category.titleRes()), signedIn = signedIn, loading = state.loading,
+        shadingIcon = category.iconRes(),
         loaded = state.data != null, error = state.error, onBack = onBack, onLogin = onLogin,
         onRefresh = onRefresh, modifier = modifier, appending = state.appending,
         message = message, onDismissMessage = onDismissMessage,
@@ -170,13 +193,16 @@ internal fun RuleManagementScreen(
                 )
             }
             if (page.entries.isEmpty()) item { ManagementEmpty(category.iconRes(), stringResource(R.string.management_no_rules)) }
-            itemsIndexed(page.entries, key = { _, entry -> entry.value }) { index, entry ->
+            connectedItemsIndexed(
+                groupKey = category.name,
+                items = page.entries,
+                key = { _, entry -> entry.value },
+            ) { index, entry ->
                 val user = category == RuleCategory.BLOCK || category == RuleCategory.HIDE
                 val label = if (user) entry.name?.takeIf(String::isNotBlank) ?: entry.uid?.toString() ?: entry.value
                     else entry.tag?.displayName(language) ?: entry.value
                 SegmentedListItem(
                     shapes = connectedListItemShapes(index, page.entries.size),
-                    modifier = Modifier.connectedListItemShadow(index, page.entries.size),
                     leadingContent = {
                         if (user) AccountAvatar(entry.avatar)
                         else Icon(painterResource(category.iconRes()), contentDescription = null, modifier = Modifier.size(24.dp))
@@ -226,6 +252,11 @@ private fun RuleEditorSheet(
     val currentBusy by rememberUpdatedState(busy)
     ModalBottomSheet(
         onDismissRequest = onClose,
+        containerColor = if (state.profile != null || !state.tags.isNullOrEmpty()) {
+            MaterialTheme.colorScheme.surfaceContainerLow
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
         sheetState = rememberBottomSheetState(
             initialValue = SheetValue.Hidden,
             enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
@@ -253,13 +284,14 @@ private fun RuleEditorSheet(
                 },
             )
             state.profile?.let { profile ->
-                SegmentedListItem(
-                    shapes = connectedListItemShapes(0, 1),
-                    modifier = Modifier.connectedListItemShadow(0, 1),
-                    leadingContent = { AccountAvatar(profile.avatar) },
-                    supportingContent = { Text(stringResource(R.string.management_uid, profile.uid)) },
-                    content = { Text(profile.name.ifBlank { profile.uid.toString() }) },
-                )
+                ConnectedListGroup {
+                    SegmentedListItem(
+                        shapes = connectedListItemShapes(0, 1),
+                        leadingContent = { AccountAvatar(profile.avatar) },
+                        supportingContent = { Text(stringResource(R.string.management_uid, profile.uid)) },
+                        content = { Text(profile.name.ifBlank { profile.uid.toString() }) },
+                    )
+                }
             }
             if (busy) {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -286,7 +318,6 @@ private fun RuleEditorSheet(
                             onClick = { onTag(tag) },
                             enabled = !busy,
                             shapes = connectedListItemShapes(index, tags.size),
-                            modifier = Modifier.connectedListItemShadow(index, tags.size),
                             supportingContent = { Text("#${tag.id}") },
                             trailingContent = { Icon(painterResource(R.drawable.ic_symbol_add), null, Modifier.size(24.dp)) },
                             content = { Text(tag.displayName(language)) },

@@ -18,7 +18,12 @@ internal fun PlaybackSettingsScreen(
 ) {
     val values = settings ?: PlaybackSettings()
     val ready = settings != null
-    SettingsPage(title = stringResource(R.string.settings_playback), onBack = onBack, modifier = modifier) {
+    SettingsPage(
+        title = stringResource(R.string.settings_playback),
+        onBack = onBack,
+        shadingIcon = R.drawable.ic_symbol_play_circle,
+        modifier = modifier,
+    ) {
         SettingsSection(stringResource(R.string.settings_section_mini_player)) {
             SettingsSwitchItem(
                 title = stringResource(R.string.settings_in_app_mini_player),

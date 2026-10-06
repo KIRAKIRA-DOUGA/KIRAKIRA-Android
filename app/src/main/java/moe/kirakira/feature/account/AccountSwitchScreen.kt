@@ -1,6 +1,7 @@
 package moe.kirakira.feature.account
 
 import android.content.res.Configuration
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,7 +21,6 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -41,11 +41,14 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
 import moe.kirakira.data.auth.SessionOperation
@@ -55,7 +58,8 @@ import moe.kirakira.ui.components.CollapsibleTopAppBar
 import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
-import moe.kirakira.ui.components.connectedListItemShadow
+import moe.kirakira.ui.components.ShadowRadioButton
+import moe.kirakira.ui.components.ShadingIcon
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.theme.KIRAKIRATheme
@@ -91,26 +95,35 @@ internal fun AccountSwitchScreen(
             .testTag("account_switch_screen"),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
-            CollapsibleTopAppBar(
-                title = stringResource(R.string.settings_switch_account),
-                onBack = onBack,
-                scrollBehavior = scrollBehavior,
-                backButtonModifier = Modifier.testTag("account_back"),
-                actions = {
-                    if (accounts.any { it.id != GUEST_ACCOUNT_ID }) {
-                        TextButton(
-                            enabled = !busy,
-                            onClick = {
-                                swipedAccountId = null
-                                onEditingChange(!editing)
-                            },
-                            modifier = Modifier.testTag("account_edit"),
-                        ) {
-                            Text(stringResource(if (editing) R.string.account_done else R.string.account_edit))
+            Box {
+                ShadingIcon(
+                    icon = R.drawable.ic_symbol_switch_account,
+                    modifier = Modifier.matchParentSize(),
+                    alignment = Alignment.BottomEnd,
+                    endPadding = 0.dp,
+                    offset = DpOffset(32.dp, 32.dp),
+                )
+                CollapsibleTopAppBar(
+                    title = stringResource(R.string.settings_switch_account),
+                    onBack = onBack,
+                    scrollBehavior = scrollBehavior,
+                    backButtonModifier = Modifier.testTag("account_back"),
+                    actions = {
+                        if (accounts.any { it.id != GUEST_ACCOUNT_ID }) {
+                            TextButton(
+                                enabled = !busy,
+                                onClick = {
+                                    swipedAccountId = null
+                                    onEditingChange(!editing)
+                                },
+                                modifier = Modifier.testTag("account_edit"),
+                            ) {
+                                Text(stringResource(if (editing) R.string.account_done else R.string.account_edit))
+                            }
                         }
-                    }
-                },
-            )
+                    },
+                )
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
@@ -182,33 +195,34 @@ internal fun AccountSwitchScreen(
                         }
                     }
                 }
-                SegmentedListItem(
-                    onClick = {
-                        swipedAccountId = null
-                        onAddAccount()
-                    },
-                    enabled = !editing && !busy,
-                    shapes = connectedListItemShapes(index = 0, count = 1),
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("account_add")
-                        .connectedListItemShadow(index = 0, count = 1),
-                    leadingContent = {
-                        Surface(
-                            shape = CircleShape,
-                            color = if (editing) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-                            else MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = if (editing) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                            else MaterialTheme.colorScheme.onSecondaryContainer,
-                        ) {
-                            Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                                Icon(painterResource(R.drawable.ic_symbol_add), contentDescription = null)
+                ConnectedListGroup {
+                    SegmentedListItem(
+                        onClick = {
+                            swipedAccountId = null
+                            onAddAccount()
+                        },
+                        enabled = !editing && !busy,
+                        shapes = connectedListItemShapes(index = 0, count = 1),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("account_add"),
+                        leadingContent = {
+                            Surface(
+                                shape = CircleShape,
+                                color = if (editing) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                                else MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = if (editing) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                else MaterialTheme.colorScheme.onSecondaryContainer,
+                            ) {
+                                Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                                    Icon(painterResource(R.drawable.ic_symbol_add), contentDescription = null)
+                                }
                             }
-                        }
-                    },
-                ) {
-                    Text(stringResource(R.string.account_add))
+                        },
+                    ) {
+                        Text(stringResource(R.string.account_add))
+                    }
                 }
             }
         }
@@ -229,10 +243,14 @@ private fun AccountRow(
     onRemove: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     val currentAccount = stringResource(R.string.account_current)
+    val switchingAccount = stringResource(R.string.account_switching)
     val rowModifier = modifier.fillMaxWidth().testTag("account_${account.id}").semantics(mergeDescendants = true) {
         selected = isSelected
-        if (isSelected) stateDescription = currentAccount
+        if (!editing) role = Role.RadioButton
+        if (operationType == SessionOperationType.SWITCH) stateDescription = switchingAccount
+        else if (isSelected) stateDescription = currentAccount
     }
     val shapes = connectedListItemShapes(index = index, count = count)
     val avatar: @Composable () -> Unit = { AccountAvatar(url = account.avatar, size = 48.dp) }
@@ -241,7 +259,6 @@ private fun AccountRow(
     }
     val supportingText = when {
         operationType == SessionOperationType.REMOVE -> stringResource(R.string.account_removing)
-        operationType != null -> stringResource(R.string.account_switching)
         account.id == GUEST_ACCOUNT_ID -> null
         editing && isSelected -> currentAccount
         else -> account.handle
@@ -252,10 +269,16 @@ private fun AccountRow(
                 text = subtitle,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                color = if (operationType != null || editing && isSelected) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = if (operationType != null) Modifier.testTag("account_status_${account.id}")
-                    else Modifier,
+                color = if (operationType == SessionOperationType.REMOVE || editing && isSelected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                modifier = if (operationType == SessionOperationType.REMOVE) {
+                    Modifier.testTag("account_status_${account.id}")
+                } else {
+                    Modifier
+                },
             )
         }
     }
@@ -270,7 +293,12 @@ private fun AccountRow(
                     )
                 }
                 !editing -> {
-                    RadioButton(selected = isSelected, onClick = null, enabled = enabled)
+                    ShadowRadioButton(
+                        selected = isSelected,
+                        onClick = null,
+                        enabled = enabled,
+                        interactionSource = interactionSource,
+                    )
                 }
                 account.id != GUEST_ACCOUNT_ID -> {
                     IconButton(
@@ -294,7 +322,7 @@ private fun AccountRow(
         SegmentedListItem(
             shapes = shapes,
             verticalAlignment = Alignment.CenterVertically,
-            modifier = rowModifier.connectedListItemShadow(index, count),
+            modifier = rowModifier,
             leadingContent = avatar,
             supportingContent = supporting,
             trailingContent = trailing,
@@ -302,12 +330,12 @@ private fun AccountRow(
         )
     } else {
         SegmentedListItem(
-            selected = isSelected,
             enabled = enabled,
             onClick = onSelect,
+            interactionSource = interactionSource,
             shapes = shapes,
             verticalAlignment = Alignment.CenterVertically,
-            modifier = rowModifier.connectedListItemShadow(index, count),
+            modifier = rowModifier,
             leadingContent = avatar,
             supportingContent = supporting,
             trailingContent = trailing,

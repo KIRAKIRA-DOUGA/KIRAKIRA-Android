@@ -5,6 +5,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import moe.kirakira.R
+import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 @Composable
@@ -16,14 +17,21 @@ internal fun DanmakuSettingsScreen(
 ) {
     val value = settings ?: DanmakuSettings()
     val ready = settings != null
-    SettingsPage(title = stringResource(R.string.settings_danmaku), onBack = onBack, modifier = modifier) {
-        SettingsMasterSwitchItem(
-            title = stringResource(R.string.danmaku_display),
-            checked = value.enabled,
-            onCheckedChange = { onChange(value.copy(enabled = it)) },
-            icon = R.drawable.ic_custom_danmaku,
-            enabled = ready,
-        )
+    SettingsPage(
+        title = stringResource(R.string.settings_danmaku),
+        onBack = onBack,
+        shadingIcon = R.drawable.ic_custom_danmaku,
+        modifier = modifier,
+    ) {
+        ConnectedListGroup {
+            SettingsMasterSwitchItem(
+                title = stringResource(R.string.danmaku_display),
+                checked = value.enabled,
+                onCheckedChange = { onChange(value.copy(enabled = it)) },
+                icon = R.drawable.ic_custom_danmaku,
+                enabled = ready,
+            )
+        }
         SettingsSection(stringResource(R.string.danmaku_section_display)) {
             SettingsSliderItem(
                 title = stringResource(R.string.danmaku_opacity),

@@ -13,11 +13,13 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -68,8 +70,9 @@ import androidx.compose.ui.unit.dp
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
-import moe.kirakira.ui.components.ShadowFilledIconButton
 import moe.kirakira.R
+import moe.kirakira.ui.components.ShadowButton
+import moe.kirakira.ui.components.ShadowFilledIconButton
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -80,12 +83,13 @@ internal fun FloatingComposerLayout(
     bottomPadding: Dp,
     composer: @Composable (Dp) -> Unit,
     modifier: Modifier = Modifier,
+    topPadding: Dp = 0.dp,
     content: @Composable (Dp) -> Unit,
 ) {
     var composerHeight by remember { mutableIntStateOf(0) }
     val height = with(LocalDensity.current) { composerHeight.toDp() }
     BoxWithConstraints(modifier.fillMaxSize()) {
-        val availableHeight = (maxHeight - bottomPadding - 24.dp).coerceAtLeast(0.dp)
+        val availableHeight = (maxHeight - topPadding - bottomPadding - 24.dp).coerceAtLeast(0.dp)
         content(bottomPadding + height + 24.dp)
         Column(
             Modifier
@@ -145,13 +149,36 @@ internal fun ContentComposer(
     availableHeight: Dp = 460.dp,
     recent: List<String> = emptyList(),
     onKaomojiInserted: (String) -> Unit = {},
+    onLogin: (() -> Unit)? = null,
     trailingIcon: (@Composable (() -> Unit) -> Unit)? = null,
 ) {
+    val focus = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    if (onLogin != null) {
+        LaunchedEffect(state, active) {
+            state.panelOpen = false
+            if (active) {
+                focus.clearFocus(force = true)
+                keyboard?.hide()
+            }
+        }
+        val buttonHeight = ButtonDefaults.MediumContainerHeight
+        ShadowButton(
+            onClick = onLogin,
+            modifier = modifier.fillMaxWidth().heightIn(min = buttonHeight),
+            shapes = ButtonDefaults.shapesFor(buttonHeight),
+            contentPadding = ButtonDefaults.contentPaddingFor(buttonHeight),
+        ) {
+            Text(
+                stringResource(R.string.content_login_to_interact),
+                style = ButtonDefaults.textStyleFor(buttonHeight),
+            )
+        }
+        return
+    }
     val containerColor = MaterialTheme.colorScheme.surface
     val shadowElevation = 4.dp
     val inputDescription = stringResource(label)
-    val focus = LocalFocusManager.current
-    val keyboard = LocalSoftwareKeyboardController.current
     val requester = remember { FocusRequester() }
     var tooLong by remember(state) { mutableStateOf(false) }
     // The ViewModel owns text; selection/composition stay local. External clears must win.

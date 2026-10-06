@@ -115,7 +115,6 @@ import moe.kirakira.ui.components.ContentUnavailableAction
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
-import moe.kirakira.ui.components.connectedListItemShadow
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.messageRes
@@ -194,12 +193,13 @@ internal fun SecuritySettingsScreen(
     SettingsScaffold(
         title = stringResource(state.step.title()),
         onBack = onBack,
+        shadingIcon = R.drawable.ic_symbol_lock,
         modifier = modifier,
         imePadding = true,
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         ContentPullToRefresh(
-            isRefreshing = state.loading && state.status != null,
+            isRefreshing = email != null && state.loading && state.status != null,
             onRefresh = onRefresh,
             enabled = email != null && !sessionBusy && !state.busy && state.step == SecurityStep.OVERVIEW,
             modifier = Modifier.fillMaxSize().consumeWindowInsets(padding),
@@ -207,6 +207,7 @@ internal fun SecuritySettingsScreen(
         ) {
             AnimatedContent(
                 targetState = state.step,
+                modifier = Modifier.fillMaxSize(),
                 transitionSpec = { fadeIn(fadeInSpec) togetherWith fadeOut(fadeOutSpec) },
                 label = "security_step",
             ) { step ->
@@ -214,40 +215,45 @@ internal fun SecuritySettingsScreen(
                 val visible = step == state.step
                 key(step) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                        Column(
-                            Modifier.widthIn(max = SettingsDefaults.MaxContentWidth).fillMaxSize()
-                                .verticalScroll(rememberScrollState()).padding(
-                                    start = padding.calculateStartPadding(direction) + SettingsDefaults.HorizontalPadding,
-                                    end = padding.calculateEndPadding(direction) + SettingsDefaults.HorizontalPadding,
-                                    top = padding.calculateTopPadding() + SettingsDefaults.TopPadding,
-                                    bottom = padding.calculateBottomPadding() + SettingsDefaults.BottomPadding,
-                                ),
-                            verticalArrangement = Arrangement.spacedBy(SettingsDefaults.SectionSpacing),
-                        ) {
-                            when {
-                                !visible -> Unit
-                                sessionBusy || (state.loading && state.status == null) -> {
-                                    Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
-                                        IndeterminateCircularProgressIndicator()
+                        when {
+                            !visible -> Unit
+                            sessionBusy || (state.loading && state.status == null) -> Box(
+                                Modifier.fillMaxSize().padding(padding),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                IndeterminateCircularProgressIndicator()
+                            }
+                            email == null -> ContentUnavailableView(
+                                state = ContentUnavailableState.EMPTY,
+                                modifier = Modifier.padding(padding),
+                                title = stringResource(R.string.security_sign_in),
+                                description = null,
+                                iconRes = R.drawable.ic_symbol_shield,
+                                presentation = ContentUnavailablePresentation.PAGE,
+                                primaryAction = ContentUnavailableAction(stringResource(R.string.management_login), onLogin),
+                            )
+                            else -> Column(
+                                Modifier.widthIn(max = SettingsDefaults.MaxContentWidth).fillMaxSize()
+                                    .verticalScroll(rememberScrollState()).padding(
+                                        start = padding.calculateStartPadding(direction) + SettingsDefaults.HorizontalPadding,
+                                        end = padding.calculateEndPadding(direction) + SettingsDefaults.HorizontalPadding,
+                                        top = padding.calculateTopPadding() + SettingsDefaults.TopPadding,
+                                        bottom = padding.calculateBottomPadding() + SettingsDefaults.BottomPadding,
+                                    ),
+                                verticalArrangement = Arrangement.spacedBy(SettingsDefaults.SectionSpacing),
+                            ) {
+                                when {
+                                    state.status == null -> ContentUnavailableView(
+                                        state = ContentUnavailableState.ERROR,
+                                        description = state.error?.let { stringResource(it.messageRes()) },
+                                        presentation = ContentUnavailablePresentation.INLINE, onRetry = onRefresh,
+                                    )
+                                    step == SecurityStep.OVERVIEW -> {
+                                        SecurityOverview(state, email, onOpen)
+                                        state.error?.let { SettingsErrorCard(stringResource(it.messageRes())) }
                                     }
+                                    else -> SecurityFlow(state, email, onEdit, onSendCode, onSubmit, onFinishCodes, onCopied)
                                 }
-                                email == null -> ContentUnavailableView(
-                                    state = ContentUnavailableState.EMPTY,
-                                    title = stringResource(R.string.security_sign_in),
-                                    description = null, iconRes = R.drawable.ic_symbol_shield,
-                                    presentation = ContentUnavailablePresentation.INLINE,
-                                    primaryAction = ContentUnavailableAction(stringResource(R.string.management_login), onLogin),
-                                )
-                                state.status == null -> ContentUnavailableView(
-                                    state = ContentUnavailableState.ERROR,
-                                    description = state.error?.let { stringResource(it.messageRes()) },
-                                    presentation = ContentUnavailablePresentation.INLINE, onRetry = onRefresh,
-                                )
-                                step == SecurityStep.OVERVIEW -> {
-                                    SecurityOverview(state, email, onOpen)
-                                    state.error?.let { SettingsErrorCard(stringResource(it.messageRes())) }
-                                }
-                                else -> SecurityFlow(state, email, onEdit, onSendCode, onSubmit, onFinishCodes, onCopied)
                             }
                         }
                     }
@@ -258,6 +264,7 @@ internal fun SecuritySettingsScreen(
     if (state.confirmDiscardCodes) {
         AlertDialog(
             onDismissRequest = onCancelDiscard,
+            containerColor = MaterialTheme.colorScheme.surface,
             title = { Text(stringResource(R.string.security_leave_codes_title)) },
             text = { Text(stringResource(R.string.security_leave_codes_message)) },
             confirmButton = { TextButton(onClick = onFinishCodes) { Text(stringResource(R.string.privacy_discard)) } },
@@ -334,7 +341,7 @@ private fun SecurityOverview(state: SecuritySettingsState, email: String, onOpen
 private fun SecurityItem(icon: Int, title: String, summary: String, index: Int, count: Int,
     enabled: Boolean, onClick: () -> Unit, active: Boolean = false) {
     SegmentedListItem(
-        onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth().connectedListItemShadow(index, count),
+        onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth(),
         shapes = connectedListItemShapes(index, count),
         leadingContent = {
             Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(24.dp))
