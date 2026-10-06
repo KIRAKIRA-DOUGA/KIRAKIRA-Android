@@ -54,7 +54,7 @@
 
 ## 播放器控制图标
 
-倍速码表 `feature/player/PlaybackSpeedGauge.kt` 为应用自绘组件：指针参考 Expressive 时钟的圆头短杆，中心端稍厚、外端稍细，以缓存的闭合路径保持两端圆润，并使用小圆轴明确转动中心；外围参考 Material 3 Slider 的轨道、断口和轨道内圆点，大刻度为细圆头径向短杆，每段弧线中心均衡放置一个小圆点，复用 Slider 的圆点尺寸，与下方 Slider 共享官方默认的主题主色、次要容器色。弧段为填充环形路径，断口平整且有小圆角，不使用第三方轮廓，也不属于官方图标变体。零刻度位于 150°，避免与 0.25× 之间形成孤立圆点；轨道、大刻度与指针的比例经实际 Compose 浅深色和窄屏大字体渲染检查。此比例适合大表盘，避免直接放大 [`speed_24px.xml`](https://github.com/google/material-design-icons/blob/master/symbols/android/speed/materialsymbolsrounded/speed_24px.xml) 的宽圆底；播放器速度入口仍使用未修改路径的 `ic_symbol_speed.xml`。
+倍速码表 `feature/player/PlaybackSpeedGauge.kt` 为应用自绘组件：指针按用户提供的设计参考采用细尖、圆底的渐窄轮廓，以缓存的闭合路径绘制小圆角尖端和一体半圆底部，不叠加独立圆轴；外围参考 Material 3 Slider 的轨道、断口和轨道内圆点，大刻度为细圆头径向短杆，每段弧线中心均衡放置一个小圆点，复用 Slider 的圆点尺寸，与下方 Slider 共享官方默认的主题主色、次要容器色。弧段为填充环形路径，断口平整且有小圆角，不使用第三方轮廓，也不属于官方图标变体。零刻度位于 150°，避免与 0.25× 之间形成孤立圆点；指针按表盘半径缩放，并限制底部半宽以适应窄屏和大字体。播放器速度入口仍使用未修改路径的 [`speed_24px.xml`](https://github.com/google/material-design-icons/blob/master/symbols/android/speed/materialsymbolsrounded/speed_24px.xml)，即 `ic_symbol_speed.xml`。
 
 以下图标来自上述官方 Rounded、24dp、wght 400 路径；播放／暂停采用 FILL 1，其余采用 FILL 0，保留原始路径数据并移除 tint，由主题着色：
 
@@ -118,13 +118,14 @@
 
 ## 设置子页面图标
 
-设置子页面行首图标块与按钮使用以下官方 Rounded、24dp、wght 400、GRAD 0、FILL 0 路径；仅移除 theme tint、整理 XML 缩进并增加来源注释。`east`、`west` 上游未设 `autoMirrored`，表示弹幕的绝对方向，RTL 下不镜像。
+设置子页面图标、按钮与外观卡片使用以下官方 Rounded、24dp、wght 400、GRAD 0、FILL 0 路径；仅移除 theme tint、整理 XML 缩进并增加来源注释。外观卡片的明暗模式图标显示为 40dp，壁纸与自定义图标显示为 48dp，自定义选项复用上述 `edit` 资源。`east`、`west` 上游未设 `autoMirrored`，表示弹幕的绝对方向，RTL 下不镜像。
 
 | 图标 | 用途 |
 | --- | --- |
 | [`light_mode`](https://github.com/google/material-design-icons/blob/master/symbols/android/light_mode/materialsymbolsrounded/light_mode_24px.xml) | 外观：浅色 |
 | [`dark_mode`](https://github.com/google/material-design-icons/blob/master/symbols/android/dark_mode/materialsymbolsrounded/dark_mode_24px.xml) | 外观：深色 |
 | [`brightness_auto`](https://github.com/google/material-design-icons/blob/master/symbols/android/brightness_auto/materialsymbolsrounded/brightness_auto_24px.xml) | 外观：跟随系统 |
+| [`wallpaper`](https://github.com/google/material-design-icons/blob/master/symbols/android/wallpaper/materialsymbolsrounded/wallpaper_24px.xml) | 外观：壁纸颜色 |
 | [`pip`](https://github.com/google/material-design-icons/blob/master/symbols/android/pip/materialsymbolsrounded/pip_24px.xml) | 播放：应用外／应用内小窗 |
 | [`autoplay`](https://github.com/google/material-design-icons/blob/master/symbols/android/autoplay/materialsymbolsrounded/autoplay_24px.xml) | 播放：自动播放 |
 | [`opacity`](https://github.com/google/material-design-icons/blob/master/symbols/android/opacity/materialsymbolsrounded/opacity_24px.xml) | 弹幕：不透明度 |
@@ -141,4 +142,4 @@
 
 ## 下拉刷新箭头
 
-下拉刷新复用现有官方 Rounded `chevron_right` 资源作为圆弧末端的开放式箭头，保留原始 pathData，不引入旧版 Material Icons 或自绘实心三角箭头。绘制时按手势缩放、沿圆弧切线旋转并应用主题强调色；指示器局部固定 LTR，避免资源的 RTL 自动镜像改变顺时针刷新方向。圆弧与拉动计算见 [Android 刷新指示器说明](../android-refresh/README.md)。
+下拉刷新基于现有官方 Rounded `chevron_right` 的中心线绘制圆弧末端的开放式箭头：原始 960 单位画布中的中心线为 `(376,296) → (560,480) → (376,664)`。资源本身保留原始 pathData；指示器使用中心线路径，与圆弧共用固定 2.5dp 的描边及圆角端点、圆角连接，解决填充图标缩放后箭头比圆弧细的问题。绘制时按手势缩放路径长度、沿圆弧切线旋转并应用主题强调色，不引入旧版 Material Icons 或实心三角箭头；指示器局部固定 LTR，保持顺时针刷新方向。圆弧与拉动计算见 [Android 刷新指示器说明](../android-refresh/README.md)。

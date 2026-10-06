@@ -44,9 +44,13 @@
 
 ## Navigation 3 接入
 
-`ActivityNavDisplay` 使用公开的 `rememberDecoratedNavEntries`、`rememberSceneState`、`SceneStrategy`、`NavDisplay` 和 Navigation Event API。普通状态是单页面 Scene，手势及收尾期间是双页面 Scene；可保存状态和页面内容仍交由 Navigation 3 管理，不创建第二份页面截图或独立返回栈。
+`ActivityNavDisplay` 使用公开的 `rememberDecoratedNavEntries`、`rememberSceneState`、`SceneStrategy`、`NavDisplay` 和 Navigation Event API。普通状态是单页面 Scene，开启预测性返回后手势及收尾期间是双页面 Scene；可保存状态和页面内容仍交由 Navigation 3 管理，不创建第二份页面截图或独立返回栈。
 
 默认 `predictivePopTransitionSpec` 只能描述同一 seekable 转场，无法直接表达 AOSP 独立的手势／提交阶段。本宿主自行接收 Navigation Event，向 NavDisplay 提供空闲的事件状态以避免重复驱动；预览期间将页面生命周期限制到 STARTED，并屏蔽内容交互。宿主停止、销毁、尺寸或返回栈意外变化时清理临时动画。普通返回键及工具栏返回仍使用普通 Activity 动画，根页面交还系统处理。
+
+普通转场按最新返回栈顶部的 `contentKey` 分配交互：目标页面在生命周期至少为 STARTED 且目标可见状态为 `EnterExitState.Visible` 时可响应操作，退场页保留期间屏蔽触摸和无障碍语义。普通返回的退出页在淡出结束后移除页面内容及触摸层，外层 Scene 仍完成 450ms 横移；淡出观察与实际 `fadeOut` 共用延迟 35ms、持续 83ms 的线性参数，通过 `derivedStateOf` 只在完成边界更新组合，使触摸可命中新页，旧页开始的触摸不转发。预测性返回预览和收尾继续屏蔽交互，无动画出栈不新增淡出观察时长；图片查看器继续等待 RESUMED 与稳定可见状态，并保留自身控件和缩放的禁用逻辑。
+
+普通页面的预测性返回为外观设置中的可选项，默认关闭。关闭时忽略手势进度，完成时检查返回保护并执行普通返回，取消不出栈；设置变化时移除旧处理器并清理临时动画。开启后保留本文所述 AOSP 几何、曲线和两阶段收尾。逐帧变换通过稳定函数在页面 `graphicsLayer` 中读取，遮罩在 Canvas 绘制阶段读取，不逐帧重组页面。图片查看器始终保留独立的 Navigation 3 可寻址图片返回及共享边界缩回动画，不受普通页面开关影响，详见[图片查看实现](../../docs/implementation.md#图片查看与导出)。
 
 ## 公开 API 适配边界
 

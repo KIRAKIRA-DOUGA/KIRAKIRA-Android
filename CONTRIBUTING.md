@@ -29,12 +29,15 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 
 ## Compose 与界面规范
 
-- 表达「添加」的悬浮操作按钮（FAB）使用官方 `FloatingActionButton`，仅显示 Material Symbols Rounded `add` 加号，不在图标右侧重复显示「添加」文字，不使用带文字的扩展 FAB。保留本地化的「添加」无障碍描述、标准触摸目标与操作期间的禁用语义。
+- 表达「添加」的悬浮操作按钮（FAB）通过共享 `ShadowFloatingActionButton` 封装官方 `FloatingActionButton`，默认使用 `CircleShape`、`MaterialTheme.colorScheme.primary` 背景与配套 `onPrimary` 前景；允许显式覆盖形状和颜色，前景默认通过 `contentColorFor(containerColor)` 匹配。仅显示 Material Symbols Rounded `add` 加号，不在图标右侧重复显示「添加」文字，不使用带文字的扩展 FAB。保留官方尺寸、本地化的「添加」无障碍描述、标准触摸目标与操作期间的禁用语义。
 - 使用 Material 3 Expressive 的组件、色彩层次和圆角分组；保持浅色、深色及动态颜色兼容，不用手绘控件替代已有标准组件。参考 [Compose Material 3](https://developer.android.com/develop/ui/compose/designsystems/material3)。
-- 实心按钮统一使用 `ShadowButtons` 中的共享封装，内部保留官方填充／浅色填充按钮、实心图标按钮与 FAB。普通按钮静止／按压／悬停或聚焦的阴影等效高度为 2dp／8dp／4dp，FAB 为 6dp／12dp／8dp；按下 120ms、恢复 180ms，禁用时无阴影。使用双层 `dropShadow`，彩色投影取实际容器色，中性色使用黑色投影；形变与阴影共用动画形状及交互源，不叠加原生投影或外层投影，不改变触摸区域、布局尺寸和业务状态。文字、描边与裸图标按钮保持平面，不提供阴影开关或持久化偏好。发送按钮遵循实心按钮规则，输入框仍保留固定阴影；接入方式见[按钮动态阴影](docs/implementation.md#按钮动态阴影)。
+- 实心按钮统一使用 `ShadowButtons` 中的共享封装，内部保留官方填充／浅色填充按钮、实心图标按钮与 FAB。普通按钮静止／按压／悬停或聚焦的阴影等效高度为 2dp／8dp／4dp，FAB 为 6dp／12dp／8dp；按下 120ms、恢复 180ms，禁用时无阴影。使用双层 `dropShadow`，模糊、偏移和扩张采用 Material 官方双层阴影参数，按现有交互高度在官方 elevation level 间插值。彩色投影取实际容器色，不透明度为显式例外：所有彩色按钮与 FAB 的环境层／主层固定为 25%／50%，不随交互状态改变；中性色使用黑色及官方 15%／30%，两类均乘以容器透明度。形变与阴影共用动画形状及交互源，不叠加原生投影或外层投影，不改变触摸区域、布局尺寸和业务状态。文字、描边与裸图标按钮保持平面，不提供阴影开关或持久化偏好。发送按钮遵循实心按钮规则，输入框仍保留固定阴影；参数来源及接入方式见[按钮动态阴影](docs/implementation.md#按钮动态阴影)。
+- 单选框统一使用 `ShadowRadioButton` 封装官方 `RadioButton`，仅选中且可用时绘制双层彩色阴影。静止／悬停或聚焦／按压高度为 1dp／2dp／4dp，按压优先，按下 120ms、恢复 180ms；禁用时立即移除阴影。几何参数与实心按钮共用 Material 官方映射和插值，1dp 的环境层／主层「垂直偏移／模糊／扩张」分别为 1／3／1dp 与 1／2／0dp。阴影取实际选中颜色，强度为按钮的一半：彩色环境层／主层为 12.5%／25%，中性色使用黑色及 7.5%／15%，均乘以选中颜色透明度。投影仅位于居中的 20dp 可见圆圈外侧，不染色内部空白，不改变官方布局、触摸目标、涟漪、选中动画及语义；整行处理点击时，行与单选框共用显式交互源，单选框 `onClick = null`。不增加阴影开关或持久化偏好，接入方式见[单选框动态阴影](docs/implementation.md#单选框动态阴影)。
 - 指定 Expressive 按钮尺寸时，使用 `ButtonDefaults` 的官方尺寸常量（如 `MediumContainerHeight`），将同一尺寸传给 `shapesFor`、`contentPaddingFor` 与 `textStyleFor`；有图标时同步使用 `iconSizeFor` 和 `iconSpacingFor`，并向内边距 API 传入对应的前后图标标记。不得手写标准尺寸的高度、圆角、内边距或字号，也不得只放大容器而保留默认小字号；最小高度使用 `heightIn(min = …)`，允许内容随字体缩放增高。
-- 分组菜单直接使用官方 `SegmentedListItem`，通过共享 `connectedListItemShapes(index, count)` 处理首尾与单项主题圆角：组内无间隙、无分隔线，中间连接边为直角；选中、按压、聚焦、悬停与拖动沿用基础形状，保留官方配色、点击反馈及内容内边距。普通 `Column` 分组复用 `ConnectedListGroup`，它提供满宽、零间距布局及固定的 1dp 整组阴影，不额外添加背景或内边距，默认不裁剪内容；`SettingsSection` 内部复用该容器，账号侧滑组通过 `clipContent` 按整体圆角裁剪，裁剪不截断外侧阴影。独立条目与懒列表通过共享 `connectedListItemShadow(index, count)` 使用相同的 1dp 阴影；分组内自动跳过行级阴影，懒列表延伸并裁剪分段阴影轮廓，避免组内重复投影与横向接缝，不新增阴影开关或持久化偏好。`LazyColumn` 保留逐项懒加载、稳定 key 与分页，在标题、分组边界及独立状态区域设置间距，不使用 `SegmentedGap` 或逐行外部 padding 分隔组内条目。侧滑删除按钮的横向间距不受此规则影响。不以整组 `Surface` 模拟列表项。静态占位使用无 `onClick` 的重载；无副标题时传入空的 `supportingContent`，不要提供空内容 lambda。
+- 个人主页与视频页统一使用共享 `FollowButton`，内部保留官方 `ToggleButton`。未关注时使用 `primary/onPrimary` 与共享按钮的双层投影；已关注时使用灰色 `surfaceContainerHigh/onSurfaceVariant`，作为实心按钮阴影规则的例外不绘制投影，悬停、聚焦和按压也不额外添加原生阴影。保留官方尺寸、选中语义、禁用配色及选中／按压形变，表面与投影共用动画轮廓和交互源；禁用时无阴影，关注状态仍由原有业务流程拥有。
+- 分组菜单直接使用官方 `SegmentedListItem`，通过共享 `connectedListItemShapes(index, count)` 处理首尾与单项主题圆角：组内无间隙、无分隔线，中间连接边为直角；选中、按压、聚焦、悬停与拖动沿用基础形状，保留官方配色、点击反馈及内容内边距。普通 `Column` 分组复用 `ConnectedListGroup`，它提供满宽、零间距布局及固定的 1dp 整组阴影，不额外添加背景或内边距，默认不裁剪内容；独立条目在调用处显式包裹单项分组，`SettingsSection` 内部复用该容器，账号侧滑组通过 `clipContent` 按整体圆角裁剪，裁剪不截断外侧阴影。懒列表使用 `ConnectedLazyColumn`，通过 `connectedItemsIndexed` 同步声明稳定分组标识及逐项内容，由宿主根据可见行统一绘制每组的 1dp 平台 elevation 阴影；条目只负责内容、形状与交互，不添加行级投影、不延伸和拼接逐行阴影、不通过组合局部上下文判断阴影归属。固定少量菜单可作为普通分组放入一个懒列表条目；可能增长的数据列表保留逐项懒加载、稳定 key、contentType 与分页。宿主仅支持正向垂直列表，连接行必须满宽，不加外部纵向 padding 或位移动画；在标题、分组边界及独立状态区域设置间距，不使用 `SegmentedGap` 分隔组内条目，不新增阴影开关或持久化偏好。侧滑删除按钮的横向间距不受此规则影响。不以整组 `Surface` 模拟列表项。静态占位使用无 `onClick` 的重载；无副标题时传入空的 `supportingContent`，不要提供空内容 lambda。
 - 设置页中，普通开关仅通过 Switch 表达开启状态，整行背景和形状不随开启状态变化；使用 `SegmentedListItem` 的 `onClick` 重载切换状态，并提供 `Role.Switch` 与 `toggleableState` 语义，尾部 Switch 的 `onCheckedChange` 为 `null`，保留禁用状态和官方按压反馈。仅功能总开关（如「显示弹幕」）使用 `checked` 重载保留整行强调样式；「应用内小窗播放」「应用外小窗播放」「自动播放」和各弹幕模式均属于普通开关。
+- 普通对话框、底部 Sheet、下拉菜单、日期选择和开源组件详情弹层的背景按当前内容决定：包含至少一个连接列表条目时保留现有灰色，业务 Sheet 使用 `surfaceContainerLow`；没有连接条目时使用 `surface`，浅色为白色，深色跟随主题。调用处根据实际条目和当前子页直接选择颜色，不探测组件树，不新增配色包装、动画或持久化设置。空列表、首次无数据加载与错误占位使用 `surface`；刷新保留已有条目时仍用灰色，滚动出可视区域不改变背景。日期选择器内外容器同步设置背景，第三方详情使用公开颜色参数；列表项、输入框、选中态与媒体查看器保留各自语义配色，接入说明见[弹层背景](docs/implementation.md#弹层背景)。
 - 应用栏、刷新指示器及评论／弹幕输入框的阴影固定开启，不提供关闭入口，不传递可变阴影状态或保存阴影偏好。应用栏复用 `ThemeShadows`，保留底边裁剪与全屏／画中画的绘制边界；高度与承载方式见[栏面阴影](docs/implementation.md#栏面阴影)。经典强调色继续关闭色调高度叠加，阴影不改变语义配色。
 - 图标采用官方 **Material Symbols**，默认统一为 **Rounded、24dp 资源画布、wght 400、GRAD 0、FILL 0**；实际显示尺寸按组件规范设置，Expressive 列表前后图标使用 24dp，按钮、工具栏、FAB 和输入框遵循各自组件尺寸。选中状态如使用填充图标应保持其他参数一致。按需导入 Android VectorDrawable，不打包完整字体或旧版 `material-icons-extended`。
 - 普通设置列表前后图标使用裸露的 24dp 图标（包括尾部箭头与列表内操作图标），继承官方列表内容颜色，不默认添加花形背景或裁切容器；危险操作使用主题错误色，禁用样式遵循列表组件。MaterialShapes 图标容器仅用于随状态切换形状的表达（如隐私可见性、邀请码使用状态）与独立大图标展示（如安全状态横幅、流程图标和邀请码统计）。
@@ -45,6 +48,7 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 - 不在组合执行体中直接请求网络、写存储或执行导航。用户操作在事件回调中触发；与组合生命周期相关的工作使用具有正确 key 的 `LaunchedEffect` / `DisposableEffect`，并清理监听器。参见[副作用指南](https://developer.android.com/develop/ui/compose/side-effects)。
 - 网络和磁盘工作不得阻塞主线程；使用结构化并发，禁止 `GlobalScope`。捕获取消异常时必须继续传播取消。
 - 通过 `KIRAKIRATheme` 和 `MaterialTheme` 复用颜色、字体及形状；避免在业务页面散落品牌颜色。布局使用 `dp`，字体使用 `sp`，通用设计值按实际复用需求提取。
+- 独立展示用户名（username）时统一使用 `@username`、`FontFamily.Monospace` 等宽字体和 `MaterialTheme.colorScheme.onSurfaceVariant` 次要文字颜色，字号沿用所在组件的排版层级；适用于个人主页、“我”、视频页上传者、评论作者、历史记录作者、关注／粉丝列表及资料预览。空白 username 不展示文字行。`@` 仅在展示层添加，输入框、存储及 API 参数保留原始 username；昵称或显示名称回退使用 username 时仍沿用名称样式，不套用独立 username 样式。
 - 新界面文案必须放入字符串资源，包含错误、导航标题和无障碍描述；使用格式化资源和 plurals，不拼接可翻译句子。
 - 除非用户明确要求，界面中不添加解释功能如何运作的说明文字；功能机制与实现细节记录在相应文档中。界面保留必要的操作标签、状态反馈、错误信息和无障碍提示，不主动加入机制说明或实现细节。
 - 当前支持英语与中文：`res/values/strings.xml` 是完整英语界面回退资源，`res/values-zh/strings.xml` 提供中文；新增可翻译 key 必须同时补齐两套文案。品牌名标记 `translatable="false"`。跟随系统语言，Android 13+ 通过 `res/xml/locales_config.xml` 声明应用语言；新增语言同步配置并检查长文案和字体缩放。
@@ -58,12 +62,13 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 
 ### 毛玻璃应用栏
 
-- 栏面及连接列表复用 `ThemeShadows` 的平台 elevation 投影，栏面与列表固定使用 4dp／1dp 高度；输入框、刷新容器和按钮保持各自既有投影规则，详见[栏面阴影](docs/implementation.md#栏面阴影)。
-- 普通顶部栏（含认证、设置、历史和标签页面）与主界面底部胶囊导航栏固定开启毛玻璃，不添加开关或持久化偏好。播放器、图片查看器、头像裁剪和系统导航栏不在此范围。
+- 栏面复用 `ThemeShadows`，连接列表使用容器 `shadow` 或宿主 `GraphicsLayer.shadowElevation` 的平台 elevation 投影，栏面与列表固定使用 4dp／1dp 高度；输入框、刷新容器和按钮保持各自既有投影规则，详见[栏面阴影](docs/implementation.md#栏面阴影)。
+- 普通顶部栏（含认证、设置、历史、标签和头像裁剪页面）、主界面底部胶囊导航栏及视频页 Tab 栏固定开启毛玻璃，不添加开关或持久化偏好。视频画面与播放控件、图片查看器和系统导航栏不在此范围。
+- 普通顶栏导航与操作图标统一使用 `onSurfaceVariant`，标题保留 `primary`，复用共享顶栏配色；填充图标按钮同步覆盖内容色，禁用状态保留透明度。认证页返回与关闭使用平面官方 `IconButton`。品牌 Logo 与流程标题图标保留强调色，媒体顶栏保留白色控件，文字操作沿用原组件默认配色。
 - 普通页面使用 `FrostedScaffold` 管理独立采样状态和顶部背景；顶栏容器及滚动后容器均透明，不对整栏设置 alpha 或模糊。顶栏阴影由宿主统一复用 `ThemeShadows`，页面不重复添加；底栏仅在胶囊内部绘制效果，保留外部阴影。
 - Android 12+ 使用 Haze 背景采样；Android 8.1–11 使用 90% 不透明度的栏面，不采样或模糊。原生 backdrop 暂不启用，规避已在 Android 17 模拟器上复现的转场 alpha 与 elevation 合成异常，排查证据见实现说明。
 - 模糊使用主题 `surface`、20dp 模糊和 80% 不透明度的底色遮罩，不增加噪点或折射，不改变前景色。依赖版本以版本目录为准。
-- 顶部安全区域放入滚动内容，刷新指示器通过 `indicatorTopPadding` 保持在栏下；非滚动表单保留安全避让。作者资料页保留既有吸顶标签布局，并将滚动封面单独接入该页采样状态。接入与限制见[实现说明](docs/implementation.md#毛玻璃应用栏)。
+- 顶部安全区域放入滚动内容，刷新指示器通过 `indicatorTopPadding` 保持在栏下；非滚动表单保留安全避让。作者资料页保留既有吸顶标签布局，并将滚动封面单独接入该页采样状态。视频页 Tab 栏复用共享毛玻璃背景并独立采样分页内容，实测栏高放入列表顶部 `contentPadding`，刷新指示器、评论分页工具栏和输入面板高度同步避让。接入与限制见[实现说明](docs/implementation.md#毛玻璃应用栏)。
 
 ### 可选的可折叠大标题栏
 

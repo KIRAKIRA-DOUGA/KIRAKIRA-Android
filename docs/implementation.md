@@ -27,13 +27,21 @@
 
 页面导航使用 Navigation 3，`rememberNavBackStack` 保存返回栈，[ActivityNavDisplay](../app/src/main/java/moe/kirakira/ui/navigation/ActivityNavDisplay.kt) 封装 `NavDisplay`，保留页面状态和生命周期；页面通过 `NavigationPage` 接入宿主。路由和宿主使用要求见[架构规范](../CONTRIBUTING.md#技术选型与架构)。
 
-普通进入与返回复用 AOSP Activity 的横移和透明度参数，预测性返回采用手势与松手收尾两个阶段。源码版本、双页面 Scene、Navigation Event 接入、几何变换、遮罩、完成／取消处理及公开 API 适配差异统一维护在 [Android 转场说明](../third_party/android-motion/README.md)。
+普通进入与返回复用 AOSP Activity 的横移和透明度参数，开启预测性返回时采用手势与松手收尾两个阶段。`ThemeViewModel.predictiveBackEnabled` 从现有 `kirakira_settings` 的 `predictive_back_enabled` 读取，缺失值为 false；与外观状态一起在 IO 调度器加载，更新使用 SharedPreferences apply，沿用非敏感设置备份。状态及修改回调经 `MainActivity`、`KIRAKIRAApp` 与 `AppNavHost` 显式传入外观页，状态同时传入顶层及认证嵌套 `ActivityNavDisplay`。
+
+普通页面在关闭开关时仍接收 Navigation Event，但忽略手势进度，不创建双页面预览；完成时重新检查返回保护并出栈一次，取消不改变返回栈。开启时保留原有手势与收尾流程；配置变化会替换普通返回处理器并清理临时动画，不主动出栈。`LocalNavigationPageTransform` 提供稳定的变换读取函数，`NavigationPage` 仅在 `graphicsLayer` 块内读取逐帧状态，遮罩仅在 Canvas 绘制阶段读取，避免逐帧更新组合上下文。源码版本、双页面 Scene、几何变换及公开 API 适配差异统一维护在 [Android 转场说明](../third_party/android-motion/README.md)。
+
+`ActivityScene` 通过稳定状态引用读取最新返回栈，普通页面仅在自身 `contentKey` 为栈顶、生命周期至少为 STARTED、目标可见状态为 `EnterExitState.Visible` 且不处于预测性返回预览时开放内容交互，不再等待整段转场结束后恢复到 RESUMED。退场页保留期间消费触摸并清空内容的无障碍语义；普通返回使用与 `fadeOut` 相同的 `activityCloseFadeSpec`（延迟 35ms、持续 83ms、线性曲线）驱动透明度观察状态，`derivedStateOf` 仅在淡出完成边界移除已透明的页面内容及触摸屏蔽层，使点击落到新页。外层 Scene 仍完成原有 450ms 横移动画；在旧页开始的触摸随旧内容移除而取消，不转发给新页。预测性返回预览、收尾及其无动画出栈不走此提前移除逻辑，图片查看器仍要求 RESUMED 且可见状态与目标状态都为 Visible，并保留页面自身的转场禁用条件。所有动画继续遵循系统动画时长缩放，不使用固定延时交接。
 
 主界面标签切换保留同一套横移与淡入淡出参数。栏面及连接列表继续使用平台 elevation 投影；毛玻璃固定使用 Haze 背景采样，规避已在 Android 17 模拟器上复现的原生 backdrop、页面 alpha 与 elevation 合成异常。底部胶囊导航栏位于标签页转场之外。
+
+导航会在切页开始时组合和测量新显示的页面；可保存状态与 ViewModel 装饰器保存状态，并不保留离屏页面的整棵组合树。`SharedTransitionLayout` 的预布局测量还包含 LazyColumn 首次子组合，不能将整段预布局时间当成重复测量成本。转场定位优先查看首帧的主线程切片；逐组件追踪只用于定位，交付与对照采样不携带临时探针。构建类型与 ART 编译状态会影响 Compose 执行成本，使用 [本地性能变体](development.md#动画性能采样) 并分别报告 Debug、非调试和预编译样本，不把更换构建类型当作同配置代码优化收益。
 
 ### 图片查看与导出
 
 图片页通过 [ImageViewerNavigation](../app/src/main/java/moe/kirakira/ui/navigation/ImageViewerNavigation.kt) 将打开、关闭、预测返回三种转场写入官方 `NavDisplay` 元数据，由 `ActivityScene` 继承顶部 `NavEntry` 的元数据。不要对 `Scene.key` 做路由类型判断：这里的键来自 `NavEntry.contentKey`，是用于内容身份与状态恢复的字符串，并非路由对象。打开时采用淡入与 `KeepUntilTransitionsFinished`，保留原位的来源页直到转场结束；返回时来源页无位移、查看页淡出。图片返回处理器读取同一份元数据标记，普通页继续使用原 AOSP 转场。接入方式与 [Navigation 3 官方转场配置](https://developer.android.com/guide/navigation/navigation-3/animate-destinations) 一致。
+
+图片页始终使用独立的 `NavigationBackHandler`、图片 `PredictivePopTransitionKey`、`imageSharedBounds` 与 `imageReturnTransform`，不受普通页面的 `predictiveBackEnabled` 开关影响。关闭开关后，匹配来源的图片仍在按钮关闭、系统返回及边缘手势中缩回原位；无来源时沿用淡出，取消手势恢复原有查看与缩放状态。
 
 资料头像与全屏查看器使用 Compose 官方 `SharedTransitionLayout` / `sharedBounds` 连接。共享键包括来源页与图片身份（例如 `profile/<UUID>/avatar`），避免不同用户的图片错误配对。图片页单独使用 Navigation 3 的可寻址预测返回进度；图片进出时来源页面保持原位，查看器直接覆盖其上，普通页面继续由 AOSP 动效宿主管理。共享边界、页面显隐、背景与控件显隐共用 [EmphasizedEasing](../app/src/main/java/moe/kirakira/ui/components/EmphasizedEasing.kt) 的 Material 3 emphasized 曲线及 420ms 时长；Tab 点击也复用该曲线。共享边界插值时，图片由圆形头像逐渐展开成直角视口：采用 `RemeasureToBounds` 让图片在变化的宽高比中重新排版，避免全屏图片压缩时露出平直内容边缘。静止时由图片层裁剪，匹配过渡时仅由共享覆盖层裁剪；覆盖层圆角根据当前共享边界逐帧计算，关闭及预测返回时跟随实际收缩进度。固定全屏的黑色背景在共享覆盖层下方按查看页可见进度淡入淡出，不随图片边界位移。头像白色圆框留在资料页原位，不参与共享边界动画。返回时用 Telephoto 的当前内容几何反向补偿缩放，手势取消无需修改其内部缩放状态。来源不在组合中时仅淡入或淡出。用户关闭系统动画时，Compose
 时长缩放统一生效。
@@ -60,11 +68,13 @@
 
 两页的 Primary Tab 显式设置选中内容色为 `MaterialTheme.colorScheme.primary`、未选中内容色为 `onSurfaceVariant`，遵循 [Material Tabs 配色规范](https://m3.material.io/components/tabs/specs)。不使用 `Tab` 默认的选中与未选中同色参数，颜色随当前主题更新。
 
-资料页以外层 `LazyColumn` 承载资料信息、`stickyHeader` Tab 栏和固定为剩余视口高度的 `HorizontalPager`。分页内列表通过嵌套滚动优先滚走资料信息，回到列表顶部后再向下展开资料；背景跟随外层列表，各 Tab 保留独立列表位置。Tab 高度按实测值扣除，底部系统内边距仍放在分页列表的 `contentPadding` 中。
+资料页以铺满屏幕的外层 `LazyColumn` 承载资料信息、`stickyHeader` Tab 栏和固定为剩余视口高度的 `HorizontalPager`。顶部栏高度放入外层列表的 `contentPadding`，不从滚动容器外部避让，保证文字可经过透明栏后。Pager 高度扣除顶部栏和实测 Tab 高度，使外层列表滚动到末端时 Tab 恰好停在顶部栏下沿。分页内列表通过嵌套滚动优先滚走资料信息，回到列表顶部后再向下展开资料；背景跟随外层列表，各 Tab 保留独立列表位置。底部系统内边距仍放在分页列表的 `contentPadding` 中，刷新指示器通过 `indicatorTopPadding` 保持在顶部栏下方。
 
-资料页按昵称文字的实际底部位置与外层列表视口顶部判断可见性；昵称完全滚出正文后，顶栏显示单行昵称，超长省略，昵称重新可见时隐藏顶栏标题。资料头被列表回收后仍通过首个可见条目保持顶栏昵称显示。
+资料页使用页面自身管理的 `Scaffold`，通过外层列表 `layoutInfo.visibleItemsInfo` 中 key 为 `profile_tabs` 的条目是否到达 `viewportStartOffset + beforeContentPadding` 判断顶栏下沿吸顶，不依赖固定滚动距离或条目索引。吸顶前不绘制顶部背景，返回和更多按钮使用 `ShadowFilledTonalIconButton`；吸顶后单独绘制 `frostedBarBackground(hazeState = …)` 背景并切换为官方普通 `IconButton`，解除吸顶时立即恢复。封面和内容沿用该页独立采样状态，顶栏不单独投影，仅保留 Tab 的固定底边阴影。简介展开、字体缩放及错误条目的高度变化由实际布局自动反映，恢复列表位置后重新推导吸顶状态。
 
-两页的 `PrimaryTabRow` 共用 [PagerTabIndicator](../app/src/main/java/moe/kirakira/ui/components/PagerTabIndicator.kt)，并关闭默认底部分隔线。视频页通过 `VideoScreen` 的 `playerContent` 插槽将播放器与 Tab 放入同一个顶部容器，由容器统一应用 `bottomEdgeShadow()` 和绘制层级，分页内容保持独立；全屏与画中画仅显示播放器。资料页保留吸顶布局，Tab 栏也使用 `bottomEdgeShadow()`，消除上沿向资料头投影。在测量阶段读取 `currentPage + currentPageOffsetFraction`。参考 [Material Components 的 Elastic 指示器](https://github.com/material-components/material-components-android/blob/master/lib/java/com/google/android/material/tabs/ElasticTabIndicatorInterpolator.java)，分别以 `sin(πt/2)` 和 `1−cos(πt/2)` 插值前缘、后缘，使其先伸长再收缩；RTL 下通过相对布局镜像。指示器直接跟随拖动、回弹和点击切页的实际进度，保留 Compose 官方主 Tab 指示器的默认高度与主题颜色；形状显式采用 Material Components 主 Tab 的上圆下平样式，顶部左右圆角为 3dp、底部左右为直角，底边贴齐 Tab 栏底部，不使用 Compose 默认的完整胶囊形状。
+资料页的顶栏昵称直接复用 Tab 吸顶状态，与毛玻璃背景和图标按钮样式同步：吸顶后显示单行昵称，超长省略，解除吸顶后立即隐藏。不再测量正文昵称位置或向资料头传递坐标回调。
+
+两页的 `PrimaryTabRow` 共用 [PagerTabIndicator](../app/src/main/java/moe/kirakira/ui/components/PagerTabIndicator.kt)，并关闭默认底部分隔线。视频页通过 `VideoScreen` 的 `playerContent` 插槽保留顶部播放器，下方 Pager 与透明 Tab 栏叠放，Tab 宿主统一应用 `bottomEdgeShadow()` 和绘制层级，仅在栏底显示阴影；全屏与画中画仅显示播放器。资料页保留吸顶布局，Tab 栏也使用 `bottomEdgeShadow()`，消除上沿向资料头投影。在测量阶段读取 `currentPage + currentPageOffsetFraction`。参考 [Material Components 的 Elastic 指示器](https://github.com/material-components/material-components-android/blob/master/lib/java/com/google/android/material/tabs/ElasticTabIndicatorInterpolator.java)，分别以 `sin(πt/2)` 和 `1−cos(πt/2)` 插值前缘、后缘，使其先伸长再收缩；RTL 下通过相对布局镜像。指示器直接跟随拖动、回弹和点击切页的实际进度，保留 Compose 官方主 Tab 指示器的默认高度与主题颜色；形状显式采用 Material Components 主 Tab 的上圆下平样式，顶部左右圆角为 3dp、底部左右为直角，底边贴齐 Tab 栏底部，不使用 Compose 默认的完整胶囊形状。
 
 点击切页共用 [rememberTabChangeHandler](../app/src/main/java/moe/kirakira/ui/components/TabTransition.kt)，取消上一次点击启动的滚动任务后从当前 Pager 位置转向新目标。滚动与图片查看器复用 [EmphasizedEasing](../app/src/main/java/moe/kirakira/ui/components/EmphasizedEasing.kt) 提供的 [Material 3 emphasized easing](https://github.com/material-components/material-components-android/blob/master/docs/theming/Motion.md#curves-easing--duration) 双段路径：API 28+ 读取路径相同的公开系统资源 `fast_out_extra_slow_in`，API 27 使用 Compose `PathEasing` 兼容。动画快速推进后平缓收尾，不越过目标页；相邻页为 500ms，跨页按距离延长至最多 650ms。Tab 的选中状态统一使用 `currentPage`。
 
@@ -77,6 +87,16 @@
 评论通过 `CommentListLoader` 保存连续页区间，继续使用服务端每页 20 条的 API。各页合并后按评论 ID 去重并保留所属页；`snapshotFlow` 在可见评论距离已加载区间边缘不超过 3 条时请求相邻页，同页请求去重，空页或首末页停止对应方向加载。上下加载具有独立状态和显式失败重试，不自动重复失败请求。列表使用稳定评论 key；向前插入时额外按旧可见评论及像素偏移保持锚点，避免顶部计数或状态条目成为锚点后引起跳动。翻页器页码来自逻辑滚动锚点之后的首条可见评论，忽略仅处于顶部 contentPadding 中的上一页尾项；自动加载不发出定位事件。跳转使用下一次测量定位，确认目标 key 已出现在新列表布局后才消费请求并恢复相邻页加载；显式跳转使用可消费的定位请求，已加载页直接定位，其他页成功后重建窗口。请求代次和账号版本共同拒绝过期响应，跳转、刷新及账号切换取消失效请求。
 
 评论下拉刷新仅在第 1 页已加载且滚动处于顶部时启用（空列表同样允许）；中间页的上边缘只用于前页加载。刷新成功后重建第 1 页，失败保留原内容；局部赞踩只重读所属页，保留其他页和阅读位置，重读期间禁用该页互动。发布成功后根据最新总数读取末页并定位，回传评论已出现在列表时隐藏发布回显。首页、视频当前标签页、弹幕和作者资料继续使用 Material 3 `PullToRefreshBox`；共享包装器的 `enabled` 默认保持开启。加载与错误状态独立于现有内容，不使用演示数据回填，错误状态提供重试按钮。
+
+## 关注与粉丝列表
+
+`FollowListRoute(uid, kind)` 为可序列化的 Navigation 3 路由，两种列表共享 `feature/follow/` 页面和导航条目级 `FollowListViewModel`。主页统计通过事件回调进入列表，列表行按 UID 打开 `ProfileRoute`，导航宿主防止重复入栈；返回沿用该条目的数据和滚动状态。
+
+`ContentRepository.followList` 复用账号快照与 revision 守卫，检查 `success`、必需的 `result`、非负 `totalCount` 和正 UID，将私有 DTO 转为用户摘要及分页领域模型。昵称缺失时回退到用户名；头像复用公开图片客户端。页面不逐行补读关注关系，不保存 Cookie 或列表缓存。
+
+ViewModel 从第 1 页开始，每页 50 条，保留后端顺序并按 UID 去重；结束判断使用原始返回条数的累计值与最新总数，空页直接结束。单个请求任务和请求序号协调刷新、分页与取消，过期结果不能覆盖最新状态。刷新成功替换第一页并重置分页进度；网络、超时与服务器失败保留旧内容和原分页进度，刷新失败需重试刷新，分页失败需手动重试该页。其他失败清除内容及分页状态。账号 revision 变化取消任务、清空内容并重新请求，UI 以 revision 校验展示状态并重建滚动状态。
+
+列表复用 `FrostedScaffold`，正文使用普通 `LazyColumn` 与官方 `ListItem`，按稳定 UID 逐项懒加载。条目容器透明，整行点击保留水波纹及禁用语义，不使用分段圆角、卡片背景或分组阴影；头像为 48dp，内容横向内边距采用 `ListItem` 默认值。首次加载与尾部分页使用共享圆形加载器；刷新使用 `ContentPullToRefresh` 覆盖式指示器，空状态也保留占位。底部系统内边距放入列表 `contentPadding`。可见行接近末尾时请求下一页，仅前台页面触发自动分页；分页错误期间停止自动触发。
 
 ## 视频数据与播放器
 
@@ -95,6 +115,7 @@
 | GET `history/filter`；POST `history/merge`                        | 账号视频历史与首 P 整数秒进度同步 |
 | GET `video/user?uid=`                                           | 作者作品                           |
 | GET `user/info?uid=`、`feed/stats?targetUid=`                    | 作者资料和统计                        |
+| GET `feed/following/list` / `feed/follower/list`                | 关注／粉丝列表；`targetUid`、`page`、`pageSize=50` |
 | POST `feed/following` / `feed/unfollowing`                      | 关注／取消关注                        |
 | POST `video/upvote` / `video/downvote`；DELETE 对应路径加 `/cancel`   | 视频赞踩及撤销                        |
 | GET `video/comment?videoId=&page=&pageSize=20`                  | 按楼层升序分页评论                      |
@@ -120,15 +141,29 @@
 
 `PlayerSettingsSheet` 使用官方 `ModalBottomSheet`，宽度上限 640dp，只允许展开和隐藏状态；内容滚动并承载底部安全内边距。画质单选及倍速开关使用官方分段列表；「连续调速」与「保持音调」沿用设置页普通开关规则，以 onClick 重载切换状态并提供 Switch 角色与 toggleableState 语义，尾部 Switch 不独立处理点击，整行背景和圆角不随选中状态变化。倍速滑杆以 log2 映射 -2–2，默认 1× 位于中心，并为无障碍有级调整提供相邻倍率操作。面板局部状态参与控制栏显隐计时，关闭后重新计时；全屏、画中画、失去活动状态或播放错误时关闭，不持久化面板打开状态。
 
-`PlaybackSpeedGauge(speed, playing, modifier)` 使用 Compose Canvas 绘制刻度与指针、Text 显示倍率读数，只消费现有 `PlayerUiState`，不持有播放器或修改业务状态。`playing` 来自 Media3 `isPlaying`，实际倍率为 `if (playing) speed else 0f`，不使用缓冲期间仍为真的 `showPauseIcon`。正倍率以 `180° + 180° × (log2(speed) + 2) / 4` 映射 0.25×–4×，1× 为 270°；零刻度单独设在 150°，为零刻度与 0.25× 之间保留足够弧长，不计算 `log2(0)`。`animateFloatAsState` 使用主题 `fastSpatialSpec`，首次直接采用当前角度，快速切换从当前动画位置继续，绘制角度限制在 150°–360°。指针与大刻度复用 `primary`，码表和滑杆直接使用 `SliderDefaults.colors()` 默认颜色：活动轨道与非活动圆点为 `primary`，非活动轨道与活动圆点为 `secondaryContainer`；经典强调色在主题层生成带强调色调的次要容器；刻度文字为 `onSurfaceVariant`。布局最大宽度 320dp，表盘几何以宽度／1.7 为基准高度，字体实测尺寸参与半径与标签位置计算；标签与弧线外缘留出 8dp 间隔，先保留 0、0.25、1、4 标签，仅在不重叠时显示 0.5、2。读数靠近轴心下方，以主题 `headlineLarge`、Medium 字重和 `onSurface` 显示；按 `0.25×`、`1.25×`、`3.99×` 等宽读数预留固定避让空间，避免倍率变化推动滑杆，暂停指针至少距读数 24dp，并根据固定字体高度增加布局高度，保持下方滑杆位置与读数不重叠。中英文码表无障碍描述报告实际倍率，Text 与滑杆表达设定倍率，不受指针插值或归零影响。
+`PlaybackSpeedGauge(speed, playing, modifier)` 使用 Compose Canvas 绘制刻度与指针、Text 显示倍率读数，只消费现有 `PlayerUiState`，不持有播放器或修改业务状态。`playing` 来自 Media3 `isPlaying`，实际倍率为 `if (playing) speed else 0f`，不使用缓冲期间仍为真的 `showPauseIcon`。正倍率以 `180° + 180° × (log2(speed) + 2) / 4` 映射 0.25×–4×，1× 为 270°；零刻度单独设在 150°，为零刻度与 0.25× 之间保留足够弧长，不计算 `log2(0)`。`animateFloatAsState` 使用 300ms 的 `tween`，复用共享 `rememberEmphasizedEasing()` 的 Material 3 emphasized 无回弹曲线，不使用弹簧；首次直接采用当前角度，快速切换从当前动画位置继续，绘制角度限制在 150°–360°，动效遵循系统动画设置。指针与大刻度复用 `primary`，码表和滑杆直接使用 `SliderDefaults.colors()` 默认颜色：活动轨道与非活动圆点为 `primary`，非活动轨道与活动圆点为 `secondaryContainer`；经典强调色在主题层生成带强调色调的次要容器；刻度文字为 `onSurfaceVariant`。布局最大宽度 320dp，表盘几何以宽度／1.7 为基准高度，字体实测尺寸参与半径与标签位置计算；标签与弧线外缘留出 8dp 间隔，先保留 0、0.25、1、4 标签，仅在不重叠时显示 0.5、2。读数靠近轴心下方，以主题 `headlineLarge`、Medium 字重和 `onSurface` 显示；按 `0.25×`、`1.25×`、`3.99×` 等宽读数预留固定避让空间，避免倍率变化推动滑杆，暂停指针至少距读数 24dp，并根据固定字体高度增加布局高度，保持下方滑杆位置与读数不重叠。中英文码表无障碍描述报告实际倍率，Text 与滑杆表达设定倍率，不受指针插值或归零影响。
 
-码表指针参考 Expressive 时钟的圆头短杆，以缓存的闭合路径绘制，中心端与外端宽度比例为 4:3，长度为轨道中心半径的 72%，两端保持圆润；中心端半宽限制在 4dp–6dp，避免窄屏或大字体下过细，同色圆轴半径比中心端半宽多 1dp，随指针一起适配。外弧为 8dp 宽的填充环形路径，断口使用 2dp 圆角，避免分段形成独立胶囊。0、0.25、0.5、1、2、4 为大刻度，以 2dp 宽、12dp 长的圆头径向短杆绘制，统一使用主色。轨道按大刻度分段，根据刻度半宽和 3dp 间隔计算角度退让；路径圆角随短弧长度收缩，极短区间空间不足时省略弧段及圆点，避免重叠。每段弧线中心放置一个小圆点，不按不均匀的快捷倍率分布，尺寸复用 `SliderDefaults.TickSize`，活动圆点使用 `activeTickColor`，其余使用 `inactiveTickColor`。表盘半径扣除轨道半宽，为外缘和标签保留空间；文字仅显示倍率数字，单位由读数表达。设计理由见 [Material Symbols](../third_party/material-symbols/README.md#播放器控制图标)。
+码表指针按用户提供的设计参考采用细尖、圆底的渐窄轮廓，以缓存的闭合路径绘制，中心端与尖端宽度比例为 5:1，轴心至尖端的长度为轨道中心半径的 68%；尖端保留小圆角，中心端为一体半圆，不叠加独立圆轴。中心端半宽限制在 4dp–8dp，避免窄屏或大字体下过细。外弧为 8dp 宽的填充环形路径，断口使用 2dp 圆角，避免分段形成独立胶囊。0、0.25、0.5、1、2、4 为大刻度，以 2dp 宽、12dp 长的圆头径向短杆绘制，统一使用主色。轨道按大刻度分段，根据刻度半宽和 3dp 间隔计算角度退让；路径圆角随短弧长度收缩，极短区间空间不足时省略弧段及圆点，避免重叠。每段弧线中心放置一个小圆点，不按不均匀的快捷倍率分布，尺寸复用 `SliderDefaults.TickSize`，活动圆点使用 `activeTickColor`，其余使用 `inactiveTickColor`。表盘半径扣除轨道半宽，为外缘和标签保留空间；文字仅显示倍率数字，单位由读数表达。设计理由见 [Material Symbols](../third_party/material-symbols/README.md#播放器控制图标)。
 
 `AppNavHost` 持有共享 `PlaybackViewModel`，视频页、小窗与系统画中画使用同一 ExoPlayer／MediaSession。视频页只在活动且匹配当前视频时绑定 `ContentFrame`；小窗位于导航内容上层，系统画中画从小窗进入时切换为全窗口视频。同一时刻仅一个画面绑定。导航完成后根据 `showPauseIcon`（含缓冲待播放）决定是否保留应用内小窗；预测性返回取消不修改模式，返回全屏先退出全屏。回到视频页重新读取详情时，同分 P 的媒体 URL 更新不打断当前播放。关闭小窗、账号修订变化和普通后台路径释放会话；旋转保留 ViewModel，进程恢复只读取非敏感标量并保持暂停，不保存 URL 或凭据。
 
 `PlaybackHost` 统一管理 Activity 生命周期、屏幕常亮、系统画中画资格和来源矩形；小窗位置以可用区域的横纵比例保存，拖动结束贴左右边缘，布局用 safeDrawing 与 IME Insets 并扣除实测主界面底栏高度。MainActivity 负责平台画中画桥接和系统栏，Android 12+ 使用 `setAutoEnterEnabled`，Android 8–11 在 `onUserLeaveHint` 检查应用外开关与播放资格；比例限制在系统支持区间。不新增悬浮窗权限、前台服务或后台音频播放。全屏使用 `SCREEN_ORIENTATION_SENSOR_LANDSCAPE`，退出恢复此前方向策略；进入系统画中画暂时解除方向请求，展开后恢复全屏。播放器弹幕开关继续使用官方 Switch 和 Cerasus 图标，暂停时保留，手动画中画按钮已移除。
 
+应用内小窗的控件显隐与交互计数使用局部 `remember` 状态，每次小窗出现时默认显示；`LaunchedEffect` 在 3 秒无操作后隐藏，按钮按压与拖动期间暂停计时，操作结束后重新计时。自动隐藏与点击隐藏使用同一个更新入口，同步修改显隐状态与交互计数。缓冲、首次加载及其背景退场、TalkBack 触摸探索开启时强制显示，普通暂停不延长显示时间；触摸探索监听与视频页复用。单击画面切换显隐，左上角展开按钮调用原有 `onRestore`，中央播放按钮沿用播放图标动画和 24dp／2dp 加载器，右上角关闭沿用会话释放逻辑。三处按钮使用白色平面官方 `IconButton`，正常槽位为 48dp，窄窗口限制到宽度的三分之一，图标按可用槽位缩小；整窗 50% 黑色遮罩与按钮持续保留在组合中，由宿主的 `animateFloatAsState` 驱动共享 `graphicsLayer.alpha`，显示使用主题默认效果动效，隐藏保留主题快速效果动效。计时结束或点击隐藏只改变透明度目标，点击拦截层的显隐不重建淡出状态；淡出过程中再次显示，从当前透明度继续动画，遵循系统动画时长设置。隐藏时清理控件焦点与语义，用置顶点击层拦截退场期间的点击，按钮回调也校验显隐状态，避免显示控件的点击触发播放、展开或关闭。显隐不进入 ViewModel、SavedState 或设置，不改变系统画中画的纯视频画面。
+
+### 播放器首次加载背景
+
+封面等待使用普通 Spinner：`VideoPage` 通过 `PlayerUiState.artworkPending` 表达首次详情尚未返回封面地址，`VideoArtwork` 通过可选 `onLoadingChange` 回调上报 Coil 的加载、成功和失败；播放器按图片地址持有局部加载状态。只有未创建媒体播放器时使用封面等待，在中央播放按钮内复用 40dp 白色 `IndeterminateCircularProgressIndicator`，保留原有黑色圆形容器与自适应位置；成功或失败后立即恢复播放图标，不绘制或淡出几何背景，无封面不保持加载状态。封面等待期间保持控件可见，按钮仍按媒体可用性启用，保留播放操作的无障碍描述。封面等待不写入分 P 就绪记录、不提前加载媒体；点击播放后的媒体首次加载继续使用几何背景。首页、历史等其他封面调用保留原样，已有详情刷新不再设置 `artworkPending`。
+
+`PlaybackViewModel` 在内存中按分 P ID 保存首次就绪记录，`initialLoading` 经 `PlayerUiState` 传给页面；不进入 SavedState 或设置。仅准备未就绪的分 P 时开启，当前播放器首次进入 Media3 `STATE_READY` 即关闭，即使此时处于暂停状态也完成记录。内部重建播放器、切换分 P 和重试保留记录；切换视频、账号、关闭小窗及离页且未转入小窗时清空。首次失败不记录就绪，重试继续显示背景；已就绪媒体失败后重试只使用普通缓冲加载器。播放器赋给会话后再调用 `prepare`，监听器只接受当前实例的就绪和错误事件。
+
+`PlayerInitialLoadingOverlay` 在视频与弹幕之上、控制层之下绘制 Cerasus `LogoCover` 的几何动画，背景为主题 `surface`、图形为 `primary`，条带透明度为 30%。Compose 无限动画使用 96 秒公共周期，分别计算上游各图形的 6／8／12／16／32 秒线性条带运动、4 秒错峰加号翻转和三角形移动、2 秒交替闪烁及条纹缩放、4 秒交替圆环缩放、16 秒条纹圆旋转，保留 CSS 贝塞尔曲线与描边三角形的负延迟。交替动画的反向阶段反转缓动曲线，保持 CSS alternate 行为。几何参数按 dp 转换，窄小视口按较短边等比缩小，所有路径与裁剪轮廓复用缓存。宽度达到 640dp 时使用现有 KIRAKIRA 矢量品牌资源，右上角避让全屏系统栏；不引入播放器名称、YOZORA 图标或字体依赖。
+
+首次开启直接显示背景，首次就绪用 CSS 默认 ease 曲线在 500ms 内淡出，不延迟播放；错误、释放或离开当前宿主时立即撤下。首屏及退场期间保持控件可见，隐藏画质／倍速入口；首次就绪前禁用进度拖动，返回和全屏继续可用。小窗共享同一首次加载状态及几何背景，省略品牌资源，保持原有小尺寸加载器与操作；系统画中画不绘制首屏。动画使用 Compose 时钟遵循系统时长倍率，系统关闭动画时绘制固定几何帧并立即完成退场。来源与许可见 [Cerasus 资源说明](../third_party/cerasus-icons/README.md#播放器首次加载动画)。
+
 ### 历史记录与续播
+
+历史页使用官方 `LazyColumn` 按日期标题与记录逐项懒加载，保留日期及视频的稳定 key，并以 `date`、`history`、`status` 区分 `contentType`。记录使用透明背景的官方 `ListItem`，通过 `Modifier.clickable(role = Role.Button)` 保留整行点击、涟漪及按钮语义，以官方行内留白分隔，不添加卡片圆角、阴影或分隔线。列表最大宽度为 840dp，水平 `contentPadding` 仅包含系统 Insets，记录使用 `ListItem` 的官方 16dp 水平内边距，日期标题与状态区域单独对齐到 16dp；顶部与底部安全区域继续放入滚动内容。封面与文字共用内容插槽，保留 16:9 封面、现有封面裁剪及进度条；有效宽度除以字体缩放小于 300dp 时改为纵向布局，避免大字体挤压文字。
 
 `HistoryHostViewModel` 在导航宿主中持有唯一的 `data/history/HistoryRepository`，使用宿主 `viewModelScope` 管理内存缓存、共享读取及串行进度队列；历史页的 `HistoryViewModel` 绑定 `HistoryRoute`，只持有搜索和刷新任务。仓库按会话 revision 清空缓存并取消旧账号读写，请求前后核对账号快照，明确 401 交由统一会话失效处理，游客不调用历史接口。DTO 留在数据层，领域记录使用 `HistoryEntry`：Rosales 的 `duration` 为秒、`lastUpdateDateTime` 为毫秒时间戳、`anchor` 为秒数字符串，在历史边界将时长与有效锚点转换为毫秒；负数、非有限或溢出锚点不参与展示与续播。
 
@@ -142,15 +177,17 @@
 
 ### 成功语义色
 
-主题层的 [ThemeSemanticColors](../app/src/main/java/moe/kirakira/ui/theme/ThemeSemanticColors.kt) 提供不可变的 `success` 与 `onSuccess`，通过 `MaterialTheme.semanticColors` 读取，供成功／完成状态复用，不占用 Material 3 的既有颜色角色。`KIRAKIRATheme` 根据自身 `darkTheme` 参数通过 `CompositionLocal` 提供配色：浅色使用预设绿色 `#008577`，深色使用 `#00594F`，配套前景均为白色，不受强调色或壁纸取色影响。
+主题层的 [ThemeSemanticColors](../app/src/main/java/moe/kirakira/ui/theme/ThemeSemanticColors.kt) 提供不可变的 `success` 与 `onSuccess`，通过 `MaterialTheme.semanticColors` 读取，供成功／完成状态复用，不占用 Material 3 的既有颜色角色。`KIRAKIRATheme` 根据自身 `darkTheme` 参数通过 `CompositionLocal` 提供配色：浅色固定使用 `#008577`，深色使用 `#00594F`，配套前景均为白色，不引用个性色预设，不受强调色或壁纸取色影响。
 
 安全页顶部卡片使用成功色实色填充，绿色仅作为该卡片的视觉识别；真实保护状态仍由文案及盾牌／警示图标表达。邀请码顶部卡片使用 `primary` 与 `onPrimary` 实色配对，默认呈品牌粉色并随主题强调色变化。两者沿用关于页的大圆角与实色视觉语言，图标底座使用低透明度前景色；邀请码生成按钮采用浅色容器与配套前景色，加载指示器使用卡片前景色。
 
 ### 配色生成
 
-所有主题颜色固定使用经典强调色，默认原色为 `KIRAKIRAPink`（`#F06E8E`）。[MaterialKolor](https://github.com/jordond/MaterialKolor) 的 `rememberDynamicColorScheme` 仅用于生成 `Monochrome / SPEC_2021` 灰阶基础，HCT 工具用于生成强调色的容器、反色与固定色角色。该库维护 Google Material Color Utilities 的 Kotlin 移植与 Compose 适配，许可证为 MIT，底层 Material Color Utilities 为 Apache-2.0。
+所有主题颜色固定使用经典强调色，默认原色为 `KIRAKIRAPink`（`#F06E8E`）。[MaterialKolor](https://github.com/jordond/MaterialKolor) 的纯函数 `dynamicColorScheme` 仅用于生成 `Monochrome / SPEC_2021` 灰阶基础，HCT 工具用于生成强调色的容器、反色与固定色角色。该库维护 Google Material Color Utilities 的 Kotlin 移植与 Compose 适配，许可证为 MIT，底层 Material Color Utilities 为 Apache-2.0。
 
 `KIRAKIRATheme`、预设／壁纸色板与自定义选色器统一使用 `rememberSeedColorScheme(seedColor, darkTheme)`。主题与设置不再接收、保存配色算法，经典方案沿用 `MaterialExpressiveTheme` 的形状、排版和动效。
+
+浅色与深色灰阶基础各在进程内惰性生成一次，完整配色按不透明 ARGB 与明暗模式存入容量为 32 的 `LruCache`。多个预览和重复进入页面复用结果，算法与颜色角色保持一致；缓存只持有颜色值和 `ColorScheme`，不持有 Activity、不写入存储，进程退出后释放。
 
 [WallpaperAccentColor](../app/src/main/java/moe/kirakira/ui/theme/WallpaperAccentColor.kt) 通过 Compose `colorResource` 读取 Android 12+ 的公开资源 `android.R.color.system_accent1_500`，应用主题与壁纸色板共用此入口。资源读取跟随 Compose 的系统资源配置更新，不缓存壁纸色快照；应用明暗模式不改变取色阶。`KIRAKIRATheme` 保留的 `dynamicColor` 参数仅选择壁纸强调色来源，默认关闭；低版本返回空值，主题回退到保存的手动原色。
 
@@ -158,25 +195,59 @@
 
 设置主页、各设置子页与开源组件页通过 `ThemeColorDefaults.settingsBackgroundColor()` 使用 `MaterialTheme.colorScheme.surfaceContainer` 页面背景，普通 `SegmentedListItem` 保留官方默认的 `surface` 容器颜色和内容内边距，分组统一为无间隙、无分隔线的连接式样式，选中和功能总开关状态沿用官方配色。页面背景不再跟随顶栏颜色，避免经典强调色下页面与列表同为 `surface` 而融为一体；经典方案顶栏继续使用浅色纯白／深色深灰的 `surface`。头像裁剪工具保留原有 `surface` 背景。
 
-[ConnectedListGroup](../app/src/main/java/moe/kirakira/ui/components/ConnectedListGroup.kt) 提供满宽、零行间距的普通分组布局和固定 1dp 整组阴影，不额外绘制背景或添加内边距，默认不裁剪内容；`SettingsSection` 保留标题间距并在内部复用它。共享 `connectedListItemShapes(index, count)` 以零圆角 `RoundedCornerShape` 为基础，通过官方 `ListItemDefaults.segmentedShapes` 获取首项顶部、末项底部及单项的主题圆角，中间连接边为直角；选中、按压、聚焦、悬停与拖动形状均沿用基础形状，保留官方颜色反馈与无障碍语义。菜单、设置、账号、历史记录、标签及播放器面板共用此入口。独立条目和懒列表通过 [connectedListItemShadow](../app/src/main/java/moe/kirakira/ui/components/ConnectedListShadow.kt) 复用固定 1dp 阴影；`ConnectedListGroup` 通过组合局部上下文标记阴影已由整组承载，内部条目不重复投影。懒列表的阴影轮廓在非首尾边缘向相邻行方向延伸，再按条目垂直区域裁剪，仅首尾允许顶部与底部阴影外溢，保持连续侧边并避免组内横向接缝；单项直接使用主题圆角阴影。懒列表保留逐项加载、稳定 key 与分页，仅在标题、分组边界和独立状态区域设置间距；账号侧滑组通过 `clipContent` 按整体外轮廓裁剪，外侧阴影及删除按钮的横向间距保持不变。
+[ConnectedListGroup](../app/src/main/java/moe/kirakira/ui/components/ConnectedListGroup.kt) 提供满宽、零行间距的普通分组布局和固定 1dp 整组阴影，不额外绘制背景或添加内边距，默认不裁剪内容；`SettingsSection` 保留标题间距并在内部复用它，独立条目在调用处显式包裹单项分组。共享 `connectedListItemShapes(index, count)` 以零圆角 `RoundedCornerShape` 为基础，通过官方 `ListItemDefaults.segmentedShapes` 获取首项顶部、末项底部及单项的主题圆角，中间连接边为直角；选中、按压、聚焦、悬停与拖动形状均沿用基础形状，保留官方颜色反馈与无障碍语义。菜单、设置、账号、标签及播放器面板共用此入口。阴影属于容器或列表宿主，条目不再通过组合局部上下文跳过投影，也不绘制和拼接行级阴影。账号侧滑组继续通过 `clipContent` 按整体外轮廓裁剪，外侧阴影及删除按钮的横向间距保持不变。
+
+[ConnectedLazyColumn](../app/src/main/java/moe/kirakira/ui/components/ConnectedLazyColumn.kt) 在官方 `LazyColumn` 外提供分组声明及统一投影，接收 `LazyListState`、`modifier`、`contentPadding` 和内容 DSL，固定零行间距与正向垂直布局。DSL 的普通 `item`、`items` 与 `connectedItemsIndexed(groupKey, items, key, contentType, itemContent)` 在构建内容时一起生成不可变分组索引范围，保留原有条目 key 和 contentType；groupKey 在同一列表内必须唯一且跨刷新稳定，空组不占条目。连接行必须满宽，不加外部纵向 padding、粘性标题或位移动画；每个懒列表条目只承载一行。宿主在绘制阶段读取 `layoutInfo.visibleItemsInfo`，按索引范围匹配可见分组，每组复用一个只负责投影的官方 `GraphicsLayer`，使用完整主题轮廓及固定 1dp `shadowElevation`，不额外绘制背景。首尾可见时使用行的实测位置；不可见的端点延伸到视口外一个视口高度，不估算完整组高、不测量屏幕外行，避免在视口边缘产生虚假的顶部或底部投影。位置换算包含顶部内容内边距，横向内边距按 RTL 解析，投影裁剪至宿主视口；滚动只更新绘制，离开视口的分组及销毁的宿主释放图层。保留连续整组投影的视觉目标，不保证与旧逐行投影逐像素一致。
+
+边缘拉伸使用每个 `ConnectedLazyColumn` 独立创建的官方 `rememberOverscrollEffect()`。Modifier 顺序固定为调用方 modifier → `clipToBounds()` → `overscroll(effect)` → 整组阴影绘制节点，让投影和内容一同参与系统 overscroll；内部 `LazyColumn` 接收同一效果的 `withoutVisualEffect()` 包装，仅负责传递滚动及 fling 事件，避免重复附加效果节点或内容拉伸后露出未同步变形的投影。系统效果为空时，外层及内部均使用空效果，遵循系统配置；下拉刷新指示器仍由外部刷新宿主独立承载。
+
+标签名称按语言注册分组；标签搜索、屏蔽规则和邀请码列表各注册数据分组，继续逐项懒加载并保留分页。屏蔽管理入口只有固定的 2 项、3 项菜单，各以一个普通 `ConnectedListGroup` 放入管理宿主的一个条目。标题、筛选、空状态和分页按钮使用普通条目，仅在分组边界及独立状态区域设置间距。
+
+```kotlin
+ConnectedLazyColumn(state = listState, contentPadding = PaddingValues(16.dp)) {
+    item("header") { SettingsSectionHeader(title) }
+    connectedItemsIndexed("rules", entries, key = { _, entry -> entry.value }) { index, entry ->
+        SegmentedListItem(
+            shapes = connectedListItemShapes(index, entries.size),
+            content = { Text(entry.value) },
+        )
+    }
+}
+```
 
 浅色方案在主题生成层将普通页面的 `background` 与 `surface` 设为纯白，分组列表页面使用的 `surfaceContainer` 保留 `#F5F5F5`，使白色 `SegmentedListItem` 与页面背景保持层次。深色方案保留原有灰阶角色；所有颜色来源共用这些规则。页面直接引用语义颜色，不再通过配色模式判断切换样式。
 
+管理、安全与隐私设置页的页面级加载分支位于滚动列表或列之外，通过 `Box(Modifier.fillMaxSize().padding(scaffoldPadding), contentAlignment = Alignment.Center)` 在顶栏与底部系统栏之间居中，继续复用 `IndeterminateCircularProgressIndicator`。标签页仅在标签与视频均无数据且同时加载时使用这一全页分支，部分数据就绪后的独立状态保留列表内呈现；不改变请求、错误重试或下拉刷新条件。
+
 共享 [ContentPullToRefresh](../app/src/main/java/moe/kirakira/ui/components/ContentPullToRefresh.kt) 保留官方 `PullToRefreshBox` 的状态、手势与阈值，通过 `PullToRefreshDefaults.IndicatorBox` 绘制白色圆形容器，浅深模式保持一致。容器使用官方内置的 `PullToRefreshDefaults.Elevation` 高度阴影，与容器共享位移和顶部裁剪，未拉动且不刷新时由官方宿主关闭投影。外层不额外添加阴影 Modifier，避免容器隐藏后顶部仍残留圆形阴影；这一约束同样适用于没有实时模糊的 Android 8.1–11。内部圆弧使用 `primary`、20dp 外径、2.5dp 线宽、透明轨道与 `StrokeCap.Round`。
 
-拉动反馈依据 [Material 2 Android swipe-to-refresh](https://m2.material.io/design/platform-guidance/android-swipe-to-refresh.html) 和 AndroidX Material `PullRefreshIndicator` 的计算方式：跳过前 40% 拉动距离，后续逐步增长至最大 80% 圆弧；超出阈值时使用有上限的非线性张力，使旋转逐渐减缓，而不是在阈值处填满整圈。未达阈值时透明度为 30%，达阈值后以 300ms 线性补间增至 100%，拖回时反向恢复。箭头复用官方 Rounded `chevron_right` 原始资源，沿圆弧末端切线旋转并按拉动进度缩放，不绘制旧版实心三角箭头；仅该绘制区域固定 LTR，确保 RTL 下仍顺时针旋转。
+拉动反馈依据 [Material 2 Android swipe-to-refresh](https://m2.material.io/design/platform-guidance/android-swipe-to-refresh.html) 和 AndroidX Material `PullRefreshIndicator` 的计算方式：跳过前 40% 拉动距离，后续逐步增长至最大 80% 圆弧；超出阈值时使用有上限的非线性张力，使旋转逐渐减缓，而不是在阈值处填满整圈。未达阈值时透明度为 30%，达阈值后以 300ms 线性补间增至 100%，拖回时反向恢复。箭头基于官方 Rounded `chevron_right` 的中心线绘制，沿圆弧末端切线旋转并按拉动进度缩放路径长度，与圆弧共用固定 2.5dp 的圆角描边，避免缩放填充图标时箭头变细；不绘制旧版实心三角箭头。仅该绘制区域固定 LTR，确保 RTL 下仍顺时针旋转。
+
+拉动阶段的圆弧与箭头先以不透明颜色绘制到同一 `Canvas.saveLayer`，合成后统一应用阈值透明度，避免交叠处变深。局部图层边界向外扩展，容纳圆弧外的箭头，不包含白色容器及阴影。
 
 刷新阶段复用 `IndeterminateCircularProgressIndicator` 的官方 Material 2 动画，拉动与旋转图形以 Material 2 的 100ms `Crossfade` 切换，不套用 Expressive 弹簧。刷新完成后，在官方状态回到隐藏位置之前保留旋转图形，用回收距离驱动整个指示器缩小、淡出，避免退出时重新出现拉动箭头。退场层使用 `CompositingStrategy.ModulateAlpha`，避免透明度低于 1 时自动创建局部离屏缓冲，裁掉已经位移的容器或外侧阴影。业务刷新状态仍由调用方提供，局部标记仅控制退场显示，不延长请求或重复触发刷新。来源、许可与改动说明见 [Android 刷新指示器说明](../third_party/android-refresh/README.md)。
+
+### 弹层背景
+
+普通弹层在官方组件调用处直接引用 `MaterialTheme.colorScheme`，规则见[贡献指南](../CONTRIBUTING.md#compose-与界面规范)。业务 Sheet 有实际连接列表条目时使用原有的 `surfaceContainerLow`，否则使用 `surface`；深色模式同样使用对应语义颜色，不硬编码白色。判断基于内容状态，不读取懒列表可见条目或探测组件树；空分组不算连接列表条目，保留已有条目的刷新继续使用灰底，不额外添加颜色动画或保存背景偏好。
+
+播放器画质与倍速面板、隐私可见性面板始终包含连接列表，固定使用灰底。标签搜索根据候选是否非空、标签名称根据是否存在非空名称组、屏蔽规则编辑根据是否有用户预览或非空标签结果选择背景。弹幕样式的 `custom` 状态保留在弹层打开分支、提升到 `ModalBottomSheet` 调用之前：样式页用灰底，自定义颜色编辑用 `surface`；关闭后重新打开仍进入样式页，编辑器草稿和确认／取消逻辑保持原有归属。
+
+普通 `AlertDialog` 与 `DropdownMenu` 显式使用 `surface`。生日选择将同一份 `DatePickerDefaults.colors(containerColor = surface)` 传给 `DatePickerDialog` 和内部 `DatePicker`，确保日历、年份选择和输入模式与外层同色。开源组件通过 `LibraryDefaults.m3VariantColors(sheetSurface = surface)` 配置详情 Sheet，通过 `libraryColors(dialogBackgroundColor = surface)` 配置许可证对话框，保留上游组件与列表页面背景。弹层内列表项、输入框和选中态继续使用原有配色；媒体查看器不适用该规则。
 
 ### 选色与持久保存
 
 [自定义选色对话框](../app/src/main/java/moe/kirakira/feature/settings/CustomColorDialog.kt)使用 [colorpicker-compose](https://github.com/skydoves/colorpicker-compose)（Apache-2.0）的 HSV 色盘与亮度滑条，封装在 Material 3 `AlertDialog` 中，补充亮度无障碍调节与 HEX 输入。它只增加 Compose 选色绘制与手势代码，不引入 View 互操作，许可证由 AboutLibraries 收集。
 
-`ThemeColorSettings` 保存 `useSystemColors`、`seedColorArgb`、`customColorArgb` 与 `useCustomColor`，分别持久化为 `theme_system_colors`、`theme_seed_color`、`theme_custom_color` 与 `theme_use_custom_color`。默认关闭壁纸取色与自定义选择，两份原色均为项目粉色；没有旧用户，不保留算法设置或旧值推断的兼容逻辑。
+`ThemeColorSettings` 保存 `useSystemColors`、`seedColorArgb`、`customColorArgb` 与 `useCustomColor`，分别持久化为 `theme_system_colors`、`theme_seed_color`、`theme_custom_color` 与 `theme_use_custom_color`。默认关闭壁纸取色与自定义选择，两份原色均为项目粉色，不保存配色算法。读取时仅将非自定义的旧蓝／紫／绿／琥珀／珊瑚预设原色映射至智乃蓝／理世紫／千夜绿／纱路黄／小惠红，并只写回变更后的 `theme_seed_color`；品牌粉色不变。壁纸来源和独立自定义色值保持原样，自定义状态为真时不迁移，即使色值等于旧预设。
 
-色板始终显示，六种预设之后依次为受支持的壁纸颜色与自定义入口。选择壁纸仅更新来源标记，保留手动色值和自定义选择状态；色板以当前生效来源互斥标记选中项。自定义色值与当前手动色值独立存储，避免自定义颜色恰好等于预设时错误标记选中项。草稿确认与取消的约束见[贡献指南](../CONTRIBUTING.md#主题配色约束)。
+色板始终显示，七种 Cerasus 预设之后依次为受支持的壁纸颜色与自定义入口。颜色依次为 `#F06E8E`、`#4581E1`、`#B044B0`、`#46A12F`、`#F98D00`、`#199BB6`、`#DD1818`。选择壁纸仅更新来源标记，保留手动色值和自定义选择状态；色板以当前生效来源互斥标记选中项。自定义色值与当前手动色值独立存储，避免自定义颜色恰好等于预设时错误标记选中项。草稿确认与取消的约束见[贡献指南](../CONTRIBUTING.md#主题配色约束)。
 
-预设色板复用官方 `ToggleButton` 和 `ToggleButtonDefaults.shapesFor` 的按压及选中动画，三色绘制随按钮形状一起裁剪。主题状态使用与现有 Lifecycle 同版本的 `lifecycle-runtime-compose` 进行生命周期感知收集。
+设置主页用单一 `LazyColumn` 按“我”“常规”与账户操作分组懒加载，每组继续复用 `ConnectedListGroup` 的整体阴影与连接形状，保留分组间距和滚动状态。外观页复用 `SettingsScaffold` 的毛玻璃顶栏、640dp 内容上限与滚动内 Insets，同样使用单一 `LazyColumn`，按标题、明暗卡片行、个性色卡片行及动画分组组织带稳定 key 和 contentType 的条目。页面容器仅通过一次 `BoxWithConstraints` 取得可用宽度；明暗／个性色卡片最小宽度为 100dp／156dp，间距 12dp，最小宽度乘以至少为 1 的字体缩放因子后计算列数。`ThemeCardRow` 保留同一行按最长文字内容等高、末行空格占位的排列。分组直接排列卡片，不额外包裹连接列表或背景卡片；自定义颜色对话框由列表外的页面状态管理。
+
+`ThemeSelectionCard` 使用官方可点击 `Card` 管理涟漪、焦点与交互，使用主题 large 形状、surface 底色与 1dp 静止阴影；选中时显示 2dp 强调描边与勾选标记，背景和描边沿用主题 Expressive effects 动效。根节点覆盖为单选角色与选中状态，合并主题／角色名称，子预览与标签清除独立语义。明暗卡片的图标区域宽高比为 1.6，浅色／深色／跟随系统分别居中显示 40dp 的 `light_mode`／`dark_mode`／`brightness_auto`，颜色使用当前主题 `primary`。个性色卡片的图片或图标区域固定 4:3，壁纸／自定义选项分别居中显示 48dp 的 `wallpaper`／`edit`，按系统强调色／已保存的自定义色着色；七张角色图片继续按 `BiasAlignment(0f, -0.84f)` 裁切。标题区域允许换行和增高。角色图片通过 Coil `AsyncImage` 按卡片约束在后台解码并复用内存缓存；首次加载透出卡片原有底色，禁用额外 crossfade，图片出现不改变布局。图标直接通过官方 `Icon` 绘制，不再生成界面缩略图。角色图片离线打包，来源与转换方式见 [Cerasus 个性色资源](../third_party/cerasus-palettes/README.md)。自定义对话框仍复用 `ThemePaletteSwatch` 三色预览。主题状态继续使用 `lifecycle-runtime-compose` 进行生命周期感知收集。
+
+未选中的主题与个性色卡片不绘制描边，仅保留卡片阴影；描边只用于选中项的强调色反馈，避免灰色轮廓干扰阴影。
 
 MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引入 View 组件库；两项配色依赖的实际 APK 增量需通过同构建配置比较，不以依赖包大小代替。
 
@@ -184,7 +255,7 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 
 ### 栏面阴影
 
-[ThemeShadows](../app/src/main/java/moe/kirakira/ui/theme/ThemeShadows.kt) 统一管理栏面及连接列表的平台 elevation 投影：顶栏、视频页播放器与 Tab 整体、个人主页 Tab 栏和底部导航栏使用固定 4dp 高度，连接列表使用 1dp；评论／弹幕输入框继续使用 `Surface.shadowElevation`，刷新容器继续使用官方 `IndicatorBox` 的内置高度阴影。阴影内部由内容表面自身遮挡，应用不手动生成外部蒙版或裁切轮廓。
+[ThemeShadows](../app/src/main/java/moe/kirakira/ui/theme/ThemeShadows.kt) 统一管理栏面及连接列表的平台 elevation 投影：顶栏、视频页 Tab 栏、个人主页 Tab 栏和底部导航栏使用固定 4dp 高度，连接列表使用 1dp；评论／弹幕输入框继续使用 `Surface.shadowElevation`，刷新容器继续使用官方 `IndicatorBox` 的内置高度阴影。阴影内部由内容表面自身遮挡，应用不手动生成外部蒙版或裁切轮廓。
 
 浅色与深色模式共用固定高度，系统光照模型可能使相同高度的阴影随背景变化；输入区保留 4dp 原生高度。刷新阴影仅由官方容器承载，跟随容器位移与显示状态，不在外层重复投影。`bottomEdgeShadow()` 保留既有的栏面底边显示范围；连接列表继续延伸并裁剪分段投影轮廓，账号侧滑组继续通过 `clipContent` 控制内容裁剪。
 
@@ -192,13 +263,38 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 
 ### 按钮动态阴影
 
+个人主页与视频页复用 [FollowButton](../app/src/main/java/moe/kirakira/ui/components/FollowButton.kt)，内部使用官方 `ToggleButton` 与官方尺寸配套 API。未关注状态显式使用 `primary/onPrimary`，接入共享 `buttonShadow` 的双层投影；已关注状态使用灰色 `surfaceContainerHigh/onSurfaceVariant`，不接入投影，官方 elevation 同时设为 `null`。禁用时保留官方禁用配色与语义，不绘制阴影。选中状态与按压状态通过公开 `Interpolatable` API 及主题 `fastSpatialSpec` 插值，所得轮廓同时传给表面和投影，官方组件的三种形状设为同一当前轮廓以避免二次动画；关注布尔值、提交条件与回调继续由原页面拥有。
+
 [ShadowButtons](../app/src/main/java/moe/kirakira/ui/components/ShadowButtons.kt) 为填充、浅色填充、实心图标按钮及 FAB 封装官方 Material 3 组件；文字、描边及裸图标按钮不使用投影。调用方保留现有颜色、尺寸、形状、内容内边距、语义及点击逻辑，官方高度投影设为零，避免重复叠加。按钮不增加缩放、位移或布局空间，也不保存阴影偏好。投影读取官方 `MinimumInteractiveLeftAlignmentLine` 和 `MinimumInteractiveTopAlignmentLine`，按实际可见轮廓内缩并平移，不把最小触摸目标的留白当作按钮表面；测量及触摸区域保持原样。
+
+`ShadowFloatingActionButton` 默认使用 `CircleShape` 与主题 `primary` 背景，`contentColorFor(containerColor)` 为默认背景匹配 `onPrimary` 前景，与实心按钮配色一致。保留官方 FAB 尺寸及显式覆盖形状、背景和前景的参数；当前规则管理页直接继承默认值，仅显示本地化无障碍描述的 Material Symbols Rounded `add` 加号。
 
 共享交互源驱动投影和形状。普通按钮静止／按压／悬停或聚焦使用 2dp／8dp／4dp 等效高度，FAB 使用 6dp／12dp／8dp；按下 120ms、松开或取消 180ms，无弹跳，系统动画设置由 Compose 处理。禁用时立即移除投影，优先于按压、悬停与聚焦；FAB 通过封装的 `enabled` 参数同时阻止操作并声明禁用语义。传入 Expressive `shapes` 时，默认形状和按压形状通过公开 `Interpolatable` API 与主题 `defaultEffectsSpec` 插值，同一动画形状用于按钮轮廓和投影；不访问 Material 3 内部 API。
 
-双层 `dropShadow` 在最低支持版本同样绘制彩色投影：环境层模糊半径为等效高度的 0.75 倍、无偏移，主投影模糊半径为等效高度、向下偏移为其 0.5 倍，两层均不扩张轮廓。环境层透明度为 `0.08 + 高度 × 0.005`，主层为 `0.14 + 高度 × 0.012`，并乘以容器透明度。彩色投影取实际容器色；RGB 最大与最小通道差不大于 0.02 的中性色使用黑色投影。主题切换与自定义颜色变化实时更新，不统一套用主色，也不绘制发光效果。
+双层 `dropShadow` 由 [MaterialColorShadow](../app/src/main/java/moe/kirakira/ui/components/MaterialColorShadow.kt) 统一绘制，在最低支持版本同样绘制彩色投影，几何参数采用 Google 官方 [Material Web 双层 elevation 实现](https://github.com/material-components/material-web/blob/main/elevation/internal/_elevation.scss)，高度映射采用官方 [elevation tokens](https://github.com/material-components/material-web/blob/main/tokens/versions/v0_192/_md-sys-elevation.scss)。下表按「垂直偏移／模糊／扩张」列出官方逻辑像素值，接入时映射为 dp；水平偏移均为零。这里复用官方设计参数，仍由 Compose 绘制，不使用 Android 平台光照模型，也不保证与浏览器逐像素一致。
+
+| Level | 高度 | 环境层 | 主层 |
+| --- | --- | --- | --- |
+| 0 | 0dp | 0／0／0 | 0／0／0 |
+| 1 | 1dp | 1／3／1 | 1／2／0 |
+| 2 | 3dp | 2／6／2 | 1／2／0 |
+| 3 | 6dp | 4／8／3 | 1／3／0 |
+| 4 | 8dp | 6／10／4 | 2／3／0 |
+| 5 | 12dp | 8／12／6 | 4／4／0 |
+
+保留项目现有交互高度：2dp、4dp 及动画中间值在相邻官方高度间线性插值，环境层包含官方扩张值，主层不扩张。彩色投影取实际容器色，按钮与 FAB 的环境层／主层不透明度统一固定为 25%／50%，这是相对官方强度的显式例外；静止、悬停、聚焦和按压仅改变范围，不再改变不透明度。RGB 最大与最小通道差不大于 0.02 的中性色使用黑色投影及官方 15%／30%。两类均乘以容器透明度；主题切换与自定义颜色变化实时更新，不统一套用主色，也不绘制额外发光效果。
 
 评论／弹幕发送按钮直接使用共享实心图标按钮，不再由外层带投影的圆形 `Surface` 承载，避免重复投影和外层裁剪。输入框的固定 4dp 平台阴影不变；发送按钮禁用时不绘制阴影，保持原有禁用配色及发送条件。
+
+### 单选框动态阴影
+
+[ShadowRadioButton](../app/src/main/java/moe/kirakira/ui/components/ShadowRadioButton.kt) 保留官方 `RadioButton`，参数与官方组件一致，默认配色来自 `RadioButtonDefaults.colors()`；仅选中且可用时显示投影。静止／悬停或聚焦／按压采用 1dp／2dp／4dp，按压优先于悬停与聚焦；按下 120ms、恢复或取消 180ms，系统动画设置由 Compose 处理，禁用时立即移除投影。取消选中时同样移除投影，不改变官方圆点和颜色动画。
+
+单选框与按钮共用 `materialColorShadow` 的 Material 官方双层几何参数及高度插值。1dp 的环境层「垂直偏移／模糊／扩张」为 1／3／1dp，主层为 1／2／0dp；2dp 与 4dp 在相邻官方高度之间插值。阴影取 `colors.selectedColor`，单选框传入固定 `opacityScale = 0.5f`，将双层强度降为按钮的一半：彩色环境层／主层为 12.5%／25%；RGB 通道差不大于 0.02 的中性色使用黑色及 7.5%／15%，均乘以选中颜色透明度，主题与自定义颜色变化实时更新。按钮沿用默认 `opacityScale = 1f`，单选框减淡不改变按钮阴影或控件自身颜色。
+
+投影背景层使用 `matchParentSize`，不参与控件尺寸测量；居中 20dp 的圆形轮廓对应当前官方内部 `RadioButtonTokens.IconSize`，该 token 未公开，因此在封装内记录尺寸来源。仅对阴影层使用圆形差集裁剪，防止投影染色空心单选框内部；官方组件的布局、最小触摸目标、涟漪与绘制不被裁剪，也不添加背景填充或平台 elevation。更新 Material 3 时需核对该内部图标尺寸。
+
+设置、账号切换、画质和隐私选项统一使用此封装。整行处理点击时，每行通过 `remember` 创建一个 `MutableInteractionSource`，同时传给 `SegmentedListItem` 和 `ShadowRadioButton`，单选框保持 `onClick = null`；按压、悬停与聚焦整行即驱动选中单选框的阴影。`SettingsItem` 的可选 `interactionSource` 参数由 `SettingsRadioItem` 透传，其余行保留默认交互源。账号切换行使用 `onClick` 重载，整行配色不随选中状态变化；通过显式 `Role.RadioButton`、`selected` 与状态描述保留无障碍单选语义。账号行的加载、编辑和禁用条件沿用原业务状态，不保存阴影偏好。
 
 ## 图标划线过渡
 
@@ -243,7 +339,7 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 
 所有显式前进、返回、关闭和系统保存之前取消 Compose Autofill 会话，保留邮箱／用户名、Password / NewPassword 语义。系统保存的持久化边界是用户选择的密码提供者，应用不将原密码写入任何存储。未配置 Digital Asset Links，不支持本轮范围外的跨网站密码共享及 Passkey。
 
-会话 UI 状态新增 `SessionOperation(type, targetUuid)`，区分初始化、切换、移除与本机重置。操作串行执行并在写盘期间保留类型与目标；成功提交之前继续选中原账号。账号行采用居中对齐的布局，游客平时仅显示名称，普通账号显示名称与副标题，长文字单行省略；操作状态复用副标题行，loading、单选与删除按钮共用 48dp 尾部槽位，列表不插入顶部加载项或空白状态行。“添加账号”独立成组。错误携带目标 UUID，重试闭包绑定原操作。游客切换、移除当前账号或登出之后尽力调用 `clearCredentialState`，不删除提供者密码；清理失败不撤销本地操作。
+会话 UI 状态新增 `SessionOperation(type, targetUuid)`，区分初始化、切换、移除与本机重置。操作串行执行并在写盘期间保留类型与目标；成功提交之前继续选中原账号。账号行采用居中对齐的布局，游客平时仅显示名称，普通账号显示名称与副标题，长文字单行省略；切换期间保留原有文字与布局，仅显示尾部加载器，「正在切换」通过无障碍状态描述提供；移除状态复用副标题行。loading、单选与删除按钮共用 48dp 尾部槽位，列表不插入顶部加载项或空白状态行。“添加账号”独立成组。错误携带目标 UUID，重试闭包绑定原操作。游客切换、移除当前账号或登出之后尽力调用 `clearCredentialState`，不删除提供者密码；清理失败不撤销本地操作。
 
 参考：[官方密码接入](https://developer.android.com/identity/passwords)、[Compose Autofill](https://developer.android.com/develop/ui/compose/text/autofill)、[Credentials 版本记录](https://developer.android.com/jetpack/androidx/releases/credentials)。
 
@@ -251,9 +347,11 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 
 ### 视频搜索
 
-`feature/search/SearchViewModel` 复用 `ContentViewModel` 的会话就绪与 revision 防护，在主导航宿主创建；`SearchPage` 收集状态，`SearchScreen` 与标签面板仅接收状态、事件回调。UI 不接触 DTO 或会话，结果使用现有 `VideoSummary`、`VideoCardRow` 与 `VideoRoute`，标签复用 `VideoTag.displayName` 的多语言回退。
+`feature/search/SearchViewModel` 复用 `ContentViewModel` 的会话就绪与 revision 防护，在主导航宿主创建；`SearchPage` 与导航宿主的顶栏插槽收集同一个 ViewModel 的状态，`SearchTopBar`、`SearchScreen` 与标签面板仅接收状态、事件回调。UI 不接触 DTO 或会话，结果使用现有 `VideoSummary`、`VideoCardRow` 与 `VideoRoute`，标签复用 `VideoTag.displayName` 的多语言回退。
 
-主页面与标签面板共用 `QuerySearchBar`，使用官方 `SearchBar` 与 `SearchBarDefaults.InputField` 的公开内联重载，保持同页编辑和结果展示，不打开额外的展开搜索页面。当前版本的 state 重载在折叠 SearchBar 内禁用软键盘、要求配合独立展开页面，因此此处保留已弃用但仍公开的内联重载，不抑制弃用警告。输入按受控字符串同步 ViewModel，不额外保存查询；标签入口使用只读输入以避免打开面板前弹出键盘。搜索模式使用紧凑 FilterChip，结果数量、排序、升降序和布局切换合并为一行图标工具栏，保留 Tooltip 和本地化描述。
+主页面与标签面板共用 `QuerySearchBar`，使用官方 `SearchBar` 与 `SearchBarDefaults.InputField` 的公开内联重载，保持同页编辑和结果展示，不打开额外的展开搜索页面。当前版本的 state 重载在折叠 SearchBar 内禁用软键盘、要求配合独立展开页面，因此此处保留已弃用但仍公开的内联重载，不抑制弃用警告。输入按受控字符串同步 ViewModel，不额外保存查询；标签入口使用只读输入以避免打开面板前弹出键盘。
+
+`MainScreen.searchTopBar` 插槽将双行 `SearchTopBar` 放入搜索 Tab 的 `FrostedScaffold.topBar`，随页面转场；第一行是搜索框，第二行左侧是紧凑 FilterChip 模式选项，末端并排放置排序菜单与布局切换图标，会话就绪后未提交搜索时也可选择排序和布局。排序菜单复用 `SortChanged` 与 `ToggleDirection` 事件，提供四种排序与两个方向选项，并通过勾选图标和选中语义标记当前选择；默认排序下禁用方向选项，点击当前方向只关闭菜单。菜单展开状态仅存局部 UI 内存，搜索 generation 或就绪状态变化时关闭。栏面满宽，内部居中且最大宽度为 640dp，顶部与横向系统 Insets 使用 `TopAppBarDefaults.windowInsets` 避让一次；模式选项可换行，末端图标保留完整触摸区域，栏高随内容增高。顶栏图标使用 `onSurfaceVariant`，背景与固定 4dp 阴影均由既有宿主管理。已选标签与结果数量保留在列表内容区，图标操作保留 Tooltip 和本地化描述。列表顶部留白与刷新指示器使用宿主返回的实际栏高；空状态最小高度扣除顶栏、底栏、实测标签和数量区域以及列表间距。
 
 | 请求 | 请求字段／关键响应 | 用途 |
 | --- | --- | --- |
@@ -398,6 +496,8 @@ Rosales `GET /user/logout` 仅设置清除浏览器 Cookie，没有服务端 tok
 
 设置、资料、视频与图片查看器的导航按钮统一放在官方 Material 3 顶栏的 `navigationIcon` 中，使用默认定位与系统 Insets，不额外添加按钮位置边距。设置使用 `LargeFlexibleTopAppBar`，其余三个页面使用透明 `TopAppBar`；设置保留普通返回箭头，资料和视频保留带底色返回箭头，图片查看器保留深色圆形关闭按钮。
 
+普通顶栏（含认证、资料、设置、主页面与头像裁剪）复用 [`appTopAppBarColors`](../app/src/main/java/moe/kirakira/ui/components/TopAppBar.kt)：容器及滚动后容器透明，标题使用 `primary`，导航与操作图标使用 `onSurfaceVariant`，与普通列表图标保持一致。认证页返回和关闭使用平面官方 `IconButton`，保留原有回调、无障碍描述及测试标签；资料页保留带底色按钮，通过 `appTopAppBarTonalIconButtonColors` 同步内容色与禁用透明度，按钮容器、形状及阴影继续由原组件处理。首页品牌 Logo 和认证流程标题图标保留强调色，文字操作沿用原组件默认配色；播放器和图片查看器保留白色媒体控件。
+
 视频顶栏作为页面全宽覆盖层，独立于已应用内容 Insets、最大宽度为 840dp 的视频区域，使用顶栏默认的顶部和水平系统 Insets。它不占用额外内容高度、不改变视频尺寸，宽屏时导航按钮仍按页面边缘定位。图片查看器继续由原有控件显隐、焦点与转场状态管理顶栏。
 
 ### 可复用 UI 参数示例
@@ -417,16 +517,53 @@ fun FavoriteButton(
 
 ### 毛玻璃应用栏
 
-[`FrostedScaffold`](../app/src/main/java/moe/kirakira/ui/components/FrostedScaffold.kt) 为普通页面创建独立的 `HazeState`，用 `hazeSource` 采样内容、单独绘制顶部背景，再绘制透明的官方顶栏。文字和图标不参与模糊。背景裁剪只作用于背景子节点，阴影由 `ThemeShadows` 的平台 elevation 投影管理，避免重复投影。底部胶囊通过 `frostedBarBackground(shape)` 使用外层主页面采样状态，内部各 Tab 的顶部栏使用独立状态。
+[`FrostedScaffold`](../app/src/main/java/moe/kirakira/ui/components/FrostedScaffold.kt) 为普通页面创建独立的 `HazeState`，用 `hazeSource` 采样内容、单独绘制顶部背景，再绘制透明的官方顶栏。文字和图标不参与模糊。背景裁剪只作用于背景子节点，阴影由 `ThemeShadows` 的平台 elevation 投影管理，避免重复投影。底部胶囊通过 `frostedBarBackground(shape)` 使用外层主页面采样状态，内部各 Tab 的顶部栏使用独立状态。`frostedBarBackground` 的可选 `hazeState` 参数允许自定义布局显式复用相同背景样式，默认仍读取当前页面的采样状态。
 
 - 背景使用 `HazeInput.Sources` 采样，源消失时使用 `ClearWhenUnavailable`，不继续保留上一页面画面。原生 backdrop 暂不启用：已在 Android 17 模拟器（`CP41.260828.004.A7`，SkiaGL）上复现 `RenderNode.setBackdropRenderEffect()` 与半透明父层、elevation 同时使用时的灰框和内部矩形异常。对照父层 alpha 为 1、0.5、0.2：普通 elevation 及 Haze Sources 正常，Haze Backdrop 异常，强制 Offscreen 仍异常；移除 Compose/Haze、仅使用 Android View 和 RenderNode 也能复现，而移除 backdrop 恢复正常。证据定位到系统原生 backdrop 的合成路径，尚未定位内部实现的具体错误，也未验证所有设备。版本以 `gradle/libs.versions.toml` 为准，不引入玻璃折射模块。
 - Android 12+ 使用主题 `surface` 作为缺失源像素的底色，叠加同色 80% 不透明度遮罩、20dp 模糊与零噪点。Android 8.1–11 直接绘制 90% 不透明度背景，不挂载采样节点。背景透明度不作用于整个栏或前景。
-- 滚动列表的顶部与底部安全区域放入 `contentPadding`，滚动 Column 则在 `verticalScroll` 后添加，初始避开栏面、滚动时内容可进入栏后。`ContentPullToRefresh.indicatorTopPadding` 仅移动覆盖式指示器，不移动滚动视口。历史搜索表单作为列表首项随内容滚动。
-- 作者资料页为保留吸顶 Tab 和嵌套分页滚动，保持原有栏下视口，将后方滚动封面单独采样并与内容共享该页状态；非滚动表单保留安全布局。媒体、头像裁剪及系统栏不接入本组件。
+- 共享背景沿用 Haze 默认采样配置，保留实时更新、模糊半径与遮罩。模糊样式按主题 surface 色缓存，采样输入按页面状态缓存，现有采样层级保持不变。
+- 滚动列表的顶部与底部安全区域放入 `contentPadding`，滚动 Column 则在 `verticalScroll` 后添加，初始避开栏面、滚动时内容可进入栏后。`ContentPullToRefresh.indicatorTopPadding` 仅移动覆盖式指示器，不移动滚动视口。历史页的搜索输入通过共享组件覆盖顶栏，不占用列表条目。
+- 本人及作者资料页使用铺满屏幕的外层列表，将顶部栏避让放入内容内边距，通过扣除顶部栏及 Tab 高度的 Pager 保留栏下吸顶与嵌套分页滚动；后方滚动封面单独采样并与内容共享该页状态。顶栏仅在 Tab 吸顶后复用毛玻璃背景，不单独绘制阴影。非滚动表单保留安全布局。头像裁剪页同样接入本组件，由宿主提供顶部背景与固定阴影；裁剪引擎与底部操作栏保持原布局。视频画面、播放控件及系统栏不接入本组件。
+
+- 视频页为 Tab 栏创建独立 `HazeState`，仅在 Android 12+ 将下方 `HorizontalPager` 接入 `hazeSource`，播放器不参与采样。Tab 栏背景单独复用 `frostedBarBackground(hazeState = …)`，官方 `PrimaryTabRow` 容器透明，文字与指示器保持清晰。简介、评论、弹幕列表将实测栏高加入顶部 `contentPadding`，初始避开栏面，滚动时从栏后经过；空状态高度同步扣除栏高。刷新指示器通过 `indicatorTopPadding` 避让，评论分页工具栏固定在栏下，游客登录提示并入评论头部条目以保持分页索引；`FloatingComposerLayout.topPadding` 扣除输入面板可用高度，底部安全区域与输入区留白保持原逻辑。全屏与画中画仍只绘制播放器。
+
+### 顶栏淡色图标底纹
+
+[`ShadingIcon`](../app/src/main/java/moe/kirakira/ui/components/ShadingIcon.kt) 复用首页 Logo 底纹样式：128dp 图标、主题 `primaryFixed` 配色和 20% 透明度，在装饰区域靠末端垂直居中，按布局方向定位并避让顶栏横向系统 Insets。图标保持固定尺寸，不受折叠顶栏高度约束，超出区域的部分由组件裁切。
+
+在承载顶栏的 `Box` 内先绘制底纹，再绘制透明顶栏；通过 `Modifier.matchParentSize()` 让底纹跟随顶栏实际尺寸而不参与测量。底纹位于标题槽之外，可延伸到状态栏后方；不要给装饰额外添加顶部系统内边距。毛玻璃背景和阴影继续由 `FrostedScaffold` 管理。
+
+`icon` 接收现有 Drawable 资源，`endPadding` 默认为 16dp，`alignment` 默认为 `Alignment.CenterEnd`，`offset` 默认为 `DpOffset.Zero`。对齐同时用于图标在宿主内的定位及不受约束的尺寸布局，`offset.x` 的正值沿布局方向向末端移动，`offset.y` 的正值向下移动。首页传入 `logo_kirakira` 并保留 72dp 末端留白避让头像，使用默认对齐和偏移。
+
+设置与历史页指定 `Alignment.BottomEnd`、`endPadding = 0.dp` 和 `DpOffset(32.dp, 32.dp)`，让图标向末端及底部各溢出 32dp，由组件边界裁切。底纹随顶栏实际高度始终贴住底边，下拉展开后也保持底部定位。设置首页使用 `ic_symbol_settings` 并开启旋转；历史页使用 `ic_symbol_history`，保持默认静止状态。历史底纹与普通顶栏一起放在 `SearchableTopAppBar` 的 `topBar` 插槽内，搜索展开时随普通顶栏退场并隐藏，退出搜索后恢复。
+
+所有设置子页面沿用这一右下角定位，但传入页面自身的现有图标且保持静止：外观使用 `ic_symbol_palette`，播放使用 `ic_symbol_play_circle`，弹幕使用 `ic_custom_danmaku`，关于使用 `ic_symbol_info`，资料使用 `ic_symbol_person`，隐私使用 `ic_symbol_shield`，安全使用 `ic_symbol_lock`。管理页的共享 `ManagementFrame` 接收同一图标参数，屏蔽总览使用 `ic_symbol_block`，屏蔽分类详情使用 `RuleCategory.iconRes()`，邀请码使用 `ic_symbol_confirmation_number`；账户切换和许可证独立包裹顶栏，分别使用 `ic_symbol_switch_account` 与 `ic_symbol_description`。头像裁剪页是独立的图片编辑顶栏，不绘制该底纹。
+
+```kotlin
+Box {
+  ShadingIcon(
+    icon = R.drawable.ic_symbol_settings,
+    modifier = Modifier.matchParentSize(),
+    rotating = true,
+    endPadding = 0.dp,
+    alignment = Alignment.BottomEnd,
+    offset = DpOffset(32.dp, 32.dp),
+  )
+  CollapsibleTopAppBar(
+    title = stringResource(R.string.me_settings),
+    onBack = onBack,
+    scrollBehavior = scrollBehavior,
+  )
+}
+```
+
+`rotating` 默认关闭，此时不创建无限动画；开启时顺时针线性旋转，系统动画缩放为 1 时每 30 秒转一圈。角度在 `graphicsLayer` 中读取，动画遵循系统动画缩放设置。底纹不接收点击，`contentDescription` 为 `null`，不添加无障碍操作或偏好设置。
 
 ### 可选的可折叠大标题栏
 
 共享组件为 [`CollapsibleTopAppBar`](../app/src/main/java/moe/kirakira/ui/components/CollapsibleTopAppBar.kt)，适用场景、状态与 Insets 约束见[贡献指南](../CONTRIBUTING.md#可选的可折叠大标题栏)。
+
+展开高度统一设为 136dp（不含状态栏），在默认 120dp 的基础上增加 16dp，缓解标题区域空间不足时官方布局对底部基线间距的压缩，同时保持紧凑感。保留官方标题排版、基线定位与字体缩放适配，不额外给标题添加内边距；增加的栏高不等于标题下方留白直接增加 16dp。顶栏与滚动状态初始化共用同一个展开高度，折叠距离由该高度减去官方折叠高度计算，避免首次进入时残留展开区域。
 
 `rememberCollapsibleTopAppBarScrollBehavior()` 默认首次折叠，上滑收起，内容到顶后下拉展开；需要首次展开时传入 `initialCollapsed = false`，此参数不会覆盖已恢复的状态。同一份 `scrollBehavior` 传给顶栏，并将其 `nestedScrollConnection` 接到父容器，才能联动列表手势。
 
@@ -465,6 +602,55 @@ FrostedScaffold(
 }
 ```
 
+### 可复用的顶栏搜索
+
+[`SearchableTopAppBar`](../app/src/main/java/moe/kirakira/ui/components/SearchableTopAppBar.kt) 接收关键词、展开状态、提示文案、输入／展开／清空／退出／提交事件及 `enabled`、`isActive`。`topBar` 插槽提供打开搜索的事件，调用方可保留普通顶栏、动态标题及其他操作，使用配套的 `TopAppBarSearchButton` 放置搜索图标。组件不依赖页面、ViewModel、Repository 或导航控制器，退出是否清空由页面决定。
+
+共享组件通过 `AnimatedContent` 与主题 Expressive spatial／effects 动效从逻辑方向的末端展开搜索栏。搜索栏使用官方 `TopAppBar`、单行 `TextField` 和平面 `IconButton`，容器与下划线透明；字体放大时增加最小栏高。动画离场的顶栏清除语义并阻止指针输入。背景采样和阴影仍由外部宿主提供，普通顶栏与搜索栏必须使用相同 `windowInsets`，默认由各自官方顶栏避让一次，不在外层重复 padding。
+
+只有通过插槽事件主动展开才请求焦点和键盘；恢复已展开的页面或从其他页面返回不会自动聚焦。页面失活、禁用或关闭搜索时释放输入焦点，只有本组件持有焦点时才主动收起键盘，避免影响其他页面。提交先释放焦点、收起键盘，再调用 `onSearch`，不会自动退出。活动搜索模式通过 `NavigationBackHandler` 消费局部返回：键盘可见时先收起，否则调用 `onClose`，页面返回栈不变。
+
+普通固定顶栏接入示例（状态、事件和文案由页面提供）：
+
+```kotlin
+SearchableTopAppBar(
+  query = query,
+  expanded = searchExpanded,
+  placeholder = searchPlaceholder,
+  onQueryChange = onQueryChange,
+  onExpand = { searchExpanded = true },
+  onClear = { onQueryChange("") },
+  onClose = {
+    searchExpanded = false
+    onQueryChange("")
+  },
+  onSearch = onSearch,
+  isActive = isActive,
+) { openSearch ->
+  TopAppBar(
+    title = { Text(title) },
+    navigationIcon = { /* 页面返回按钮 */ },
+    actions = { TopAppBarSearchButton(openSearch, searchPlaceholder) },
+    colors = appTopAppBarColors(),
+  )
+}
+```
+
+可折叠顶栏沿用上述参数，替换插槽并在页面的 `onExpand` 中先以主题动效将 `scrollBehavior.state.heightOffset` 动画至 `heightOffsetLimit`，完成后才设置展开状态。开始折叠与搜索期间暂停顶栏的 `nestedScroll` 连接，退出后重新接入并保持折叠；异步折叠工作应随页面失活或账号变化取消。历史页的完整接入见 [`HistoryPage`](../app/src/main/java/moe/kirakira/feature/history/HistoryPage.kt)。插槽示例：
+
+```kotlin
+{ openSearch ->
+  CollapsibleTopAppBar(
+    title = title,
+    onBack = onBack,
+    scrollBehavior = scrollBehavior,
+    actions = { TopAppBarSearchButton(openSearch, searchPlaceholder, enabled = !searchOpening) },
+  )
+}
+```
+
+个人主页后续可把自身带动态昵称、返回按钮与更多操作的 `TopAppBar` 放入同一插槽，保留外层独立 Haze 采样背景；搜索数据、Tab 范围与过滤策略由个人主页定义。本次只接入历史页。
+
 ## 启动器图标
 
 Manifest 的 `icon` 与 `roundIcon` 分别引用 `mipmap-anydpi` 中的 `ic_launcher.xml` 与 `ic_launcher_round.xml`，两者共用品牌粉色背景和白色矢量前景，并以同一前景提供主题图标的 `monochrome` 层；外轮廓由启动器裁切。
@@ -476,6 +662,10 @@ Manifest 的 `icon` 与 `roundIcon` 分别引用 `mipmap-anydpi` 中的 `ic_laun
 [MainActivity](../app/src/main/java/moe/kirakira/MainActivity.kt) 与 [SplashRevealController](../app/src/main/java/moe/kirakira/ui/splash/SplashRevealController.kt) 协调系统 Splash 退出和 Compose 覆盖层，[SplashReveal](../app/src/main/java/moe/kirakira/ui/splash/SplashReveal.kt) 绘制图标遮罩。
 
 启动屏浅色使用品牌粉色 `#F06E8E` 背景和白色图标，深色使用 `#121212` 背景和品牌粉色图标，始终跟随系统浅深色。应用内明暗模式只更新 Compose 主题，不向系统写入应用夜间模式。
+
+所有 Android 版本的 `ic_splash` 均通过资源别名引用独立的透明矢量 `ic_splash_foreground`，不提供自适应图标背景层，移除可能在 HyperOS 上显示为外框描边的图标底板。系统 Splash 和 Compose 覆盖层共用这份矢量几何与配色，桌面与关于页图标保持原样。
+
+Android 12+ 的系统 Splash 仍会在裁切前扩展普通矢量前景。`SplashRevealController` 使用公开的 `AdaptiveIconDrawable.getExtraInsetFraction()` 计算该扩展比例，并沿用平台对中心与半宽高的整数取整方式；Android 8.1–11 直接使用图标视图边界。退出动画不依赖启动资源必须为 `AdaptiveIconDrawable`，保持交接首帧的图标大小与位置一致。
 
 系统 Splash 保留到主题设置读取完成、Compose 页面完成首次布局后才允许退出，避免读取完成与页面布局之间短暂露出窗口背景；关闭动画或 Activity 重建时也遵循这一就绪条件。仅在没有保存状态的新 Activity 收到系统 Splash 退出回调时播放：
 
@@ -498,9 +688,11 @@ Manifest 的 `icon` 与 `roundIcon` 分别引用 `mipmap-anydpi` 中的 `ic_laun
 
 `DanmakuEntry.style` 保留 Rosales 的颜色、字号、模式与彩虹标记；缺失或未知样式回退为白色、中号、右向左、无彩虹，非法时间及空白正文不进入列表。`VideoViewModel` 在账号就绪时与视频详情一起加载弹幕，列表与播放器共用同一 Flow。刷新及发送成功后的重新读取遵循现有账号修订与错误保留逻辑；渲染层不发请求、不维护本地发送副本。后端没有分 P 字段，弹幕池仍以视频 ID 为单位，按当前分 P 的进度解释；请求仍为公共读取，不扩展个性化过滤。
 
-`DanmakuOverlay` 使用单个 Compose Canvas，放在 `ContentFrame` 上方、控制层下方，不拦截触摸也不逐条播报。视口按视频像素宽高比和容器尺寸执行 Fit，裁剪到实际视频区域顶部所选比例；未知视频尺寸时不绘制。`DanmakuTimeline` 按时间稳定排序、预先排轨，帧查询按当前弹幕池的最长显示时长，以二分定位候选时间窗口，适应宽屏和低滚动倍率下超过 16 秒的弹幕；左右滚动位置按播放时间线性计算。同向弹幕检查共享生命期两端的间距以防追尾，反向和固定弹幕不与尚未离开的其他类型共享轨道；按每条文字布局的实际高度分配垂直空间，仅在横向运动可能相撞的弹幕之间保留 2dp 垂直间距，上下边缘各留 1dp。取消最大字号统一行高、整行倍数占位与均摊剩余高度；顶部和滚动模式从上向下寻找空隙，底部模式从所选区域底边向上寻找空隙。放不下则跳过，不延迟补发。横向追尾安全间距仍为 6dp。
+`DanmakuOverlay` 使用单个 Compose Canvas，放在 `ContentFrame` 上方、控制层下方，不拦截触摸也不逐条播报。视口按视频像素宽高比和容器尺寸执行 Fit，裁剪到实际视频区域顶部所选比例；未知视频尺寸时不绘制。`DanmakuTimeline` 按时间稳定排序、预先排轨，帧查询按当前弹幕池的最长显示时长，以二分定位候选时间窗口，覆盖低滚动倍率下最长 16 秒的弹幕；左右滚动位置按播放时间线性计算。同向弹幕检查共享生命期两端的间距以防追尾，反向和固定弹幕不与尚未离开的其他类型共享轨道；按每条文字布局的实际高度分配垂直空间，仅在横向运动可能相撞的弹幕之间保留 2dp 垂直间距，上下边缘各留 1dp。取消最大字号统一行高、整行倍数占位与均摊剩余高度；顶部和滚动模式从上向下寻找空隙，底部模式从所选区域底边向上寻找空隙。放不下则跳过，不延迟补发。横向追尾安全间距仍为 6dp。
 
-播放器文字使用 12／16／22sp 与全局缩放，继续遵循系统字体缩放；显式使用 1.25em 行高、居中对齐、保留行高且关闭额外字体内边距。发送预览保持 14／20／28sp。颜色和描边样式与发送预览一致：普通弹幕为原色实心文字加黑色阴影（3px 模糊），彩虹弹幕先绘制粉蓝渐变描边（4px），再以原色填充，不加阴影。每次绘制显式设置 `Fill`／`Stroke` 和阴影；同一缓存文字布局会保留画笔状态，不能依赖空 `drawStyle` 将描边恢复为填充。TextMeasurer 使用 128 项缓存，帧循环只持有当前可见文字的布局；池布局分批让出协程，取消时终止计算。多行正文仅在画面中转为空格；超过 32,760px 的极长文字在绘制层省略，避免超出文字布局尺寸，列表保留完整正文。滚动时长为 `实际视频宽度 px / (144dp 对应的 px × 滚动倍率) × 1000` 毫秒，对齐 Cerasus 默认 144 CSS px/s 的宽度计算方式；实际移动路程仍为视口宽度加文字宽度。固定弹幕保持 4000 毫秒，均采用媒体时间。默认倍率仍为 1×，已有用户倍率保持不变。
+播放器文字使用 12／16／22sp 与全局缩放，继续遵循系统字体缩放；显式使用 1.25em 行高、居中对齐、保留行高且关闭额外字体内边距。发送预览保持 14／20／28sp。颜色和描边样式与发送预览一致：普通弹幕为原色实心文字加黑色阴影（3px 模糊），彩虹弹幕先绘制粉蓝渐变描边（4px），再以原色填充，不加阴影。每次绘制显式设置 `Fill`／`Stroke` 和阴影；同一缓存文字布局会保留画笔状态，不能依赖空 `drawStyle` 将描边恢复为填充。TextMeasurer 使用 128 项缓存，帧循环只持有当前可见文字的布局；池布局分批让出协程，取消时终止计算。多行正文仅在画面中转为空格；超过 32,760px 的极长文字在绘制层省略，避免超出文字布局尺寸，列表保留完整正文。
+
+滚动弹幕保留 Cerasus 的等时长模型：基准时长为 `clamp(实际视频宽度 px / (144dp 对应的 px) × 1000, 6000, 8000)` 毫秒，先限制基准时长，再除以用户滚动倍率并四舍五入为整数毫秒。6–8 秒是本客户端的体验参数，用于延长窄视口的阅读时间，并限制宽视口的停留时长。同一画面内所有左右滚动弹幕共享显示时长，实际移动路程为视口宽度加文字宽度，因此长句移动更快。默认 1× 时，360dp 宽显示 6000 毫秒，960dp 为 6667 毫秒，1440dp 为 8000 毫秒；0.5× 时为 12000–16000 毫秒，2× 时为 3000–4000 毫秒。固定弹幕保持 4000 毫秒，均采用媒体时间。默认倍率仍为 1×，已有用户倍率保持不变。
 
 帧循环直接读取 Media3 `currentPosition`，不使用页面 500ms 轮询。暂停／缓冲时冻结并等待 Player 事件；空白区等待下一条的播放时间，seek、恢复、倍速变化通过监听器唤醒。池、尺寸和设置变化重建当前布局，视频／分 P／账号修订构成内容标识。画中画、页面非活动、播放器释放和播放失败时移除绘制层，取消协程及移除监听器；退出画中画后按真实进度重建，不补发错过的弹幕。
 
@@ -513,6 +705,8 @@ Manifest 的 `icon` 与 `roundIcon` 分别引用 `mipmap-anydpi` 中的 `ic_laun
 采用自有 Compose 绘制，不新增引擎依赖或移植外部源码。选型对照：[DanmakuFlameMaster](https://github.com/bilibili/DanmakuFlameMaster) 提供四模式但需要旧 View 引擎适配，[AkDanmaku](https://github.com/KwaiAppTeam/AkDanmaku) 引入 libGDX/ECS，[DanmakuRenderEngine](https://github.com/bytedance/DanmakuRenderEngine) 默认缺少反向模式，[tdanmaku](https://github.com/NihilDigit/tdanmaku) 的早期接口将反向滚动降级为普通滚动；这些项目未进入应用依赖或源码。
 
 ### 评论与弹幕颜文字
+
+`ContentComposer` 接收可空的 `onLogin` 回调，评论页直接透传，弹幕页通过 `DanmakuComposer` 透传；未登录时回调非空，整条编辑区替换为通栏 `ShadowButton`，复用中英文 `content_login_to_interact` 文案、官方 `ButtonDefaults.MediumContainerHeight` 及同尺寸的形状、内边距和文字 API，以最小高度适应字体缩放。登录按钮沿用 `FloatingComposerLayout` 的宽度约束、底部避让和实测高度留白，不受编辑器的 `enabled`、`busy` 或草稿状态限制。进入登录按钮分支时关闭颜文字面板，当前活动页签清除焦点并隐藏键盘；弹幕样式面板的可保存状态同时按是否需要登录隔离，未登录时不展示。登录事件复用视频页的暂停播放和认证导航流程；登录后回调为空，恢复编辑区，不自动发送。列表标题下方移除原登录提示，提示资源同时供按钮和其他页面占位使用。
 
 `ContentComposer` 的输入框 `Surface` 与独立发送按钮放在同一个底部对齐的 `Row` 内：输入框占剩余宽度，右侧发送按钮为固定 56dp 圆形 `FilledIconButton`，两者相隔 8dp。发送按钮位于输入框外，不参与框内测量和展开动画；整行实测高度用于扣除颜文字面板的可用空间。输入框以草稿是否为空切换单行药丸与两行编辑布局：空草稿时颜文字／样式按钮放在框内尾部，非空时放在下方操作栏。输入框、颜文字／样式按钮和发送按钮始终保留在同一组合位置，避免首次输入时丢失焦点、输入法组合状态或按钮交互状态。`ComposerInputLayout` 按框内按钮实测宽高排布，容器高度和圆角使用主题 `fastSpatialSpec`，颜文字／样式按钮横向位移与编辑区域宽度使用 `defaultSpatialSpec`，不在中途硬切分段。颜文字／样式按钮锚定框内底部，仅在横向移动。横向进度采用保留符号的平方映射，越过展开位置时以连续阻力压缩回弹距离，保持在容器边缘内，不硬截断位置。按钮横向绘制使用浮点图层位移；归一化进度的结束阈值为 0.0001，避免长距离移动尚有数个像素时就瞬间归位。容器保留空间弹簧的轻微回弹，可用宽度、最小高度与合法圆角仍受布局约束。连续输入与清空从当前进度及速度转向最新状态，不排队；Compose 动画时钟遵循系统动画设置。多行文字增减的 `animateContentSize` 仅作用于 `Surface` 内部的编辑区域，外层布局与 Surface 不裁剪阴影。使用 `TextFieldValue` 保存光标、选区和输入法组合状态，文字仍由原有 ViewModel 字符串草稿拥有。外部草稿清空时同步编辑值；颜文字替换 `selection.min..selection.max`，插入后光标移至末尾，不增补空格，超限整项拒绝。`ComposerState` 在视频页分别为评论和弹幕创建，并按视频 ID 与会话修订隔离；可保存状态只记录分类与选区偏移，正文继续来自 ViewModel，面板打开状态不恢复。旋转保留分类／选区，切换 Tab、打开样式、全屏和画中画关闭面板；只有当前活动页签可以拦截返回。
 

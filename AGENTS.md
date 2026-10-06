@@ -15,19 +15,24 @@
 
 ## 代码与界面规则
 
-- 表达「添加」的 FAB 仅显示 Material Symbols Rounded `add` 加号，不附加「添加」文字；使用官方 `FloatingActionButton`，保留本地化无障碍描述与禁用语义，详见贡献指南。
-- 实心按钮通过 `ShadowButtons` 封装官方组件，统一使用按压变化的双层 `dropShadow`；彩色投影取实际容器色，中性色使用黑色，禁用时无阴影。普通按钮静止／按压／悬停或聚焦为 2dp／8dp／4dp，FAB 为 6dp／12dp／8dp，按下 120ms、恢复 180ms；形变与阴影共用形状和交互源，不重复投影。文字、描边与裸图标按钮保持平面，发送按钮遵循实心按钮规则，不增加开关，详见贡献指南。
+- 表达「添加」的 FAB 仅显示 Material Symbols Rounded `add` 加号，不附加「添加」文字；通过 `ShadowFloatingActionButton` 封装官方 `FloatingActionButton`，默认圆形、`primary` 背景与配套 `onPrimary` 前景，允许显式覆盖形状和颜色，保留本地化无障碍描述与禁用语义，详见贡献指南。
+- 实心按钮通过 `ShadowButtons` 封装官方组件，统一使用双层 `dropShadow`，模糊、偏移及扩张采用 Material 官方双层阴影参数并按交互高度插值；彩色投影取实际容器色，按钮与 FAB 的环境层／主层不透明度固定为 25%／50%，中性色使用黑色及官方 15%／30%，均乘以容器透明度，禁用时无阴影。普通按钮静止／按压／悬停或聚焦为 2dp／8dp／4dp，FAB 为 6dp／12dp／8dp，按下 120ms、恢复 180ms；形变与阴影共用形状和交互源，不重复投影。文字、描边与裸图标按钮保持平面，发送按钮遵循实心按钮规则，不增加开关，详见贡献指南。
+- 单选框通过 `ShadowRadioButton` 封装官方组件，仅选中且可用时显示阴影，静止／悬停或聚焦／按压为 1dp／2dp／4dp，按下 120ms、恢复 180ms。双层几何参数与按钮共用 Material 官方映射，阴影强度为按钮的一半：彩色 12.5%／25%、中性色黑色 7.5%／15%，均乘以选中颜色透明度。投影仅在 20dp 可见圆圈外侧，保留官方布局、动画与语义；整行点击时共用交互源，单选框 `onClick = null`，不增加开关，详见贡献指南。
 - 指定 Expressive 按钮尺寸时，使用 `ButtonDefaults` 官方尺寸常量及同一尺寸的形状、内边距、文字和图标 API，不手写标准尺寸参数或只放大容器；使用最小高度适应字体缩放，详见贡献指南。
+- 个人主页与视频页复用 `FollowButton`：未关注使用 `primary/onPrimary` 及共享双层投影，已关注使用灰色 `surfaceContainerHigh/onSurfaceVariant` 且无投影；禁用时无阴影，保留官方 ToggleButton 的选中语义、尺寸与形变。
 - 遵循 `.editorconfig` 和 Kotlin official 风格：四空格、UTF-8、LF；禁用通配符导入，移除无用导入。
 - 类型、文件和返回 `Unit` 的 UI composable 用 `PascalCase`；普通函数和属性用 `camelCase`；资源用 `snake_case`。
 - 复用 `KIRAKIRATheme`，统一经典强调色，默认项目粉色，壁纸取色作为可选颜色来源；图标默认使用官方 **Material Symbols Rounded**，必要时可绘制相同风格的自定义矢量图标，记录来源或设计理由，不混用旧版 Material Icons、SF Symbols 或其他图标风格。
-- 应用栏、刷新指示器及评论／弹幕输入框的阴影固定开启，不保留开关、状态参数或持久化偏好；应用栏与连接列表复用 `ThemeShadows` 的 elevation 投影，具体规则见贡献指南。
+- 独立 username 展示统一使用 `@username`、`FontFamily.Monospace` 与 `onSurfaceVariant`，字号按所在组件的排版层级选择，空白值不展示文字行；`@` 仅在展示层添加，输入框、存储及 API 参数保留原始值，昵称或显示名称的 username 回退仍沿用名称样式，详见贡献指南。
+- 应用栏、刷新指示器及评论／弹幕输入框的阴影固定开启，不保留开关、状态参数或持久化偏好；应用栏复用 `ThemeShadows`，连接列表使用同类平台 elevation 投影，具体规则见贡献指南。
 - 普通设置列表前后图标使用裸露的 24dp 图标，不默认添加花形背景；形状图标容器仅用于状态形状切换和独立大图标展示，详见贡献指南。
 - 界面文案使用字符串资源，默认 `values/` 为英语，`values-zh/` 为中文；两套翻译同步维护。不在应用中内置 Demo 演示内容；设计预览优先使用空表单、游客账号与空列表。按钮、导航、提示和无障碍描述仍需翻译。可复用 UI 接收状态、事件回调和 `modifier: Modifier = Modifier`。
 - 除非用户明确要求，界面中不添加解释功能如何运作的说明文字；功能机制与实现细节记录在文档中，界面保留必要的操作标签、状态、错误和无障碍提示。
-- 分组菜单使用官方 `SegmentedListItem`，通过共享 `connectedListItemShapes(index, count)` 统一形状：组内无间隙、无分隔线，仅整组外侧四角保留主题圆角，交互状态不改变形状；普通分组复用 `ConnectedListGroup`，整组固定使用 1dp 阴影；独立条目与懒列表使用 `connectedListItemShadow`，不重复投影或在组内产生阴影接缝。懒列表保留逐项加载，在分组边界设置间距。纯布局使用无 `onClick` 的重载。
+- 分组菜单使用官方 `SegmentedListItem`，通过共享 `connectedListItemShapes(index, count)` 统一形状：组内无间隙、无分隔线，仅整组外侧四角保留主题圆角，交互状态不改变形状。普通分组及独立条目在调用处使用 `ConnectedListGroup` 承载固定 1dp 整组阴影；懒列表使用 `ConnectedLazyColumn` 和 `connectedItemsIndexed`，由宿主按可见分组统一投影，条目不添加阴影、不通过组合局部上下文判断阴影归属。固定少量菜单可作为普通分组放入一个懒列表条目；数据列表保留逐项加载、稳定 key 与分页，在分组边界设置间距。纯布局使用无 `onClick` 的重载。
 - 设置页普通开关仅改变 Switch 状态，不随开启状态改变整行背景与形状；使用 `onClick` 重载并保留开关状态和禁用语义。仅「显示弹幕」等功能总开关使用 `checked` 重载保留整行强调，具体分类见贡献指南。
-- 普通顶部栏与主界面胶囊底栏固定使用毛玻璃，复用 `FrostedScaffold` 的独立采样状态与背景，顶栏容器透明、阴影由宿主管理；Android 12+ 使用 Haze 采样，Android 8.1–11 半透明降级。原生 backdrop 暂不启用，规避已复现的转场 alpha 与 elevation 合成异常。特殊媒体与裁剪栏不变，详见贡献指南。
+- 普通对话框、Sheet、下拉菜单、日期选择与开源组件详情弹层有实际连接列表条目时保留灰底（业务 Sheet 为 `surfaceContainerLow`），否则使用 `surface`；按当前条目及子页直接切换，空列表与无数据占位用 `surface`，保留条目的刷新及滚动不改变背景。日期选择器内外背景一致，不新增配色包装、组件树探测、动画或偏好，详见贡献指南与[弹层背景](docs/implementation.md#弹层背景)。
+- 普通顶部栏（含头像裁剪页）、主界面胶囊底栏及视频页 Tab 栏固定使用毛玻璃，复用 `FrostedScaffold` 的独立采样状态与共享背景，顶栏容器透明、阴影由宿主管理；Android 12+ 使用 Haze 采样，Android 8.1–11 半透明降级。原生 backdrop 暂不启用，规避已复现的转场 alpha 与 elevation 合成异常。视频页 Tab 栏仅采样分页内容，栏高放入列表顶部留白，刷新与分页工具栏避让栏面；特殊媒体栏不变，详见贡献指南。
+- 普通顶栏导航与操作图标统一使用 `onSurfaceVariant`，填充图标按钮同步内容色及禁用透明度；认证页返回与关闭使用平面官方 `IconButton`。标题、品牌 Logo 与流程图标保留强调色，媒体顶栏保留白色控件，文字操作沿用原组件配色，详见贡献指南。
 - 需要滚动展开大标题的二级页面可复用 `ui/components/CollapsibleTopAppBar.kt` 与 `rememberCollapsibleTopAppBarScrollBehavior`，每页独立创建状态并接入 `nestedScroll`；默认进入折叠。按场景选用，不要求所有页面使用，接入示例见[实现说明](docs/implementation.md#可选的可折叠大标题栏)。
 - 滚动页面保留底部 edge-to-edge：底部系统内边距放入滚动内容（`Column` 的 `verticalScroll` 后或 `LazyColumn.contentPadding`），不要用容器外的完整 `innerPadding` 截短滚动区域；确保末项能滚动至导航栏上方。
 - 无确定进度的加载统一复用 `IndeterminateCircularProgressIndicator`，采用官方 Material 2 `CircularProgressIndicator` 的不确定进度动画与 `StrokeCap.Round` 圆角端点，不使用 Material 3 Expressive 形变加载器；普通加载及播放器中央缓冲为 40dp／4dp，文字按钮为 Material 2 官方按钮图标尺寸／2dp，图标按钮、账号行与小窗按钮为 24dp／2dp，下拉刷新内部采用 Material 2 原始比例 20dp／2.5dp。有可量化进度的加载可使用确定进度指示器。
