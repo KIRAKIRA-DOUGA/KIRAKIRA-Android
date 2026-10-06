@@ -64,20 +64,18 @@ internal class SplashRevealController(
         icon.getLocationInWindow(position)
         var bounds = Rect(0f, 0f, icon.width.toFloat(), icon.height.toFloat())
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            // Match the adaptive foreground's extra inset, not just the icon view's bounds.
-            // On older releases ic_splash is the plain foreground vector.
-            val adaptiveIcon = ContextCompat.getDrawable(activity, R.drawable.ic_splash) as? AdaptiveIconDrawable
-            if (adaptiveIcon == null) {
-                finish()
-                return
-            }
-            adaptiveIcon.setBounds(0, 0, icon.width, icon.height)
-            val foreground = adaptiveIcon.foreground.bounds
+            // Android 12+ also expands plain vector foregrounds before masking them.
+            // Match the platform's integer rounding to keep the reveal aligned.
+            val viewportScale = 1f / (1f + 2f * AdaptiveIconDrawable.getExtraInsetFraction())
+            val centerX = icon.width / 2
+            val centerY = icon.height / 2
+            val halfWidth = (icon.width / (viewportScale * 2f)).toInt()
+            val halfHeight = (icon.height / (viewportScale * 2f)).toInt()
             bounds = Rect(
-                foreground.left.toFloat(),
-                foreground.top.toFloat(),
-                foreground.right.toFloat(),
-                foreground.bottom.toFloat(),
+                (centerX - halfWidth).toFloat(),
+                (centerY - halfHeight).toFloat(),
+                (centerX + halfWidth).toFloat(),
+                (centerY + halfHeight).toFloat(),
             )
         }
         revealInfo = SplashRevealInfo(

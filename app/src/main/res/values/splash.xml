@@ -3,6 +3,6 @@
     <color name="splash_background">@color/product_main</color>
     <color name="splash_icon">@color/white</color>
     <bool name="splash_light_system_bars">true</bool>
-    <!-- Older Android versions display the foreground without adaptive icon cropping. -->
+    <!-- Use a transparent logo to avoid OEM outlines around an adaptive icon background. -->
     <item name="ic_splash" type="drawable">@drawable/ic_splash_foreground</item>
 </resources>
