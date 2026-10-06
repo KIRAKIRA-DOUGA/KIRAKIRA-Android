@@ -6,6 +6,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -32,7 +33,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Slider
@@ -44,6 +44,7 @@ import androidx.compose.material3.rememberSliderState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -68,7 +69,7 @@ import kotlin.math.roundToInt
 import moe.kirakira.ui.components.ShadowFilledIconButton
 import moe.kirakira.R
 import moe.kirakira.ui.components.ConnectedListGroup
-import moe.kirakira.ui.components.connectedListItemShadow
+import moe.kirakira.ui.components.ShadowRadioButton
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
@@ -184,6 +185,7 @@ internal fun PlayerSettingsSheet(
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         sheetState = rememberBottomSheetState(
             initialValue = SheetValue.Hidden,
             enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
@@ -206,16 +208,24 @@ internal fun PlayerSettingsSheet(
                 val options = listOf<VideoQualityOption?>(null) + state.qualityOptions
                 ConnectedListGroup(Modifier.selectableGroup()) {
                     options.forEachIndexed { index, option ->
+                        val interactionSource = remember { MutableInteractionSource() }
                         val height = option?.height
                         val isSelected = state.selectedQualityHeight == height
                         SegmentedListItem(
                             onClick = { onQuality(height); onDismiss() },
+                            interactionSource = interactionSource,
                             shapes = connectedListItemShapes(index, options.size),
                             modifier = Modifier.fillMaxWidth().semantics {
                                 role = Role.RadioButton
                                 selected = isSelected
-                            }.connectedListItemShadow(index, options.size),
-                            leadingContent = { RadioButton(selected = isSelected, onClick = null) },
+                            },
+                            leadingContent = {
+                                ShadowRadioButton(
+                                    selected = isSelected,
+                                    onClick = null,
+                                    interactionSource = interactionSource,
+                                )
+                            },
                             trailingContent = option?.bitrate?.let { bitrate ->
                                 {
                                     Text(
@@ -292,7 +302,7 @@ private fun SpeedSwitch(label: Int, checked: Boolean, index: Int, onChange: (Boo
         modifier = Modifier.fillMaxWidth().semantics {
             role = Role.Switch
             toggleableState = ToggleableState(checked)
-        }.connectedListItemShadow(index, 2),
+        },
         trailingContent = { Switch(checked = checked, onCheckedChange = null) },
         content = { Text(stringResource(label)) },
     )

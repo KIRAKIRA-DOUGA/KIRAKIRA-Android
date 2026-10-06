@@ -107,6 +107,8 @@ internal data class PlayerUiState(
     val playing: Boolean = false,
     val showPauseIcon: Boolean = playing,
     val buffering: Boolean = false,
+    val initialLoading: Boolean = false,
+    val artworkPending: Boolean = false,
     val failed: Boolean = false,
     val positionMs: Long = 0,
     val durationMs: Long = 0,
@@ -145,6 +147,14 @@ internal fun VideoPlayer(
     danmakuContentKey: Any = Unit,
     onDanmakuEnabled: (Boolean) -> Unit = {},
 ) {
+    var artworkLoading by remember(image) { mutableStateOf(!image.isNullOrBlank()) }
+    val waitingForArtwork = player == null && (state.artworkPending || artworkLoading)
+    val initialLoadingAlpha by rememberPlayerInitialLoadingAlpha(
+        visible = state.initialLoading,
+        immediatelyHidden = state.failed || player == null || !active || pictureInPicture,
+    )
+    val showingInitialLoading =
+        initialLoadingAlpha > 0f && player != null && active && !pictureInPicture && !state.failed
     val playbackIconMotion = rememberPlaybackIconMotion(
         playing = state.showPauseIcon,
     )
@@ -168,7 +178,8 @@ internal fun VideoPlayer(
     }
     val touchExploration = rememberTouchExplorationEnabled()
     val keepVisible =
-        settingsPanel != null || state.buffering || state.failed || dragging || pressing || dragged != null || touchExploration
+        settingsPanel != null || state.buffering || waitingForArtwork || showingInitialLoading || state.failed ||
+            dragging || pressing || dragged != null || touchExploration
 
     fun interact() {
         controlsVisible = true; interaction++
@@ -193,7 +204,7 @@ internal fun VideoPlayer(
             controlsVisible = false
         }
     }
-    LaunchedEffect(fullscreen, pictureInPicture, active, state.failed) {
+    LaunchedEffect(fullscreen, pictureInPicture, active, state.failed, state.initialLoading, waitingForArtwork) {
         settingsPanel = null
         interact()
     }
@@ -231,10 +242,21 @@ internal fun VideoPlayer(
         if (player != null) {
             ContentFrame(player = player, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
         } else {
-            VideoArtwork(image, Modifier.fillMaxSize())
+            VideoArtwork(
+                image = image,
+                modifier = Modifier.fillMaxSize(),
+                onLoadingChange = { artworkLoading = it },
+            )
         }
         if (player != null && active && !pictureInPicture && !state.failed && danmakuSettings?.enabled == true) {
             DanmakuOverlay(player, danmaku, danmakuSettings, danmakuContentKey)
+        }
+        if (showingInitialLoading) {
+            PlayerInitialLoadingOverlay(
+                alpha = { initialLoadingAlpha },
+                showBranding = true,
+                fullscreen = fullscreen,
+            )
         }
         if (!pictureInPicture) {
             // Keep the reveal target above exiting controls so a tap cannot reach them.
@@ -312,7 +334,7 @@ internal fun VideoPlayer(
                                                 Modifier.size(IconButtonDefaults.smallIconSize),
                                             )
                                         }
-                                    } else {
+                                    } else if (!showingInitialLoading) {
                                         PlayerSettingsButtons(
                                             state = state,
                                             enabled = active,
@@ -379,6 +401,7 @@ internal fun VideoPlayer(
                                     PlayerPlaybackControl(
                                         state = state,
                                         motion = playbackIconMotion,
+                                        artworkLoading = waitingForArtwork,
                                         buttonSize = buttonSize,
                                         onToggle = { controlAction(onToggle) },
                                     )
@@ -468,7 +491,7 @@ internal fun VideoPlayer(
                                             }
                                             dragged = null
                                         },
-                                        enabled = state.durationMs > 0,
+                                        enabled = state.durationMs > 0 && !state.initialLoading,
                                         interactionSource = sliderInteraction,
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -480,7 +503,7 @@ internal fun VideoPlayer(
                                                 interactionSource = sliderInteraction,
                                                 isVertical = false,
                                                 colors = sliderColors,
-                                                enabled = state.durationMs > 0,
+                                                enabled = state.durationMs > 0 && !state.initialLoading,
                                                 thumbSize = seekThumbSize,
                                                 modifier = Modifier.offset(y = PlayerSeekVisualOffset),
                                             )
@@ -494,7 +517,7 @@ internal fun VideoPlayer(
                                                     modifier = Modifier
                                                         .height(4.dp)
                                                         .clearAndSetSemantics { },
-                                                    enabled = state.durationMs > 0,
+                                                    enabled = state.durationMs > 0 && !state.initialLoading,
                                                     trackCornerSize = 2.dp,
                                                     trackInsideCornerSize = 2.dp,
                                                     thumbTrackGapSize = 0.dp,
@@ -504,7 +527,7 @@ internal fun VideoPlayer(
                                                     sliderState = sliderState,
                                                     colors = sliderColors,
                                                     modifier = Modifier.height(4.dp),
-                                                    enabled = state.durationMs > 0,
+                                                    enabled = state.durationMs > 0 && !state.initialLoading,
                                                     trackCornerSize = 2.dp,
                                                     trackInsideCornerSize = 2.dp,
                                                     thumbTrackGapSize = 0.dp,
@@ -527,6 +550,7 @@ internal fun VideoPlayer(
 private fun PlayerPlaybackControl(
     state: PlayerUiState,
     motion: PlaybackIconMotion,
+    artworkLoading: Boolean,
     buttonSize: Dp,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
@@ -537,7 +561,7 @@ private fun PlayerPlaybackControl(
             .background(Color.Black.copy(alpha = 0.6f), CircleShape),
         contentAlignment = Alignment.Center,
     ) {
-        if (state.buffering) {
+        if (state.buffering || state.initialLoading) {
             IndeterminateCircularProgressIndicator(modifier = Modifier.size(40.dp), color = Color.White)
         } else {
             IconButton(
@@ -549,11 +573,19 @@ private fun PlayerPlaybackControl(
                 ),
                 modifier = Modifier.fillMaxSize(),
             ) {
-                AnimatedPlaybackIcon(
-                    motion = motion,
-                    description = stringResource(if (state.showPauseIcon) R.string.player_pause else R.string.player_play),
-                    modifier = Modifier.size(if (buttonSize < 64.dp) 28.dp else 48.dp),
-                )
+                if (artworkLoading) {
+                    val playLabel = stringResource(R.string.player_play)
+                    IndeterminateCircularProgressIndicator(
+                        modifier = Modifier.size(40.dp).semantics { contentDescription = playLabel },
+                        color = Color.White,
+                    )
+                } else {
+                    AnimatedPlaybackIcon(
+                        motion = motion,
+                        description = stringResource(if (state.showPauseIcon) R.string.player_pause else R.string.player_play),
+                        modifier = Modifier.size(if (buttonSize < 64.dp) 28.dp else 48.dp),
+                    )
+                }
             }
         }
     }
@@ -674,7 +706,7 @@ private fun PlayerControlsLayout(
 }
 
 @Composable
-private fun rememberTouchExplorationEnabled(): Boolean {
+internal fun rememberTouchExplorationEnabled(): Boolean {
     val context = LocalContext.current
     val manager = remember(context) { context.getSystemService(AccessibilityManager::class.java) }
     var enabled by remember(manager) { mutableStateOf(manager?.isTouchExplorationEnabled == true) }

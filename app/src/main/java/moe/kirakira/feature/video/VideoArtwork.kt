@@ -15,12 +15,23 @@ import moe.kirakira.R
 import moe.kirakira.core.image.deliveryImageUrl
 
 @Composable
-internal fun VideoArtwork(image: String?, modifier: Modifier = Modifier) {
+internal fun VideoArtwork(
+    image: String?,
+    modifier: Modifier = Modifier,
+    onLoadingChange: (Boolean) -> Unit = {},
+) {
     Surface(modifier = modifier, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
         Box(contentAlignment = Alignment.Center) {
             Icon(painterResource(R.drawable.ic_symbol_video_library), contentDescription = null)
-            AsyncImage(model = deliveryImageUrl(image, 720), contentDescription = null,
-                contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            AsyncImage(
+                model = deliveryImageUrl(image, 720),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+                onLoading = { onLoadingChange(true) },
+                onSuccess = { onLoadingChange(false) },
+                onError = { onLoadingChange(false) },
+            )
         }
     }
 }

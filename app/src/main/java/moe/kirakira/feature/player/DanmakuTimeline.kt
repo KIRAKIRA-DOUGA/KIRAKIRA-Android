@@ -8,6 +8,8 @@ import moe.kirakira.data.content.DanmakuMode
 import moe.kirakira.feature.settings.DanmakuSettings
 
 private const val FIXED_DURATION_MS = 4_000L
+private const val MIN_BASE_SCROLL_DURATION_MS = 6_000L
+private const val MAX_BASE_SCROLL_DURATION_MS = 8_000L
 
 internal data class DanmakuFlight(
     val entry: DanmakuEntry,
@@ -66,8 +68,12 @@ internal suspend fun buildDanmakuTimeline(
     if (height <= verticalGap) return DanmakuTimeline(emptyList())
     val active = mutableListOf<DanmakuFlight>()
     val result = ArrayList<DanmakuFlight>()
-    // Match Cerasus: lifetime depends on viewport width, while travel includes the text width too.
-    val scrollDurationMs = (width.toDouble() / baseScrollSpeedPxPerSecond * 1000 / (settings.speedTenths / 10.0))
+    // Keep Cerasus' shared lifetime, but bound the baseline before applying the speed multiplier.
+    val baseScrollDurationMs = (width.toDouble() / baseScrollSpeedPxPerSecond * 1000).coerceIn(
+        MIN_BASE_SCROLL_DURATION_MS.toDouble(),
+        MAX_BASE_SCROLL_DURATION_MS.toDouble(),
+    )
+    val scrollDurationMs = (baseScrollDurationMs / (settings.speedTenths / 10.0))
         .roundToLong().coerceAtLeast(1L)
     val ordered = entries.sortedBy { it.timeSeconds }
     ordered.forEachIndexed { index, entry ->

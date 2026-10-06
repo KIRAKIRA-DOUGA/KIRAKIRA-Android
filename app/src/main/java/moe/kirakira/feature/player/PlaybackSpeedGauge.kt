@@ -1,6 +1,7 @@
 package moe.kirakira.feature.player
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -41,6 +42,7 @@ import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.tan
 import moe.kirakira.R
+import moe.kirakira.ui.components.rememberEmphasizedEasing
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 private const val ZERO_ANGLE = 150f
@@ -54,9 +56,10 @@ internal fun PlaybackSpeedGauge(
     modifier: Modifier = Modifier,
 ) {
     val actualSpeed = if (playing) speed else 0f
+    val easing = rememberEmphasizedEasing()
     val angle by animateFloatAsState(
         targetValue = gaugeAngle(actualSpeed),
-        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+        animationSpec = tween(durationMillis = 300, easing = easing),
         label = "PlaybackSpeedGaugeAngle",
     )
     val description = stringResource(R.string.player_actual_speed_description, speedLabel(actualSpeed))
@@ -88,13 +91,13 @@ internal fun PlaybackSpeedGauge(
     val readoutHeight = readoutBounds.maxOf { it.size.height }.toFloat()
     val needlePath = remember {
         Path().apply {
-            moveTo(0f, -8f)
-            lineTo(94f, -6f)
-            cubicTo(97.314f, -6f, 100f, -3.314f, 100f, 0f)
-            cubicTo(100f, 3.314f, 97.314f, 6f, 94f, 6f)
-            lineTo(0f, 8f)
-            cubicTo(-4.418f, 8f, -8f, 4.418f, -8f, 0f)
-            cubicTo(-8f, -4.418f, -4.418f, -8f, 0f, -8f)
+            moveTo(0f, -12.5f)
+            lineTo(97.5f, -2.5f)
+            cubicTo(98.881f, -2.5f, 100f, -1.381f, 100f, 0f)
+            cubicTo(100f, 1.381f, 98.881f, 2.5f, 97.5f, 2.5f)
+            lineTo(0f, 12.5f)
+            cubicTo(-6.904f, 12.5f, -12.5f, 6.904f, -12.5f, 0f)
+            cubicTo(-12.5f, -6.904f, -6.904f, -12.5f, 0f, -12.5f)
             close()
         }
     }
@@ -195,16 +198,15 @@ internal fun PlaybackSpeedGauge(
                     occupied += bounds
                 }
 
-                val needleScale = radius * 0.72f / 100f
-                val needleHalfWidth = (needleScale * 8f).coerceIn(4.dp.toPx(), 6.dp.toPx())
+                val needleScale = radius * 0.68f / 100f
+                val needleHalfWidth = (needleScale * 12.5f).coerceIn(4.dp.toPx(), 8.dp.toPx())
                 withTransform({
                     translate(center.x, center.y)
                     rotate(displayedAngle, pivot = Offset.Zero)
-                    scale(needleScale, needleHalfWidth / 8f, pivot = Offset.Zero)
+                    scale(needleScale, needleHalfWidth / 12.5f, pivot = Offset.Zero)
                 }) {
                     drawPath(needlePath, primary)
                 }
-                drawCircle(primary, radius = needleHalfWidth + 1.dp.toPx(), center = center)
             }
             Text(
                 readoutLabel,

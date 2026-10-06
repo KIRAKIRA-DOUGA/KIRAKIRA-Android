@@ -184,6 +184,8 @@ internal fun VideoPage(
                                 playing = playback.playing,
                                 showPauseIcon = playback.showPauseIcon,
                                 buffering = playback.buffering,
+                                initialLoading = playback.initialLoading,
+                                artworkPending = detail.loading && value == null,
                                 failed = playback.failed,
                                 positionMs = playback.positionMs,
                                 durationMs = playback.durationMs,

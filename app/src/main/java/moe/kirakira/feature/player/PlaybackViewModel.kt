@@ -59,6 +59,7 @@ internal class PlaybackViewModel(
     private var resumeHandled = true
     private var cloudPositionToValidate: Long? = null
     private var lastRecordedPosition = 0L
+    private val initiallyReadyPartIds = mutableSetOf<Int>()
 
     fun syncSession(revision: Long): Boolean {
         val changed = sessionRevision != null && sessionRevision != revision
@@ -70,6 +71,7 @@ internal class PlaybackViewModel(
     fun showVideo(id: Int) {
         if (videoId != id) {
             release()
+            initiallyReadyPartIds.clear()
             resumeHandled = savedState.get<Int>("video_id") == id
             cloudPositionToValidate = null
             bounds = null
@@ -104,7 +106,10 @@ internal class PlaybackViewModel(
         bounds = null
         cancelAutoplay()
         miniPlayer = allowMiniPlayer && showPauseIcon && player != null && !failed
-        if (!miniPlayer) release()
+        if (!miniPlayer) {
+            release()
+            initiallyReadyPartIds.clear()
+        }
     }
 
     fun closeMiniPlayer() {
@@ -112,6 +117,7 @@ internal class PlaybackViewModel(
         bounds = null
         cancelAutoplay()
         release()
+        initiallyReadyPartIds.clear()
     }
 
     fun clearSession() {
@@ -137,6 +143,8 @@ internal class PlaybackViewModel(
     var showPauseIcon by mutableStateOf(false)
         private set
     var buffering by mutableStateOf(false)
+        private set
+    var initialLoading by mutableStateOf(false)
         private set
     var failed by mutableStateOf(false)
         private set
@@ -249,7 +257,7 @@ internal class PlaybackViewModel(
         autoplayHandled = true
         resumeHandled = true
         val part = parts.getOrNull(selectedPart)
-        if (part?.url == null) { failed = true; return }
+        if (part?.url == null) { failed = true; initialLoading = false; return }
         val current = player
         if (current != null && !failed) {
             if (current.playbackState == Player.STATE_ENDED) current.seekTo(0)
@@ -258,10 +266,11 @@ internal class PlaybackViewModel(
         }
         release()
         failed = false
+        initialLoading = part.id !in initiallyReadyPartIds
         val resumePosition = positionMs
         val next = ExoPlayer.Builder(context)
             .setMediaSourceFactory(DefaultMediaSourceFactory(OkHttpDataSource.Factory(publicMediaClient)))
-            .build().apply {
+            .build().apply playerSetup@ {
                 setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA)
                     .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
                 setHandleAudioBecomingNoisy(true)
@@ -275,6 +284,10 @@ internal class PlaybackViewModel(
                         showPauseIcon = player.playWhenReady && player.playbackState != Player.STATE_ENDED &&
                             player.playerError == null
                         buffering = player.playbackState == Player.STATE_BUFFERING
+                        if (player.playbackState == Player.STATE_READY) {
+                            initiallyReadyPartIds.add(part.id)
+                            initialLoading = false
+                        }
                         durationMs = player.duration.takeIf { it != C.TIME_UNSET }?.coerceAtLeast(0) ?: 0
                         cloudPositionToValidate?.takeIf { durationMs > 0 }?.let { position ->
                             cloudPositionToValidate = null
@@ -290,8 +303,10 @@ internal class PlaybackViewModel(
                             player.playbackState == Player.STATE_ENDED) flushHistory()
                     }
                     override fun onPlayerError(error: PlaybackException) {
+                        if (this@playerSetup !== this@PlaybackViewModel.player) return
                         failed = true
                         buffering = false
+                        initialLoading = false
                         showPauseIcon = false
                         if (miniPlayer) closeMiniPlayer()
                     }
@@ -299,11 +314,11 @@ internal class PlaybackViewModel(
                 setMediaItem(MediaItem.Builder().setUri(part.url).setMediaId(part.id.toString())
                     .setMediaMetadata(MediaMetadata.Builder().setTitle(title).setSubtitle(part.title).build()).build())
                 seekTo(resumePosition)
-                prepare()
             }
         player = next
         applySpeed()
         mediaSession = MediaSession.Builder(context, next).setId("video-${hashCode()}").build()
+        next.prepare()
         next.play()
         progress = viewModelScope.launch {
             var samples = 0
@@ -387,6 +402,7 @@ internal class PlaybackViewModel(
         playing = false
         showPauseIcon = false
         buffering = false
+        initialLoading = false
     }
     override fun onCleared() { release() }
 }
