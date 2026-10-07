@@ -16,10 +16,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeSourceRetention
@@ -29,7 +29,8 @@ import dev.chrisbanes.haze.blur.HazeColorEffect
 import dev.chrisbanes.haze.blur.hazeBlur
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
-import moe.kirakira.ui.theme.topAppBarShadow
+import moe.kirakira.ui.theme.BarShadowElevation
+import moe.kirakira.ui.theme.barSurfaceLayer
 
 private val LocalAppBarHazeState = staticCompositionLocalOf<HazeState?> { null }
 
@@ -37,11 +38,15 @@ private val LocalAppBarHazeState = staticCompositionLocalOf<HazeState?> { null }
 internal fun Modifier.frostedBarBackground(
     shape: Shape = RectangleShape,
     hazeState: HazeState? = LocalAppBarHazeState.current,
+    shadowElevation: Dp = 0.dp,
 ): Modifier {
-    val surface = MaterialTheme.colorScheme.surface
-    val clipped = clip(shape)
+    val surface = MaterialTheme.colorScheme.surface.copy(alpha = 1f)
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || hazeState == null) {
-        return clipped.background(surface.copy(alpha = 0.9f))
+        return barSurfaceLayer(
+            shape = shape,
+            alpha = 0.9f,
+            shadowElevation = shadowElevation,
+        ).background(surface)
     }
     val input = remember(hazeState) {
         HazeInput.Sources(
@@ -57,7 +62,7 @@ internal fun Modifier.frostedBarBackground(
             colorEffects(listOf(HazeColorEffect.tint(surface.copy(alpha = 0.8f))))
         }
     }
-    return clipped.hazeBlur(
+    return barSurfaceLayer(shape = shape, shadowElevation = shadowElevation).hazeBlur(
         input = input,
         style = style,
     )
@@ -81,8 +86,10 @@ internal fun FrostedScaffold(
         Scaffold(
             modifier = modifier,
             topBar = {
-                Box(Modifier.topAppBarShadow()) {
-                    Box(Modifier.matchParentSize().frostedBarBackground())
+                Box {
+                    Box(
+                        Modifier.matchParentSize().frostedBarBackground(shadowElevation = BarShadowElevation),
+                    )
                     topBar()
                 }
             },

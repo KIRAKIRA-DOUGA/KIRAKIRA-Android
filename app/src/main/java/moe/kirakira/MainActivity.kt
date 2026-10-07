@@ -44,6 +44,21 @@ class MainActivity : ComponentActivity() {
     private var videoPageActive = false
     private var imageViewerActive = false
 
+    // AndroidX retains the first styles for configuration changes; their detectors must read current state.
+    private val statusBarStyle = SystemBarStyle.auto(
+        android.graphics.Color.TRANSPARENT,
+        android.graphics.Color.TRANSPARENT,
+    ) {
+        splashRevealController.revealInfo?.darkTheme ?: (appDarkTheme || videoPageActive || imageViewerActive)
+    }
+    private val navigationBarStyle = SystemBarStyle.auto(
+        android.graphics.Color.TRANSPARENT,
+        android.graphics.Color.TRANSPARENT,
+    ) {
+        splashRevealController.revealInfo?.darkTheme ?: (appDarkTheme || imageViewerActive || videoFullscreen)
+    }
+    private val restoreSystemBarsAfterConfigurationChange = Runnable { applySystemBars() }
+
     var pictureInPicture by mutableStateOf(false)
         private set
     private var canEnterPictureInPicture = false
@@ -91,13 +106,22 @@ class MainActivity : ComponentActivity() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        // Rotation can reset window appearance after the fullscreen callback has finished.
         applySystemBars()
+        // AndroidX reapplies edge-to-edge from a child View after the Activity configuration callback.
+        window.decorView.apply {
+            removeCallbacks(restoreSystemBarsAfterConfigurationChange)
+            post(restoreSystemBarsAfterConfigurationChange)
+        }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus && ::splashRevealController.isInitialized) applySystemBars()
+    }
+
+    override fun onDestroy() {
+        window.decorView.removeCallbacks(restoreSystemBarsAfterConfigurationChange)
+        super.onDestroy()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -170,25 +194,9 @@ class MainActivity : ComponentActivity() {
 
     private fun applySystemBars() {
         if (!::splashRevealController.isInitialized) return
-        val splash = splashRevealController.revealInfo
-        val darkBars = splash?.darkTheme ?: appDarkTheme
         enableEdgeToEdge(
-            statusBarStyle = if (splash == null && (videoPageActive || imageViewerActive)) {
-                SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
-            } else {
-                SystemBarStyle.auto(
-                    android.graphics.Color.TRANSPARENT,
-                    android.graphics.Color.TRANSPARENT,
-                ) { darkBars }
-            },
-            navigationBarStyle = if (splash == null && (imageViewerActive || videoFullscreen)) {
-                SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
-            } else {
-                SystemBarStyle.auto(
-                    android.graphics.Color.TRANSPARENT,
-                    android.graphics.Color.TRANSPARENT,
-                ) { darkBars }
-            },
+            statusBarStyle = statusBarStyle,
+            navigationBarStyle = navigationBarStyle,
         )
         WindowCompat.getInsetsController(window, window.decorView).apply {
             systemBarsBehavior = if (videoFullscreen) {

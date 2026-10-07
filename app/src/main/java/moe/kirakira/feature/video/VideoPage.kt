@@ -2,10 +2,14 @@ package moe.kirakira.feature.video
 
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.res.Configuration
 import android.graphics.Rect
+import android.os.Build
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -15,12 +19,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,13 +31,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -56,6 +68,12 @@ import moe.kirakira.feature.settings.PlaybackSettings
 import moe.kirakira.ui.components.messageRes
 
 private data object FullscreenInfo : NavigationEventInfo()
+
+private data class InlinePlayerLayout(
+    val width: Dp,
+    val height: Dp,
+    val contentPadding: PaddingValues,
+)
 
 @Composable
 internal fun VideoPage(
@@ -94,10 +112,24 @@ internal fun VideoPage(
     val error by model.actionError.collectAsStateWithLifecycle()
     val activity = remember(context) { context.mainActivity() }
     val pip = activity?.pictureInPicture == true
+    val configuration = LocalConfiguration.current
+    // Multi-window and Android 16+ large displays can ignore Activity orientation requests.
+    val fullscreenInCurrentWindow = activity == null || activity.isInMultiWindowMode ||
+        (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA && configuration.smallestScreenWidthDp >= 600)
     val layoutDirection = LocalLayoutDirection.current
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     var fullscreen by remember { mutableStateOf(false) }
+    var windowFullscreen by remember { mutableStateOf(false) }
+    var fullscreenInlineLayout by remember { mutableStateOf<InlinePlayerLayout?>(null) }
+    val detailsInteractive = isActive && !pip && !fullscreen && !windowFullscreen
+    fun requestFullscreen(target: Boolean) {
+        fullscreen = target
+        if (!target) fullscreenInlineLayout = null
+        val windowTarget = target && isActive && !pip
+        if (windowFullscreen != windowTarget) activity?.setVideoFullscreen(windowTarget)
+        windowFullscreen = windowTarget
+    }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val value = detail.data
@@ -118,41 +150,119 @@ internal fun VideoPage(
     }
     var previouslyActive by remember { mutableStateOf(isActive) }
     LaunchedEffect(isActive) {
-        if (!isActive) { fullscreen = false }
-        else if (!previouslyActive) model.refresh()
+        if (isActive && !previouslyActive) model.refresh()
         previouslyActive = isActive
     }
     LaunchedEffect(error) {
         error?.let { snackbar.showSnackbar(context.getString(if (it == moe.kirakira.core.network.ApiFailure.NETWORK ||
                 it == moe.kirakira.core.network.ApiFailure.TIMEOUT) R.string.content_mutation_uncertain else it.messageRes())); model.dismissActionError() }
     }
-    LaunchedEffect(fullscreen, pip) {
-        if (fullscreen || pip) {
+    LaunchedEffect(fullscreen, pip, isActive) {
+        if (fullscreen || pip || !isActive) {
             commentComposer.panelOpen = false
             danmakuComposer.panelOpen = false
             focusManager.clearFocus(force = true)
             keyboard?.hide()
         }
-        if (isActive) activity?.setVideoFullscreen(fullscreen && !pip)
     }
-    NavigationBackHandler(rememberNavigationEventState(FullscreenInfo), isBackEnabled = fullscreen && !pip,
-        onBackCompleted = { fullscreen = false })
+    LaunchedEffect(fullscreen, pip, isActive, activity) {
+        requestFullscreen(fullscreen && isActive)
+    }
+    DisposableEffect(activity) {
+        onDispose {
+            if (windowFullscreen) activity?.setVideoFullscreen(false)
+        }
+    }
+    val fullscreenActive = fullscreen || windowFullscreen
+    NavigationBackHandler(
+        rememberNavigationEventState(FullscreenInfo),
+        isBackEnabled = isActive && fullscreenActive && !pip,
+        onBackCompleted = { requestFullscreen(false) },
+    )
     Box(modifier.fillMaxSize()) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             contentWindowInsets = WindowInsets.safeDrawing,
             snackbarHost = { if (!pip) SnackbarHost(snackbar) },
         ) { padding ->
-            BoxWithConstraints(Modifier.fillMaxSize().padding(
-                top = if (fullscreen || pip) 0.dp else padding.calculateTopPadding(),
-                start = if (fullscreen || pip) 0.dp else padding.calculateStartPadding(layoutDirection),
-                end = if (fullscreen || pip) 0.dp else padding.calculateEndPadding(layoutDirection),
-            )) {
-                val playerHeight = (maxWidth * 9f / 16f).coerceAtMost(maxHeight * 0.42f)
-                val playerContent: @Composable () -> Unit = {
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                val topPadding = padding.calculateTopPadding()
+                val startPadding = padding.calculateStartPadding(layoutDirection)
+                val endPadding = padding.calculateEndPadding(layoutDirection)
+                val playerWidth = (maxWidth - startPadding - endPadding).coerceAtLeast(0.dp)
+                val contentHeight = (maxHeight - topPadding).coerceAtLeast(0.dp)
+                val playerHeight = (playerWidth * 9f / 16f).coerceAtMost(contentHeight * 0.42f)
+                val currentInlineLayout = InlinePlayerLayout(
+                    width = playerWidth,
+                    height = playerHeight,
+                    contentPadding = PaddingValues(
+                        start = startPadding,
+                        top = topPadding,
+                        end = endPadding,
+                        bottom = padding.calculateBottomPadding(),
+                    ),
+                )
+                // The IME can shorten portrait bounds; rotation can update Configuration before the new bounds arrive.
+                val landscapeWindow = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE &&
+                    maxWidth > maxHeight
+                val playerFillsWindow = pip ||
+                    (fullscreen && (landscapeWindow || fullscreenInCurrentWindow))
+                val inlineLayout = if (fullscreen && !playerFillsWindow) {
+                    fullscreenInlineLayout ?: currentInlineLayout
+                } else currentInlineLayout
+                Box(
+                    Modifier.fillMaxSize()
+                        .padding(
+                            top = inlineLayout.contentPadding.calculateTopPadding(),
+                            start = inlineLayout.contentPadding.calculateStartPadding(layoutDirection),
+                            end = inlineLayout.contentPadding.calculateEndPadding(layoutDirection),
+                        )
+                        .drawWithContent {
+                            if (!playerFillsWindow) drawContent()
+                        }
+                        .then(
+                            if (detailsInteractive) Modifier else Modifier
+                                .clearAndSetSemantics { }
+                                .pointerInput(Unit) {
+                                    awaitPointerEventScope {
+                                        while (true) {
+                                            awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
+                                        }
+                                    }
+                                },
+                        )
+                        .focusProperties {
+                            onEnter = { if (!detailsInteractive) cancelFocusChange() }
+                        }
+                        .focusGroup(),
+                ) {
+                    VideoScreen(
+                        VideoUiState(detail, comments, danmaku, busy, signedIn, session.revision, commentDraft, danmakuDraft, posted, danmakuStyle),
+                        model::refresh, { requireLogin(model::follow) }, { requireLogin { model.vote(it) } },
+                        { comment, reaction -> requireLogin { model.voteComment(comment, reaction) } },
+                        model::comments, model::refreshComments, model::retryComments,
+                        model::loadAdjacentComments, model::consumeCommentLocation, model::ensureTab,
+                        { model.commentDraft.value = it }, { model.danmakuDraft.value = it },
+                        { requireLogin(model::sendComment) }, { requireLogin { model.sendDanmaku(playback.positionMs) } },
+                        model::refreshDanmaku, onOpenProfile,
+                        ::unavailable, { requireLogin {} }, inlineLayout.contentPadding.calculateBottomPadding(),
+                        onDanmakuStyle = model::updateDanmakuStyle,
+                        commentComposer = commentComposer, danmakuComposer = danmakuComposer,
+                        recentKaomoji = recentKaomoji, onKaomojiInserted = kaomojiModel::record,
+                        isActive = detailsInteractive,
+                        selectedPart = playback.selectedPart,
+                        onSelectPart = playback::selectPart,
+                        onOpenTag = onOpenTag,
+                        playerHeight = inlineLayout.height,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+                VideoPlayerViewport(
+                    inlineLayout = inlineLayout,
+                    fullscreen = playerFillsWindow,
+                ) {
                     Box(
-                        modifier = (if (fullscreen || pip) Modifier.fillMaxSize() else Modifier.fillMaxWidth()
-                            .height(playerHeight))
+                        modifier = Modifier.fillMaxSize()
                             .onGloballyPositioned {
                                 val bounds = it.boundsInWindow().let { b ->
                                     Rect(b.left.toInt(), b.top.toInt(), b.right.toInt(), b.bottom.toInt())
@@ -194,50 +304,61 @@ internal fun VideoPage(
                                     (playback.player != null || value?.parts?.getOrNull(playback.selectedPart)?.url != null),
                             ),
                             image = value?.summary?.image,
-                            fullscreen = fullscreen,
+                            fullscreen = fullscreenActive,
                             pictureInPicture = pip,
                             onToggle = playback::toggle,
                             onRetry = playback::play,
                             onSeek = playback::seek,
                             onBack = {
-                                if (fullscreen) fullscreen = false
-                                else onBack()
+                                if (isActive && !pip) {
+                                    if (fullscreenActive) requestFullscreen(false)
+                                    else onBack()
+                                }
                             },
-                            onFullscreen = { fullscreen = !fullscreen },
+                            onFullscreen = {
+                                if (isActive && !pip) {
+                                    if (!fullscreen) fullscreenInlineLayout = currentInlineLayout
+                                    requestFullscreen(!fullscreen)
+                                }
+                            },
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
                 }
-                if (fullscreen || pip) {
-                    playerContent()
-                } else {
-                    VideoScreen(
-                        VideoUiState(detail, comments, danmaku, busy, signedIn, session.revision, commentDraft, danmakuDraft, posted, danmakuStyle),
-                        model::refresh, { requireLogin(model::follow) }, { requireLogin { model.vote(it) } },
-                        { comment, reaction -> requireLogin { model.voteComment(comment, reaction) } },
-                        model::comments, model::refreshComments, model::retryComments,
-                        model::loadAdjacentComments, model::consumeCommentLocation, model::ensureTab,
-                        { model.commentDraft.value = it }, { model.danmakuDraft.value = it },
-                        { requireLogin(model::sendComment) }, { requireLogin { model.sendDanmaku(playback.positionMs) } },
-                        model::refreshDanmaku, onOpenProfile,
-                        ::unavailable, { requireLogin {} }, padding.calculateBottomPadding(),
-                        onDanmakuStyle = model::updateDanmakuStyle,
-                        commentComposer = commentComposer, danmakuComposer = danmakuComposer,
-                        recentKaomoji = recentKaomoji, onKaomojiInserted = kaomojiModel::record,
-                        isActive = isActive,
-                        selectedPart = playback.selectedPart,
-                        onSelectPart = playback::selectPart,
-                        onOpenTag = onOpenTag,
-                        modifier = Modifier.fillMaxSize(),
-                        playerContent = playerContent,
+                if (!playerFillsWindow) {
+                    // Keep the status-bar backdrop in place while the system prepares the landscape window.
+                    Spacer(
+                        Modifier.fillMaxWidth()
+                            .height(inlineLayout.contentPadding.calculateTopPadding())
+                            .background(Color.Black),
                     )
                 }
             }
         }
-        if (!pip && !fullscreen) {
-            // The edge-to-edge status bar is transparent; paint its backdrop above the page.
-            Spacer(
-                Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(Color.Black),
+    }
+}
+
+@Composable
+private fun VideoPlayerViewport(
+    inlineLayout: InlinePlayerLayout,
+    fullscreen: Boolean,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    val layoutDirection = LocalLayoutDirection.current
+    // Remeasure one persistent player node; SurfaceView never moves between composition branches.
+    Layout(content = content, modifier = modifier.fillMaxSize()) { measurables, constraints ->
+        val width = if (fullscreen) constraints.maxWidth else {
+            inlineLayout.width.roundToPx().coerceIn(0, constraints.maxWidth)
+        }
+        val height = if (fullscreen) constraints.maxHeight else {
+            inlineLayout.height.roundToPx().coerceIn(0, constraints.maxHeight)
+        }
+        val player = measurables.single().measure(Constraints.fixed(width, height))
+        layout(constraints.maxWidth, constraints.maxHeight) {
+            player.placeRelative(
+                x = if (fullscreen) 0 else inlineLayout.contentPadding.calculateStartPadding(layoutDirection).roundToPx(),
+                y = if (fullscreen) 0 else inlineLayout.contentPadding.calculateTopPadding().roundToPx(),
             )
         }
     }

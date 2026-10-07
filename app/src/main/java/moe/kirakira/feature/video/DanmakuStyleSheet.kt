@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -85,6 +86,9 @@ internal fun DanmakuComposer(
     onKaomojiInserted: (String) -> Unit = {},
 ) {
     var open by rememberSaveable(sessionRevision, onLogin != null) { mutableStateOf(false) }
+    LaunchedEffect(composerActive) {
+        if (!composerActive) open = false
+    }
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     ContentComposer(
@@ -109,7 +113,7 @@ internal fun DanmakuComposer(
             )
         }
     }
-    if (open && onLogin == null && enabled && !busy) {
+    if (open && composerActive && onLogin == null && enabled && !busy) {
         var custom by rememberSaveable { mutableStateOf(false) }
         ModalBottomSheet(
             onDismissRequest = { open = false },

@@ -3,16 +3,20 @@ package moe.kirakira.feature.video
 import android.os.Build
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -44,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalConfiguration
@@ -56,9 +61,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
+import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import moe.kirakira.ui.components.ShadowFilledTonalIconButton
@@ -76,7 +82,7 @@ import moe.kirakira.ui.components.FollowButton
 import moe.kirakira.ui.components.PagerTabIndicator
 import moe.kirakira.ui.components.frostedBarBackground
 import moe.kirakira.ui.components.rememberTabChangeHandler
-import moe.kirakira.ui.theme.bottomEdgeShadow
+import moe.kirakira.ui.theme.BarShadowElevation
 
 internal enum class VideoTab { INTRODUCTION, COMMENTS, DANMAKU }
 
@@ -118,6 +124,7 @@ internal fun VideoScreen(
     selectedPart: Int,
     onSelectPart: (Int) -> Unit,
     onOpenTag: (Long) -> Unit,
+    playerHeight: Dp,
     modifier: Modifier = Modifier,
     onDanmakuStyle: (DanmakuStyle) -> Unit = {},
     commentComposer: ComposerState = remember { ComposerState() },
@@ -125,7 +132,6 @@ internal fun VideoScreen(
     recentKaomoji: List<String> = emptyList(),
     onKaomojiInserted: (String) -> Unit = {},
     isActive: Boolean = true,
-    playerContent: @Composable () -> Unit = {},
 ) {
     val pager = rememberPagerState(pageCount = { VideoTab.entries.size })
     val changeTab = rememberTabChangeHandler(pager)
@@ -138,13 +144,39 @@ internal fun VideoScreen(
         keyboard?.hide()
     }
     val detail = state.detail.data
-    LaunchedEffect(pager.currentPage, state.sessionRevision) { onLoadTab(VideoTab.entries[pager.currentPage]) }
+    LaunchedEffect(pager.currentPage, state.sessionRevision, isActive) {
+        if (isActive) onLoadTab(VideoTab.entries[pager.currentPage])
+    }
     val hazeState = rememberHazeState()
     var tabRowHeight by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val tabPadding = with(density) { tabRowHeight.toDp() }
-    Column(modifier) {
-        playerContent()
+    VideoContentLayout(
+        playerHeight = playerHeight,
+        hazeState = hazeState,
+        modifier = modifier,
+        tabs = {
+            PrimaryTabRow(
+                selectedTabIndex = pager.currentPage,
+                modifier = Modifier.fillMaxWidth().onSizeChanged { tabRowHeight = it.height },
+                containerColor = Color.Transparent,
+                indicator = { PagerTabIndicator(pager) },
+                divider = {},
+            ) {
+                VideoTab.entries.forEach { tab ->
+                    Tab(selected = pager.currentPage == tab.ordinal, onClick = { changeTab(tab.ordinal) },
+                        selectedContentColor = MaterialTheme.colorScheme.primary,
+                        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = { Text(stringResource(when (tab) {
+                            VideoTab.INTRODUCTION -> R.string.video_tab_introduction
+                            VideoTab.COMMENTS -> R.string.video_tab_comments
+                            VideoTab.DANMAKU -> R.string.video_tab_danmaku
+                        })) })
+                }
+            }
+        },
+    ) {
+        Spacer(Modifier.fillMaxWidth().height(playerHeight))
         Box(Modifier.fillMaxWidth().weight(1f)) {
             HorizontalPager(
                 state = pager,
@@ -298,29 +330,49 @@ internal fun VideoScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun VideoContentLayout(
+    playerHeight: Dp,
+    hazeState: HazeState,
+    modifier: Modifier = Modifier,
+    tabs: @Composable () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Layout(
+        modifier = modifier,
+        content = {
+            // The sampled pages draw below the shared surface, with the tab foreground last.
+            Column(Modifier.fillMaxSize(), content = content)
             Box(
-                Modifier.fillMaxWidth().zIndex(1f).bottomEdgeShadow()
-                    .onSizeChanged { tabRowHeight = it.height },
+                Modifier.frostedBarBackground(
+                    hazeState = hazeState,
+                    shadowElevation = BarShadowElevation,
+                ),
             ) {
-                Box(Modifier.matchParentSize().frostedBarBackground(hazeState = hazeState))
-                PrimaryTabRow(
-                    selectedTabIndex = pager.currentPage,
-                    containerColor = Color.Transparent,
-                    indicator = { PagerTabIndicator(pager) },
-                    divider = {},
-                ) {
-                    VideoTab.entries.forEach { tab ->
-                        Tab(selected = pager.currentPage == tab.ordinal, onClick = { changeTab(tab.ordinal) },
-                            selectedContentColor = MaterialTheme.colorScheme.primary,
-                            unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            text = { Text(stringResource(when (tab) {
-                                VideoTab.INTRODUCTION -> R.string.video_tab_introduction
-                                VideoTab.COMMENTS -> R.string.video_tab_comments
-                                VideoTab.DANMAKU -> R.string.video_tab_danmaku
-                            })) })
-                    }
-                }
+                Spacer(Modifier.fillMaxWidth().height(playerHeight).background(Color.Black))
             }
+            Box { tabs() }
+        },
+    ) { measurables, constraints ->
+        val width = constraints.maxWidth
+        val height = constraints.maxHeight
+        val playerHeightPx = playerHeight.roundToPx().coerceIn(0, height)
+        val tabBar = measurables[2].measure(
+            Constraints(minWidth = width, maxWidth = width, maxHeight = height - playerHeightPx),
+        )
+        val surfaceHeight = playerHeightPx + tabBar.height
+        val pages = measurables[0].measure(Constraints.fixed(width, height))
+        val surface = measurables[1].measure(Constraints.fixed(width, surfaceHeight))
+        layout(width, height) {
+            pages.placeRelative(0, 0)
+            if (width > 0 && surfaceHeight > 0) {
+                surface.placeRelative(0, 0)
+            }
+            tabBar.placeRelative(0, playerHeightPx)
         }
     }
 }

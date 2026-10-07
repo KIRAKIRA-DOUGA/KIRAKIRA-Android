@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -50,6 +51,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -57,6 +59,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -81,7 +84,7 @@ import moe.kirakira.ui.components.appTopAppBarTonalIconButtonColors
 import moe.kirakira.ui.components.frostedBarBackground
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.theme.ThemeColorDefaults
-import moe.kirakira.ui.theme.bottomEdgeShadow
+import moe.kirakira.ui.theme.barSurfaceLayer
 
 private const val PROFILE_TABS_KEY = "profile_tabs"
 
@@ -140,13 +143,13 @@ internal fun ProfileScreen(
     Box(modifier
         .fillMaxSize()
         .background(background)) {
-        Box(
-            Modifier.matchParentSize().then(
+        ProfileHeaderBackground(
+            listState = profileListState,
+            coverHeight = coverHeight,
+            modifier = Modifier.matchParentSize().then(
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Modifier.hazeSource(hazeState) else Modifier,
             ),
-        ) {
-            ProfileCover(profileListState, coverHeight)
-        }
+        )
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             containerColor = Color.Transparent,
@@ -268,7 +271,6 @@ internal fun ProfileScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .zIndex(1f)
-                                        .bottomEdgeShadow()
                                         .onSizeChanged { tabRowHeight = it.height },
                                     containerColor = background,
                                     indicator = { PagerTabIndicator(pagerState) },
@@ -298,7 +300,6 @@ internal fun ProfileScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(pagerHeight)
-                                        .background(background)
                                         .nestedScroll(headerScrollConnection),
                                     key = { ProfileTab.entries[it].name },
                                 ) { page ->
@@ -393,11 +394,44 @@ private fun ProfileTopBarIconButton(
 }
 
 @Composable
+private fun ProfileHeaderBackground(
+    listState: LazyListState,
+    coverHeight: Dp,
+    modifier: Modifier = Modifier,
+) {
+    val background = ThemeColorDefaults.pageBackgroundColor().copy(alpha = 1f)
+    Layout(
+        modifier = modifier,
+        content = {
+            Box(Modifier.barSurfaceLayer().background(background)) {
+                ProfileCover(listState, coverHeight)
+            }
+        },
+    ) { measurables, constraints ->
+        // The match-parent host is measured after the foreground list, so its bounds are current.
+        val layoutInfo = listState.layoutInfo
+        val tabs = layoutInfo.visibleItemsInfo.firstOrNull { it.key == PROFILE_TABS_KEY }
+        val surfaceHeight = if (tabs != null) {
+            (layoutInfo.beforeContentPadding + tabs.offset + tabs.size).coerceIn(0, constraints.maxHeight)
+        } else {
+            constraints.maxHeight
+        }
+        val surface = measurables.single().measure(Constraints.fixed(constraints.maxWidth, surfaceHeight))
+        layout(constraints.maxWidth, constraints.maxHeight) {
+            if (constraints.maxWidth > 0 && surfaceHeight > 0) {
+                surface.placeRelative(0, 0)
+            }
+        }
+    }
+}
+
+@Composable
 private fun ProfileCover(listState: LazyListState, height: Dp) {
     val background = ThemeColorDefaults.pageBackgroundColor()
     val scrimHeight = with(LocalDensity.current) { (height - 48.dp).toPx() }
     Box(Modifier
         .fillMaxWidth()
+        .wrapContentHeight(align = Alignment.Top, unbounded = true)
         .height(height)) {
         Image(
             painter = painterResource(R.drawable.profile_banner_placeholder),

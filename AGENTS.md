@@ -26,14 +26,14 @@
 - 类型、文件和返回 `Unit` 的 UI composable 用 `PascalCase`；普通函数和属性用 `camelCase`；资源用 `snake_case`。
 - 复用 `KIRAKIRATheme`，统一经典强调色，默认项目粉色，壁纸取色作为可选颜色来源；图标默认使用官方 **Material Symbols Rounded**，必要时可绘制相同风格的自定义矢量图标，记录来源或设计理由，不混用旧版 Material Icons、SF Symbols 或其他图标风格。
 - 独立 username 展示统一使用 `@username`、`FontFamily.Monospace` 与 `onSurfaceVariant`，字号按所在组件的排版层级选择，空白值不展示文字行；`@` 仅在展示层添加，输入框、存储及 API 参数保留原始值，昵称或显示名称的 username 回退仍沿用名称样式，详见贡献指南。
-- 应用栏、刷新指示器及评论／弹幕输入框的阴影固定开启，不保留开关、状态参数或持久化偏好；应用栏复用 `ThemeShadows`，连接列表使用同类平台 elevation 投影，具体规则见贡献指南。
+- 应用栏、刷新指示器及评论／弹幕输入框的阴影固定开启，不保留开关、状态参数或持久化偏好；顶栏、Tab 栏与胶囊底栏复用 `ThemeShadows.barSurfaceLayer` 的固定 4dp 原生 elevation，半透明背景的透明度与阴影同层设置，前景独立绘制，仅按栏面形状裁剪背景，不添加阴影裁剪或阴影版本特判。资料页由封面、资料区与 Tab 共用的顶部背景承载投影，视频页由播放器占位区域与 Tab 共用的顶部背景承载投影，下沿跟随实际 Tab 位置，Tab 不独立升高；连接列表继续使用固定 1dp 平台 elevation 投影，具体规则见贡献指南。
 - 普通设置列表前后图标使用裸露的 24dp 图标，不默认添加花形背景；形状图标容器仅用于状态形状切换和独立大图标展示，详见贡献指南。
 - 界面文案使用字符串资源，默认 `values/` 为英语，`values-zh/` 为中文；两套翻译同步维护。不在应用中内置 Demo 演示内容；设计预览优先使用空表单、游客账号与空列表。按钮、导航、提示和无障碍描述仍需翻译。可复用 UI 接收状态、事件回调和 `modifier: Modifier = Modifier`。
 - 除非用户明确要求，界面中不添加解释功能如何运作的说明文字；功能机制与实现细节记录在文档中，界面保留必要的操作标签、状态、错误和无障碍提示。
 - 分组菜单使用官方 `SegmentedListItem`，通过共享 `connectedListItemShapes(index, count)` 统一形状：组内无间隙、无分隔线，仅整组外侧四角保留主题圆角，交互状态不改变形状。普通分组及独立条目在调用处使用 `ConnectedListGroup` 承载固定 1dp 整组阴影；懒列表使用 `ConnectedLazyColumn` 和 `connectedItemsIndexed`，由宿主按可见分组统一投影，条目不添加阴影、不通过组合局部上下文判断阴影归属。固定少量菜单可作为普通分组放入一个懒列表条目；数据列表保留逐项加载、稳定 key 与分页，在分组边界设置间距。纯布局使用无 `onClick` 的重载。
 - 设置页普通开关仅改变 Switch 状态，不随开启状态改变整行背景与形状；使用 `onClick` 重载并保留开关状态和禁用语义。仅「显示弹幕」等功能总开关使用 `checked` 重载保留整行强调，具体分类见贡献指南。
 - 普通对话框、Sheet、下拉菜单、日期选择与开源组件详情弹层有实际连接列表条目时保留灰底（业务 Sheet 为 `surfaceContainerLow`），否则使用 `surface`；按当前条目及子页直接切换，空列表与无数据占位用 `surface`，保留条目的刷新及滚动不改变背景。日期选择器内外背景一致，不新增配色包装、组件树探测、动画或偏好，详见贡献指南与[弹层背景](docs/implementation.md#弹层背景)。
-- 普通顶部栏（含头像裁剪页）、主界面胶囊底栏及视频页 Tab 栏固定使用毛玻璃，复用 `FrostedScaffold` 的独立采样状态与共享背景，顶栏容器透明、阴影由宿主管理；Android 12+ 使用 Haze 采样，Android 8.1–11 半透明降级。原生 backdrop 暂不启用，规避已复现的转场 alpha 与 elevation 合成异常。视频页 Tab 栏仅采样分页内容，栏高放入列表顶部留白，刷新与分页工具栏避让栏面；特殊媒体栏不变，详见贡献指南。
+- 普通顶部栏（含头像裁剪页）、主界面胶囊底栏及视频页 Tab 栏固定使用毛玻璃，复用 `FrostedScaffold` 的独立采样状态与共享背景，顶栏容器透明、阴影由宿主管理；Android 12+ 使用 Haze 采样，Android 8.1–11 半透明降级。原生 backdrop 暂不启用，规避已复现的转场 alpha 与 elevation 合成异常。视频页按分页内容、顶部共享背景、Tab 前景的同级顺序绘制，Tab 栏仅采样分页内容，栏高放入列表顶部留白，刷新与分页工具栏避让栏面；特殊媒体栏不变，详见贡献指南。
 - 普通顶栏导航与操作图标统一使用 `onSurfaceVariant`，填充图标按钮同步内容色及禁用透明度；认证页返回与关闭使用平面官方 `IconButton`。标题、品牌 Logo 与流程图标保留强调色，媒体顶栏保留白色控件，文字操作沿用原组件配色，详见贡献指南。
 - 需要滚动展开大标题的二级页面可复用 `ui/components/CollapsibleTopAppBar.kt` 与 `rememberCollapsibleTopAppBarScrollBehavior`，每页独立创建状态并接入 `nestedScroll`；默认进入折叠。按场景选用，不要求所有页面使用，接入示例见[实现说明](docs/implementation.md#可选的可折叠大标题栏)。
 - 滚动页面保留底部 edge-to-edge：底部系统内边距放入滚动内容（`Column` 的 `verticalScroll` 后或 `LazyColumn.contentPadding`），不要用容器外的完整 `innerPadding` 截短滚动区域；确保末项能滚动至导航栏上方。

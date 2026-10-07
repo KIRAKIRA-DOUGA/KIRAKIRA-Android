@@ -33,7 +33,7 @@
 
 `ActivityScene` 通过稳定状态引用读取最新返回栈，普通页面仅在自身 `contentKey` 为栈顶、生命周期至少为 STARTED、目标可见状态为 `EnterExitState.Visible` 且不处于预测性返回预览时开放内容交互，不再等待整段转场结束后恢复到 RESUMED。退场页保留期间消费触摸并清空内容的无障碍语义；普通返回使用与 `fadeOut` 相同的 `activityCloseFadeSpec`（延迟 35ms、持续 83ms、线性曲线）驱动透明度观察状态，`derivedStateOf` 仅在淡出完成边界移除已透明的页面内容及触摸屏蔽层，使点击落到新页。外层 Scene 仍完成原有 450ms 横移动画；在旧页开始的触摸随旧内容移除而取消，不转发给新页。预测性返回预览、收尾及其无动画出栈不走此提前移除逻辑，图片查看器仍要求 RESUMED 且可见状态与目标状态都为 Visible，并保留页面自身的转场禁用条件。所有动画继续遵循系统动画时长缩放，不使用固定延时交接。
 
-主界面标签切换保留同一套横移与淡入淡出参数。栏面及连接列表继续使用平台 elevation 投影；毛玻璃固定使用 Haze 背景采样，规避已在 Android 17 模拟器上复现的原生 backdrop、页面 alpha 与 elevation 合成异常。底部胶囊导航栏位于标签页转场之外。
+主界面标签切换保留同一套横移与淡入淡出参数。栏面与连接列表使用平台 elevation 投影，半透明栏面由背景图层统一承载透明度与阴影；毛玻璃固定使用 Haze 背景采样，规避已在 Android 17 模拟器上复现的原生 backdrop、页面 alpha 与 elevation 合成异常。底部胶囊导航栏位于标签页转场之外。
 
 导航会在切页开始时组合和测量新显示的页面；可保存状态与 ViewModel 装饰器保存状态，并不保留离屏页面的整棵组合树。`SharedTransitionLayout` 的预布局测量还包含 LazyColumn 首次子组合，不能将整段预布局时间当成重复测量成本。转场定位优先查看首帧的主线程切片；逐组件追踪只用于定位，交付与对照采样不携带临时探针。构建类型与 ART 编译状态会影响 Compose 执行成本，使用 [本地性能变体](development.md#动画性能采样) 并分别报告 Debug、非调试和预编译样本，不把更换构建类型当作同配置代码优化收益。
 
@@ -70,11 +70,15 @@
 
 资料页以铺满屏幕的外层 `LazyColumn` 承载资料信息、`stickyHeader` Tab 栏和固定为剩余视口高度的 `HorizontalPager`。顶部栏高度放入外层列表的 `contentPadding`，不从滚动容器外部避让，保证文字可经过透明栏后。Pager 高度扣除顶部栏和实测 Tab 高度，使外层列表滚动到末端时 Tab 恰好停在顶部栏下沿。分页内列表通过嵌套滚动优先滚走资料信息，回到列表顶部后再向下展开资料；背景跟随外层列表，各 Tab 保留独立列表位置。底部系统内边距仍放在分页列表的 `contentPadding` 中，刷新指示器通过 `indicatorTopPadding` 保持在顶部栏下方。
 
-资料页使用页面自身管理的 `Scaffold`，通过外层列表 `layoutInfo.visibleItemsInfo` 中 key 为 `profile_tabs` 的条目是否到达 `viewportStartOffset + beforeContentPadding` 判断顶栏下沿吸顶，不依赖固定滚动距离或条目索引。吸顶前不绘制顶部背景，返回和更多按钮使用 `ShadowFilledTonalIconButton`；吸顶后单独绘制 `frostedBarBackground(hazeState = …)` 背景并切换为官方普通 `IconButton`，解除吸顶时立即恢复。封面和内容沿用该页独立采样状态，顶栏不单独投影，仅保留 Tab 的固定底边阴影。简介展开、字体缩放及错误条目的高度变化由实际布局自动反映，恢复列表位置后重新推导吸顶状态。
+资料页使用页面自身管理的 `Scaffold`，通过外层列表 `layoutInfo.visibleItemsInfo` 中 key 为 `profile_tabs` 的条目是否到达 `viewportStartOffset + beforeContentPadding` 判断顶栏下沿吸顶，不依赖固定滚动距离或条目索引。吸顶前不绘制顶栏毛玻璃背景，返回和更多按钮使用 `ShadowFilledTonalIconButton`；吸顶后单独绘制 `frostedBarBackground(hazeState = …)` 背景并切换为官方普通 `IconButton`，解除吸顶时立即恢复。顶部共享背景和内容沿用该页独立采样状态，顶栏不单独投影，封面、资料区与 Tab 统一由顶部共享背景承载固定阴影。简介展开、字体缩放及错误条目的高度变化由实际布局自动反映，恢复列表位置后重新推导吸顶状态。
+
+`ProfileHeaderBackground` 在既有 `matchParentSize()` 背景宿主中绘制不透明页面底色与封面，使用 `barSurfaceLayer()` 的 alpha 为 1、固定 4dp 原生 elevation。宿主不参与页面尺寸测量，在前景列表测量完成后读取 Tab 条目，下沿为 `beforeContentPadding + tabs.offset + tabs.size`，限制在视口范围内；Tab 尚未进入可见布局时背景覆盖视口，投影边界位于屏幕外，零尺寸不绘制。背景宽度跟随页面视口，封面用顶部对齐的无界高度测量保留原有尺寸、裁切、位移与渐变，不随宿主高度变化缩放。Tab 不独立升高，Pager 不重复绘制不透明容器底色，列表背景由页面底色提供，使投影只在顶部整体表面的外侧出现，不增加阴影裁剪、坐标回调或逐帧组合状态。
 
 资料页的顶栏昵称直接复用 Tab 吸顶状态，与毛玻璃背景和图标按钮样式同步：吸顶后显示单行昵称，超长省略，解除吸顶后立即隐藏。不再测量正文昵称位置或向资料头传递坐标回调。
 
-两页的 `PrimaryTabRow` 共用 [PagerTabIndicator](../app/src/main/java/moe/kirakira/ui/components/PagerTabIndicator.kt)，并关闭默认底部分隔线。视频页通过 `VideoScreen` 的 `playerContent` 插槽保留顶部播放器，下方 Pager 与透明 Tab 栏叠放，Tab 宿主统一应用 `bottomEdgeShadow()` 和绘制层级，仅在栏底显示阴影；全屏与画中画仅显示播放器。资料页保留吸顶布局，Tab 栏也使用 `bottomEdgeShadow()`，消除上沿向资料头投影。在测量阶段读取 `currentPage + currentPageOffsetFraction`。参考 [Material Components 的 Elastic 指示器](https://github.com/material-components/material-components-android/blob/master/lib/java/com/google/android/material/tabs/ElasticTabIndicatorInterpolator.java)，分别以 `sin(πt/2)` 和 `1−cos(πt/2)` 插值前缘、后缘，使其先伸长再收缩；RTL 下通过相对布局镜像。指示器直接跟随拖动、回弹和点击切页的实际进度，保留 Compose 官方主 Tab 指示器的默认高度与主题颜色；形状显式采用 Material Components 主 Tab 的上圆下平样式，顶部左右圆角为 3dp、底部左右为直角，底边贴齐 Tab 栏底部，不使用 Compose 默认的完整胶囊形状。
+两页的 `PrimaryTabRow` 共用 [PagerTabIndicator](../app/src/main/java/moe/kirakira/ui/components/PagerTabIndicator.kt)，并关闭默认底部分隔线。视频页由 `VideoPage` 的常驻 `VideoPlayerViewport` 绘制顶部播放器，`VideoScreen` 保留对应高度的占位区域，下方 Pager 与透明 Tab 栏叠放；播放器占位区域与 Tab 共用顶部背景的固定 4dp 原生投影，文字与指示器独立绘制。资料页 Tab 保留不透明配色、吸顶布局与绘制层级，固定 4dp 原生 elevation 由封面、资料区和 Tab 共用的顶部背景承载。在测量阶段读取 `currentPage + currentPageOffsetFraction`。参考 [Material Components 的 Elastic 指示器](https://github.com/material-components/material-components-android/blob/master/lib/java/com/google/android/material/tabs/ElasticTabIndicatorInterpolator.java)，分别以 `sin(πt/2)` 和 `1−cos(πt/2)` 插值前缘、后缘，使其先伸长再收缩；RTL 下通过相对布局镜像。指示器直接跟随拖动、回弹和点击切页的实际进度，保留 Compose 官方主 Tab 指示器的默认高度与主题颜色；形状显式采用 Material Components 主 Tab 的上圆下平样式，顶部左右圆角为 3dp、底部左右为直角，底边贴齐 Tab 栏底部，不使用 Compose 默认的完整胶囊形状。
+
+视频页的 `VideoContentLayout` 使用同一个 `Layout` 承载分页 Column、顶部共享背景与 Tab 前景三个同级节点，按此顺序绘制：分页内容在最下层，背景覆盖经过栏后的滚动内容，Tab 文字、指示器与触摸区域位于背景之上。测量时先测量播放器下方剩余空间内的 Tab，以当前 placeable 高度确定背景下沿，再测量分页和背景；背景高度为播放器高度与实测 Tab 高度之和，限制在视口范围内，零尺寸不绘制。背景复用 `frostedBarBackground(hazeState = …, shadowElevation = BarShadowElevation)`，统一承载透明度和 elevation，并在播放器占位区域绘制黑底；Tab 不再有独立背景投影。实际播放器、原生视频表面与控件仍由常驻播放器节点独立绘制，不参与背景模糊或透明度处理。分页位置、列表留白及刷新避让继续使用原有 Tab 高度状态，不新增坐标回调或尺寸状态。
 
 点击切页共用 [rememberTabChangeHandler](../app/src/main/java/moe/kirakira/ui/components/TabTransition.kt)，取消上一次点击启动的滚动任务后从当前 Pager 位置转向新目标。滚动与图片查看器复用 [EmphasizedEasing](../app/src/main/java/moe/kirakira/ui/components/EmphasizedEasing.kt) 提供的 [Material 3 emphasized easing](https://github.com/material-components/material-components-android/blob/master/docs/theming/Motion.md#curves-easing--duration) 双段路径：API 28+ 读取路径相同的公开系统资源 `fast_out_extra_slow_in`，API 27 使用 Compose `PathEasing` 兼容。动画快速推进后平缓收尾，不越过目标页；相邻页为 500ms，跨页按距离延长至最多 650ms。Tab 的选中状态统一使用 `currentPage`。
 
@@ -147,7 +151,15 @@ ViewModel 从第 1 页开始，每页 50 条，保留后端顺序并按 UID 去�
 
 码表指针按用户提供的设计参考采用细尖、圆底的渐窄轮廓，以缓存的闭合路径绘制，中心端与尖端宽度比例为 5:1，轴心至尖端的长度为轨道中心半径的 68%；尖端保留小圆角，中心端为一体半圆，不叠加独立圆轴。中心端半宽限制在 4dp–8dp，避免窄屏或大字体下过细。外弧为 8dp 宽的填充环形路径，断口使用 2dp 圆角，避免分段形成独立胶囊。0、0.25、0.5、1、2、4 为大刻度，以 2dp 宽、12dp 长的圆头径向短杆绘制，统一使用主色。轨道按大刻度分段，根据刻度半宽和 3dp 间隔计算角度退让；路径圆角随短弧长度收缩，极短区间空间不足时省略弧段及圆点，避免重叠。每段弧线中心放置一个小圆点，不按不均匀的快捷倍率分布，尺寸复用 `SliderDefaults.TickSize`，活动圆点使用 `activeTickColor`，其余使用 `inactiveTickColor`。表盘半径扣除轨道半宽，为外缘和标签保留空间；文字仅显示倍率数字，单位由读数表达。设计理由见 [Material Symbols](../third_party/material-symbols/README.md#播放器控制图标)。
 
-`AppNavHost` 持有共享 `PlaybackViewModel`，视频页、小窗与系统画中画使用同一 ExoPlayer／MediaSession。视频页只在活动且匹配当前视频时绑定 `ContentFrame`；小窗位于导航内容上层，系统画中画从小窗进入时切换为全窗口视频。同一时刻仅一个画面绑定。导航完成后根据 `showPauseIcon`（含缓冲待播放）决定是否保留应用内小窗；预测性返回取消不修改模式，返回全屏先退出全屏。回到视频页重新读取详情时，同分 P 的媒体 URL 更新不打断当前播放。关闭小窗、账号修订变化和普通后台路径释放会话；旋转保留 ViewModel，进程恢复只读取非敏感标量并保持暂停，不保存 URL 或凭据。
+`AppNavHost` 持有共享 `PlaybackViewModel`，视频页、小窗与系统画中画使用同一 ExoPlayer／MediaSession。视频页只在活动且匹配当前视频时绑定 `PlayerContentFrame`；小窗位于导航内容上层，系统画中画从小窗进入时切换为全窗口视频。同一时刻仅一个画面绑定。导航完成后根据 `showPauseIcon`（含缓冲待播放）决定是否保留应用内小窗；预测性返回取消不修改模式，返回全屏先退出全屏。回到视频页重新读取详情时，同分 P 的媒体 URL 更新不打断当前播放。关闭小窗、账号修订变化和普通后台路径释放会话；旋转保留 ViewModel，进程恢复只读取非敏感标量并保持暂停，不保存 URL 或凭据。
+
+视频页的播放器固定在 `VideoPlayerViewport` 的同一个组合位置，仅在嵌入布局与满窗布局之间按实际窗口测量结果切换，不对尺寸、位置或详情透明度施加全屏动画。视频输出保持不透明，继续使用同一个 `SurfaceView` 与播放会话。`VideoScreen` 用嵌入播放器高度占位，详情始终保留组合中的 Tab、列表位置与草稿；满窗播放器覆盖其上时通过 `drawWithContent` 停止详情与栏面阴影绘制，画中画同样处理，不使用透明度转场。详情不可交互时清除语义、拦截触摸并禁止焦点进入，关闭评论跳页与弹幕样式弹层，并暂停隐藏评论的相邻页加载。播放器占位区域与 Tab 共用的顶部背景及底边阴影保持原有布局。
+
+全屏入口通过同一 `requestFullscreen` 回调立即同步页面目标与 Activity 的方向、系统栏请求，返回按钮与系统返回也由该入口立即退出。进入时复制当前嵌入播放器的宽高和 Insets，等待横屏期间固定这些值，避免系统栏隐藏或键盘收起使画面提前位移；满窗条件同时确认 Configuration 已横屏与实际布局宽大于高，避免键盘压缩竖屏视口或 Configuration 先于窗口尺寸更新时误判。横屏窗口首次布局时直接满窗，已横屏时也直接切换。多窗口及 Android 16+ 最小宽度达到 600dp 的大屏不等待方向变化，按当前窗口全屏。退出立即恢复普通布局与原方向策略。快速切换始终使用最新目标，没有动画完成回调或固定延时；页面停用与出栈清理窗口状态，画中画暂时解除方向请求并直接使用全窗口视口，展开回应用按原目标重新请求全屏。
+
+`MainActivity` 复用状态栏与导航栏的两份 `SystemBarStyle.auto`，检测回调执行时读取当前启动覆盖层、页面、明暗模式与全屏状态。AndroidX 会保存首次传入的样式，并在视图收到配置变化时重新应用；回调不捕获启动时的固定值，避免旋转后将视频页黑底上的白色图标覆盖为黑色。启动覆盖层优先使用自己的明暗模式，视频页与图片查看器使用白色状态栏图标，图片查看器与视频全屏使用白色导航栏图标，其他情况跟随当前应用主题。Activity 配置变化时先立即更新，再通过 `decorView.post` 在视图配置分发结束后恢复最新的系统栏显示、交互行为与关闭导航栏对比度强制遮罩的设置；待执行恢复只保留一份，始终读取最新目标，销毁 Activity 时移除，不使用固定延时。
+
+全屏转场交由 Android 默认窗口旋转处理，系统关闭动画时同样按实际窗口切换，不在应用中模拟旋转轨迹或修改旋转时长。此选择保留 [Media3 推荐优先使用的 SurfaceView](https://developer.android.com/media/media3/ui/surface)，使用系统默认的 [ROTATION_ANIMATION_ROTATE](https://developer.android.com/reference/android/view/WindowManager.LayoutParams#ROTATION_ANIMATION_ROTATE) 行为；具体效果取决于系统与设备实现。Compose [共享元素转场](https://developer.android.com/develop/ui/compose/animation/shared-elements#current-limitations)目前不支持 View／Compose 互操作，不能直接用于含 `AndroidView` 的视频输出。下方内容保持状态，不要求在窗口旋转时固定于原竖屏坐标。
 
 `PlaybackHost` 统一管理 Activity 生命周期、屏幕常亮、系统画中画资格和来源矩形；小窗位置以可用区域的横纵比例保存，拖动结束贴左右边缘，布局用 safeDrawing 与 IME Insets 并扣除实测主界面底栏高度。MainActivity 负责平台画中画桥接和系统栏，Android 12+ 使用 `setAutoEnterEnabled`，Android 8–11 在 `onUserLeaveHint` 检查应用外开关与播放资格；比例限制在系统支持区间。不新增悬浮窗权限、前台服务或后台音频播放。全屏使用 `SCREEN_ORIENTATION_SENSOR_LANDSCAPE`，退出恢复此前方向策略；进入系统画中画暂时解除方向请求，展开后恢复全屏。播放器弹幕开关继续使用官方 Switch 和 Cerasus 图标，暂停时保留，手动画中画按钮已移除。
 
@@ -261,11 +273,15 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 
 ### 栏面阴影
 
-[ThemeShadows](../app/src/main/java/moe/kirakira/ui/theme/ThemeShadows.kt) 统一管理栏面及连接列表的平台 elevation 投影：顶栏、视频页 Tab 栏、个人主页 Tab 栏和底部导航栏使用固定 4dp 高度，连接列表使用 1dp；评论／弹幕输入框继续使用 `Surface.shadowElevation`，刷新容器继续使用官方 `IndicatorBox` 的内置高度阴影。阴影内部由内容表面自身遮挡，应用不手动生成外部蒙版或裁切轮廓。
+[ThemeShadows](../app/src/main/java/moe/kirakira/ui/theme/ThemeShadows.kt) 的 `barSurfaceLayer(shape, alpha, shadowElevation)` 统一承载栏面形状、透明度与原生投影，使用官方 `graphicsLayer`，阴影高度通过 `BarShadowElevation` 固定为 4dp。默认矩形、alpha 为 1，胶囊底栏传入与背景一致的圆角形状；阴影配色和强度由平台光照模型决定，不手动映射模糊、扩张或双层不透明度。图层仅按形状裁剪内容，保持默认 `CompositingStrategy.Auto`，不使用阴影蒙版、差集裁剪或阴影版本特判。
 
-浅色与深色模式共用固定高度，系统光照模型可能使相同高度的阴影随背景变化；输入区保留 4dp 原生高度。刷新阴影仅由官方容器承载，跟随容器位移与显示状态，不在外层重复投影。`bottomEdgeShadow()` 保留既有的栏面底边显示范围；连接列表继续延伸并裁剪分段投影轮廓，账号侧滑组继续通过 `clipContent` 控制内容裁剪。
+原生 [Outline.alpha](https://developer.android.com/reference/android/graphics/Outline#setAlpha(float)) 描述轮廓内内容的不透明程度，[Android 11 绘制实现](https://android.googlesource.com/platform/frameworks/base/+/android-11.0.0_r1/libs/hwui/pipeline/skia/ReorderBarrierDrawables.cpp#208) 据此选择透明遮挡面的阴影路径。仅降低背景颜色的 alpha、却让承载阴影的图层维持 alpha 为 1，会使半透明栏面透出按不透明遮挡面优化后的阴影内缘。`frostedBarBackground` 在 Android 8.1–11 绘制不透明主题 `surface`，将 0.9 的 alpha 与 elevation 放在同一个背景图层中；Compose 同步图层 alpha 到原生轮廓，保持 90% 不透明度且不重复相乘。Android 12+ 的 Haze 背景图层保持 alpha 为 1，继续使用既有采样配置和同一原生 elevation 机制。
 
-阴影 Modifier 为普通函数，直接使用固定 elevation；主题、ViewModel 和导航不保存或传递阴影状态，外观页没有关闭入口，也不读取旧阴影偏好。大标题展开或折叠、Tab 切换及吸顶不改变阴影高度；经典强调色仍关闭色调高度叠加。
+普通顶栏和胶囊底栏通过独立的背景子节点承载透明度、形状与阴影，文字、图标、选中背景和指示器作为独立前景绘制，不随背景变淡。背景使用 `matchParentSize()` 跟随实际栏高且不参与测量，胶囊前景继续由透明 `Surface` 保留内容裁剪与触摸语义。视频页的共享背景涵盖播放器占位区域与 Tab，下沿跟随播放器高度与实测 Tab 高度之和，Tab 上缘不单独投影；实际播放器保持独立绘制。资料页的原生图层承载封面、资料区与 Tab 共用的不透明顶部背景，下沿跟随 Tab 实测位置，避免独立 Tab 的上缘投影落到同一表面的资料区；资料顶栏毛玻璃背景的 `shadowElevation` 保持默认 0dp。尺寸、折叠程度与字体缩放由原有布局决定，不增加额外留白、空投影图层或持久化状态。
+
+浅色与深色模式共用固定的栏面阴影高度，实际投影由平台光照与图层透明度决定。连接列表继续使用固定 1dp 平台 elevation 投影，由普通容器 `shadow` 或懒列表宿主 `GraphicsLayer.shadowElevation` 承载；评论／弹幕输入区保留 `Surface.shadowElevation` 的 4dp 原生高度。刷新阴影仅由官方 `IndicatorBox` 容器承载，跟随容器位移与显示状态，不在外层重复投影。连接列表继续延伸并裁剪分段投影轮廓，账号侧滑组继续通过 `clipContent` 控制内容裁剪。
+
+栏面图层 Modifier 为普通函数，调用处仅使用固定高度；主题、ViewModel 和导航不保存或传递阴影状态，外观页没有关闭入口，也不读取旧阴影偏好。大标题展开或折叠、Tab 切换及吸顶不改变阴影高度；经典强调色仍关闭色调高度叠加。
 
 ### 按钮动态阴影
 
@@ -531,15 +547,15 @@ fun FavoriteButton(
 
 ### 毛玻璃应用栏
 
-[`FrostedScaffold`](../app/src/main/java/moe/kirakira/ui/components/FrostedScaffold.kt) 为普通页面创建独立的 `HazeState`，用 `hazeSource` 采样内容、单独绘制顶部背景，再绘制透明的官方顶栏。文字和图标不参与模糊。背景裁剪只作用于背景子节点，阴影由 `ThemeShadows` 的平台 elevation 投影管理，避免重复投影。底部胶囊通过 `frostedBarBackground(shape)` 使用外层主页面采样状态，内部各 Tab 的顶部栏使用独立状态。`frostedBarBackground` 的可选 `hazeState` 参数允许自定义布局显式复用相同背景样式，默认仍读取当前页面的采样状态。
+[`FrostedScaffold`](../app/src/main/java/moe/kirakira/ui/components/FrostedScaffold.kt) 为普通页面创建独立的 `HazeState`，用 `hazeSource` 采样内容、单独绘制顶部背景，再绘制透明的官方顶栏。文字和图标不参与模糊。背景形状、alpha 和原生阴影由 `ThemeShadows.barSurfaceLayer` 在背景子节点上统一管理，避免重复投影或降低前景透明度。胶囊底栏同样分离背景与前景，背景通过 `frostedBarBackground(shape, shadowElevation = BarShadowElevation)` 使用外层主页面采样状态，内部各 Tab 的顶部栏使用独立状态。`frostedBarBackground` 的可选 `hazeState` 参数允许自定义布局显式复用相同背景样式，默认仍读取当前页面的采样状态；`shadowElevation` 默认 0dp，普通顶栏、视频页顶部共享背景和胶囊底栏显式传入固定的 `BarShadowElevation`，资料顶栏保留默认值。
 
 - 背景使用 `HazeInput.Sources` 采样，源消失时使用 `ClearWhenUnavailable`，不继续保留上一页面画面。原生 backdrop 暂不启用：已在 Android 17 模拟器（`CP41.260828.004.A7`，SkiaGL）上复现 `RenderNode.setBackdropRenderEffect()` 与半透明父层、elevation 同时使用时的灰框和内部矩形异常。对照父层 alpha 为 1、0.5、0.2：普通 elevation 及 Haze Sources 正常，Haze Backdrop 异常，强制 Offscreen 仍异常；移除 Compose/Haze、仅使用 Android View 和 RenderNode 也能复现，而移除 backdrop 恢复正常。证据定位到系统原生 backdrop 的合成路径，尚未定位内部实现的具体错误，也未验证所有设备。版本以 `gradle/libs.versions.toml` 为准，不引入玻璃折射模块。
-- Android 12+ 使用主题 `surface` 作为缺失源像素的底色，叠加同色 80% 不透明度遮罩、20dp 模糊与零噪点。Android 8.1–11 直接绘制 90% 不透明度背景，不挂载采样节点。背景透明度不作用于整个栏或前景。
+- Android 12+ 使用主题 `surface` 作为缺失源像素的底色，叠加同色 80% 不透明度遮罩、20dp 模糊与零噪点，背景图层 alpha 为 1。Android 8.1–11 绘制不透明主题 `surface`，在同一背景图层上设置 alpha 为 0.9 和原生 elevation，不挂载采样节点；各版本共用[栏面阴影](#栏面阴影)的机制，不额外增加阴影版本判断。背景透明度不作用于整个栏或前景。
 - 共享背景沿用 Haze 默认采样配置，保留实时更新、模糊半径与遮罩。模糊样式按主题 surface 色缓存，采样输入按页面状态缓存，现有采样层级保持不变。
 - 滚动列表的顶部与底部安全区域放入 `contentPadding`，滚动 Column 则在 `verticalScroll` 后添加，初始避开栏面、滚动时内容可进入栏后。`ContentPullToRefresh.indicatorTopPadding` 仅移动覆盖式指示器，不移动滚动视口。历史页的搜索输入通过共享组件覆盖顶栏，不占用列表条目。
-- 本人及作者资料页使用铺满屏幕的外层列表，将顶部栏避让放入内容内边距，通过扣除顶部栏及 Tab 高度的 Pager 保留栏下吸顶与嵌套分页滚动；后方滚动封面单独采样并与内容共享该页状态。顶栏仅在 Tab 吸顶后复用毛玻璃背景，不单独绘制阴影。非滚动表单保留安全布局。头像裁剪页同样接入本组件，由宿主提供顶部背景与固定阴影；裁剪引擎与底部操作栏保持原布局。视频画面、播放控件及系统栏不接入本组件。
+- 本人及作者资料页使用铺满屏幕的外层列表，将顶部栏避让放入内容内边距，通过扣除顶部栏及 Tab 高度的 Pager 保留栏下吸顶与嵌套分页滚动；包含滚动封面的顶部共享背景单独采样并与内容共享该页状态，同时统一承载封面、资料区与 Tab 的原生投影。顶栏仅在 Tab 吸顶后复用毛玻璃背景，不单独绘制阴影。非滚动表单保留安全布局。头像裁剪页同样接入本组件，由宿主提供顶部背景与固定阴影；裁剪引擎与底部操作栏保持原布局。视频画面、播放控件及系统栏不接入本组件。
 
-- 视频页为 Tab 栏创建独立 `HazeState`，仅在 Android 12+ 将下方 `HorizontalPager` 接入 `hazeSource`，播放器不参与采样。Tab 栏背景单独复用 `frostedBarBackground(hazeState = …)`，官方 `PrimaryTabRow` 容器透明，文字与指示器保持清晰。简介、评论、弹幕列表将实测栏高加入顶部 `contentPadding`，初始避开栏面，滚动时从栏后经过；空状态高度同步扣除栏高。刷新指示器通过 `indicatorTopPadding` 避让，评论分页工具栏固定在栏下，游客登录提示并入评论头部条目以保持分页索引；`FloatingComposerLayout.topPadding` 扣除输入面板可用高度，底部安全区域与输入区留白保持原逻辑。全屏与画中画仍只绘制播放器。
+- 视频页为 Tab 栏创建独立 `HazeState`，仅在 Android 12+ 将下方 `HorizontalPager` 接入 `hazeSource`，播放器不参与采样。播放器占位区域与 Tab 共用顶部背景，通过 `frostedBarBackground(hazeState = …, shadowElevation = BarShadowElevation)` 沿整体下沿投影；播放器区域的背景黑底位于同一图层，实际播放器仍独立绘制。官方 `PrimaryTabRow` 容器透明，文字与指示器保持清晰。简介、评论、弹幕列表将实测栏高加入顶部 `contentPadding`，初始避开栏面，滚动时从栏后经过；空状态高度同步扣除栏高。刷新指示器通过 `indicatorTopPadding` 避让，评论分页工具栏固定在栏下，游客登录提示并入评论头部条目以保持分页索引；`FloatingComposerLayout.topPadding` 扣除输入面板可用高度，底部安全区域与输入区留白保持原逻辑。全屏与画中画继续由既有播放器布局和详情显隐处理。
 
 ### 顶栏淡色图标底纹
 

@@ -85,9 +85,9 @@ import moe.kirakira.ui.components.ShadingIcon
 import moe.kirakira.ui.components.appTopAppBarColors
 import moe.kirakira.ui.components.frostedBarBackground
 import moe.kirakira.ui.navigation.rememberNavigationMotion
+import moe.kirakira.ui.theme.BarShadowElevation
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorDefaults
-import moe.kirakira.ui.theme.navigationBarShadow
 
 private const val NavigationBarSelectedBackgroundAlpha = 0.08f
 
@@ -331,56 +331,65 @@ private fun MainBottomBar(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         contentAlignment = Alignment.BottomCenter,
     ) {
-        Surface(
-            modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().navigationBarShadow(shape).frostedBarBackground(shape),
-            shape = shape,
-            color = Color.Transparent,
+        Box(
+            modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth(),
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(4.dp)
-                    .selectableGroup(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            Box(
+                Modifier.matchParentSize().frostedBarBackground(
+                    shape = shape,
+                    shadowElevation = BarShadowElevation,
+                ),
+            )
+            Surface(
+                shape = shape,
+                color = Color.Transparent,
             ) {
-                AppDestination.entries.forEach { item ->
-                    val selected = destination == item
-                    val containerColor by animateColorAsState(
-                        targetValue = if (selected) {
-                            MaterialTheme.colorScheme.primary.copy(alpha = NavigationBarSelectedBackgroundAlpha)
-                        } else {
-                            Color.Transparent
-                        },
-                        label = "Tab container color",
-                    )
-                    val contentColor by animateColorAsState(
-                        targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                        label = "Tab content color",
-                    )
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(shape)
-                            .background(containerColor)
-                            .selectable(
-                                selected = selected,
-                                role = Role.Tab,
-                                onClick = { onDestinationChange(item) },
-                            )
-                            .heightIn(min = 64.dp)
-                            .padding(horizontal = 4.dp, vertical = 8.dp)
-                            .testTag("nav_${item.name.lowercase()}"),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
-                    ) {
-                        CompositionLocalProvider(LocalContentColor provides contentColor) {
-                            AnimatedTabIcon(icon = item.icon, selected = selected)
-                            Text(
-                                text = stringResource(item.label),
-                                style = MaterialTheme.typography.labelMedium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(4.dp)
+                        .selectableGroup(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    AppDestination.entries.forEach { item ->
+                        val selected = destination == item
+                        val containerColor by animateColorAsState(
+                            targetValue = if (selected) {
+                                MaterialTheme.colorScheme.primary.copy(alpha = NavigationBarSelectedBackgroundAlpha)
+                            } else {
+                                Color.Transparent
+                            },
+                            label = "Tab container color",
+                        )
+                        val contentColor by animateColorAsState(
+                            targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                            label = "Tab content color",
+                        )
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(shape)
+                                .background(containerColor)
+                                .selectable(
+                                    selected = selected,
+                                    role = Role.Tab,
+                                    onClick = { onDestinationChange(item) },
+                                )
+                                .heightIn(min = 64.dp)
+                                .padding(horizontal = 4.dp, vertical = 8.dp)
+                                .testTag("nav_${item.name.lowercase()}"),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
+                        ) {
+                            CompositionLocalProvider(LocalContentColor provides contentColor) {
+                                AnimatedTabIcon(icon = item.icon, selected = selected)
+                                Text(
+                                    text = stringResource(item.label),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
                         }
                     }
                 }

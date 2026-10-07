@@ -77,6 +77,9 @@ internal fun VideoCommentsPage(
     val totalPages = state.totalPages
     val navigationEnabled = state.pages.isNotEmpty() && !busy
     var showJumpDialog by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(composerActive) {
+        if (!composerActive) showJumpDialog = false
+    }
     var toolbarSize by remember { mutableStateOf(IntSize.Zero) }
     var headerHeight by remember { mutableStateOf(0) }
     val density = LocalDensity.current
@@ -125,8 +128,8 @@ internal fun VideoCommentsPage(
             onLocationConsumed(location.request)
         }
     }
-    LaunchedEffect(entries, state.loading, state.location, state.previous, state.next) {
-        if (state.loading || state.location != null || entries.isEmpty()) return@LaunchedEffect
+    LaunchedEffect(entries, state.loading, state.location, state.previous, state.next, composerActive) {
+        if (!composerActive || state.loading || state.location != null || entries.isEmpty()) return@LaunchedEffect
         snapshotFlow {
             val visible = listState.layoutInfo.visibleItemsInfo.map { it.key }.toSet()
             val first = entries.indexOfFirst { it.comment.id in visible }
@@ -234,7 +237,7 @@ internal fun VideoCommentsPage(
             }
         }
     }
-    if (showJumpDialog) {
+    if (showJumpDialog && composerActive) {
         CommentJumpDialog(
             currentPage = currentPage,
             totalPages = totalPages,
