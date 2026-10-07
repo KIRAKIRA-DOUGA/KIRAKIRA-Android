@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -44,7 +45,12 @@ internal fun VideoCard(
     modifier: Modifier = Modifier,
     image: String? = null,
 ) {
-    Box(modifier = modifier.clickable(role = Role.Button, onClick = onClick)) {
+    Box(
+        modifier = modifier
+            .clip(MaterialTheme.shapes.small)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(4.dp),
+    ) {
         if (layout == VideoCardLayout.GRID) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
