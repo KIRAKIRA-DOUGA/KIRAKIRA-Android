@@ -35,6 +35,7 @@
     <string name="security_recovery_code">Recovery code</string>
     <string name="security_copy_codes">Copy backup and recovery codes</string>
     <string name="security_done">I have saved the codes</string>
+    <string name="security_codes_saved">Codes saved</string>
     <string name="security_leave_codes_title">Leave without saving?</string>
     <string name="security_leave_codes_message">These codes will no longer be available after you leave.</string>
     <string name="security_copied">Copied</string>
@@ -81,6 +82,7 @@
     <string name="profile_remove_label">Remove tag %1$s</string>
     <string name="profile_save">Save</string>
     <string name="profile_finish_save">Retry synchronization</string>
+    <string name="settings_retry_sync">Retry sync</string>
     <string name="profile_saved">Profile saved</string>
     <string name="profile_saved_pending">Your profile was saved on the server. Synchronization could not finish. Retry to update this device.</string>
     <string name="profile_sign_in">Sign in to edit your profile</string>

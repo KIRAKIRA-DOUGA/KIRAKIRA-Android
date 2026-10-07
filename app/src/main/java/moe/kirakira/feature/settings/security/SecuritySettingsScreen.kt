@@ -19,7 +19,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -27,17 +29,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
@@ -65,11 +68,11 @@ import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalAutofillManager
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentType
@@ -79,6 +82,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -90,33 +94,27 @@ import java.util.Date
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.text.style.TextAlign
-import moe.kirakira.ui.components.ShadowFilledTonalButton
+import moe.kirakira.R
+import moe.kirakira.core.credentials.passwordCredentialGateway
+import moe.kirakira.data.auth.SecondFactor
+import moe.kirakira.feature.settings.SettingsActionBar
 import moe.kirakira.feature.settings.SettingsDefaults
 import moe.kirakira.feature.settings.SettingsErrorCard
 import moe.kirakira.feature.settings.SettingsFormCard
 import moe.kirakira.feature.settings.SettingsItem
-import moe.kirakira.feature.settings.SettingsPrimaryButton
 import moe.kirakira.feature.settings.SettingsScaffold
 import moe.kirakira.feature.settings.SettingsSection
 import moe.kirakira.feature.settings.settingsDestructiveButtonColors
-import moe.kirakira.ui.components.IconBadge
-import moe.kirakira.ui.components.IconBadgeTone
-import moe.kirakira.R
-import moe.kirakira.core.credentials.passwordCredentialGateway
-import moe.kirakira.data.auth.SecondFactor
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentUnavailableAction
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
-import moe.kirakira.ui.components.connectedListItemShapes
+import moe.kirakira.ui.components.IconBadge
+import moe.kirakira.ui.components.IconBadgeTone
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.ShadowFilledTonalButton
+import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.semanticColors
@@ -197,6 +195,11 @@ internal fun SecuritySettingsScreen(
         modifier = modifier,
         imePadding = true,
         snackbarHost = { SnackbarHost(snackbar) },
+        bottomBar = {
+            if (email != null && !sessionBusy && state.status != null && state.step != SecurityStep.OVERVIEW) {
+                SecurityActionBar(state, onSubmit, onFinishCodes)
+            }
+        },
     ) { padding ->
         ContentPullToRefresh(
             isRefreshing = email != null && state.loading && state.status != null,
@@ -252,7 +255,7 @@ internal fun SecuritySettingsScreen(
                                         SecurityOverview(state, email, onOpen)
                                         state.error?.let { SettingsErrorCard(stringResource(it.messageRes())) }
                                     }
-                                    else -> SecurityFlow(state, email, onEdit, onSendCode, onSubmit, onFinishCodes, onCopied)
+                                    else -> SecurityFlow(state, email, onEdit, onSendCode, onCopied)
                                 }
                             }
                         }
@@ -383,9 +386,8 @@ private fun SecurityStepIcon(icon: Int, tertiary: Boolean = false) {
 private fun SecurityFlow(
     state: SecuritySettingsState, email: String,
     onEdit: (SecurityField, String) -> Unit, onSend: (Boolean) -> Unit,
-    onSubmit: () -> Unit, onFinish: () -> Unit, onCopied: (Boolean) -> Unit,
+    onCopied: (Boolean) -> Unit,
 ) {
-    val editable = !state.working && !state.completionPending
     if (state.step == SecurityStep.TOTP_SETUP || state.step == SecurityStep.SECRETS) {
         val step = if (state.step == SecurityStep.SECRETS) 3 else if (state.setup != null) 2 else 1
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -436,12 +438,20 @@ private fun SecurityFlow(
     }
     state.validation?.let { SettingsErrorCard(stringResource(it)) }
     state.error?.let { SettingsErrorCard(stringResource(it.messageRes())) }
+}
+
+@Composable
+private fun SecurityActionBar(
+    state: SecuritySettingsState,
+    onSubmit: () -> Unit,
+    onFinish: () -> Unit,
+) {
     val destructive = state.step == SecurityStep.DISABLE_EMAIL || state.step == SecurityStep.DISABLE_TOTP
-    SettingsPrimaryButton(
+    SettingsActionBar(
         label = stringResource(when {
             state.busy -> R.string.auth_working
-            state.completionPending -> R.string.profile_finish_save
-            state.step == SecurityStep.SECRETS -> R.string.security_done
+            state.completionPending -> R.string.settings_retry_sync
+            state.step == SecurityStep.SECRETS -> R.string.security_codes_saved
             destructive -> R.string.security_disable
             state.step == SecurityStep.ENABLE_EMAIL -> R.string.security_enable
             state.step == SecurityStep.TOTP_SETUP && state.setup == null -> R.string.auth_continue
@@ -449,10 +459,15 @@ private fun SecurityFlow(
             else -> R.string.security_save
         }),
         onClick = if (state.step == SecurityStep.SECRETS) onFinish else onSubmit,
-        icon = if (destructive) R.drawable.ic_symbol_delete else R.drawable.ic_symbol_check,
-        enabled = editable || (!state.working && state.completionPending),
+        enabled = !state.working,
         busy = state.busy,
         colors = if (destructive) settingsDestructiveButtonColors() else ButtonDefaults.buttonColors(),
+        actionDescription = when {
+            state.busy -> null
+            state.completionPending -> stringResource(R.string.profile_finish_save)
+            state.step == SecurityStep.SECRETS -> stringResource(R.string.security_done)
+            else -> null
+        },
     )
 }
 

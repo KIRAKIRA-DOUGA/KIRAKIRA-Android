@@ -423,7 +423,7 @@ ViewModel 分离关键词草稿、所选标签和已提交条件。视频读取�
 
 个人主页「编辑资料」使用全宽的官方 M3E `Button`，以 `ButtonDefaults.MediumContainerHeight` 设置最小高度，并将同一高度传给 `shapesFor`、`contentPaddingFor` 与 `textStyleFor`，统一使用官方 Medium 形状、内边距与文字样式；`heightIn(min = …)` 允许字体缩放时按钮随内容增高。
 
-`ProfileEditorRoute` 使用 Navigation 3 条目级 `ProfileEditorViewModel`，资料通过 `data/profile/ProfileRepository` 访问，DTO 与凭据保持在数据层。`AccountProfile` 增加生日、性别和标签及兼容旧存储的默认值；读取本人资料时核对 UUID、UID。页面最大宽度 640dp，与设置页同用 `surfaceContainer` 背景和 `SectionHeader` 分组标题；顶部为大圆角横幅，使用 `Image` 与 `ContentScale.Crop` 展示个人主页共用的 `profile_banner_placeholder` 樱花图，保留服务端背景字段；头像为居中重叠的 112dp 头像与带背景色描边的编辑按钮。基本资料与标签放在 `surface` 圆角卡片中，个人信息使用分段资料行；保存栏按钮通过 `ButtonDefaults.*For(56.dp)` 获取 Expressive 形状、内边距和图标尺寸。另含日期选择器与标签 Chips。所有界面文本维护中英文资源，预览使用空表单。
+`ProfileEditorRoute` 使用 Navigation 3 条目级 `ProfileEditorViewModel`，资料通过 `data/profile/ProfileRepository` 访问，DTO 与凭据保持在数据层。`AccountProfile` 增加生日、性别和标签及兼容旧存储的默认值；读取本人资料时核对 UUID、UID。页面最大宽度 640dp，与设置页同用 `surfaceContainer` 背景和 `SectionHeader` 分组标题；顶部为大圆角横幅，使用 `Image` 与 `ContentScale.Crop` 展示个人主页共用的 `profile_banner_placeholder` 樱花图，保留服务端背景字段；头像为居中重叠的 112dp 头像与带背景色描边的编辑按钮。基本资料与标签放在 `surface` 圆角卡片中，个人信息使用分段资料行；保存操作接入[设置表单操作区](#设置表单操作区)。另含日期选择器与标签 Chips。所有界面文本维护中英文资源，预览使用空表单。
 
 用户名与昵称按 Rosales `ValidTool.validateNameField` 校验，最长 20 个 UTF-16 单元，昵称可为空；简介最长 200。保存统一 NFC 规范化，用户名执行 trim，只有修改用户名才调用查重。标签保留顺序及已有 ID，新项使用最小可用非负 ID；生日未设置时发送空字符串，不默认写入当天。更新始终包含用户名与已有背景，其他不属于编辑表单的字段不主动发送。
 
@@ -434,6 +434,14 @@ ViewModel 分离关键词草稿、所选标签和已提交条件。视频读取�
 预签名上传使用独立无 Cookie／认证头的 OkHttp 客户端，仅允许 `https://upload.imagedelivery.net:443`，发送 multipart `file`，禁用重定向和自动重试，完整调用上限 60 秒，响应上限 1 MiB，并检查 HTTP 与 JSON `success`。成功的图片 ID 交给资料更新接口，不保存或记录预签名 URL。应用 API 仍使用共享 HTTPS 客户端。
 
 返回保护由 `ActivityNavDisplay` 的默认放行回调协调。资料有草稿或正在裁剪时不启动页面预测性返回转场；手势完成才显示确认、关闭裁剪或忽略正在保存的返回，取消手势没有副作用。顶栏使用同一 ViewModel 判断；用户确认离开后才出栈，不添加页面级低层返回处理器。
+
+### 设置表单操作区
+
+`SettingsScaffold` 的可选 `bottomBar` 插槽直接交给 `FrostedScaffold` 内的官方 Scaffold。资料、隐私及账号安全流程使用 [SettingsActionBar](../app/src/main/java/moe/kirakira/feature/settings/SettingsComponents.kt)，不再将主操作放在滚动内容的悬浮工具栏或表单末尾；头像裁剪保留原底部旋转与 `SettingsPrimaryButton` 完成布局。
+
+操作区以 `surface` 铺满宽度，内部居中限制在设置页 640dp 内容区域，四周留出 16dp，主按钮按标签宽度向尾侧对齐。`ShadowButton` 使用 `ButtonDefaults.MediumContainerHeight` 及同高度的 `shapesFor`、`contentPaddingFor` 和 `textStyleFor`，默认仅显示单行文字，加载时使用 Material 2 官方按钮图标尺寸／2dp 的圆形加载器，前景继承当前按钮内容色。普通操作沿用 `primary/onPrimary`，安全停用为 `error/onError`；保留本项目共享双层彩色阴影和禁用时无阴影的规则，这是相对 [Material 官方默认实心样式](https://m3.material.io/components/buttons/guidelines)的定制。同步重试和恢复码确认使用短标签，原完整资源用于按钮无障碍描述；加载状态通过本地化状态描述表达。
+
+宿主使用 `imePadding` 避让并消费键盘 Insets，操作区仅处理尚未消费的 `safeDrawing` 横向和底部安全区域。Scaffold 将底栏实测高度写入内容 padding，`SettingsColumn` 及安全页滚动 Column 将其放在 `verticalScroll` 后的底部 padding，保持完整滚动视口；Snackbar 自动放在底栏上方，不另加固定偏移或悬浮工具栏留白。游客、首次无数据加载／错误及安全概览不组合底栏，已有表单刷新或提交时保留并禁用操作。隐私重置为顶栏裸图标按钮，保留提示、加载和禁用语义，仍调用原有重新读取入口；返回、舍弃、账号隔离和业务提交继续由现有 ViewModel 管理。
 
 ### 账号设置管理
 
@@ -451,7 +459,7 @@ UI 使用共享可折叠顶栏、官方分段列表、语义主题色状态横�
 
 更新接口可能返回不含 UID 的更新载荷：此时 Android 通过同一请求账号再次调用 `POST user/settings`，确认 UID 与五项值后再发布保存成功；读取失败保留草稿并显示错误，不自动重发写请求。DTO 仅在数据层使用，领域模型交给 UI；草稿和选择面板仅存流程内存。账号变化取消请求、清空状态；旋转保留 ViewModel，进程重建重新读取。隐私页返回保护复用 `ActivityNavDisplay` 回调，草稿未保存时不启动预测性返回动画，手势完成显示放弃确认，保存／重置期间忽略返回。
 
-界面使用连接式 ToggleButton 组批量设置可见性，按当前可见性着色的 MaterialShapes 形状图标容器，分段列表逐项选择，以及悬浮工具栏（HorizontalFloatingToolbar）承载重置与应用操作；底部选择面板复用相同形状容器。后端隐私限制缺陷及保存语义见[隐私设置](features.md#隐私设置)，本次不改动 Rosales 或 Cerasus。
+界面使用连接式 ToggleButton 组批量设置可见性，按当前可见性着色的 MaterialShapes 形状图标容器，分段列表逐项选择；应用使用共享[设置表单操作区](#设置表单操作区)，重置位于顶栏尾侧。底部选择面板复用相同形状容器。后端隐私限制缺陷及保存语义见[隐私设置](features.md#隐私设置)，本次不改动 Rosales 或 Cerasus。
 
 `data/settings/AccountSettingsRepository` 复用共享 API 客户端与唯一 AuthRepository，屏蔽规则和邀请码通过领域模型交给条目级 ViewModel。导航为 `BlockingOverviewRoute`、带 `RuleCategory` 的 `RuleManagementRoute` 与 `InvitationsRoute`，使用现有条目装饰器、`NavigationPage` 和认证返回流程；不增加依赖或持久化规则副本。
 

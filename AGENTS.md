@@ -19,6 +19,7 @@
 - 实心按钮通过 `ShadowButtons` 封装官方组件，统一使用双层 `dropShadow`，模糊、偏移及扩张采用 Material 官方双层阴影参数并按交互高度插值；彩色投影取实际容器色，按钮与 FAB 的环境层／主层不透明度固定为 25%／50%，中性色使用黑色及官方 15%／30%，均乘以容器透明度，禁用时无阴影。普通按钮静止／按压／悬停或聚焦为 2dp／8dp／4dp，FAB 为 6dp／12dp／8dp，按下 120ms、恢复 180ms；形变与阴影共用形状和交互源，不重复投影。文字、描边与裸图标按钮保持平面，发送按钮遵循实心按钮规则，不增加开关，详见贡献指南。
 - 单选框通过 `ShadowRadioButton` 封装官方组件，仅选中且可用时显示阴影，静止／悬停或聚焦／按压为 1dp／2dp／4dp，按下 120ms、恢复 180ms。双层几何参数与按钮共用 Material 官方映射，阴影强度为按钮的一半：彩色 12.5%／25%、中性色黑色 7.5%／15%，均乘以选中颜色透明度。投影仅在 20dp 可见圆圈外侧，保留官方布局、动画与语义；整行点击时共用交互源，单选框 `onClick = null`，不增加开关，详见贡献指南。
 - 指定 Expressive 按钮尺寸时，使用 `ButtonDefaults` 官方尺寸常量及同一尺寸的形状、内边距、文字和图标 API，不手写标准尺寸参数或只放大容器；使用最小高度适应字体缩放，详见贡献指南。
+- 资料保存、隐私应用与账号安全流程使用 `SettingsScaffold.bottomBar` 中的 `SettingsActionBar`，普通实心按钮按内容宽度靠尾侧，采用官方 Medium 尺寸、单行文字与共享彩色阴影，不使用 FAB 或悬浮工具栏；底栏实测高度放入滚动内容 padding，系统／IME Insets 不重复处理，Snackbar 由宿主避让。隐私重置位于顶栏，取消沿用返回保护；头像裁剪保留底部旋转与完成操作栏，详见贡献指南。
 - 个人主页与视频页复用 `FollowButton`：未关注使用 `primary/onPrimary` 及共享双层投影，已关注使用灰色 `surfaceContainerHigh/onSurfaceVariant` 且无投影；禁用时无阴影，保留官方 ToggleButton 的选中语义、尺寸与形变。
 - 遵循 `.editorconfig` 和 Kotlin official 风格：四空格、UTF-8、LF；禁用通配符导入，移除无用导入。
 - 类型、文件和返回 `Unit` 的 UI composable 用 `PascalCase`；普通函数和属性用 `camelCase`；资源用 `snake_case`。

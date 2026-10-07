@@ -6,12 +6,13 @@ import androidx.annotation.DrawableRes
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -19,18 +20,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Slider
@@ -46,7 +49,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -54,9 +59,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import moe.kirakira.R
 import moe.kirakira.ui.components.CollapsibleTopAppBar
 import moe.kirakira.ui.components.ConnectedListGroup
@@ -68,8 +74,8 @@ import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.ShadowRadioButton
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
+import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorDefaults
-import kotlin.math.roundToInt
 import androidx.compose.material.ButtonDefaults as Material2ButtonDefaults
 
 /** Shared spacing for settings subpages so every page lines up with the settings list. */
@@ -80,12 +86,8 @@ internal object SettingsDefaults {
     val BottomPadding = 16.dp
     val SectionSpacing = 24.dp
 
-    /** Extra bottom room that keeps the last item clear of [SettingsSaveToolbar]. */
-    val FloatingToolbarClearance = 96.dp
-
     /** Extra bottom room that keeps the last item clear of a FAB. */
     val FabClearance = 88.dp
-    val PrimaryButtonHeight = 56.dp
 }
 
 /**
@@ -102,6 +104,7 @@ internal fun SettingsScaffold(
     imePadding: Boolean = false,
     actions: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit = {},
     snackbarHost: @Composable () -> Unit = {},
+    bottomBar: @Composable () -> Unit = {},
     floatingActionButton: @Composable () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
 ) {
@@ -131,6 +134,7 @@ internal fun SettingsScaffold(
             }
         },
         snackbarHost = snackbarHost,
+        bottomBar = bottomBar,
         floatingActionButton = floatingActionButton,
         content = content,
     )
@@ -144,8 +148,6 @@ internal fun SettingsScaffold(
 internal fun SettingsColumn(
     padding: PaddingValues,
     modifier: Modifier = Modifier,
-    bottomClearance: Dp = 0.dp,
-    overlay: @Composable BoxScope.() -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val direction = LocalLayoutDirection.current
@@ -164,12 +166,11 @@ internal fun SettingsColumn(
                     start = padding.calculateStartPadding(direction) + SettingsDefaults.HorizontalPadding,
                     end = padding.calculateEndPadding(direction) + SettingsDefaults.HorizontalPadding,
                     top = padding.calculateTopPadding() + SettingsDefaults.TopPadding,
-                    bottom = padding.calculateBottomPadding() + SettingsDefaults.BottomPadding + bottomClearance,
+                    bottom = padding.calculateBottomPadding() + SettingsDefaults.BottomPadding,
                 ),
             verticalArrangement = Arrangement.spacedBy(SettingsDefaults.SectionSpacing),
             content = content,
         )
-        overlay()
     }
 }
 
@@ -466,10 +467,10 @@ internal fun SettingsFormCard(modifier: Modifier = Modifier, content: @Composabl
     }
 }
 
-/** Icon + label content sized for a [SettingsDefaults.PrimaryButtonHeight] button. */
+/** Icon + label content using the official Medium button size. */
 @Composable
 private fun PrimaryButtonContent(@DrawableRes icon: Int?, label: String, busy: Boolean) {
-    val height = SettingsDefaults.PrimaryButtonHeight
+    val height = ButtonDefaults.MediumContainerHeight
     val iconSize = ButtonDefaults.iconSizeFor(height)
     if (busy) IndeterminateCircularProgressIndicator(
         modifier = Modifier.size(Material2ButtonDefaults.IconSize),
@@ -477,10 +478,10 @@ private fun PrimaryButtonContent(@DrawableRes icon: Int?, label: String, busy: B
     )
     else if (icon != null) Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(iconSize))
     if (busy || icon != null) Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(height)))
-    Text(label, style = MaterialTheme.typography.titleMedium)
+    Text(label, style = ButtonDefaults.textStyleFor(height), maxLines = 1, softWrap = false)
 }
 
-/** Full-width 56dp primary action used by settings forms, sheets and the avatar cropper. */
+/** Full-width Medium primary action used by the avatar cropper. */
 @Composable
 internal fun SettingsPrimaryButton(
     label: String,
@@ -491,7 +492,7 @@ internal fun SettingsPrimaryButton(
     busy: Boolean = false,
     colors: ButtonColors = ButtonDefaults.buttonColors(),
 ) {
-    val height = SettingsDefaults.PrimaryButtonHeight
+    val height = ButtonDefaults.MediumContainerHeight
     ShadowButton(
         onClick = onClick,
         enabled = enabled,
@@ -506,7 +507,7 @@ internal fun SettingsPrimaryButton(
     }
 }
 
-/** Destructive variant colors for [SettingsPrimaryButton]. */
+/** Destructive variant colors for settings primary actions. */
 @Composable
 internal fun settingsDestructiveButtonColors(): ButtonColors = ButtonDefaults.buttonColors(
     containerColor = MaterialTheme.colorScheme.error,
@@ -514,39 +515,74 @@ internal fun settingsDestructiveButtonColors(): ButtonColors = ButtonDefaults.bu
 )
 
 /**
- * Floating save toolbar for pages with a draft: optional reset action plus the primary save button.
- * Place it bottom-center above the navigation bar and give the content
- * [SettingsDefaults.FloatingToolbarClearance] of bottom room.
+ * Fixed form action placed in [SettingsScaffold]'s bottom bar. Scaffold measures its height for
+ * scroll padding and Snackbar placement; the parent handles IME padding before these system insets.
  */
 @Composable
-internal fun SettingsSaveToolbar(
+internal fun SettingsActionBar(
     label: String,
-    onSave: () -> Unit,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     busy: Boolean = false,
-    @DrawableRes icon: Int = R.drawable.ic_symbol_check,
-    resetLabel: String? = null,
-    resetBusy: Boolean = false,
-    resetEnabled: Boolean = true,
-    onReset: (() -> Unit)? = null,
+    colors: ButtonColors = ButtonDefaults.buttonColors(),
+    actionDescription: String? = null,
 ) {
-    val height = SettingsDefaults.PrimaryButtonHeight
-    HorizontalFloatingToolbar(expanded = true, modifier = modifier) {
-        if (onReset != null) {
-            IconButton(onClick = onReset, enabled = resetEnabled) {
-                if (resetBusy) IndeterminateCircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
-                else Icon(painterResource(R.drawable.ic_symbol_history), resetLabel)
+    val height = ButtonDefaults.MediumContainerHeight
+    val workingDescription = if (busy) stringResource(R.string.auth_working) else null
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+    ) {
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                modifier = Modifier
+                    .widthIn(max = SettingsDefaults.MaxContentWidth)
+                    .fillMaxWidth()
+                    .windowInsetsPadding(
+                        WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
+                    )
+                    .padding(
+                        horizontal = SettingsDefaults.HorizontalPadding,
+                        vertical = SettingsDefaults.BottomPadding,
+                    ),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                ShadowButton(
+                    onClick = onClick,
+                    enabled = enabled && !busy,
+                    modifier = Modifier.heightIn(min = height).semantics {
+                        actionDescription?.let { contentDescription = it }
+                        workingDescription?.let { stateDescription = it }
+                    },
+                    shapes = ButtonDefaults.shapesFor(height),
+                    colors = colors,
+                    contentPadding = ButtonDefaults.contentPaddingFor(height, hasStartIcon = busy),
+                ) {
+                    if (busy) {
+                        IndeterminateCircularProgressIndicator(
+                            modifier = Modifier.size(Material2ButtonDefaults.IconSize).clearAndSetSemantics {},
+                            color = LocalContentColor.current,
+                            strokeWidth = 2.dp,
+                        )
+                        Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(height)))
+                    }
+                    Text(label, style = ButtonDefaults.textStyleFor(height), maxLines = 1, softWrap = false)
+                }
             }
         }
-        ShadowButton(
-            onClick = onSave,
-            enabled = enabled,
-            modifier = Modifier.heightIn(min = height),
-            shapes = ButtonDefaults.shapesFor(height),
-            contentPadding = ButtonDefaults.contentPaddingFor(height, hasStartIcon = true),
-        ) {
-            PrimaryButtonContent(icon, label, busy)
-        }
+    }
+}
+
+@Preview(name = "Settings action · English", widthDp = 320)
+@Preview(name = "Settings action · Large text", widthDp = 320, fontScale = 2f)
+@Preview(name = "Settings action · Chinese", widthDp = 320, fontScale = 2f, locale = "zh")
+@Composable
+private fun SettingsActionBarPreview() {
+    KIRAKIRATheme {
+        SettingsActionBar(label = stringResource(R.string.security_confirm), onClick = {})
     }
 }

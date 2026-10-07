@@ -35,6 +35,7 @@
     <string name="security_recovery_code">恢复码</string>
     <string name="security_copy_codes">复制备用码与恢复码</string>
     <string name="security_done">我已保存这些代码</string>
+    <string name="security_codes_saved">已保存代码</string>
     <string name="security_leave_codes_title">尚未保存，确定离开？</string>
     <string name="security_leave_codes_message">离开后将无法再次查看这些代码。</string>
     <string name="security_copied">已复制</string>
@@ -81,6 +82,7 @@
     <string name="profile_remove_label">移除标签 %1$s</string>
     <string name="profile_save">保存</string>
     <string name="profile_finish_save">重试同步</string>
+    <string name="settings_retry_sync">重试同步</string>
     <string name="profile_saved">资料已保存</string>
     <string name="profile_saved_pending">资料已在服务器保存，但未能完成本机同步。请重试更新本机资料。</string>
     <string name="profile_sign_in">登录以编辑自己的资料</string>

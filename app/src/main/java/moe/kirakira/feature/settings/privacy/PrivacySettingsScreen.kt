@@ -4,12 +4,8 @@ package moe.kirakira.feature.settings.privacy
 
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -17,12 +13,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
-import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -32,23 +24,26 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonGroupDefaults
-import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberBottomSheetState
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -56,41 +51,37 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import moe.kirakira.R
-import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.data.settings.PrivacyItem
 import moe.kirakira.data.settings.PrivacyVisibility
-import moe.kirakira.ui.components.CollapsibleTopAppBar
+import moe.kirakira.feature.settings.SettingsActionBar
+import moe.kirakira.feature.settings.SettingsColumn
+import moe.kirakira.feature.settings.SettingsScaffold
+import moe.kirakira.feature.settings.SettingsSection
+import moe.kirakira.feature.settings.SettingsSectionHeader
+import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.ui.components.ContentUnavailableAction
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.IconBadge
 import moe.kirakira.ui.components.IconBadgeTone
-import moe.kirakira.feature.settings.SettingsColumn
-import moe.kirakira.feature.settings.SettingsDefaults
-import moe.kirakira.feature.settings.SettingsSaveToolbar
-import moe.kirakira.feature.settings.SettingsScaffold
-import moe.kirakira.feature.settings.SettingsSection
-import moe.kirakira.feature.settings.SettingsSectionHeader
-import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.ShadowRadioButton
+import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.messageRes
-import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 @Composable
@@ -144,17 +135,53 @@ internal fun PrivacySettingsScreen(
             onDismissMessage()
         }
     }
-    val toolbarVisible = signedIn && state.original != null
+    val actionBarVisible = signedIn && !sessionBusy && state.original != null
+    val resetLabel = stringResource(R.string.privacy_reset)
+    val workingDescription = stringResource(R.string.auth_working)
     SettingsScaffold(
         title = stringResource(R.string.settings_privacy),
         onBack = onBack,
         shadingIcon = R.drawable.ic_symbol_shield,
         modifier = modifier,
-        snackbarHost = {
-            SnackbarHost(
-                snackbar,
-                modifier = Modifier.padding(bottom = if (toolbarVisible) 72.dp else 0.dp),
-            )
+        imePadding = true,
+        actions = {
+            if (actionBarVisible) {
+                TooltipBox(
+                    positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+                    tooltip = { PlainTooltip { Text(resetLabel) } },
+                    state = rememberTooltipState(),
+                ) {
+                    IconButton(
+                        onClick = onRefresh,
+                        enabled = !state.busy,
+                        modifier = Modifier.semantics {
+                            contentDescription = resetLabel
+                            if (state.loading) stateDescription = workingDescription
+                        },
+                    ) {
+                        if (state.loading) {
+                            IndeterminateCircularProgressIndicator(
+                                modifier = Modifier.size(24.dp).clearAndSetSemantics {},
+                                color = LocalContentColor.current,
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Icon(painterResource(R.drawable.ic_symbol_history), null, Modifier.size(24.dp))
+                        }
+                    }
+                }
+            }
+        },
+        snackbarHost = { SnackbarHost(snackbar) },
+        bottomBar = {
+            if (actionBarVisible) {
+                SettingsActionBar(
+                    label = stringResource(R.string.privacy_apply),
+                    onClick = onSave,
+                    enabled = state.editable && state.dirty,
+                    busy = state.saving,
+                )
+            }
         },
     ) { padding ->
         val initialLoading = sessionBusy || (state.loading && state.original == null)
@@ -173,33 +200,7 @@ internal fun PrivacySettingsScreen(
                 primaryAction = ContentUnavailableAction(stringResource(R.string.management_login), onLogin),
             )
         } else {
-            SettingsColumn(
-                padding = padding,
-                bottomClearance = if (toolbarVisible) SettingsDefaults.FloatingToolbarClearance else 0.dp,
-                overlay = {
-                    AnimatedVisibility(
-                        visible = toolbarVisible,
-                        enter = fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()) +
-                            slideInVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it / 2 },
-                        exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) +
-                            slideOutVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it / 2 },
-                        modifier = Modifier.align(Alignment.BottomCenter)
-                            .navigationBarsPadding()
-                            .padding(bottom = 16.dp),
-                    ) {
-                        SettingsSaveToolbar(
-                            label = stringResource(R.string.privacy_apply),
-                            onSave = onSave,
-                            enabled = state.editable && state.dirty,
-                            busy = state.saving,
-                            resetLabel = stringResource(R.string.privacy_reset),
-                            resetBusy = state.loading,
-                            resetEnabled = !state.busy,
-                            onReset = onRefresh,
-                        )
-                    }
-                },
-            ) {
+            SettingsColumn(padding = padding) {
                 when {
                     state.error != null -> ContentUnavailableView(
                         state = ContentUnavailableState.ERROR,

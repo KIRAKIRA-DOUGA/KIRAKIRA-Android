@@ -7,27 +7,18 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
@@ -42,19 +33,17 @@ import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PlainTooltip
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
-import androidx.compose.material3.rememberTooltipState
 import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -64,7 +53,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
@@ -81,22 +69,21 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
-import moe.kirakira.ui.components.ShadowFilledIconButton
-import moe.kirakira.feature.settings.SettingsColumn
-import moe.kirakira.feature.settings.SettingsDefaults
-import moe.kirakira.feature.settings.SettingsErrorCard
-import moe.kirakira.feature.settings.SettingsFormCard
-import moe.kirakira.feature.settings.SettingsSaveToolbar
-import moe.kirakira.feature.settings.SettingsScaffold
-import moe.kirakira.feature.settings.SettingsSection
 import moe.kirakira.R
 import moe.kirakira.data.auth.AccountProfile
+import moe.kirakira.feature.settings.SettingsActionBar
+import moe.kirakira.feature.settings.SettingsColumn
+import moe.kirakira.feature.settings.SettingsErrorCard
+import moe.kirakira.feature.settings.SettingsFormCard
+import moe.kirakira.feature.settings.SettingsScaffold
+import moe.kirakira.feature.settings.SettingsSection
 import moe.kirakira.ui.components.AccountAvatar
 import moe.kirakira.ui.components.ContentUnavailableAction
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
-import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.ShadowFilledIconButton
+import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorDefaults
@@ -122,12 +109,27 @@ internal fun ProfileEditorScreen(
         shadingIcon = R.drawable.ic_symbol_person,
         modifier = modifier,
         imePadding = true,
-        snackbarHost = {
-            SnackbarHost(snackbar, Modifier.padding(bottom = if (state.draft != null) 72.dp else 0.dp))
+        snackbarHost = { SnackbarHost(snackbar) },
+        bottomBar = {
+            if (state.draft != null) {
+                SettingsActionBar(
+                    label = stringResource(
+                        if (state.completionOnly) R.string.settings_retry_sync else R.string.profile_save,
+                    ),
+                    onClick = onSave,
+                    enabled = state.dirty && !state.loading && !state.busy && !state.preparingImage,
+                    busy = state.busy,
+                    actionDescription = if (state.completionOnly) {
+                        stringResource(R.string.profile_finish_save)
+                    } else null,
+                )
+            }
         },
     ) { padding ->
         when {
-            state.loading -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+            state.loading && state.draft == null -> Box(
+                Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center,
+            ) {
                 IndeterminateCircularProgressIndicator()
             }
             state.draft == null && state.error != null -> ContentUnavailableView(
@@ -141,20 +143,7 @@ internal fun ProfileEditorScreen(
                 primaryAction = ContentUnavailableAction(stringResource(R.string.auth_sign_in), onLogin),
                 modifier = Modifier.padding(padding),
             )
-            else -> SettingsColumn(
-                padding = padding,
-                bottomClearance = SettingsDefaults.FloatingToolbarClearance,
-                overlay = {
-                    SettingsSaveToolbar(
-                        label = stringResource(if (state.completionOnly) R.string.profile_finish_save else R.string.profile_save),
-                        onSave = onSave,
-                        enabled = state.dirty && !state.busy && !state.preparingImage,
-                        busy = state.busy,
-                        icon = R.drawable.ic_symbol_save,
-                        modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 16.dp),
-                    )
-                },
-            ) {
+            else -> SettingsColumn(padding = padding) {
                 ProfileIdentity(state, onPickAvatar)
                 if (state.error != null) SettingsErrorCard(stringResource(
                     if (state.completionOnly) R.string.profile_saved_pending else state.error.messageRes()))
