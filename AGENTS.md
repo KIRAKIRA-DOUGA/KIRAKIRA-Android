@@ -21,6 +21,7 @@
 - 指定 Expressive 按钮尺寸时，使用 `ButtonDefaults` 官方尺寸常量及同一尺寸的形状、内边距、文字和图标 API，不手写标准尺寸参数或只放大容器；使用最小高度适应字体缩放，详见贡献指南。
 - 资料保存、隐私应用与账号安全流程使用 `SettingsScaffold.bottomBar` 中的 `SettingsActionBar`，普通实心按钮按内容宽度靠尾侧，采用官方 Medium 尺寸、单行文字与共享彩色阴影，不使用 FAB 或悬浮工具栏；底栏实测高度放入滚动内容 padding，系统／IME Insets 不重复处理，Snackbar 由宿主避让。隐私重置位于顶栏，取消沿用返回保护；头像裁剪保留底部旋转与完成操作栏，详见贡献指南。
 - 个人主页与视频页复用 `FollowButton`：未关注使用 `primary/onPrimary` 及共享双层投影，已关注使用灰色 `surfaceContainerHigh/onSurfaceVariant` 且无投影；禁用时无阴影，保留官方 ToggleButton 的选中语义、尺寸与形变。
+- 邀请码顶部统计块的生成按钮是实心按钮阴影规则的例外：使用官方 `Button`，可用时固定白底与 `primary` 前景，所有交互状态均无阴影，保留官方 Expressive 尺寸、形变和禁用语义。
 - 遵循 `.editorconfig` 和 Kotlin official 风格：四空格、UTF-8、LF；禁用通配符导入，移除无用导入。
 - 类型、文件和返回 `Unit` 的 UI composable 用 `PascalCase`；普通函数和属性用 `camelCase`；资源用 `snake_case`。
 - 复用 `KIRAKIRATheme`，统一经典强调色，默认项目粉色，壁纸取色作为可选颜色来源；图标默认使用官方 **Material Symbols Rounded**，必要时可绘制相同风格的自定义矢量图标，记录来源或设计理由，不混用旧版 Material Icons、SF Symbols 或其他图标风格。
