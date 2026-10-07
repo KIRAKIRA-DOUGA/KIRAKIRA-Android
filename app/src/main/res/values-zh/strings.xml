@@ -378,6 +378,7 @@
     <string name="player_show_controls">显示播放控件</string>
     <string name="player_hide_controls">隐藏播放控件</string>
     <string name="player_seek">播放进度</string>
+    <string name="player_toggle_time_format">切换播放时间显示</string>
     <string name="content_not_available_yet">暂未开放</string>
     <string name="profile_load_failed">资料加载失败</string>
     <string name="profile_stats_load_failed">关注与粉丝数加载失败</string>

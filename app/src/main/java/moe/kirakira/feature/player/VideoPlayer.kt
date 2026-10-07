@@ -164,6 +164,7 @@ internal fun VideoPlayer(
     var controlsVisible by remember { mutableStateOf(true) }
     var interaction by remember { mutableIntStateOf(0) }
     var dragged by remember(player) { mutableStateOf<Float?>(null) }
+    var showRemainingTime by remember(player) { mutableStateOf(false) }
     val sliderInteraction = remember { MutableInteractionSource() }
     val dragging by sliderInteraction.collectIsDraggedAsState()
     val pressing by sliderInteraction.collectIsPressedAsState()
@@ -391,6 +392,13 @@ internal fun VideoPlayer(
                                 slider.value = dragged
                                     ?: (state.positionMs.toFloat() / state.durationMs.coerceAtLeast(1)).coerceIn(0f, 1f)
                             }
+                            val displayedPositionMs = dragged?.let { (it * state.durationMs).toLong() }
+                                ?: state.positionMs
+                            val displayedTime = if (showRemainingTime && state.durationMs > 0) {
+                                "-${durationText((state.durationMs - displayedPositionMs).coerceAtLeast(0))}"
+                            } else {
+                                durationText(displayedPositionMs)
+                            }
                             PlayerControlsLayout(
                                 modifier = contentModifier,
                                 fullscreen = fullscreen,
@@ -408,15 +416,18 @@ internal fun VideoPlayer(
                                     Box(
                                         Modifier
                                             .heightIn(min = 48.dp)
-                                            .padding(start = 16.dp),
+                                            .padding(start = 16.dp)
+                                            .clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = null,
+                                                onClickLabel = stringResource(R.string.player_toggle_time_format),
+                                            ) {
+                                                controlAction { showRemainingTime = !showRemainingTime }
+                                            },
                                         contentAlignment = Alignment.CenterStart,
                                     ) {
                                         Text(
-                                            "${durationText(dragged?.let { (it * state.durationMs).toLong() } ?: state.positionMs)} / ${
-                                                durationText(
-                                                    state.durationMs,
-                                                )
-                                            }",
+                                            "$displayedTime / ${durationText(state.durationMs)}",
                                             style = MaterialTheme.typography.labelMedium,
                                             color = Color.White,
                                         )

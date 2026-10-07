@@ -385,6 +385,7 @@
     <string name="player_show_controls">Show playback controls</string>
     <string name="player_hide_controls">Hide playback controls</string>
     <string name="player_seek">Playback position</string>
+    <string name="player_toggle_time_format">Toggle playback time display</string>
     <string name="content_not_available_yet">Not available yet</string>
     <string name="profile_load_failed">Could not load profile</string>
     <string name="profile_stats_load_failed">Could not load follow counts</string>
