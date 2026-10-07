@@ -62,7 +62,6 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.LocalContext
@@ -83,7 +82,6 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.media3.common.Player
-import androidx.media3.ui.compose.ContentFrame
 import kotlinx.coroutines.delay
 import moe.kirakira.ui.components.ShadowFilledIconButton
 import moe.kirakira.R
@@ -240,7 +238,7 @@ internal fun VideoPlayer(
             .then(screenInteraction),
     ) {
         if (player != null) {
-            ContentFrame(player = player, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+            PlayerContentFrame(player = player, modifier = Modifier.fillMaxSize())
         } else {
             VideoArtwork(
                 image = image,

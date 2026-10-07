@@ -49,7 +49,6 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
@@ -66,7 +65,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.media3.ui.compose.ContentFrame
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import moe.kirakira.MainActivity
@@ -144,7 +142,7 @@ internal fun PlaybackHost(
     val player = playback.player ?: return
     if (pip && !videoPageActive) {
         Box(modifier.fillMaxSize().background(Color.Black)) {
-            ContentFrame(player, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+            PlayerContentFrame(player, Modifier.fillMaxSize())
         }
     } else if (playback.miniPlayer && !videoPageActive) {
         val iconMotion = rememberPlaybackIconMotion(playback.showPauseIcon)
@@ -256,7 +254,7 @@ internal fun PlaybackHost(
                         if (keepVisible || !controlsVisible) interact() else hideControls()
                     },
             ) {
-                ContentFrame(player, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                PlayerContentFrame(player, Modifier.fillMaxSize())
                 if (initialLoadingAlpha > 0f) {
                     PlayerInitialLoadingOverlay(alpha = { initialLoadingAlpha })
                 }
