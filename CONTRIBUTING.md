@@ -55,6 +55,7 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 - 通过 `KIRAKIRATheme` 和 `MaterialTheme` 复用颜色、字体及形状；避免在业务页面散落品牌颜色。布局使用 `dp`，字体使用 `sp`，通用设计值按实际复用需求提取。
 - 独立展示用户名（username）时统一使用 `@username`、`FontFamily.Monospace` 等宽字体和 `MaterialTheme.colorScheme.onSurfaceVariant` 次要文字颜色，字号沿用所在组件的排版层级；适用于个人主页、“我”、视频页上传者、评论作者、历史记录作者、关注／粉丝列表及资料预览。空白 username 不展示文字行。`@` 仅在展示层添加，输入框、存储及 API 参数保留原始 username；昵称或显示名称回退使用 username 时仍沿用名称样式，不套用独立 username 样式。
 - 新界面文案必须放入字符串资源，包含错误、导航标题和无障碍描述；使用格式化资源和 plurals，不拼接可翻译句子。
+- 界面文案标点遵循 [Material 3 UX 写作指南](https://m3.material.io/foundations/content-design/style-guide/grammar-and-punctuation)：按钮、标签、导航项、菜单项、Tooltip、单行状态、短错误提示和空状态等单句文案不加句末标点；多句说明保留句号，较长或复杂说明可按上下文保留；问句使用问号；进行中的状态使用省略号，不在按钮或菜单项上添加省略号。中文使用 `。`、`？`、`！` 等中文标点，英文使用对应英文标点。感叹号仅在确有语气或品牌意图时使用，`about_alpha` 的 `Alpha!` 是 About 页的特意文案，保留该例外。
 - 除非用户明确要求，界面中不添加解释功能如何运作的说明文字；功能机制与实现细节记录在相应文档中。界面保留必要的操作标签、状态反馈、错误信息和无障碍提示，不主动加入机制说明或实现细节。
 - 当前支持英语与中文：`res/values/strings.xml` 是完整英语界面回退资源，`res/values-zh/strings.xml` 提供中文；新增可翻译 key 必须同时补齐两套文案。品牌名标记 `translatable="false"`。跟随系统语言，Android 13+ 通过 `res/xml/locales_config.xml` 声明应用语言；新增语言同步配置并检查长文案和字体缩放。
 - 不在应用中内置 Demo 账号、评论、弹幕、视频或邀请码等演示内容。设计预览优先使用空表单、游客账号与空列表，不依赖真实服务。按钮、导航标题、输入提示、功能待接入提示、数量标签和无障碍描述仍须维护中英文翻译。
