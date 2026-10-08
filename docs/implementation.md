@@ -475,7 +475,7 @@ ViewModel 分离关键词草稿、所选标签和已提交条件。视频读取�
 
 `SettingsScaffold` 的可选 `bottomBar` 插槽直接交给 `FrostedScaffold` 内的官方 Scaffold。资料、隐私及账号安全流程使用 [SettingsActionBar](../app/src/main/java/moe/kirakira/feature/settings/SettingsComponents.kt)，不再将主操作放在滚动内容的悬浮工具栏或表单末尾；头像裁剪保留原底部旋转与 `SettingsPrimaryButton` 完成布局。
 
-操作区以 `surface` 铺满宽度，内部居中限制在设置页 640dp 内容区域，四周留出 16dp，主按钮按标签宽度向尾侧对齐。`ShadowButton` 使用 `ButtonDefaults.MediumContainerHeight` 及同高度的 `shapesFor`、`contentPaddingFor` 和 `textStyleFor`，默认仅显示单行文字，加载时使用 Material 2 官方按钮图标尺寸／2dp 的圆形加载器，前景继承当前按钮内容色。普通操作沿用 `primary/onPrimary`，安全停用为 `error/onError`；保留本项目共享双层彩色阴影和禁用时无阴影的规则，这是相对 [Material 官方默认实心样式](https://m3.material.io/components/buttons/guidelines)的定制。同步重试和恢复码确认使用短标签，原完整资源用于按钮无障碍描述；加载状态通过本地化状态描述表达。
+操作区以 `surface` 铺满宽度，根 `Surface` 通过 `shadowElevation = BarShadowElevation` 绘制固定 4dp 原生阴影，按钮可用、禁用及加载状态均保留底栏阴影。内部居中限制在设置页 640dp 内容区域，四周留出 16dp，主按钮按标签宽度向尾侧对齐。`ShadowButton` 使用 `ButtonDefaults.MediumContainerHeight` 及同高度的 `shapesFor`、`contentPaddingFor` 和 `textStyleFor`，默认仅显示单行文字，加载时使用 Material 2 官方按钮图标尺寸／2dp 的圆形加载器，前景继承当前按钮内容色。普通操作沿用 `primary/onPrimary`，安全停用为 `error/onError`；保留本项目共享双层彩色阴影和禁用时无阴影的规则，这是相对 [Material 官方默认实心样式](https://m3.material.io/components/buttons/guidelines)的定制。同步重试和恢复码确认使用短标签，原完整资源用于按钮无障碍描述；加载状态通过本地化状态描述表达。
 
 宿主使用 `imePadding` 避让并消费键盘 Insets，操作区仅处理尚未消费的 `safeDrawing` 横向和底部安全区域。Scaffold 将底栏实测高度写入内容 padding，`SettingsColumn` 及安全页滚动 Column 将其放在 `verticalScroll` 后的底部 padding，保持完整滚动视口；Snackbar 自动放在底栏上方，不另加固定偏移或悬浮工具栏留白。游客、首次无数据加载／错误及安全概览不组合底栏，已有表单刷新或提交时保留并禁用操作。隐私重置为顶栏裸图标按钮，保留提示、加载和禁用语义，仍调用原有重新读取入口；返回、舍弃、账号隔离和业务提交继续由现有 ViewModel 管理。
 

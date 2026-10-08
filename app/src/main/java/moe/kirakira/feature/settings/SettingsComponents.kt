@@ -62,7 +62,6 @@ import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
-import kotlin.math.roundToInt
 import moe.kirakira.R
 import moe.kirakira.ui.components.CollapsibleTopAppBar
 import moe.kirakira.ui.components.ConnectedListGroup
@@ -76,6 +75,7 @@ import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorDefaults
+import kotlin.math.roundToInt
 import androidx.compose.material.ButtonDefaults as Material2ButtonDefaults
 
 /** Shared spacing for settings subpages so every page lines up with the settings list. */
@@ -533,6 +533,7 @@ internal fun SettingsActionBar(
     Surface(
         modifier = modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 8.dp,
     ) {
         Box(
             modifier = Modifier.fillMaxWidth(),
@@ -554,17 +555,21 @@ internal fun SettingsActionBar(
                 ShadowButton(
                     onClick = onClick,
                     enabled = enabled && !busy,
-                    modifier = Modifier.heightIn(min = height).semantics {
-                        actionDescription?.let { contentDescription = it }
-                        workingDescription?.let { stateDescription = it }
-                    },
+                    modifier = Modifier
+                        .heightIn(min = height)
+                        .semantics {
+                            actionDescription?.let { contentDescription = it }
+                            workingDescription?.let { stateDescription = it }
+                        },
                     shapes = ButtonDefaults.shapesFor(height),
                     colors = colors,
                     contentPadding = ButtonDefaults.contentPaddingFor(height, hasStartIcon = busy),
                 ) {
                     if (busy) {
                         IndeterminateCircularProgressIndicator(
-                            modifier = Modifier.size(Material2ButtonDefaults.IconSize).clearAndSetSemantics {},
+                            modifier = Modifier
+                                .size(Material2ButtonDefaults.IconSize)
+                                .clearAndSetSemantics {},
                             color = LocalContentColor.current,
                             strokeWidth = 2.dp,
                         )
