@@ -5,6 +5,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import moe.kirakira.data.content.FollowListKind
 import moe.kirakira.feature.imageviewer.ViewerImage
+import java.util.UUID
 
 // Preserve the serialized route names when moving routes into the navigation package.
 @Serializable
@@ -64,7 +65,11 @@ internal data class FollowListRoute(val uid: Long, val kind: FollowListKind) : N
 internal data object SelfProfileRoute : NavKey
 
 @Serializable
-internal data class ImageViewerRoute(val image: ViewerImage) : NavKey
+internal data class ImageViewerRoute(
+    val image: ViewerImage,
+    // A default also allows restoring stacks saved before viewer instances had an identity.
+    val instanceId: String = UUID.randomUUID().toString(),
+) : NavKey
 
 @Serializable
 internal data object DanmakuSettingsRoute : NavKey

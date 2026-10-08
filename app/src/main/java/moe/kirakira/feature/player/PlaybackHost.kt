@@ -79,6 +79,7 @@ internal fun PlaybackHost(
     playback: PlaybackViewModel,
     settings: PlaybackSettings?,
     videoPageActive: Boolean,
+    imageViewerActive: Boolean,
     bottomBarHeightPx: Int,
     onRestore: () -> Unit,
     modifier: Modifier = Modifier,
@@ -89,7 +90,7 @@ internal fun PlaybackHost(
     val pip = activity?.pictureInPicture == true
     val initialLoadingAlpha by rememberPlayerInitialLoadingAlpha(
         visible = playback.initialLoading,
-        immediatelyHidden = playback.failed || playback.player == null || !playback.miniPlayer || pip,
+        immediatelyHidden = playback.failed || playback.player == null || !playback.miniPlayer || pip || imageViewerActive,
     )
     var horizontal by rememberSaveable { mutableStateOf(1f) }
     var vertical by rememberSaveable { mutableStateOf(1f) }
@@ -144,7 +145,7 @@ internal fun PlaybackHost(
         Box(modifier.fillMaxSize().background(Color.Black)) {
             PlayerContentFrame(player, Modifier.fillMaxSize())
         }
-    } else if (playback.miniPlayer && !videoPageActive) {
+    } else if (playback.miniPlayer && !videoPageActive && !imageViewerActive) {
         val iconMotion = rememberPlaybackIconMotion(playback.showPauseIcon)
         val iconColors = IconButtonDefaults.iconButtonColors(contentColor = Color.White)
         val restoreLabel = stringResource(R.string.player_mini_restore)

@@ -21,6 +21,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -37,6 +38,8 @@ import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.appTopAppBarColors
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.components.rememberTabChangeHandler
+import okio.ByteString.Companion.encodeUtf8
+import java.util.UUID
 
 internal enum class ProfileTab { VIDEOS, COLLECTIONS }
 internal enum class ProfileAction(@param:StringRes val messageRes: Int) {
@@ -62,6 +65,8 @@ internal fun ProfilePage(
     val error by model.actionError.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val density = LocalDensity.current
+    val sourceInstanceId = rememberSaveable { UUID.randomUUID().toString() }
     val scope = rememberCoroutineScope()
     LaunchedEffect(error) {
         error?.let { snackbar.showSnackbar(context.getString(it.messageRes())); model.dismissActionError() }
@@ -88,8 +93,14 @@ internal fun ProfilePage(
         }) { padding -> ContentStatus(profile, model::refresh, Modifier.fillMaxSize().padding(padding), presentation = ContentUnavailablePresentation.PAGE) }
         return
     }
-    val state = ProfileUiState(value.copy(isSelf = value.uid == session.activeProfile?.uid),
-        stats.data?.following, stats.data?.followers, busy)
+    val avatarIdentity = remember(value.uid, value.avatar) {
+        "${value.uid}/${value.avatar.orEmpty()}".encodeUtf8().sha256().hex()
+    }
+    val state = ProfileUiState(
+        value.copy(isSelf = value.uid == session.activeProfile?.uid),
+        stats.data?.following, stats.data?.followers, busy,
+        avatarKey = "profile/$sourceInstanceId/$avatarIdentity",
+    )
     val pager = rememberPagerState(pageCount = { ProfileTab.entries.size })
     val onTabChange = rememberTabChangeHandler(pager)
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -107,8 +118,16 @@ internal fun ProfilePage(
         onUnavailableAction = { action -> scope.launch { snackbar.showSnackbar(context.getString(action.messageRes)) } },
         onOpenAvatar = {
             deliveryImageUrl(value.avatar)?.let { url ->
-                onOpenImage(ViewerImage(ImageSource.RemoteUrl(url),
-                    context.getString(R.string.profile_view_avatar, value.name), "avatar_${value.uid}", state.avatarKey))
+                onOpenImage(
+                    ViewerImage(
+                        source = ImageSource.RemoteUrl(url),
+                        description = context.getString(R.string.profile_view_avatar, value.name),
+                        fileName = "avatar_${value.uid}",
+                        sharedKey = state.avatarKey,
+                        thumbnail = deliveryImageUrl(value.avatar, with(density) { profileAvatarSize.roundToPx() })
+                            ?.let(ImageSource::RemoteUrl),
+                    ),
+                )
             }
         },
         onOpenVideo = onOpenVideo, onBack = onBack, onRetry = model::refresh,

@@ -12,8 +12,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -38,6 +41,31 @@ internal val LocalImageTransitionSizes = compositionLocalOf<ImageTransitionSizes
 internal class ImageTransitionSizes {
     private val sourceSizes = mutableMapOf<String, Size>()
     private val viewerSizes = mutableMapOf<String, Size>()
+    private val participants = mutableMapOf<String, MutableMap<Any, Boolean>>()
+    private val drawableViewers = mutableStateMapOf<String, Map<Any, Boolean>>()
+
+    fun attach(key: String, participant: Any, viewer: Boolean) {
+        participants.getOrPut(key) { mutableMapOf() }[participant] = viewer
+    }
+
+    fun drawable(key: String, participant: Any, drawable: Boolean) {
+        val previous = drawableViewers[key].orEmpty()
+        if (previous[participant] != drawable) drawableViewers[key] = previous + (participant to drawable)
+    }
+
+    fun viewerCanDraw(key: String): Boolean = drawableViewers[key]?.values?.any { it } == true
+
+    fun release(key: String, participant: Any) {
+        val remaining = participants[key] ?: return
+        remaining.remove(participant)
+        val drawable = drawableViewers[key].orEmpty() - participant
+        if (drawable.isEmpty()) drawableViewers.remove(key) else drawableViewers[key] = drawable
+        if (remaining.values.none { it } || remaining.values.none { !it }) {
+            sourceSizes.remove(key)
+            viewerSizes.remove(key)
+        }
+        if (remaining.isEmpty()) participants.remove(key)
+    }
 
     fun record(key: String, initial: Rect, target: Rect) {
         val initialIsSource = initial.width * initial.height <= target.width * target.height
@@ -66,11 +94,17 @@ internal class ImageTransitionSizes {
 
 /** Bounds and the zoom layer are separate: closing never resets Telephoto's current transform. */
 @Composable
-internal fun Modifier.imageSharedBounds(key: String?, viewer: Boolean): Modifier {
+internal fun Modifier.imageSharedBounds(key: String?, viewer: Boolean, drawable: Boolean = false): Modifier {
     val easing = rememberEmphasizedEasing()
     val sharedScope = LocalImageSharedScope.current ?: return this
     if (key == null) return this
     val sizes = LocalImageTransitionSizes.current ?: return this
+    val participant = remember(key, viewer) { Any() }
+    DisposableEffect(key, participant, sizes) {
+        sizes.attach(key, participant, viewer)
+        onDispose { sizes.release(key, participant) }
+    }
+    SideEffect { if (viewer) sizes.drawable(key, participant, drawable) }
     val visibility = LocalNavAnimatedContentScope.current
     val overlayClip = remember(key, viewer, sizes) {
         object : SharedTransitionScope.OverlayClip {
@@ -116,7 +150,7 @@ internal fun Modifier.imageSharedBounds(key: String?, viewer: Boolean): Modifier
                 clip = !movingInOverlay
                 // Match lifetime outlasts overlay rendering. Restore the source on the same
                 // frame the overlay stops drawing, rather than waiting for viewer disposal.
-                alpha = if (!viewer && movingInOverlay) 0f else 1f
+                alpha = if (!viewer && movingInOverlay && sizes.viewerCanDraw(key)) 0f else 1f
             }
     }
 }
@@ -145,14 +179,5 @@ internal fun Modifier.imageControlsOverlay(): Modifier {
                     exit = fadeOut(imageTransitionSpec(easing)),
                 )
         }
-    }
-}
-
-/** The full-screen scrim stays fixed above the source page while the shared image moves. */
-@Composable
-internal fun Modifier.imageBackgroundOverlay(): Modifier {
-    val sharedScope = LocalImageSharedScope.current ?: return this
-    return with(sharedScope) {
-        this@imageBackgroundOverlay.renderInSharedTransitionScopeOverlay(zIndexInOverlay = -2f)
     }
 }

@@ -1,8 +1,5 @@
 package moe.kirakira.ui.navigation
 
-import android.os.Build
-import android.view.RoundedCorner
-import android.view.View
 import android.view.animation.AnimationUtils
 import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.EnterTransition
@@ -23,6 +20,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -60,6 +58,7 @@ import androidx.navigationevent.NavigationEventHandler
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
+import moe.kirakira.ui.components.windowCornerRadius
 
 /**
  * Navigation 3 owns entries, saved state and ordinary navigation. A two-entry Scene keeps both
@@ -73,6 +72,7 @@ internal fun <T : Any> ActivityNavDisplay(
     onBackRequested: () -> Boolean = { true },
     canNavigateBack: () -> Boolean = { true },
     predictiveBackEnabled: Boolean = false,
+    onImageBack: (T) -> Unit = { onBack() },
     entryProvider: (T) -> NavEntry<T>,
 ) {
     val ordinaryMotion = rememberNavigationMotion()
@@ -99,18 +99,21 @@ internal fun <T : Any> ActivityNavDisplay(
     val sceneState = rememberSceneState(entries, listOf(strategy), onBack = onBack)
     val topRoute = backStack.last()
     // The image viewer uses Navigation 3's seekable predictive back. Other pages retain AOSP motion.
-    val displayState = rememberNavigationEventState(
-        currentInfo = SceneInfo(sceneState.currentScene),
-        backInfo = sceneState.previousScenes.asReversed().map { SceneInfo(it) },
-    )
-    NavigationBackHandler(
-        state = displayState,
-        isBackEnabled = imageActive && entries.size > 1,
-        onBackCompleted = {
-            // A close button may already have removed the viewer during the gesture.
-            if (imageActive && backStack.size > 1 && backStack.lastOrNull() == topRoute) onBack()
-        },
-    )
+    val displayState = key(if (imageActive) entries.last().contentKey else OrdinaryNavigationEventKey) {
+        val state = rememberNavigationEventState(
+            currentInfo = SceneInfo(sceneState.currentScene),
+            backInfo = sceneState.previousScenes.asReversed().map { SceneInfo(it) },
+        )
+        NavigationBackHandler(
+            state = state,
+            isBackEnabled = imageActive && entries.size > 1,
+            onBackCompleted = {
+                // Keying the handler retires an old gesture participant when another instance opens.
+                if (imageActive && backStack.size > 1 && backStack.lastOrNull() == topRoute) onImageBack(topRoute)
+            },
+        )
+        state
+    }
     var size by remember { mutableStateOf(IntSize.Zero) }
     val density = LocalDensity.current.density
     val view = LocalView.current
@@ -252,6 +255,8 @@ internal fun <T : Any> ActivityNavDisplay(
     }
 }
 
+private data object OrdinaryNavigationEventKey
+
 private class ActivitySceneStrategy<T : Any>(
     private val motion: PredictiveBackMotion,
     private val previewKey: Any?,
@@ -334,20 +339,4 @@ private data class ActivityScene<T : Any>(
             }
         }
     }
-}
-
-private const val DEFAULT_WINDOW_CORNER_RADIUS_DP = 28f
-
-/** Prefer screen corners; fall back to 28dp when the platform provides no positive radius. */
-private fun View.windowCornerRadius(): Float {
-    val fallbackRadius = DEFAULT_WINDOW_CORNER_RADIUS_DP * resources.displayMetrics.density
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return fallbackRadius
-    val insets = rootWindowInsets ?: return fallbackRadius
-    return listOf(
-        RoundedCorner.POSITION_TOP_LEFT,
-        RoundedCorner.POSITION_TOP_RIGHT,
-        RoundedCorner.POSITION_BOTTOM_LEFT,
-        RoundedCorner.POSITION_BOTTOM_RIGHT,
-    ).mapNotNull { insets.getRoundedCorner(it)?.radius?.takeIf { radius -> radius > 0 } }
-        .minOrNull()?.toFloat() ?: fallbackRadius
 }

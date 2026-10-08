@@ -7,8 +7,8 @@ internal data class ProfileUiState(
     val followingCount: Int? = null,
     val followerCount: Int? = null,
     val busy: Boolean = false,
+    val avatarKey: String? = null,
 ) {
     val isSelf get() = profile.isSelf
     val following get() = profile.following
-    val avatarKey get() = "profile/${profile.uid}/avatar"
 }

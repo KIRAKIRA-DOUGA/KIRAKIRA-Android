@@ -40,6 +40,7 @@ data class ViewerImage(
     val description: String,
     val fileName: String = "KIRAKIRA",
     val sharedKey: String? = null,
+    val thumbnail: ImageSource? = null,
 )
 
 internal fun ImageSource.coilModel(): Any = when (this) {

@@ -12,23 +12,30 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.IntSize
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil3.request.ImageRequest
+import coil3.SingletonImageLoader
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import me.saket.telephoto.zoomable.rememberZoomableImageState
 import moe.kirakira.R
 import moe.kirakira.ui.components.image.ImageViewerScreen
@@ -37,11 +44,12 @@ import moe.kirakira.ui.components.image.rememberImageViewerControlsState
 @Composable
 internal fun ImageViewerPage(
     image: ViewerImage,
+    instanceId: String,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     imageModifier: Modifier = Modifier,
-    backgroundModifier: Modifier = Modifier,
     controlsModifier: Modifier = Modifier,
+    onDrawableChange: (Boolean) -> Unit = {},
     transitioning: Boolean = false,
     visibilityProgress: () -> Float = { 1f },
 ) {
@@ -53,7 +61,20 @@ internal fun ImageViewerPage(
     val scope = rememberCoroutineScope()
     var permissionPending by remember { mutableStateOf(false) }
     var attempt by remember { mutableIntStateOf(0) }
-    var loadFailed by remember(image, attempt) { mutableStateOf(false) }
+    var viewport by remember { mutableStateOf(IntSize.Zero) }
+    val imageLoader = remember(context) { SingletonImageLoader.get(context) }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(instanceId, lifecycle) {
+        ImageViewerDiagnostics.lifecycle(instanceId, lifecycle.currentState)
+        val observer = LifecycleEventObserver { _, _ ->
+            ImageViewerDiagnostics.lifecycle(instanceId, lifecycle.currentState)
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(instanceId, transitioning) {
+        ImageViewerDiagnostics.transition(instanceId, transitioning)
+    }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         permissionPending = false
         if (granted) {
@@ -80,21 +101,48 @@ internal fun ImageViewerPage(
             snackbar.showSnackbar(context.getString(message))
         }
     }
-    key(image, attempt) {
+    key(instanceId, attempt) {
         val imageState = rememberZoomableImageState()
+        val loader = remember(context, imageLoader, image, instanceId, attempt, viewport) {
+            ViewerImageLoader(context, imageLoader, image, instanceId, attempt)
+        }
+        DisposableEffect(loader) {
+            onDispose { loader.close() }
+        }
+        LaunchedEffect(loader, viewport) {
+            if (viewport.width > 0 && viewport.height > 0) {
+                coroutineScope {
+                    launch { loader.loadThumbnail(viewport) }
+                    loader.load(viewport)
+                }
+            }
+        }
+        LaunchedEffect(loader) { loader.observeDecoderFailures() }
+        LaunchedEffect(loader, imageState) {
+            snapshotFlow {
+                val displayed = imageState.isImageDisplayed
+                displayed to (!displayed && loader.placeholder != null)
+            }.collect { (full, thumb) ->
+                ImageViewerDiagnostics.display(instanceId, attempt, full, thumb)
+                if (full) loader.markDisplayed()
+            }
+        }
+        LaunchedEffect(loader, loader.requestSucceeded) {
+            if (loader.requestSucceeded) {
+                val displayed = withTimeoutOrNull(VIEWER_FIRST_FRAME_TIMEOUT_MILLIS) {
+                    snapshotFlow { imageState.isImageDisplayed }.first { it }
+                }
+                if (displayed == null) loader.usePreview(ViewerImageFallback.FIRST_FRAME_TIMEOUT)
+            }
+        }
+        val loadFailed = loader.phase == ViewerImagePhase.FAILED
         val keepControlsVisible = busy || permissionPending || loadFailed || !imageState.isImageDisplayed
         val controls = rememberImageViewerControlsState(
             autoHideEnabled = !transitioning && snackbar.currentSnackbarData == null,
             forceVisible = keepControlsVisible,
         )
-        val request = remember(context, image) {
-            ImageRequest.Builder(context)
-                .data(image.source.coilModel())
-                .listener(onError = { _, _ -> loadFailed = true })
-                .build()
-        }
         ImageViewerScreen(
-            model = request,
+            image = loader.source,
             description = image.description,
             imageState = imageState,
             loadFailed = loadFailed,
@@ -122,9 +170,10 @@ internal fun ImageViewerPage(
             onInteractionChange = controls::onInteractionChange,
             modifier = modifier,
             imageModifier = imageModifier,
-            backgroundModifier = backgroundModifier,
             controlsModifier = controlsModifier,
-            placeholder = (image.source as? ImageSource.Resource)?.let { painterResource(it.id) },
+            placeholder = loader.placeholder,
+            onViewportChange = { viewport = it },
+            onDrawableChange = onDrawableChange,
             visibilityProgress = visibilityProgress,
         )
     }

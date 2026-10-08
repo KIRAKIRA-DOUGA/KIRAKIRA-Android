@@ -11,9 +11,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalAutofillManager
 import androidx.compose.ui.platform.LocalContext
@@ -30,19 +32,22 @@ import moe.kirakira.R
 import moe.kirakira.data.auth.AuthRepository
 import moe.kirakira.data.auth.SessionState
 import moe.kirakira.data.content.ContentRepository
-import moe.kirakira.data.settings.AccountSettingsRepository
+import moe.kirakira.data.profile.ProfileRepository
 import moe.kirakira.data.security.SecurityRepository
+import moe.kirakira.data.settings.AccountSettingsRepository
 import moe.kirakira.feature.account.AccountSwitchPage
 import moe.kirakira.feature.account.GUEST_ACCOUNT_ID
 import moe.kirakira.feature.account.SessionFeedback
 import moe.kirakira.feature.auth.AuthPage
 import moe.kirakira.feature.auth.AuthRoute
-import moe.kirakira.feature.imageviewer.ImageViewerPage
 import moe.kirakira.feature.follow.FollowListPage
 import moe.kirakira.feature.follow.FollowListViewModel
 import moe.kirakira.feature.history.HistoryHostViewModel
 import moe.kirakira.feature.history.HistoryPage
 import moe.kirakira.feature.history.HistoryViewModel
+import moe.kirakira.feature.imageviewer.ImageViewerCloseReason
+import moe.kirakira.feature.imageviewer.ImageViewerDiagnostics
+import moe.kirakira.feature.imageviewer.ImageViewerPage
 import moe.kirakira.feature.main.HomeViewModel
 import moe.kirakira.feature.main.MainScreen
 import moe.kirakira.feature.player.PlaybackHost
@@ -62,22 +67,21 @@ import moe.kirakira.feature.settings.PlaybackSettings
 import moe.kirakira.feature.settings.PlaybackSettingsScreen
 import moe.kirakira.feature.settings.PlaybackSettingsViewModel
 import moe.kirakira.feature.settings.SettingsScreen
-import moe.kirakira.feature.settings.security.SecuritySettingsPage
-import moe.kirakira.feature.settings.security.SecuritySettingsViewModel
-import moe.kirakira.feature.settings.privacy.PrivacySettingsPage
-import moe.kirakira.feature.settings.privacy.PrivacySettingsViewModel
-import moe.kirakira.feature.settings.profile.ProfileEditorPage
-import moe.kirakira.feature.settings.profile.ProfileEditorViewModel
-import moe.kirakira.data.profile.ProfileRepository
 import moe.kirakira.feature.settings.management.BlockingOverviewPage
 import moe.kirakira.feature.settings.management.BlockingOverviewViewModel
 import moe.kirakira.feature.settings.management.InvitationsPage
 import moe.kirakira.feature.settings.management.InvitationsViewModel
 import moe.kirakira.feature.settings.management.RuleManagementPage
 import moe.kirakira.feature.settings.management.RuleManagementViewModel
-import moe.kirakira.feature.video.VideoPage
+import moe.kirakira.feature.settings.privacy.PrivacySettingsPage
+import moe.kirakira.feature.settings.privacy.PrivacySettingsViewModel
+import moe.kirakira.feature.settings.profile.ProfileEditorPage
+import moe.kirakira.feature.settings.profile.ProfileEditorViewModel
+import moe.kirakira.feature.settings.security.SecuritySettingsPage
+import moe.kirakira.feature.settings.security.SecuritySettingsViewModel
 import moe.kirakira.feature.tag.TagPage
 import moe.kirakira.feature.tag.TagViewModel
+import moe.kirakira.feature.video.VideoPage
 import moe.kirakira.ui.components.rememberEmphasizedEasing
 import moe.kirakira.ui.theme.ThemeColorSettings
 import moe.kirakira.ui.theme.ThemeMode
@@ -111,6 +115,16 @@ internal fun AppNavHost(
     val danmakuSettings = if (LocalInspectionMode.current) DanmakuSettings()
         else danmakuSettingsModel?.settings?.collectAsStateWithLifecycle()?.value
     val backStack = rememberNavBackStack(MainRoute)
+    val composedViewers = remember { mutableStateMapOf<String, Int>() }
+    val imageViewerActive = backStack.lastOrNull() is ImageViewerRoute || composedViewers.isNotEmpty()
+    LaunchedEffect(backStack) {
+        var previous = emptySet<String>()
+        snapshotFlow { backStack.filterIsInstance<ImageViewerRoute>().map { it.instanceId }.toSet() }.collect { current ->
+            (current - previous).forEach { ImageViewerDiagnostics.stack(it, present = true) }
+            (previous - current).forEach { ImageViewerDiagnostics.stack(it, present = false) }
+            previous = current
+        }
+    }
     var profileBackGuard by remember { mutableStateOf<ProfileEditorViewModel?>(null) }
     var privacyBackGuard by remember { mutableStateOf<PrivacySettingsViewModel?>(null) }
     var securityBackGuard by remember { mutableStateOf<SecuritySettingsViewModel?>(null) }
@@ -150,12 +164,20 @@ internal fun AppNavHost(
             backStack.add(target)
         }
     }
+    fun closeImageViewer(route: ImageViewerRoute, reason: ImageViewerCloseReason) {
+        val accepted = backStack.size > 1 &&
+            (backStack.lastOrNull() as? ImageViewerRoute)?.instanceId == route.instanceId
+        ImageViewerDiagnostics.close(route.instanceId, reason, accepted)
+        // Removing this exact instance makes repeated/stale callbacks harmless, including on reopen.
+        if (accepted) backStack.removeLastOrNull()
+    }
     val videoPageActive = backStack.lastOrNull() is VideoRoute
     LaunchedEffect(backStack.lastOrNull()) {
         if (backStack.lastOrNull() is AuthRoute) playback.pause()
     }
     SideEffect {
         onVideoPageActiveChange(videoPageActive)
+        onImageViewerActiveChange(imageViewerActive)
         val sessionChanged = playback.syncSession(accountState.revision)
         val video = backStack.lastOrNull() as? VideoRoute
         if (video != null && contentRepository != null && video.videoId > 0) playback.showVideo(video.videoId)
@@ -201,7 +223,12 @@ internal fun AppNavHost(
             modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainer),
             onBack = {
                 if (backStack.lastOrNull() is AuthRoute) autofill?.cancel()
-                if (backStack.size > 1) backStack.removeLastOrNull()
+                val viewer = backStack.lastOrNull() as? ImageViewerRoute
+                if (viewer != null) closeImageViewer(viewer, ImageViewerCloseReason.SYSTEM_BACK)
+                else if (backStack.size > 1) backStack.removeLastOrNull()
+            },
+            onImageBack = { target ->
+                if (target is ImageViewerRoute) closeImageViewer(target, ImageViewerCloseReason.SYSTEM_BACK)
             },
             entryProvider = entryProvider {
                 entry<TestRoute> {
@@ -323,19 +350,27 @@ internal fun AppNavHost(
                 }
                 entry<ImageViewerRoute>(metadata = imageMetadata) { route ->
                     // Keep light system-bar icons until the viewer's exit animation is disposed.
-                    DisposableEffect(route) {
-                        onImageViewerActiveChange(true)
-                        onDispose { onImageViewerActiveChange(false) }
+                    DisposableEffect(route.instanceId) {
+                        composedViewers[route.instanceId] = composedViewers.getOrDefault(route.instanceId, 0) + 1
+                        ImageViewerDiagnostics.composition(route.instanceId, attached = true)
+                        onDispose {
+                            val remaining = composedViewers.getOrDefault(route.instanceId, 1) - 1
+                            if (remaining == 0) composedViewers.remove(route.instanceId)
+                            else composedViewers[route.instanceId] = remaining
+                            ImageViewerDiagnostics.composition(route.instanceId, attached = false)
+                        }
                     }
+                    var drawable by remember(route.instanceId) { mutableStateOf(false) }
                     val visibility = rememberImageVisibility()
                     ImageViewerPage(
                         image = route.image,
-                        onBack = {
-                            if (backStack.lastOrNull() == route) backStack.removeLastOrNull()
-                        },
-                        imageModifier = Modifier.imageSharedBounds(route.image.sharedKey, viewer = true),
-                        backgroundModifier = Modifier.imageBackgroundOverlay(),
+                        instanceId = route.instanceId,
+                        onBack = { closeImageViewer(route, ImageViewerCloseReason.CLOSE_BUTTON) },
+                        imageModifier = Modifier.imageSharedBounds(
+                            route.image.sharedKey, viewer = true, drawable = drawable,
+                        ),
                         controlsModifier = Modifier.imageControlsOverlay(),
+                        onDrawableChange = { drawable = it },
                         transitioning = visibility.value != 1f,
                         visibilityProgress = { visibility.value },
                     )
@@ -541,18 +576,24 @@ internal fun AppNavHost(
                 }
             },
         )
+        val restoreOrigin = backStack.lastOrNull()
         PlaybackHost(
             playback = playback,
             settings = playbackSettings,
             videoPageActive = videoPageActive,
+            imageViewerActive = imageViewerActive,
             bottomBarHeightPx = if (backStack.lastOrNull() == MainRoute) bottomBarHeightPx else 0,
             onRestore = {
-                playback.videoId?.let { id ->
-                    val route = VideoRoute(id)
-                    val index = backStack.indexOf(route)
-                    if (index >= 0) {
-                        while (backStack.lastIndex > index) backStack.removeLastOrNull()
-                    } else backStack.add(route)
+                if (composedViewers.isEmpty() && backStack.lastOrNull() !is ImageViewerRoute &&
+                    backStack.lastOrNull() == restoreOrigin
+                ) {
+                    playback.videoId?.let { id ->
+                        val route = VideoRoute(id)
+                        val index = backStack.indexOf(route)
+                        if (index >= 0) {
+                            while (backStack.lastIndex > index) backStack.removeLastOrNull()
+                        } else backStack.add(route)
+                    }
                 }
             },
         )

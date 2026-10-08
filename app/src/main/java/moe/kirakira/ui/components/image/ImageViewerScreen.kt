@@ -30,6 +30,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,34 +40,39 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.Flow
 import me.saket.telephoto.zoomable.EnabledZoomGestures
+import me.saket.telephoto.zoomable.ZoomableImage
+import me.saket.telephoto.zoomable.ZoomableImageSource
 import me.saket.telephoto.zoomable.ZoomableImageState
-import me.saket.telephoto.zoomable.coil3.ZoomableAsyncImage
 import me.saket.telephoto.zoomable.rememberZoomableImageState
-import moe.kirakira.ui.components.ShadowFilledIconButton
 import moe.kirakira.R
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.ShadowFilledIconButton
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 /** Stateless navigation/operation surface; zoom state and image requests can be shared by callers. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ImageViewerScreen(
-    model: Any,
+    image: ZoomableImageSource,
     description: String,
     imageState: ZoomableImageState,
     loadFailed: Boolean,
@@ -82,12 +88,14 @@ fun ImageViewerScreen(
     onInteractionChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     imageModifier: Modifier = Modifier,
-    backgroundModifier: Modifier = Modifier,
     controlsModifier: Modifier = Modifier,
     placeholder: Painter? = null,
+    onViewportChange: (IntSize) -> Unit = {},
+    onDrawableChange: (Boolean) -> Unit = {},
     visibilityProgress: () -> Float = { 1f },
 ) {
     val available = imageState.isImageDisplayed && !loadFailed && !busy && !transitioning
+    SideEffect { onDrawableChange(imageState.isImageDisplayed || placeholder != null) }
     val toggleLabel = stringResource(
         if (controlsVisible) R.string.image_hide_controls else R.string.image_show_controls,
     )
@@ -102,7 +110,7 @@ fun ImageViewerScreen(
         onDispose { reportInteraction(false) }
     }
     Box(
-        modifier.fillMaxSize().pointerInput(Unit) {
+        modifier.fillMaxSize().onSizeChanged(onViewportChange).pointerInput(Unit) {
             // Observe touches without consuming them or competing with Telephoto's gestures.
             try {
                 awaitPointerEventScope {
@@ -116,15 +124,15 @@ fun ImageViewerScreen(
         },
         contentAlignment = Alignment.Center,
     ) {
-        Canvas(Modifier.fillMaxSize().then(backgroundModifier)) {
-            drawRect(Color.Black, alpha = visibilityProgress().coerceIn(0f, 1f))
+        Canvas(Modifier.fillMaxSize()) {
+            drawRect(Color.Black)
         }
         Box(imageModifier.fillMaxSize().clipToBounds(), contentAlignment = Alignment.Center) {
-            if (!imageState.isImageDisplayed && !loadFailed && placeholder != null) {
+            if (!imageState.isImageDisplayed && placeholder != null) {
                 Image(placeholder, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
             }
-            ZoomableAsyncImage(
-                model = model,
+            ZoomableImage(
+                image = image,
                 contentDescription = description,
                 state = imageState,
                 gestures = if (transitioning) EnabledZoomGestures.None else EnabledZoomGestures.ZoomAndPan,
@@ -227,9 +235,17 @@ fun ImageViewerScreen(
 @Preview
 @Composable
 private fun ImageViewerPreview() {
+    val painter = painterResource(R.drawable.ic_symbol_video_library)
+    val image = remember(painter) {
+        object : ZoomableImageSource {
+            @Composable
+            override fun resolve(canvasSize: Flow<Size>) =
+                ZoomableImageSource.ResolveResult(ZoomableImageSource.PainterDelegate(painter))
+        }
+    }
     KIRAKIRATheme {
         ImageViewerScreen(
-            model = R.drawable.ic_symbol_video_library,
+            image = image,
             description = "Avatar",
             imageState = rememberZoomableImageState(),
             loadFailed = false,
@@ -243,7 +259,6 @@ private fun ImageViewerPreview() {
             onRetry = {},
             onToggleControls = {},
             onInteractionChange = {},
-            placeholder = painterResource(R.drawable.ic_symbol_video_library),
         )
     }
 }

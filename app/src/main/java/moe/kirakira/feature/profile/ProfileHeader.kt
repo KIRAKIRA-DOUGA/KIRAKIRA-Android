@@ -48,11 +48,13 @@ import moe.kirakira.ui.navigation.LocalImageSharedScope
 import moe.kirakira.ui.navigation.imageSharedBounds
 import moe.kirakira.ui.theme.ThemeColorDefaults
 
+internal val profileAvatarSize = 96.dp
+
 @Composable
 internal fun ProfileAvatar(
     state: ProfileUiState,
     modifier: Modifier = Modifier,
-    size: Dp = 96.dp,
+    size: Dp = profileAvatarSize,
 ) {
     AccountAvatar(state.profile.avatar, modifier, size, clipToCircle = LocalImageSharedScope.current == null)
 }
@@ -93,7 +95,7 @@ internal fun ProfileHeader(
                 Modifier
                     .align(Alignment.BottomStart)
                     .padding(start = 16.dp)
-                    .size(96.dp),
+                    .size(profileAvatarSize),
             ) {
                 Box(
                     Modifier

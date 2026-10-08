@@ -43,16 +43,22 @@
 
 图片页始终使用独立的 `NavigationBackHandler`、图片 `PredictivePopTransitionKey`、`imageSharedBounds` 与 `imageReturnTransform`，不受普通页面的 `predictiveBackEnabled` 开关影响。关闭开关后，匹配来源的图片仍在按钮关闭、系统返回及边缘手势中缩回原位；无来源时沿用淡出，取消手势恢复原有查看与缩放状态。
 
-资料头像与全屏查看器使用 Compose 官方 `SharedTransitionLayout` / `sharedBounds` 连接。共享键包括来源页与图片身份（例如 `profile/<UUID>/avatar`），避免不同用户的图片错误配对。图片页单独使用 Navigation 3 的可寻址预测返回进度；图片进出时来源页面保持原位，查看器直接覆盖其上，普通页面继续由 AOSP 动效宿主管理。共享边界、页面显隐、背景与控件显隐共用 [EmphasizedEasing](../app/src/main/java/moe/kirakira/ui/components/EmphasizedEasing.kt) 的 Material 3 emphasized 曲线及 420ms 时长；Tab 点击也复用该曲线。共享边界插值时，图片由圆形头像逐渐展开成直角视口：采用 `RemeasureToBounds` 让图片在变化的宽高比中重新排版，避免全屏图片压缩时露出平直内容边缘。静止时由图片层裁剪，匹配过渡时仅由共享覆盖层裁剪；覆盖层圆角根据当前共享边界逐帧计算，关闭及预测返回时跟随实际收缩进度。固定全屏的黑色背景在共享覆盖层下方按查看页可见进度淡入淡出，不随图片边界位移。头像白色圆框留在资料页原位，不参与共享边界动画。返回时用 Telephoto 的当前内容几何反向补偿缩放，手势取消无需修改其内部缩放状态。来源不在组合中时仅淡入或淡出。用户关闭系统动画时，Compose
+资料头像与全屏查看器使用 Compose 官方 `SharedTransitionLayout` / `sharedBounds` 连接。共享键由来源页可保存的实例 UUID 与 UID／头像来源的 SHA-256 身份组成（`profile/<实例 UUID>/<图片身份>`），避免多个资料页及头像更新时错误配对；共享边界的几何缓存随来源或查看器参与者释放。图片页单独使用 Navigation 3 的可寻址预测返回进度；图片进出时来源页面保持原位，查看器直接覆盖其上，普通页面继续由 AOSP 动效宿主管理。共享边界、页面显隐、背景与控件显隐共用 [EmphasizedEasing](../app/src/main/java/moe/kirakira/ui/components/EmphasizedEasing.kt) 的 Material 3 emphasized 曲线及 420ms 时长；Tab 点击也复用该曲线。共享边界插值时，图片由圆形头像逐渐展开成直角视口：采用 `RemeasureToBounds` 让图片在变化的宽高比中重新排版，避免全屏图片压缩时露出平直内容边缘。静止时由图片层裁剪，匹配过渡时仅由共享覆盖层裁剪；覆盖层圆角根据当前共享边界逐帧计算，关闭及预测返回时跟随实际收缩进度。固定全屏的黑色背景由查看器页面绘制为不透明黑色，仅随 Navigation 3 页面转场淡入淡出，不再移入共享覆盖层或叠加自己的透明度动画。头像白色圆框留在资料页原位，不参与共享边界动画。返回时用 Telephoto 的当前内容几何反向补偿缩放，手势取消无需修改其内部缩放状态。来源不在组合中时仅淡入或淡出。用户关闭系统动画时，Compose
 时长缩放统一生效。
 
-[ViewerImage](../app/src/main/java/moe/kirakira/feature/imageviewer/ViewerImage.kt) 是可序列化的图片描述，支持资源 ID、可读 `content://` URI 和公开 HTTPS 图片 URL；调用方负责保留 URI 读取授权。查看 UI 位于 `ui/components/image/`，只接收图片模型、状态、回调与可选共享元素修饰符；导出由 `feature/imageviewer/` 负责。查看器使用全屏黑色背景，系统状态栏和导航栏保持透明并使用浅色图标；透明顶栏仅放深色圆形底衬的白色关闭按钮，确保白色图片上仍有足够对比度；转场禁用点击时保留相同配色，由整体淡出控制透明度。下载和复制位于避开系统导航栏的右下角 `HorizontalFloatingToolbar`。背景通过单独的覆盖层绘制，两组控件通过共享转场覆盖层悬浮在图片上方并淡入淡出。复用时将稳定的来源键同时用于缩略图的 `imageSharedBounds(key, viewer = false)` 与查看页的 `imageSharedBounds(key, viewer = true)`，并通过 `ImageViewerRoute` 打开页面。无可匹配来源时传入 `null` 键。
+[ViewerImage](../app/src/main/java/moe/kirakira/feature/imageviewer/ViewerImage.kt) 是可序列化的图片描述，支持资源 ID、可读 `content://` URI 和公开 HTTPS 图片 URL，并接收默认 `null` 的可选 `thumbnail`；调用方负责保留 URI 读取授权。查看 UI 位于 `ui/components/image/`，接收受控的 `ZoomableImageSource`、加载状态、回调与可选共享元素修饰符；导出由 `feature/imageviewer/` 负责。查看器使用全屏黑色背景，系统状态栏和导航栏保持透明并使用浅色图标；透明顶栏仅放深色圆形底衬的白色关闭按钮，确保白色图片上仍有足够对比度；转场禁用点击时保留相同配色，由整体淡出控制透明度。下载和复制位于避开系统导航栏的右下角 `HorizontalFloatingToolbar`。两组控件通过共享转场覆盖层悬浮在图片上方并淡入淡出，黑底留在页面内。复用时将稳定的来源键同时用于缩略图的 `imageSharedBounds(key, viewer = false)` 与查看页的 `imageSharedBounds(key, viewer = true, drawable = 可绘制状态)`，并通过 `ImageViewerRoute` 打开页面。无可匹配来源时传入 `null` 键。
 
-来源图片只在匹配的共享动画进行时隐藏，动画停止绘制覆盖层的同一帧恢复原位图片；`isMatchFound` 可能持续到查看器出栈销毁，不能单独用它控制头像显隐。头像圆框在来源页单独绘制于图片外沿，过渡期间始终保持原位；查看器不再创建对应的共享装饰层。圆形点击／水波纹层与共享图片并列，单独裁剪，不给共享图片的父容器再加圆形裁剪。
+来源图片仅在匹配的共享动画进行且目标能够绘制占位或图片时隐藏，动画停止绘制覆盖层的同一帧恢复原位图片；`isMatchFound` 可能持续到查看器出栈销毁，不能单独用它控制头像显隐。占位复用资料头像同一尺寸分发地址与 Coil 缓存，不代表原图加载成功。头像圆框在来源页单独绘制于图片外沿，过渡期间始终保持原位；查看器不再创建对应的共享装饰层。圆形点击／水波纹层与共享图片并列，单独裁剪，不给共享图片的父容器再加圆形裁剪。
+
+每次打开的 `ImageViewerRoute` 都生成可保存的 `instanceId`，缺少该字段的旧返回栈在反序列化时补上新身份。图片返回状态与处理器按当前条目身份创建，关闭按钮及系统返回统一校验目标实例，移除后再次回调不会重复出栈。系统栏按仍在组合中的查看器实例计数，包含退出动画；旧实例销毁不会覆盖新实例状态。同一期间 `PlaybackHost` 隐藏应用内小窗而保留播放会话，恢复点击同时校验来源栈顶和查看器状态，避免旧回调移除新打开的查看器。
+
+[ViewerImageLoader](../app/src/main/java/moe/kirakira/feature/imageviewer/ViewerImageLoader.kt) 是应用侧 Coil／Telephoto 适配器。请求以查看器根布局实测视口为准，使用 FIT／EXACT 预览解码，按视口缩小至单边不超过 4096px、总面积不超过 400 万像素，不取共享动画首帧的头像尺寸；窗口变化重建加载适配器并保留同一缩放状态。正常路径从 Coil 磁盘快照或本地来源加载原图分块，快照锁持续到解码器与进行中的 tile 操作都释放。内存预览仍在但磁盘文件已淘汰时，在同一时限内绕过内存读取补齐一次。资源检查、快照读取、分块初始化和 tile 解码的普通异常统一降级到已解码预览，取消继续传播；AVIF 等不能分块的格式直接使用预览。完全失败时保留黑底、关闭与重试，不调用导航。
+
+原图请求及来源准备总时限为 45 秒，请求成功后 15 秒内仍无法显示首帧则降级预览。每次重试使用独立适配器，释放旧请求及快照，旧回调不能写入新状态；手动重试只写入内存／磁盘缓存、绕过旧缓存读取，避免重复命中损坏内容。仅 Debug 的 `ImageViewer` 日志记录生成的实例 ID、重试编号、加载阶段、显示状态、生命周期、转场、栈成员和明确关闭原因，不输出 URL、用户文案、异常详情或会话信息。手机上无操作自动退出的根因尚未确认，诊断用于区分实际出栈、页面销毁与绘制异常。
 
 控件显隐由 [ImageViewerControlsState](../app/src/main/java/moe/kirakira/ui/components/image/ImageViewerControlsState.kt) 管理，查看 UI 接收 `controlsVisible`、`onToggleControls` 和 `onInteractionChange`。默认空闲时长为 3 秒，遵循 `AccessibilityManager.calculateRecommendedTimeoutMillis`；仅在页面 RESUMED、转场结束且无触摸／控件焦点／结果提示时计时，加载、错误、权限请求与文件操作时保留控件。界面根节点只观察触摸，不消费事件；单击使用 [Telephoto 的 `onClick`](https://saket.github.io/telephoto/zoomableimage/#click-listeners)，不叠加 `clickable` 抢占双击与缩放。顶栏和工具栏使用 Material 3 动效淡出，隐藏后移出点击和无障碍树，系统返回始终由导航宿主处理。
 
-缩放使用 [Telephoto](https://saket.github.io/telephoto/zoomableimage/) 与其 Coil 3 适配。保存保留原始字节和 MIME 类型：Android 10+ 通过 `MediaStore.Images` 的 `IS_PENDING` 公开，Android 8–9 获得旧版写权限后写入公共 `Pictures/KIRAKIRA` 并扫描媒体。复制将原始字节写入专用缓存，通过 `FileProvider` 交给系统剪贴板，超过七天的复制缓存于下一次复制时清理。网络头像通过公开 HTTPS 来源接口加载和导出。
+缩放继续使用 [Telephoto](https://saket.github.io/telephoto/zoomableimage/) 的 `ZoomableImage`，图片请求由上述适配器控制。保存和复制始终使用 `ViewerImage.source` 的原始字节和 MIME 类型，不导出缩略图或预览：Android 10+ 通过 `MediaStore.Images` 的 `IS_PENDING` 公开，Android 8–9 获得旧版写权限后写入公共 `Pictures/KIRAKIRA` 并扫描媒体。复制将原始字节写入专用缓存，通过 `FileProvider` 交给系统剪贴板，超过七天的复制缓存于下一次复制时清理。网络头像通过公开 HTTPS 来源接口加载和导出。
 
 ### 主界面切换与底栏动效
 
