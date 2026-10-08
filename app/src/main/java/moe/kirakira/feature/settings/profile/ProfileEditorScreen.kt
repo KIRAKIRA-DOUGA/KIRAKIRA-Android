@@ -186,19 +186,22 @@ private fun ProfileIdentity(state: ProfileEditorState, onPick: () -> Unit) {
                         AsyncImage(it, null, Modifier.fillMaxSize().clip(CircleShape), contentScale = ContentScale.Crop)
                     }
                 }
-                TooltipBox(
-                    positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-                    tooltip = { PlainTooltip { Text(stringResource(R.string.profile_edit_avatar)) } },
-                    state = rememberTooltipState(), modifier = Modifier.align(Alignment.BottomEnd),
-                ) {
-                    // The ring keeps the button legible over both the avatar and the banner.
-                    Box(Modifier.background(ring, CircleShape).padding(AvatarRing)) {
-                        ShadowFilledIconButton(onClick = onPick, enabled = state.editable && !state.preparingImage,
-                            shapes = IconButtonDefaults.shapes()) {
-                            if (state.preparingImage) {
-                                IndeterminateCircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
-                            } else {
-                                ProfileIcon(R.drawable.ic_symbol_edit, stringResource(R.string.profile_edit_avatar))
+                // TooltipBox applies its modifier to an internal anchor, so align its outer container.
+                Box(Modifier.align(Alignment.BottomEnd)) {
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+                        tooltip = { PlainTooltip { Text(stringResource(R.string.profile_edit_avatar)) } },
+                        state = rememberTooltipState(),
+                    ) {
+                        // The ring keeps the button legible over both the avatar and the banner.
+                        Box(Modifier.background(ring, CircleShape).padding(AvatarRing)) {
+                            ShadowFilledIconButton(onClick = onPick, enabled = state.editable && !state.preparingImage,
+                                shapes = IconButtonDefaults.shapes()) {
+                                if (state.preparingImage) {
+                                    IndeterminateCircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                                } else {
+                                    ProfileIcon(R.drawable.ic_symbol_edit, stringResource(R.string.profile_edit_avatar))
+                                }
                             }
                         }
                     }

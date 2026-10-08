@@ -9,6 +9,8 @@ import java.io.File
 import java.text.Normalizer
 import java.util.UUID
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
@@ -59,6 +61,7 @@ internal class ProfileEditorViewModel(
     private var task: Job? = null
     private var imageTask: Job? = null
     private var cropStartedOutput: File? = null
+    private val cropTasks = mutableMapOf<File, CompletableDeferred<Unit>>()
     private var identity = repository.session.value.activeUuid
     private var revision = repository.session.value.revision
     val accountRevision: Long get() = revision
@@ -85,6 +88,25 @@ internal class ProfileEditorViewModel(
             }
         }
         load()
+    }
+
+    suspend fun clearStaleImageCache(): Unit = withContext(Dispatchers.IO) {
+        val cacheRoot = File(appContext.cacheDir, "profile-editor")
+        val entries = try {
+            cacheRoot.listFiles().orEmpty()
+        } catch (_: SecurityException) {
+            return@withContext
+        }
+        for (entry in entries) {
+            currentCoroutineContext().ensureActive()
+            if (entry.name == cacheProcessId) continue
+            try {
+                // Includes the flat flow directories created before process isolation.
+                entry.deleteRecursively()
+            } catch (_: SecurityException) {
+                // Best effort; a later editor visit can retry without blocking image selection.
+            }
+        }
     }
 
     fun load() {
@@ -191,10 +213,11 @@ internal class ProfileEditorViewModel(
         _state.update { it.copy(preparingImage = true, message = null) }
         imageTask = viewModelScope.launch {
             var source: File? = null
+            var accepted = false
             try {
-                source = withContext(Dispatchers.IO) {
+                val prepared = withContext(Dispatchers.IO) {
                     imageDirectory.mkdirs()
-                    val file = File.createTempFile("source-", ".img", imageDirectory)
+                    val file = File.createTempFile("source-", ".img", imageDirectory).also { source = it }
                     try {
                         appContext.contentResolver.openInputStream(uri)?.use { input ->
                             file.outputStream().use { output ->
@@ -217,13 +240,14 @@ internal class ProfileEditorViewModel(
                     }
                 }
                 cropStartedOutput = null
-                _state.update { it.copy(cropSource = source, cropReady = false, cropViewState = null) }
+                _state.update { it.copy(cropSource = prepared, cropReady = false, cropViewState = null) }
+                accepted = true
             } catch (error: Exception) {
                 currentCoroutineContext().ensureActive()
-                source?.let(::deleteFile)
                 _state.update { it.copy(message = R.string.profile_image_failed) }
             } finally {
-                _state.update { it.copy(preparingImage = false) }
+                if (!accepted) source?.let(::deleteFile)
+                if (directory == imageDirectory) _state.update { it.copy(preparingImage = false) }
             }
         }
     }
@@ -246,6 +270,7 @@ internal class ProfileEditorViewModel(
     fun claimCrop(output: File): Boolean {
         if (_state.value.cropOutput != output || cropStartedOutput == output) return false
         cropStartedOutput = output
+        cropTasks[output] = CompletableDeferred()
         return true
     }
 
@@ -254,17 +279,26 @@ internal class ProfileEditorViewModel(
         _state.update { it.copy(cropBusy = true) }
         val cropDirectory = directory
         imageTask = viewModelScope.launch {
+            var output: File? = null
+            var accepted = false
             try {
-                val output = withContext(Dispatchers.IO) { File.createTempFile("avatar-", ".jpg", cropDirectory) }
-                _state.update { it.copy(cropOutput = output) }
+                val prepared = withContext(Dispatchers.IO) {
+                    File.createTempFile("avatar-", ".jpg", cropDirectory).also { output = it }
+                }
+                _state.update { it.copy(cropOutput = prepared) }
+                accepted = true
             } catch (error: Exception) {
                 currentCoroutineContext().ensureActive()
                 _state.update { it.copy(cropBusy = false, message = R.string.profile_image_failed) }
+            } finally {
+                if (!accepted) output?.let(::deleteFile)
             }
         }
     }
 
     fun finishCrop(source: File, output: File, success: Boolean) {
+        cropTasks.remove(output)?.complete(Unit)
+        if (cropStartedOutput == output) cropStartedOutput = null
         val state = _state.value
         if (state.cropSource != source || state.cropOutput != output) {
             deleteFile(output)
@@ -274,7 +308,7 @@ internal class ProfileEditorViewModel(
             state.avatar?.let(::deleteFile)
             deleteFile(source)
             _state.update { it.copy(avatar = output, cropSource = null, cropOutput = null,
-                cropBusy = false, cropReady = false) }
+                cropViewState = null, cropBusy = false, cropReady = false) }
         } else {
             deleteFile(output)
             cropStartedOutput = null
@@ -286,7 +320,8 @@ internal class ProfileEditorViewModel(
         imageTask?.cancel()
         _state.value.cropSource?.let(::deleteFile)
         _state.value.cropOutput?.let(::deleteFile)
-        _state.update { it.copy(cropSource = null, cropOutput = null, cropBusy = false, cropReady = false) }
+        _state.update { it.copy(cropSource = null, cropOutput = null, cropViewState = null,
+            cropBusy = false, cropReady = false) }
         cropStartedOutput = null
     }
 
@@ -304,19 +339,44 @@ internal class ProfileEditorViewModel(
 
     fun dismissDiscard() { _state.update { it.copy(confirmDiscard = false) } }
     fun dismissMessage() { _state.update { it.copy(message = null) } }
-    private fun deleteFile(file: File) { cleanupExecutor.execute { file.delete() } }
-    private fun newDirectory() = File(appContext.cacheDir, "profile-editor/${UUID.randomUUID()}")
+    private fun deleteFile(file: File) {
+        deleteWhenIdle(pendingImageWork(file.parentFile)) { file.delete() }
+    }
+    private fun newDirectory() = File(appContext.cacheDir, "profile-editor/$cacheProcessId/${UUID.randomUUID()}")
     private fun cleanup() {
         val oldDirectory = directory
         directory = newDirectory()
-        val imageJob = imageTask
-        if (imageJob != null && !imageJob.isCompleted) {
-            imageJob.invokeOnCompletion { cleanupExecutor.execute { oldDirectory.deleteRecursively() } }
-        } else cleanupExecutor.execute { oldDirectory.deleteRecursively() }
+        deleteWhenIdle(pendingImageWork(oldDirectory)) { oldDirectory.deleteRecursively() }
     }
+
+    private fun pendingImageWork(imageDirectory: File?): List<Job> =
+        listOfNotNull(task, imageTask) + cropTasks.filterKeys { it.parentFile == imageDirectory }.values
+
+    private fun deleteWhenIdle(jobs: List<Job>, delete: () -> Unit) {
+        val pending = jobs.distinct().filterNot { it.isCompleted }
+        val deleteTask = Runnable {
+            try {
+                delete()
+            } catch (_: SecurityException) {
+                // Any leftover files remain in cache and can be swept after process recreation.
+            }
+        }
+        if (pending.isEmpty()) {
+            cleanupExecutor.execute(deleteTask)
+            return
+        }
+        val remaining = AtomicInteger(pending.size)
+        pending.forEach { job ->
+            job.invokeOnCompletion {
+                if (remaining.decrementAndGet() == 0) cleanupExecutor.execute(deleteTask)
+            }
+        }
+    }
+
     override fun onCleared() { cleanup() }
 
     private companion object {
+        val cacheProcessId = UUID.randomUUID().toString()
         val cleanupExecutor = Executors.newSingleThreadExecutor()
     }
 }

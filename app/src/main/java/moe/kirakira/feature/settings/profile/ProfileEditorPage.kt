@@ -19,7 +19,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import moe.kirakira.R
-import moe.kirakira.ui.components.messageRes
 
 @Composable
 internal fun ProfileEditorPage(model: ProfileEditorViewModel, onBack: () -> Unit, onLogin: () -> Unit) {
@@ -31,6 +30,7 @@ internal fun ProfileEditorPage(model: ProfileEditorViewModel, onBack: () -> Unit
         model.prepareAvatar(uri, pickerRevision)
         pickerRevision = null
     }
+    LaunchedEffect(model) { model.clearStaleImageCache() }
     LaunchedEffect(state.message) {
         state.message?.let { message ->
             model.dismissMessage()

@@ -441,13 +441,15 @@ ViewModel 分离关键词草稿、所选标签和已提交条件。视频读取�
 
 个人主页「编辑资料」使用全宽的官方 M3E `Button`，以 `ButtonDefaults.MediumContainerHeight` 设置最小高度，并将同一高度传给 `shapesFor`、`contentPaddingFor` 与 `textStyleFor`，统一使用官方 Medium 形状、内边距与文字样式；`heightIn(min = …)` 允许字体缩放时按钮随内容增高。
 
-`ProfileEditorRoute` 使用 Navigation 3 条目级 `ProfileEditorViewModel`，资料通过 `data/profile/ProfileRepository` 访问，DTO 与凭据保持在数据层。`AccountProfile` 增加生日、性别和标签及兼容旧存储的默认值；读取本人资料时核对 UUID、UID。页面最大宽度 640dp，与设置页同用 `surfaceContainer` 背景和 `SectionHeader` 分组标题；顶部为大圆角横幅，使用 `Image` 与 `ContentScale.Crop` 展示个人主页共用的 `profile_banner_placeholder` 樱花图，保留服务端背景字段；头像为居中重叠的 112dp 头像与带背景色描边的编辑按钮。基本资料与标签放在 `surface` 圆角卡片中，个人信息使用分段资料行；保存操作接入[设置表单操作区](#设置表单操作区)。另含日期选择器与标签 Chips。所有界面文本维护中英文资源，预览使用空表单。
+`ProfileEditorRoute` 使用 Navigation 3 条目级 `ProfileEditorViewModel`，资料通过 `data/profile/ProfileRepository` 访问，DTO 与凭据保持在数据层。`AccountProfile` 增加生日、性别和标签及兼容旧存储的默认值；读取本人资料时核对 UUID、UID。页面最大宽度 640dp，与设置页同用 `surfaceContainer` 背景和 `SectionHeader` 分组标题；顶部为大圆角横幅，使用 `Image` 与 `ContentScale.Crop` 展示个人主页共用的 `profile_banner_placeholder` 樱花图，保留服务端背景字段；头像为居中重叠的 112dp 头像，带背景色描边的编辑按钮固定在头像右下角。按钮的 `TooltipBox` 外层使用直接属于头像容器的 `Box(Modifier.align(Alignment.BottomEnd))`，避免 Tooltip 内部锚点截留父布局对齐参数；描边、阴影、提示、加载及禁用行为保持一致。基本资料与标签放在 `surface` 圆角卡片中，个人信息使用分段资料行；保存操作接入[设置表单操作区](#设置表单操作区)。另含日期选择器与标签 Chips。所有界面文本维护中英文资源，预览使用空表单。
 
 用户名与昵称按 Rosales `ValidTool.validateNameField` 校验，最长 20 个 UTF-16 单元，昵称可为空；简介最长 200。保存统一 NFC 规范化，用户名执行 trim，只有修改用户名才调用查重。标签保留顺序及已有 ID，新项使用最小可用非负 ID；生日未设置时发送空字符串，不默认写入当天。更新始终包含用户名与已有背景，其他不属于编辑表单的字段不主动发送。
 
 保存依次进行头像上传、资料更新、本人资料回读和加密会话提交。Repository 持有单个编辑流程的检查点：已上传的同一头像草稿不重复上传；服务端已保存后锁定编辑，刷新失败只重试刷新，写盘失败保留已读结果并仅重试提交。提交保留 token 与 bootstrap hint，仅替换当前账号资料；发布会话修订后现有内容观察者刷新“我”及本人主页。外部账号／修订变化取消请求和清除草稿，仅自身提交产生的修订被编辑页接纳。HTTP 200 的业务拒绝不通过匹配服务器消息推断过期。
 
-图片选择使用 `PickVisualMedia`，回调绑定选择时的账号修订；原图复制限制 32 MiB。CanHub Android Image Cropper 提供经过验证的裁剪、EXIF 与采样能力，通过 `AndroidView` 封装 `CropImageView`，仅这一引擎使用第三方 View，周围顶栏、工具按钮、加载与确认均使用 Compose M3E。固定 1:1 裁剪和圆形预览，异步输出最大 1024px 的 JPEG（质量 90）；Manifest 移除库自带的导出 Activity 与未使用的文件提供者。View 重建时从流程内存恢复裁剪范围；释放时清理图片和监听，正在运行的异步裁剪仅保留收尾回调，完成后释放图片并拒绝旧流程结果。草稿文件为每个流程独立缓存，替换、退出和账号变化时异步删除；不写 SavedState 或会话存储。
+图片选择使用 `PickVisualMedia`，回调绑定选择时的账号修订；原图复制限制 32 MiB。CanHub Android Image Cropper 提供经过验证的裁剪、EXIF 与采样能力，通过 `AndroidView` 封装 `CropImageView`，仅这一引擎使用第三方 View，周围顶栏、工具按钮、加载与确认均使用 Compose M3E。固定 1:1 裁剪和圆形预览，异步输出最大 1024px 的 JPEG（质量 90）；Manifest 移除库自带的导出 Activity 与未使用的文件提供者。裁剪库要求自定义输出使用 `content://` URI，且文件扩展名须与压缩格式匹配；应用复用 `${applicationId}.images` FileProvider，将缓存中的 `profile-editor/` 限定目录映射为输出 URI，保留 `.jpg` 后缀，不传入 `Uri.fromFile(output)`。URI 生成或裁剪启动的同步异常通过既有失败回调清除运行状态、恢复完成按钮并显示图片处理失败提示，协程取消继续传播。View 重建时从流程内存恢复裁剪范围；释放时清理图片和监听，正在运行的异步裁剪仅保留收尾回调，完成后释放图片并拒绝旧流程结果。草稿文件为每个流程独立缓存，替换、退出和账号变化时异步删除；不写 SavedState 或会话存储。
+
+裁剪缓存按 `profile-editor/<进程随机标识>/<流程随机标识>/` 隔离。进入资料编辑页时，由以 ViewModel 为 key 的 `LaunchedEffect` 在 IO 线程扫描旧进程目录，同时清理旧版直接位于 `profile-editor/` 下的流程目录；整个当前进程目录均受保护，避免多个编辑页、页面重建或仍在收尾的任务被误删。正常删除通过既有后台清理队列执行，等待资料保存、图片准备和库内异步裁剪的完成信号后再删除文件或流程目录；裁剪完成回调也会释放旧流程的占用。图片复制与输出文件创建在取消或失败时清理尚未交给页面的临时文件。清理属于尽力操作，不影响表单操作；无法删除的旧进程缓存可在以后进入编辑页时重试，当前进程目录中的残留可在进程重建后清理。
 
 预签名上传使用独立无 Cookie／认证头的 OkHttp 客户端，仅允许 `https://upload.imagedelivery.net:443`，发送 multipart `file`，禁用重定向和自动重试，完整调用上限 60 秒，响应上限 1 MiB，并检查 HTTP 与 JSON `success`。成功的图片 ID 交给资料更新接口，不保存或记录预签名 URL。应用 API 仍使用共享 HTTPS 客户端。
 

@@ -44,8 +44,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.FileProvider
 import com.canhub.cropper.CropImageView
 import java.io.File
+import kotlinx.coroutines.CancellationException
 import moe.kirakira.R
 import moe.kirakira.feature.settings.SettingsPrimaryButton
 import moe.kirakira.ui.components.FrostedScaffold
@@ -84,9 +86,28 @@ internal fun AvatarCropScreen(
                 runningOutput = null
                 currentFinished(source, output, result.error == null && result.uriContent != null)
             }
-            view.croppedImageAsync(saveCompressFormat = Bitmap.CompressFormat.JPEG,
-                saveCompressQuality = 90, reqWidth = 1024, reqHeight = 1024,
-                options = CropImageView.RequestSizeOptions.RESIZE_INSIDE, customOutputUri = Uri.fromFile(output))
+            try {
+                // The cropper only accepts content:// URIs for custom output files.
+                val outputUri = FileProvider.getUriForFile(
+                    view.context,
+                    "${view.context.packageName}.images",
+                    output,
+                )
+                view.croppedImageAsync(
+                    saveCompressFormat = Bitmap.CompressFormat.JPEG,
+                    saveCompressQuality = 90,
+                    reqWidth = 1024,
+                    reqHeight = 1024,
+                    options = CropImageView.RequestSizeOptions.RESIZE_INSIDE,
+                    customOutputUri = outputUri,
+                )
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                runningOutput = null
+                view.setOnCropImageCompleteListener(null)
+                currentFinished(source, output, false)
+            }
         }
     }
     FrostedScaffold(
