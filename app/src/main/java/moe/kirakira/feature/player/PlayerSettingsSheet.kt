@@ -28,7 +28,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -66,7 +68,6 @@ import java.math.BigDecimal
 import kotlin.math.log2
 import kotlin.math.pow
 import kotlin.math.roundToInt
-import moe.kirakira.ui.components.ShadowFilledIconButton
 import moe.kirakira.R
 import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.ui.components.ShadowRadioButton
@@ -133,7 +134,7 @@ internal fun PlayerSettingsButtons(
             label = "PlayerSpeedButton",
         ) { displayedSpeed ->
             if (displayedSpeed.isEmpty()) {
-                ShadowFilledIconButton(
+                FilledIconButton(
                     onClick = { onOpen(PlayerSettingsPanel.SPEED) },
                     enabled = enabled && state.available && !state.failed,
                     colors = IconButtonDefaults.filledIconButtonColors(
@@ -282,6 +283,12 @@ internal fun PlayerSettingsSheet(
                             selected = state.speed == speed,
                             onClick = { onSpeed(speed) },
                             label = { Text(speedLabel(speed)) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+                                selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimary,
+                            ),
                         )
                     }
                 }

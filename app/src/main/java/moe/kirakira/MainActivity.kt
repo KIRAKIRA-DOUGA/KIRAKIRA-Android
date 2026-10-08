@@ -27,6 +27,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import moe.kirakira.ui.components.enableButtonBackdrops
 import moe.kirakira.ui.splash.SplashReveal
 import moe.kirakira.ui.splash.SplashRevealController
 import moe.kirakira.ui.theme.KIRAKIRATheme
@@ -138,6 +139,7 @@ class MainActivity : ComponentActivity() {
         )
         splashScreen.setOnExitAnimationListener(splashRevealController::onSplashExit)
         applySystemBars()
+        enableButtonBackdrops()
         setContent {
             val isReady by themeViewModel.isReady.collectAsStateWithLifecycle()
             if (!isReady) return@setContent

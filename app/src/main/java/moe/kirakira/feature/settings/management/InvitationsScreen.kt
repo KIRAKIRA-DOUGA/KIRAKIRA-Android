@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialShapes
@@ -161,7 +162,17 @@ internal fun InvitationsScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 listOf(R.string.invitation_all, R.string.invitation_unused, R.string.invitation_used).forEachIndexed { index, title ->
-                    FilterChip(selected = filter == index, onClick = { filter = index }, label = { Text(stringResource(title)) })
+                    FilterChip(
+                        selected = filter == index,
+                        onClick = { filter = index },
+                        label = { Text(stringResource(title)) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                            selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+                            selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimary,
+                        ),
+                    )
                 }
             }
         }

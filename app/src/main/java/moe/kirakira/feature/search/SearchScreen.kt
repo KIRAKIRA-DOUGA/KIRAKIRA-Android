@@ -20,6 +20,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.InputChip
+import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Text
@@ -164,6 +165,12 @@ private fun SelectedSearchTags(state: SearchUiState, onEvent: (SearchEvent) -> U
                 onClick = { onEvent(SearchEvent.RemoveTag(tag.id)) },
                 enabled = state.ready,
                 label = { Text(label, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                colors = InputChipDefaults.inputChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+                    selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimary,
+                ),
                 modifier = Modifier.widthIn(max = 280.dp),
                 trailingIcon = {
                     Icon(painterResource(R.drawable.ic_symbol_close), stringResource(R.string.search_remove_tag, label),

@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -83,7 +84,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.media3.common.Player
 import kotlinx.coroutines.delay
-import moe.kirakira.ui.components.ShadowFilledIconButton
 import moe.kirakira.R
 import moe.kirakira.data.content.DanmakuEntry
 import moe.kirakira.feature.settings.DanmakuSettings
@@ -307,7 +307,10 @@ internal fun VideoPlayer(
                             .fillMaxSize()
                             .then(if (fullscreen) Modifier.windowInsetsPadding(WindowInsets.safeDrawing) else Modifier)
                         val backButton: @Composable () -> Unit = {
-                            ShadowFilledIconButton(colors = iconColors, onClick = { controlAction(onBack) }) {
+                            FilledIconButton(
+                                onClick = { controlAction(onBack) },
+                                colors = iconColors,
+                            ) {
                                 Icon(
                                     painterResource(R.drawable.ic_symbol_arrow_back),
                                     stringResource(
@@ -323,7 +326,7 @@ internal fun VideoPlayer(
                                 navigationIcon = { backButton() },
                                 actions = {
                                     if (state.failed) {
-                                        ShadowFilledIconButton(
+                                        FilledIconButton(
                                             onClick = { controlAction(onFullscreen) },
                                             colors = iconColors,
                                         ) {
@@ -475,7 +478,7 @@ internal fun VideoPlayer(
                                                 )
                                             },
                                         )
-                                        ShadowFilledIconButton(
+                                        FilledIconButton(
                                             onClick = { controlAction(onFullscreen) },
                                             colors = iconColors,
                                         ) {
@@ -565,7 +568,7 @@ private fun PlayerPlaybackControl(
     modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier
+        modifier = modifier
             .size(buttonSize)
             .background(Color.Black.copy(alpha = 0.6f), CircleShape),
         contentAlignment = Alignment.Center,

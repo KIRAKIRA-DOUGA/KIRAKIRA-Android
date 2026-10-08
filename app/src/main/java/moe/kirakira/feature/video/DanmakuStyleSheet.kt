@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -209,6 +210,12 @@ internal fun DanmakuStyleContent(
                 selected = style.color !in danmakuColors,
                 onClick = onCustomColor,
                 label = { Text(stringResource(R.string.danmaku_style_custom)) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+                    selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimary,
+                ),
                 modifier = Modifier.heightIn(min = 48.dp),
                 leadingIcon = { Icon(painterResource(R.drawable.ic_symbol_palette), null) },
             )
@@ -240,6 +247,12 @@ internal fun DanmakuStyleContent(
                 FilterChip(
                     selected = style.mode == mode,
                     onClick = { onStyle(style.copy(mode = mode)) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+                        selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
                     modifier = Modifier.heightIn(min = 48.dp),
                     label = {
                         Text(

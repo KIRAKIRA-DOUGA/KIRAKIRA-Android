@@ -28,11 +28,9 @@ import androidx.compose.foundation.pager.PagerState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -63,6 +61,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import moe.kirakira.R
@@ -72,15 +71,14 @@ import moe.kirakira.data.content.VideoSummary
 import moe.kirakira.feature.settings.VideoCardLayout
 import moe.kirakira.feature.video.ContentState
 import moe.kirakira.feature.video.VideoCardRow
+import moe.kirakira.ui.components.BackdropIconButton
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
-import moe.kirakira.ui.components.PagerTabIndicator
-import moe.kirakira.ui.components.ShadowFilledTonalIconButton
+import moe.kirakira.ui.components.PagerTabRow
 import moe.kirakira.ui.components.appTopAppBarColors
-import moe.kirakira.ui.components.appTopAppBarTonalIconButtonColors
 import moe.kirakira.ui.components.frostedBarBackground
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.theme.ThemeColorDefaults
@@ -173,6 +171,7 @@ internal fun ProfileScreen(
                         navigationIcon = {
                             ProfileTopBarIconButton(
                                 tabsPinned = tabsPinned,
+                                hazeState = hazeState,
                                 onClick = onBack,
                             ) {
                                 Icon(
@@ -185,6 +184,7 @@ internal fun ProfileScreen(
                             if (!state.isSelf) {
                                 ProfileTopBarIconButton(
                                     tabsPinned = tabsPinned,
+                                    hazeState = hazeState,
                                     onClick = { onUnavailableAction(ProfileAction.MORE) },
                                 ) {
                                     Icon(
@@ -266,33 +266,21 @@ internal fun ProfileScreen(
                                 }
                             }
                             stickyHeader(key = PROFILE_TABS_KEY) {
-                                PrimaryTabRow(
-                                    selectedTabIndex = pagerState.currentPage,
+                                PagerTabRow(
+                                    pagerState = pagerState,
+                                    titles = ProfileTab.entries.map { tab ->
+                                        stringResource(
+                                            if (tab == ProfileTab.VIDEOS) R.string.profile_videos
+                                            else R.string.profile_collections,
+                                        )
+                                    },
+                                    onTabChange = { onTabChange(ProfileTab.entries[it]) },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .zIndex(1f)
                                         .onSizeChanged { tabRowHeight = it.height },
                                     containerColor = background,
-                                    indicator = { PagerTabIndicator(pagerState) },
-                                    divider = {},
-                                ) {
-                                    ProfileTab.entries.forEachIndexed { index, tab ->
-                                        Tab(
-                                            selected = pagerState.currentPage == index,
-                                            onClick = { onTabChange(tab) },
-                                            selectedContentColor = MaterialTheme.colorScheme.primary,
-                                            unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            text = {
-                                                Text(
-                                                    stringResource(
-                                                        if (tab == ProfileTab.VIDEOS) R.string.profile_videos
-                                                        else R.string.profile_collections,
-                                                    ),
-                                                )
-                                            },
-                                        )
-                                    }
-                                }
+                                )
                             }
                             item(key = "profile_pages") {
                                 HorizontalPager(
@@ -377,6 +365,7 @@ internal fun ProfileScreen(
 @Composable
 private fun ProfileTopBarIconButton(
     tabsPinned: Boolean,
+    hazeState: HazeState,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
@@ -384,10 +373,10 @@ private fun ProfileTopBarIconButton(
     if (tabsPinned) {
         IconButton(onClick = onClick, modifier = modifier, content = content)
     } else {
-        ShadowFilledTonalIconButton(
+        BackdropIconButton(
             onClick = onClick,
+            hazeState = hazeState,
             modifier = modifier,
-            colors = appTopAppBarTonalIconButtonColors(),
             content = content,
         )
     }

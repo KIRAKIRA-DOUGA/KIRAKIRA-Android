@@ -31,8 +31,11 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
@@ -67,7 +70,6 @@ import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
-import moe.kirakira.ui.components.ShadowFilledTonalIconButton
 import moe.kirakira.R
 import moe.kirakira.data.content.DanmakuStyle
 import moe.kirakira.data.content.DanmakuEntry
@@ -206,6 +208,12 @@ internal fun VideoScreen(
                                 if (detail != null) {
                                     if (detail.parts.size > 1) {
                                         item("parts") {
+                                            val partChipColors = FilterChipDefaults.filterChipColors(
+                                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                                selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+                                                selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimary,
+                                            )
                                             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                                 itemsIndexed(detail.parts, key = { _, part -> part.id }) { index, part ->
                                                     FilterChip(
@@ -214,6 +222,7 @@ internal fun VideoScreen(
                                                         label = {
                                                             Text(part.title.ifBlank { stringResource(R.string.player_part, index + 1) })
                                                         },
+                                                        colors = partChipColors,
                                                     )
                                                 }
                                             }
@@ -447,17 +456,21 @@ private fun VideoActions(
     onVote: (Reaction) -> Unit,
     onUnavailable: () -> Unit,
 ) {
+    val actionColors = IconButtonDefaults.filledTonalIconButtonColors(
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), itemVerticalAlignment = Alignment.CenterVertically) {
         ReactionAction(detail.reaction == Reaction.LIKE, R.drawable.ic_symbol_thumb_up, R.string.video_like, detail.upvotes, busy || detail.blockedByOther) { onVote(Reaction.LIKE) }
         ReactionAction(detail.reaction == Reaction.DISLIKE, R.drawable.ic_symbol_thumb_down, R.string.video_dislike, detail.downvotes, busy || detail.blockedByOther) { onVote(Reaction.DISLIKE) }
         ReactionAction(false, R.drawable.ic_symbol_star, R.string.video_save, null, busy = false, onClick = onUnavailable)
-        ShadowFilledTonalIconButton(onClick = onUnavailable) {
+        FilledTonalIconButton(onClick = onUnavailable, colors = actionColors) {
             Icon(painterResource(R.drawable.ic_symbol_download), stringResource(R.string.video_download))
         }
-        ShadowFilledTonalIconButton(onClick = onUnavailable) {
+        FilledTonalIconButton(onClick = onUnavailable, colors = actionColors) {
             Icon(painterResource(R.drawable.ic_symbol_share), stringResource(R.string.video_share))
         }
-        ShadowFilledTonalIconButton(onClick = onUnavailable) {
+        FilledTonalIconButton(onClick = onUnavailable, colors = actionColors) {
             Icon(painterResource(R.drawable.ic_symbol_more_horiz), stringResource(R.string.video_more))
         }
     }
