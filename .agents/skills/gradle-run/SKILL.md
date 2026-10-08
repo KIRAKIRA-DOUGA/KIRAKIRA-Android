@@ -1,0 +1,88 @@
+---
+name: gradle-run
+description: Use when planning to execute Gradle through `gradle`, `./gradlew`, or a custom `gradlew*` wrapper script, or diagnosing a Gradle build, compact workflow ledger, repeated failure fingerprint, check, test, lint, warning, or failure even when no new Gradle run is appropriate.
+---
+
+# Gradle run
+
+## Core principle
+
+Treat complete Gradle output as a temporary, sensitive artifact. Every
+agent-initiated Gradle command runs through the compact-output wrapper; never
+stream, `tee`, paste, or reopen a full build log.
+
+Every `create`, `run`, and `finish` invocation is the entire shell command for
+that tool call. Prefixes, assignments, conditionals, pipes, command chains, and
+follow-up inspection invalidate lifecycle evidence even when Gradle succeeds.
+
+## Procedure
+
+1. Classify the request. Reuse a current successful result when unchanged
+   source and inputs already answer the question. A focused task that validates
+   another change is incidental; build/check/warning/failure work is a
+   Gradle-centered workflow.
+2. Resolve this skill directory and confirm `python3` plus
+   `scripts/gradle_run.py`. If either is unavailable, stop and report that
+   prerequisite; never run Gradle directly as a fallback.
+3. Create one workflow before its first command and retain its opaque ID:
+
+   ```sh
+   python3 <skill-dir>/scripts/gradle_run.py create
+   ```
+
+   Run `create`, each `run`, and `finish` as standalone shell commands. Do not
+   combine one with `test`, variable setup, `git`, `rg`, `&&`, `;`, a pipe, or a
+   newline containing another command. If `create` fails, retry a fresh
+   standalone `create` before any `run`. Use the wrapper exclusively; it
+   supplies `--console=plain` and `--no-scan` unless console behavior was
+   selected or the user authorized `--scan`. Add `--warning-mode all` only for
+   warning discovery or an explicit request. A `workflow is busy` result is an
+   ownership violation: wait for the owner or correct ownership; do not start
+   or finish concurrently.
+4. For incidental validation, stay in the current agent and run the narrowest
+   task that answers a non-empty verification question:
+
+   ```sh
+   python3 <skill-dir>/scripts/gradle_run.py run \
+     --workflow <id> --scope targeted \
+     --question "Does :module:test pass after this change?" -- \
+     ./gradlew :module:test
+   ```
+
+   Do not substitute compilation for requested fixture tests. Read only the
+   bounded JSON summary; report both the managed wrapper and nested Gradle task,
+   the question, and its bounded answer.
+5. For Gradle-centered work, keep diagnosis, repository edits, and wrapper
+   execution with the current implementation owner by default. Delegate a
+   bounded read-only investigation only when it offers useful independent
+   analysis. Select and brief an optional helper using the shared
+   [selection and handoff reference](references/subagent-selection.md).
+   Keep one wrapper execution owner at a time; a helper reports evidence and
+   recommendations to that owner. Continue directly when no helper is available.
+6. Reuse actionable summaries, group warnings/failures by
+   fingerprint, and return source/line evidence plus the narrowest next command.
+   Run broad only for an aggregate question that targeted evidence cannot
+   answer. On a repeated primary source/compiler fingerprint, stop rebuilding;
+   inspect the cited source line and nearby declaration, import, or receiver
+   context before revising the diagnosis. Verify each source change with the
+   same wrapper and narrowest applicable task. In the final diagnosis, name the
+   focused inspection as the next action; do not claim a source fix before it.
+   A new question does not permit a blind repeat.
+7. Treat the full log as raw sensitive material even though summaries and
+   ledgers redact common credentials. Never expose it in model-visible context.
+   On interruption, use the wrapper's recorded signal and bounded partial
+   diagnostics; it owns process-group/process-tree cleanup and durable ledger
+   updates. Only logs still represented by the bounded recent-run ledger remain.
+8. Finish after the last requested validation (targeted or broad) passes, or
+   report unresolved fingerprints and why validation cannot continue. In the
+   final response, quote each non-empty `--question` and give its bounded
+   answer; command history is not a substitute for reported evidence. Then run:
+
+   ```sh
+   python3 <skill-dir>/scripts/gradle_run.py finish --workflow <id>
+   ```
+
+   Report that finish removed only wrapper-owned logs. A finished known ID is
+   idempotent; an unknown ID or active workflow fails closed and leaves files in
+   place. This skill does not constrain unrelated review, implementation, or
+   subagents.
