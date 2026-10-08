@@ -114,11 +114,11 @@ fun ContentUnavailableView(
                 Surface(
                     modifier = Modifier.size(if (media) 48.dp else 144.dp),
                     shape = when (state) {
-                        ContentUnavailableState.EMPTY -> MaterialShapes.Cookie6Sided
+                        ContentUnavailableState.EMPTY -> MaterialShapes.Cookie12Sided
                         ContentUnavailableState.ERROR -> MaterialShapes.Clover4Leaf
                     }.toShape(),
-                    color = if (media) Color.DarkGray else scheme.secondaryContainer,
-                    contentColor = if (media) Color.White else scheme.onSecondaryContainer,
+                    color = if (media) Color.DarkGray else scheme.surfaceContainer,
+                    contentColor = if (media) Color.White else scheme.onSurfaceVariant,
                 ) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Icon(
