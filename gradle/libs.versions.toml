@@ -25,7 +25,7 @@ okhttp = "5.5.0"
 imageCropper = "4.7.0"
 # Expressive theme is not public in BOM-managed Material 3 1.4.0.
 # Keep the remaining Compose artifacts on the BOM; see CONTRIBUTING.md.
-material3Expressive = "1.5.0-alpha29"
+material3Expressive = "1.5.0-beta01"
 
 [libraries]
 haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
