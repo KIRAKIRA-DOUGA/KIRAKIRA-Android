@@ -61,7 +61,7 @@ internal fun VideoCommentsPage(
     onAdjacent: (Boolean, Boolean) -> Unit,
     onLocationConsumed: (Long) -> Unit,
     listState: LazyListState,
-    bottomPadding: Dp,
+    contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
     topPadding: Dp = 0.dp,
     onLogin: (() -> Unit)? = null,
@@ -141,13 +141,14 @@ internal fun VideoCommentsPage(
         }
     }
     FloatingComposerLayout(
-        bottomPadding = bottomPadding,
+        contentPadding = contentPadding,
         topPadding = topPadding,
         composer = { availableHeight ->
             ContentComposer(
                 draft, R.string.comment_write, onDraft, onSend,
                 enabled = canInteract, busy = busy, maxLength = 19999,
                 state = composerState, active = composerActive, availableHeight = availableHeight,
+                contentPadding = contentPadding,
                 recent = recentKaomoji, onKaomojiInserted = onKaomojiInserted,
                 onLogin = onLogin,
             )

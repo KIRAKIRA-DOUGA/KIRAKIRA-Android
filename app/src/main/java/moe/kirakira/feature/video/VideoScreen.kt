@@ -14,10 +14,13 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -37,15 +40,15 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,6 +59,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -64,6 +68,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -80,8 +85,9 @@ import moe.kirakira.data.content.VideoDetail
 import moe.kirakira.ui.components.AccountAvatar
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
+import moe.kirakira.ui.components.ExpandableText
 import moe.kirakira.ui.components.FollowButton
-import moe.kirakira.ui.components.PagerTabIndicator
+import moe.kirakira.ui.components.PagerTabRow
 import moe.kirakira.ui.components.frostedBarBackground
 import moe.kirakira.ui.components.rememberTabChangeHandler
 import moe.kirakira.ui.theme.BarShadowElevation
@@ -122,7 +128,7 @@ internal fun VideoScreen(
     onOpenProfile: (Long) -> Unit,
     onUnavailable: () -> Unit,
     onLogin: () -> Unit,
-    bottomPadding: Dp,
+    contentPadding: PaddingValues,
     selectedPart: Int,
     onSelectPart: (Int) -> Unit,
     onOpenTag: (Long) -> Unit,
@@ -135,6 +141,12 @@ internal fun VideoScreen(
     onKaomojiInserted: (String) -> Unit = {},
     isActive: Boolean = true,
 ) {
+    val layoutDirection = LocalLayoutDirection.current
+    val horizontalPadding = PaddingValues(
+        start = contentPadding.calculateStartPadding(layoutDirection),
+        end = contentPadding.calculateEndPadding(layoutDirection),
+    )
+    val bottomPadding = contentPadding.calculateBottomPadding()
     val pager = rememberPagerState(pageCount = { VideoTab.entries.size })
     val changeTab = rememberTabChangeHandler(pager)
     val focusManager = LocalFocusManager.current
@@ -158,24 +170,23 @@ internal fun VideoScreen(
         hazeState = hazeState,
         modifier = modifier,
         tabs = {
-            PrimaryTabRow(
-                selectedTabIndex = pager.currentPage,
-                modifier = Modifier.fillMaxWidth().onSizeChanged { tabRowHeight = it.height },
-                containerColor = Color.Transparent,
-                indicator = { PagerTabIndicator(pager) },
-                divider = {},
-            ) {
-                VideoTab.entries.forEach { tab ->
-                    Tab(selected = pager.currentPage == tab.ordinal, onClick = { changeTab(tab.ordinal) },
-                        selectedContentColor = MaterialTheme.colorScheme.primary,
-                        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        text = { Text(stringResource(when (tab) {
+            PagerTabRow(
+                pagerState = pager,
+                titles = VideoTab.entries.map { tab ->
+                    stringResource(
+                        when (tab) {
                             VideoTab.INTRODUCTION -> R.string.video_tab_introduction
                             VideoTab.COMMENTS -> R.string.video_tab_comments
                             VideoTab.DANMAKU -> R.string.video_tab_danmaku
-                        })) })
-                }
-            }
+                        },
+                    )
+                },
+                onTabChange = changeTab,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontalPadding)
+                    .onSizeChanged { tabRowHeight = it.height },
+            )
         },
     ) {
         Spacer(Modifier.fillMaxWidth().height(playerHeight))
@@ -186,11 +197,13 @@ internal fun VideoScreen(
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Modifier.hazeSource(hazeState) else Modifier,
                 ),
             ) { page ->
+                // Child flings can mark the pager as scrolling without changing the active tab.
+                val composerActive = isActive && pager.currentPage == page
                 when (VideoTab.entries[page]) {
                     VideoTab.INTRODUCTION -> ContentPullToRefresh(
                         isRefreshing = state.detail.loading && detail != null,
                         onRefresh = onRetry,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize().padding(horizontalPadding),
                         indicatorTopPadding = tabPadding,
                     ) {
                         BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -246,7 +259,18 @@ internal fun VideoScreen(
                                             }
                                         }
                                     }
-                                    item("description") { SelectionContainer { Text(detail.description, style = MaterialTheme.typography.bodyLarge) } }
+                                    item("description") {
+                                        var descriptionExpanded by rememberSaveable(detail.summary.id) {
+                                            mutableStateOf(false)
+                                        }
+                                        ExpandableText(
+                                            text = detail.description,
+                                            expanded = descriptionExpanded,
+                                            onExpandedChange = { descriptionExpanded = it },
+                                            collapsedMaxLines = 3,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                        )
+                                    }
                                     if (detail.tags.isNotEmpty()) {
                                         item("tags") {
                                             val language = LocalConfiguration.current.locales[0].toLanguageTag()
@@ -276,15 +300,15 @@ internal fun VideoScreen(
                         detail != null && !detail.blockedByOther, onCommentDraft, onSendComment, onCommentsPage,
                         onCommentVote, onOpenProfile, onUnavailable, onCommentsPageRefresh,
                         onCommentsRetry, onCommentsAdjacent, onCommentLocationConsumed,
-                        rememberLazyListState(), bottomPadding,
+                        rememberLazyListState(), contentPadding,
                         topPadding = tabPadding,
                         onLogin = onLogin.takeUnless { state.signedIn },
                         composerState = commentComposer,
-                        composerActive = isActive && pager.currentPage == page && !pager.isScrollInProgress,
+                        composerActive = composerActive,
                         recentKaomoji = recentKaomoji, onKaomojiInserted = onKaomojiInserted,
                     )
                     VideoTab.DANMAKU -> FloatingComposerLayout(
-                        bottomPadding = bottomPadding,
+                        contentPadding = contentPadding,
                         topPadding = tabPadding,
                         composer = { availableHeight ->
                             DanmakuComposer(
@@ -294,8 +318,9 @@ internal fun VideoScreen(
                                 busy = state.busy,
                                 onLogin = onLogin.takeUnless { state.signedIn },
                                 composerState = danmakuComposer,
-                                composerActive = isActive && pager.currentPage == page && !pager.isScrollInProgress,
+                                composerActive = composerActive,
                                 availableHeight = availableHeight,
+                                contentPadding = contentPadding,
                                 recentKaomoji = recentKaomoji, onKaomojiInserted = onKaomojiInserted,
                             )
                         },
@@ -394,40 +419,41 @@ private fun VideoAuthor(
     onFollow: () -> Unit,
     busy: Boolean,
 ) {
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val stackButton = maxWidth < 360.dp || LocalDensity.current.fontScale > 1.3f
-        val identity: @Composable (Modifier) -> Unit = { modifier ->
-            Row(
-                modifier = modifier
-                    .clip(MaterialTheme.shapes.small)
-                    .clickable { onOpenProfile(author.uid) },
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                AccountAvatar(author.avatar, size = 48.dp)
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(author.name.ifBlank { stringResource(R.string.content_unknown_author) }, style = MaterialTheme.typography.titleMedium)
-                    if (author.username.isNotBlank()) {
-                        Text(
-                            text = "@${author.username}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontFamily = FontFamily.Monospace,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .clip(MaterialTheme.shapes.small)
+                .clickable { onOpenProfile(author.uid) },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            AccountAvatar(author.avatar, size = 48.dp)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = author.name.ifBlank { stringResource(R.string.content_unknown_author) },
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (author.username.isNotBlank()) {
+                    Text(
+                        text = "@${author.username}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontFamily = FontFamily.Monospace,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
         }
-        if (stackButton) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                identity(Modifier.fillMaxWidth())
-                if (!author.isSelf) FollowButton(author.following, { onFollow() }, enabled = !busy)
-            }
-        } else {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                identity(Modifier.weight(1f))
-                if (!author.isSelf) FollowButton(author.following, { onFollow() }, enabled = !busy)
-            }
+        if (!author.isSelf) {
+            FollowButton(author.following, { onFollow() }, enabled = !busy)
         }
     }
 }

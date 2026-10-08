@@ -6,6 +6,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -82,6 +83,7 @@ internal fun DanmakuComposer(
     composerState: ComposerState = remember { ComposerState() },
     composerActive: Boolean = true,
     availableHeight: Dp = 460.dp,
+    contentPadding: PaddingValues = PaddingValues(),
     recentKaomoji: List<String> = emptyList(),
     onLogin: (() -> Unit)? = null,
     onKaomojiInserted: (String) -> Unit = {},
@@ -95,6 +97,7 @@ internal fun DanmakuComposer(
     ContentComposer(
         draft, R.string.danmaku_write, onDraft, onSend, modifier, enabled, busy,
         state = composerState, active = composerActive, availableHeight = availableHeight,
+        contentPadding = contentPadding,
         recent = recentKaomoji, onKaomojiInserted = onKaomojiInserted,
         onLogin = onLogin,
     ) { closeKaomoji ->

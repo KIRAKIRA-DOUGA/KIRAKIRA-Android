@@ -289,7 +289,7 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 
 普通顶栏和胶囊底栏通过独立的背景子节点承载透明度、形状与阴影，文字、图标、选中背景和指示器作为独立前景绘制，不随背景变淡。背景使用 `matchParentSize()` 跟随实际栏高且不参与测量，胶囊前景继续由透明 `Surface` 保留内容裁剪与触摸语义。视频页的共享背景涵盖播放器占位区域与 Tab，下沿跟随播放器高度与实测 Tab 高度之和，Tab 上缘不单独投影；实际播放器保持独立绘制。资料页的原生图层承载封面、资料区与 Tab 共用的不透明顶部背景，下沿跟随 Tab 实测位置，避免独立 Tab 的上缘投影落到同一表面的资料区；资料顶栏毛玻璃背景的 `shadowElevation` 保持默认 0dp。尺寸、折叠程度与字体缩放由原有布局决定，不增加额外留白、空投影图层或持久化状态。
 
-浅色与深色模式共用固定的栏面阴影高度，实际投影由平台光照与图层透明度决定。连接列表继续使用固定 1dp 平台 elevation 投影，由普通容器 `shadow` 或懒列表宿主 `GraphicsLayer.shadowElevation` 承载；评论／弹幕输入区保留 `Surface.shadowElevation` 的 4dp 原生高度。刷新阴影仅由官方 `IndicatorBox` 容器承载，跟随容器位移与显示状态，不在外层重复投影。连接列表继续延伸并裁剪分段投影轮廓，账号侧滑组继续通过 `clipContent` 控制内容裁剪。
+浅色与深色模式共用固定的栏面阴影高度，实际投影由平台光照与图层透明度决定。连接列表继续使用固定 1dp 平台 elevation 投影，由普通容器 `shadow` 或懒列表宿主 `GraphicsLayer.shadowElevation` 承载；评论／弹幕输入框使用 `Surface.shadowElevation` 的固定 4dp 原生高度，发送按钮使用同一 4dp 高度，其彩色与中性色路径见[按钮动态阴影](#按钮动态阴影)。刷新阴影仅由官方 `IndicatorBox` 容器承载，跟随容器位移与显示状态，不在外层重复投影。连接列表继续延伸并裁剪分段投影轮廓，账号侧滑组继续通过 `clipContent` 控制内容裁剪。
 
 栏面图层 Modifier 为普通函数，调用处仅使用固定高度；主题、ViewModel 和导航不保存或传递阴影状态，外观页没有关闭入口，也不读取旧阴影偏好。大标题展开或折叠、Tab 切换及吸顶不改变阴影高度；经典强调色仍关闭色调高度叠加。
 
@@ -305,7 +305,7 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 
 `ShadowFloatingActionButton` 默认使用 `CircleShape` 与主题 `primary` 背景，`contentColorFor(containerColor)` 为默认背景匹配 `onPrimary` 前景，与实心按钮配色一致。保留官方 FAB 尺寸及显式覆盖形状、背景和前景的参数；当前规则管理页直接继承默认值，仅显示本地化无障碍描述的 Material Symbols Rounded `add` 加号。
 
-共享交互源驱动投影和形状。普通按钮静止／按压／悬停或聚焦使用 2dp／8dp／4dp 等效高度，FAB 使用 6dp／12dp／8dp；按下 120ms、松开或取消 180ms，无弹跳，系统动画设置由 Compose 处理。禁用时立即移除投影，优先于按压、悬停与聚焦；FAB 通过封装的 `enabled` 参数同时阻止操作并声明禁用语义。传入 Expressive `shapes` 时，默认形状和按压形状通过公开 `Interpolatable` API 与主题 `defaultEffectsSpec` 插值，同一动画形状用于按钮轮廓和投影；不访问 Material 3 内部 API。
+共享交互源驱动投影和形状。普通按钮静止／按压／悬停或聚焦使用 2dp／8dp／4dp 等效高度，FAB 使用 6dp／12dp／8dp；按下 120ms、松开或取消 180ms，无弹跳，系统动画设置由 Compose 处理。普通按钮和 FAB 禁用时立即移除投影，优先于按压、悬停与聚焦；FAB 通过封装的 `enabled` 参数同时阻止操作并声明禁用语义。传入 Expressive `shapes` 时，默认形状和按压形状通过公开 `Interpolatable` API 与主题 `defaultEffectsSpec` 插值，同一动画形状用于按钮轮廓和投影；不访问 Material 3 内部 API。
 
 双层 `dropShadow` 由 [MaterialColorShadow](../app/src/main/java/moe/kirakira/ui/components/MaterialColorShadow.kt) 统一绘制，在最低支持版本同样绘制彩色投影，几何参数采用 Google 官方 [Material Web 双层 elevation 实现](https://github.com/material-components/material-web/blob/main/elevation/internal/_elevation.scss)，高度映射采用官方 [elevation tokens](https://github.com/material-components/material-web/blob/main/tokens/versions/v0_192/_md-sys-elevation.scss)。下表按「垂直偏移／模糊／扩张」列出官方逻辑像素值，接入时映射为 dp；水平偏移均为零。这里复用官方设计参数，仍由 Compose 绘制，不使用 Android 平台光照模型，也不保证与浏览器逐像素一致。
 
@@ -320,7 +320,7 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 
 保留项目现有交互高度：2dp、4dp 及动画中间值在相邻官方高度间线性插值，环境层包含官方扩张值，主层不扩张。彩色投影取实际容器色，按钮与 FAB 的环境层／主层不透明度统一固定为 25%／50%，这是相对官方强度的显式例外；静止、悬停、聚焦和按压仅改变范围，不再改变不透明度。RGB 最大与最小通道差不大于 0.02 的中性色使用黑色投影及官方 15%／30%。两类均乘以容器透明度；主题切换与自定义颜色变化实时更新，不统一套用主色，也不绘制额外发光效果。
 
-评论／弹幕发送按钮直接使用共享实心图标按钮，不再由外层带投影的圆形 `Surface` 承载，避免重复投影和外层裁剪。输入框的固定 4dp 平台阴影不变；发送按钮禁用时不绘制阴影，保持原有禁用配色及发送条件。
+`ContentComposer` 的输入框 `Surface` 与发送按钮 `FilledIconButton` 共用固定 4dp 阴影高度。输入框通过 `Surface.shadowElevation` 绘制原生阴影；禁用发送按钮及中性色容器的可用发送按钮通过 `Modifier.shadow` 绘制原生阴影，使用平台默认配色与光照强度，并设置 `clip = false` 保留组件自身的内容裁剪。彩色容器的可用发送按钮通过 `materialColorShadow` 绘制双层投影，阴影取实际容器色。静止、按压、悬停、聚焦及禁用不改变高度。官方禁用容器色与主题 `surface` 合成，禁用图标色再与该容器色合成，得到不透明灰色配色，滚动内容不会透出。发送条件、官方禁用语义、尺寸与点击反馈保持原有逻辑。每个表面只使用一种阴影路径，保留形状轮廓与内容裁剪，不叠加原生和双层投影。
 
 ### 单选框动态阴影
 
@@ -402,6 +402,10 @@ ViewModel 分离关键词草稿、所选标签和已提交条件。视频读取�
 首次搜索只显示首次加载状态，同条件刷新保留视频、已加载空状态及列表位置，使用 `ContentPullToRefresh` 覆盖式指示器，失败保留已有数据。结果数量为实际返回并去重后的列表长度。视频 DTO 的 `duration` 以秒计，统一在数据层换算为 `VideoSummary.durationMs` 的毫秒值；非有限值、负数或超出转换范围的值作为缺失时长处理。排序稳定地按上传时间、播放量或时长比较，两个方向均将缺失值排末尾，默认顺序保留接口顺序；不请求不存在的服务端排序和分页能力。
 
 搜索条件、结果、控制选项及滚动位置只存 ViewModel 内存，不进入 SavedState、磁盘或日志。页面的 `LazyListState` 从该内存位置创建，并通过带条件 generation 的事件回传位置；新条件重置位置，旧页面位置事件不能覆盖新条件。主界面搜索分支与首页一样将底栏占位放入滚动内容，键盘内边距由搜索页面处理。旋转、Tab 切换与视频页返回保留状态，进程重建回到空搜索页；账号 revision 改变清空全部搜索状态。
+
+### 视频简介
+
+`VideoScreen` 的 `description` 懒列表条目复用共享 [`ExpandableText`](../app/src/main/java/moe/kirakira/ui/components/ExpandableText.kt)，设置 `collapsedMaxLines = 3` 并沿用 `bodyLarge` 正文样式。展开状态由条目内的 `rememberSaveable(detail.summary.id)` 持有，默认收起，按视频 ID 隔离；同一视频刷新、切换 Tab 和旋转时保留。文字选择、溢出测量、展开／收起动画与中英文操作及无障碍文案由共享组件提供，不额外嵌套 `SelectionContainer`。
 
 ### 视频标签
 
@@ -760,12 +764,16 @@ Android 12+ 的系统 Splash 仍会在裁切前扩展普通矢量前景。`Splas
 
 ### 评论与弹幕颜文字
 
-`ContentComposer` 接收可空的 `onLogin` 回调，评论页直接透传，弹幕页通过 `DanmakuComposer` 透传；未登录时回调非空，整条编辑区替换为通栏 `ShadowButton`，复用中英文 `content_login_to_interact` 文案、官方 `ButtonDefaults.MediumContainerHeight` 及同尺寸的形状、内边距和文字 API，以最小高度适应字体缩放。登录按钮沿用 `FloatingComposerLayout` 的宽度约束、底部避让和实测高度留白，不受编辑器的 `enabled`、`busy` 或草稿状态限制。进入登录按钮分支时关闭颜文字面板，当前活动页签清除焦点并隐藏键盘；弹幕样式面板的可保存状态同时按是否需要登录隔离，未登录时不展示。登录事件复用视频页的暂停播放和认证导航流程；登录后回调为空，恢复编辑区，不自动发送。列表标题下方移除原登录提示，提示资源同时供按钮和其他页面占位使用。
+`ContentComposer` 接收可空的 `onLogin` 回调，评论页直接透传，弹幕页通过 `DanmakuComposer` 透传；未登录时回调非空，整条编辑区替换为通栏 `ShadowButton`，复用中英文 `content_login_to_interact` 文案、官方 `ButtonDefaults.MediumContainerHeight` 及同尺寸的形状、内边距和文字 API，以最小高度适应字体缩放。登录按钮沿用 `ContentComposer` 的悬浮间距、640dp 宽度上限与底部避让，列表留白由 `FloatingComposerLayout` 按实测高度提供，不受编辑器的 `enabled`、`busy` 或草稿状态限制。进入登录按钮分支时关闭颜文字面板，当前活动页签清除焦点并隐藏键盘；弹幕样式面板的可保存状态同时按是否需要登录隔离，未登录时不展示。登录事件复用视频页的暂停播放和认证导航流程；登录后回调为空，恢复编辑区，不自动发送。列表标题下方移除原登录提示，提示资源同时供按钮和其他页面占位使用。
 
 `ContentComposer` 的输入框 `Surface` 与独立发送按钮放在同一个底部对齐的 `Row` 内：输入框占剩余宽度，右侧发送按钮为固定 56dp 圆形 `FilledIconButton`，两者相隔 8dp。发送按钮位于输入框外，不参与框内测量和展开动画；整行实测高度用于扣除颜文字面板的可用空间。输入框以草稿是否为空切换单行药丸与两行编辑布局：空草稿时颜文字／样式按钮放在框内尾部，非空时放在下方操作栏。输入框、颜文字／样式按钮和发送按钮始终保留在同一组合位置，避免首次输入时丢失焦点、输入法组合状态或按钮交互状态。`ComposerInputLayout` 按框内按钮实测宽高排布，容器高度和圆角使用主题 `fastSpatialSpec`，颜文字／样式按钮横向位移与编辑区域宽度使用 `defaultSpatialSpec`，不在中途硬切分段。颜文字／样式按钮锚定框内底部，仅在横向移动。横向进度采用保留符号的平方映射，越过展开位置时以连续阻力压缩回弹距离，保持在容器边缘内，不硬截断位置。按钮横向绘制使用浮点图层位移；归一化进度的结束阈值为 0.0001，避免长距离移动尚有数个像素时就瞬间归位。容器保留空间弹簧的轻微回弹，可用宽度、最小高度与合法圆角仍受布局约束。连续输入与清空从当前进度及速度转向最新状态，不排队；Compose 动画时钟遵循系统动画设置。多行文字增减的 `animateContentSize` 仅作用于 `Surface` 内部的编辑区域，外层布局与 Surface 不裁剪阴影。使用 `TextFieldValue` 保存光标、选区和输入法组合状态，文字仍由原有 ViewModel 字符串草稿拥有。外部草稿清空时同步编辑值；颜文字替换 `selection.min..selection.max`，插入后光标移至末尾，不增补空格，超限整项拒绝。`ComposerState` 在视频页分别为评论和弹幕创建，并按视频 ID 与会话修订隔离；可保存状态只记录分类与选区偏移，正文继续来自 ViewModel，面板打开状态不恢复。旋转保留分类／选区，切换 Tab、打开样式、全屏和画中画关闭面板；只有当前活动页签可以拦截返回。
 
-输入框保留固定的 4dp 阴影高度；独立发送按钮使用共享 `ShadowFilledIconButton` 的动态彩色阴影，禁用时无投影。按钮保留官方配色、禁用状态与点击反馈，不再叠加外层圆形 `Surface` 投影，详见[按钮动态阴影](#按钮动态阴影)。
+输入框与独立发送按钮共用固定 4dp 阴影高度，在所有交互及禁用状态保持一致；输入框与中性色发送按钮使用系统原生阴影，彩色容器的可用发送按钮使用共享双层彩色投影。禁用发送按钮保留不透明灰色配色与原生阴影。按钮保留发送条件、官方禁用语义与点击反馈，详见[按钮动态阴影](#按钮动态阴影)。
 
-`KaomojiPicker` 只接收分类、最近记录及事件回调。静态目录完整保留 Cerasus 的五类 268 项原始字符；网格按实际字体测量跨列，极长条目可横向滚动阅读。面板最高 300dp，并按可用高度扣除输入区实测高度；等待 IME 收起后显示，系统内边距沿用 `FloatingComposerLayout` 的单一入口，列表底部留白包含整个输入区与面板的实测高度。M3E motionScheme 驱动容器尺寸变化，颜色和排版继承 `KIRAKIRATheme`。
+`KaomojiPicker` 接收分类、最近记录、事件回调与内容安全内边距。面板背景延伸至窗口左右及底部边缘；Tab 在内部避让左右安全区，网格将安全区加入 `contentPadding`，末项可滚动至导航栏上方，最近记录为空时的占位同样避让。面板背景直接使用主题现有的 `surfaceContainerLow`，浅色为接近白色的浅灰、深色跟随主题，不混合额外颜色。面板整体通过官方 `Surface.shadowElevation = 4.dp` 绘制固定的原生阴影，不叠加条目或 Tab 阴影。形状为仅顶部两角带圆角的 `RoundedCornerShape`，底部两角保持直角；通过共享 [windowCornerRadius](../app/src/main/java/moe/kirakira/ui/components/WindowCornerRadius.kt) 读取根窗口圆角并按当前密度换算为 dp，与 `ActivityNavDisplay` 的预测性返回使用同一算法及 28dp 回退，读取规则见 [Android 转场适配边界](../third_party/android-motion/README.md#公开-api-适配边界)。分类使用共享 `PagerTabRow` 的官方可滚动主 Tab，调用处将 `minTabWidth` 设为 `0.dp`，实际宽度由文字长度与官方水平内边距决定；内容由独立 `HorizontalPager` 承载，点击复用 `rememberTabChangeHandler`，指示器与视频页、资料页共用 `PagerTabIndicator`。Pager 从保存的分类初始化，`currentPage` 改变时通过回调更新 `ComposerState.category`，分类切换不会关闭面板。
+
+静态目录完整保留 Cerasus 的五类 268 项原始字符。各分类使用固定四列 `LazyVerticalGrid`，每项独占一个单元格，不跨列；条目使用官方透明 `TextButton`，无容器填充与阴影，保留点击反馈、禁用语义及最小 48dp 高度。正文沿用 `bodyLarge`，通过官方 `TextAutoSize.StepBased` 在 `bodySmall` 至 `bodyLarge` 字号之间寻找适合单元格宽度的最大值；`KaomojiTextAutoSize` 仅在字号测量时提供单元格内可见宽度，实际文字仍可横向滚动，达到字号下限的极长内容不会被截断或改写。
+
+面板根节点和每页网格共用 `NestedScrollConnection`，在 `onPostScroll` 和 `onPostFling` 消费子滚动剩余的横向位移与速度。面板边界隔离分类 Tab 栏和分页器与外层视频 `HorizontalPager`，网格边界隔离长条目阅读与分类 Pager；子组件先处理自身滚动，纵向滚动仍沿用原路径。评论与弹幕输入区的活动状态由视频页可交互状态与视频 Pager 的 `currentPage` 决定；子列表 fling 会经嵌套滚动短暂改变父分页器的 `isScrollInProgress`，因此该属性不作为关闭面板的条件，网格、分类与长条目滚动不会清除面板状态。实际切换视频页签仍由外层 `currentPage` 变化关闭面板。面板的内容区域最高 300dp，背景另包含底部系统安全区，并按可用高度扣除输入区实测高度、间距与安全区；等待 IME 收起后显示。`VideoPage` 仅在详情宿主外应用顶部安全区，左右与底部安全内边距由 Scaffold 透传至 `VideoScreen`、`FloatingComposerLayout` 和 `ContentComposer`；Tab 与列表单独避让左右安全区，面板宿主保持全宽贴底。`ContentComposer` 仅对编辑行与登录按钮应用左右 16dp 悬浮间距和 640dp 宽度上限；面板收起时底部保留安全区加 12dp 间距，展开时背景铺到底部，安全区放入面板内容，不重复处理导航栏或 IME Insets。`FloatingComposerLayout` 实测包含底部安全区的完整输入区高度，列表留白仅另加 12dp 间距，确保末项能滚动至输入区上方。`AnimatedVisibility` 管理面板展开和收起，高度变化使用主题 `defaultSpatialSpec`，淡入淡出使用 `fastEffectsSpec`；面板与顶部 8dp 间距一同参与过渡，退出结束后移出组合。底部宿主固定保留安全区加 12dp 的最小高度，面板在宿主内靠底对齐，编辑行随实际动画高度移动，避免切换底部内边距和外部间距造成跳动；内容从自身顶部展开，Tab 随面板上沿移动，动画最大高度限制为完整面板高度，背景持续贴底。高度过渡使用 `clip = false`，保留面板上沿及圆角外的原生投影；面板靠屏幕底部对齐，超出动画高度的内容向窗口底部延伸，由窗口边界约束，面板本身仍由 `Surface` 按形状裁剪。投影与面板共用淡入淡出过渡，输入框与发送按钮的阴影保留在其外。退出开始时清除面板无障碍语义并禁用分类切换与条目插入；快速反向切换由同一过渡接续，动效遵循系统动画设置。颜色和排版继承 `KIRAKIRATheme`。
 
 `KaomojiViewModel` 暴露应用级 `RecentKaomojiStore` 的 Flow。Store 在 IO 调度器上先读后串行处理插入事件，以独立 `kirakira_kaomoji.xml` 保存最多 24 项去重记录，只接受目录中存在的值；初始或损坏记录回退为空。最近记录不属于账号私有数据，不保存草稿，不加入备份白名单，也不请求网络。来源与许可见 [Cerasus 资源](../third_party/cerasus-icons/README.md)。

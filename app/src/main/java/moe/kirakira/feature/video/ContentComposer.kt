@@ -4,12 +4,19 @@ import android.content.res.Configuration
 import androidx.annotation.StringRes
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,8 +28,10 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -40,6 +49,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -49,13 +59,16 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
@@ -72,15 +85,15 @@ import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import moe.kirakira.R
 import moe.kirakira.ui.components.ShadowButton
-import moe.kirakira.ui.components.ShadowFilledIconButton
+import moe.kirakira.ui.components.materialColorShadow
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-/** The caller supplies the Scaffold safe-drawing bottom inset, which already includes the IME. */
+/** The composer applies Scaffold safe-drawing insets internally so its panel can reach the edges. */
 @Composable
 internal fun FloatingComposerLayout(
-    bottomPadding: Dp,
+    contentPadding: PaddingValues,
     composer: @Composable (Dp) -> Unit,
     modifier: Modifier = Modifier,
     topPadding: Dp = 0.dp,
@@ -88,14 +101,21 @@ internal fun FloatingComposerLayout(
 ) {
     var composerHeight by remember { mutableIntStateOf(0) }
     val height = with(LocalDensity.current) { composerHeight.toDp() }
+    val layoutDirection = LocalLayoutDirection.current
+    val bottomPadding = contentPadding.calculateBottomPadding()
     BoxWithConstraints(modifier.fillMaxSize()) {
-        val availableHeight = (maxHeight - topPadding - bottomPadding - 24.dp).coerceAtLeast(0.dp)
-        content(bottomPadding + height + 24.dp)
-        Column(
+        val availableHeight = (maxHeight - topPadding - 12.dp).coerceAtLeast(0.dp)
+        Box(
+            Modifier.fillMaxSize().padding(
+                start = contentPadding.calculateStartPadding(layoutDirection),
+                end = contentPadding.calculateEndPadding(layoutDirection),
+            ),
+        ) {
+            content(maxOf(bottomPadding + 12.dp, height) + 12.dp)
+        }
+        Box(
             Modifier
                 .align(Alignment.BottomCenter)
-                .padding(start = 16.dp, end = 16.dp, bottom = bottomPadding + 12.dp)
-                .widthIn(max = 640.dp)
                 .fillMaxWidth()
                 .onSizeChanged { composerHeight = it.height },
         ) {
@@ -147,6 +167,7 @@ internal fun ContentComposer(
     state: ComposerState = remember { ComposerState() },
     active: Boolean = true,
     availableHeight: Dp = 460.dp,
+    contentPadding: PaddingValues = PaddingValues(),
     recent: List<String> = emptyList(),
     onKaomojiInserted: (String) -> Unit = {},
     onLogin: (() -> Unit)? = null,
@@ -154,6 +175,12 @@ internal fun ContentComposer(
 ) {
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
+    // VideoPage already applies the top inset; this dock owns the side and bottom insets.
+    val layoutDirection = LocalLayoutDirection.current
+    val startPadding = contentPadding.calculateStartPadding(layoutDirection)
+    val endPadding = contentPadding.calculateEndPadding(layoutDirection)
+    val bottomPadding = contentPadding.calculateBottomPadding()
+    val inputPadding = PaddingValues(start = startPadding + 16.dp, end = endPadding + 16.dp)
     if (onLogin != null) {
         LaunchedEffect(state, active) {
             state.panelOpen = false
@@ -163,16 +190,21 @@ internal fun ContentComposer(
             }
         }
         val buttonHeight = ButtonDefaults.MediumContainerHeight
-        ShadowButton(
-            onClick = onLogin,
-            modifier = modifier.fillMaxWidth().heightIn(min = buttonHeight),
-            shapes = ButtonDefaults.shapesFor(buttonHeight),
-            contentPadding = ButtonDefaults.contentPaddingFor(buttonHeight),
+        Box(
+            modifier.fillMaxWidth().padding(bottom = bottomPadding + 12.dp).padding(inputPadding),
+            contentAlignment = Alignment.BottomCenter,
         ) {
-            Text(
-                stringResource(R.string.content_login_to_interact),
-                style = ButtonDefaults.textStyleFor(buttonHeight),
-            )
+            ShadowButton(
+                onClick = onLogin,
+                modifier = Modifier.widthIn(max = 640.dp).fillMaxWidth().heightIn(min = buttonHeight),
+                shapes = ButtonDefaults.shapesFor(buttonHeight),
+                contentPadding = ButtonDefaults.contentPaddingFor(buttonHeight),
+            ) {
+                Text(
+                    stringResource(R.string.content_login_to_interact),
+                    style = ButtonDefaults.textStyleFor(buttonHeight),
+                )
+            }
         }
         return
     }
@@ -190,9 +222,11 @@ internal fun ContentComposer(
     }
     var inputHeight by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
-    val panelHeight = (availableHeight - with(density) { inputHeight.toDp() } - 8.dp).coerceIn(0.dp, 300.dp)
+    val panelContentHeight = (availableHeight - with(density) { inputHeight.toDp() } - 8.dp - bottomPadding)
+        .coerceIn(0.dp, 300.dp)
     val keyboardVisible = WindowInsets.ime.getBottom(density) > 0
     val panelOpen = state.panelOpen && active && enabled
+    val panelVisible = panelOpen && !keyboardVisible && panelContentHeight >= 96.dp
     if (panelOpen) {
         NavigationBackHandler(
             state = rememberNavigationEventState(NavigationEventInfo.None),
@@ -240,99 +274,145 @@ internal fun ContentComposer(
         }
     }
     val send: @Composable () -> Unit = {
-        ShadowFilledIconButton(
+        val sendEnabled = enabled && !busy && draft.isNotBlank()
+        val colors = IconButtonDefaults.filledIconButtonColors()
+        // Resolve disabled colors against the surface so scrolling content cannot show through.
+        val disabledContainerColor = colors.disabledContainerColor.compositeOver(containerColor)
+        val sendContainerColor = if (sendEnabled) colors.containerColor else disabledContainerColor
+        val maximumChannel = maxOf(sendContainerColor.red, sendContainerColor.green, sendContainerColor.blue)
+        val minimumChannel = minOf(sendContainerColor.red, sendContainerColor.green, sendContainerColor.blue)
+        val sendShadow = if (sendEnabled && maximumChannel - minimumChannel > 0.02f) {
+            Modifier.materialColorShadow(CircleShape, sendContainerColor) { shadowElevation.value }
+        } else {
+            Modifier.shadow(shadowElevation, CircleShape, clip = false)
+        }
+        FilledIconButton(
             onClick = onSend,
-            enabled = enabled && !busy && draft.isNotBlank(),
-            modifier = Modifier.size(56.dp),
+            enabled = sendEnabled,
+            modifier = Modifier
+                .size(56.dp)
+                .then(sendShadow),
             shape = CircleShape,
+            colors = colors.copy(
+                disabledContainerColor = disabledContainerColor,
+                disabledContentColor = colors.disabledContentColor.compositeOver(disabledContainerColor),
+            ),
         ) {
             Icon(painterResource(R.drawable.ic_symbol_send), stringResource(R.string.content_send))
         }
     }
     Column(
         modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .onSizeChanged { inputHeight = it.height },
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.Bottom,
+        Box(
+            Modifier.fillMaxWidth().padding(inputPadding),
+            contentAlignment = Alignment.BottomCenter,
         ) {
-            Surface(
-                modifier = Modifier.weight(1f),
-                shape = inputShape,
-                color = containerColor,
-                shadowElevation = shadowElevation,
-            ) {
-                ComposerInputLayout(
-                    expansion = expansion,
-                    horizontalExpansion = horizontalExpansion,
-                    actions = actions,
-                ) {
-                    TextField(
-                        value = field,
-                        onValueChange = {
-                            if (!busy && enabled && it.text.length <= maxLength) {
-                                state.editor = it
-                                tooLong = false
-                                onDraft(it.text)
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(requester)
-                            .onFocusChanged { if (it.isFocused) state.panelOpen = false }
-                            .semantics { contentDescription = inputDescription },
-                        placeholder = { Text(inputDescription, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                        enabled = enabled,
-                        readOnly = busy,
-                        minLines = 1,
-                        maxLines = if (compact) 1 else if (panelOpen) minOf(2, maxLines) else maxLines,
-                        shape = inputShape,
-                        isError = tooLong,
-                        supportingText = if (tooLong) {
-                            { Text(stringResource(R.string.kaomoji_too_long, maxLength)) }
-                        } else null,
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = containerColor,
-                            unfocusedContainerColor = containerColor,
-                            disabledContainerColor = containerColor,
-                            errorContainerColor = containerColor,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            disabledIndicatorColor = Color.Transparent,
-                            errorIndicatorColor = Color.Transparent,
-                        ),
-                    )
-                }
-            }
-            send()
-        }
-        if (panelOpen && !keyboardVisible && panelHeight >= 96.dp) {
-            KaomojiPicker(
-                category = state.category,
-                recent = recent,
-                onCategory = { state.category = it },
-                onSelect = { text ->
-                    if (!busy && enabled) {
-                        val start = field.selection.min
-                        val end = field.selection.max
-                        val next = field.text.replaceRange(start, end, text)
-                        if (next.length <= maxLength) {
-                            state.editor = TextFieldValue(next, TextRange(start + text.length))
-                            tooLong = false
-                            onDraft(next)
-                            onKaomojiInserted(text)
-                        } else tooLong = true
-                    }
-                },
+            Row(
                 modifier = Modifier
+                    .widthIn(max = 640.dp)
                     .fillMaxWidth()
-                    .height(panelHeight),
-                enabled = !busy,
-            )
+                    .onSizeChanged { inputHeight = it.height },
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                Surface(
+                    modifier = Modifier.weight(1f),
+                    shape = inputShape,
+                    color = containerColor,
+                    shadowElevation = shadowElevation,
+                ) {
+                    ComposerInputLayout(
+                        expansion = expansion,
+                        horizontalExpansion = horizontalExpansion,
+                        actions = actions,
+                    ) {
+                        TextField(
+                            value = field,
+                            onValueChange = {
+                                if (!busy && enabled && it.text.length <= maxLength) {
+                                    state.editor = it
+                                    tooLong = false
+                                    onDraft(it.text)
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(requester)
+                                .onFocusChanged { if (it.isFocused) state.panelOpen = false }
+                                .semantics { contentDescription = inputDescription },
+                            placeholder = { Text(inputDescription, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            enabled = enabled,
+                            readOnly = busy,
+                            minLines = 1,
+                            maxLines = if (compact) 1 else if (panelOpen) minOf(2, maxLines) else maxLines,
+                            shape = inputShape,
+                            isError = tooLong,
+                            supportingText = if (tooLong) {
+                                { Text(stringResource(R.string.kaomoji_too_long, maxLength)) }
+                            } else null,
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = containerColor,
+                                unfocusedContainerColor = containerColor,
+                                disabledContainerColor = containerColor,
+                                errorContainerColor = containerColor,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                                disabledIndicatorColor = Color.Transparent,
+                                errorIndicatorColor = Color.Transparent,
+                            ),
+                        )
+                    }
+                }
+                send()
+            }
+        }
+        // Keep the safe-area floor stable and the panel anchored to the bottom throughout the transition.
+        Box(Modifier.fillMaxWidth().heightIn(min = bottomPadding + 12.dp)) {
+            androidx.compose.animation.AnimatedVisibility(
+                visible = panelVisible,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .heightIn(max = panelContentHeight + bottomPadding + 8.dp)
+                    .then(if (panelVisible) Modifier else Modifier.clearAndSetSemantics { }),
+                enter = expandVertically(
+                    animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                    expandFrom = Alignment.Top,
+                    clip = false,
+                ) + fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()),
+                exit = shrinkVertically(
+                    animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                    shrinkTowards = Alignment.Top,
+                    clip = false,
+                ) + fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+                label = "Kaomoji panel",
+            ) {
+                KaomojiPicker(
+                    category = state.category,
+                    recent = recent,
+                    onCategory = { state.category = it },
+                    onSelect = { text ->
+                        if (panelVisible && !busy && enabled) {
+                            val start = field.selection.min
+                            val end = field.selection.max
+                            val next = field.text.replaceRange(start, end, text)
+                            if (next.length <= maxLength) {
+                                state.editor = TextFieldValue(next, TextRange(start + text.length))
+                                tooLong = false
+                                onDraft(next)
+                                onKaomojiInserted(text)
+                            } else tooLong = true
+                        }
+                    },
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .fillMaxWidth()
+                        .height(panelContentHeight + bottomPadding),
+                    enabled = panelVisible && !busy,
+                    contentPadding = PaddingValues(start = startPadding, end = endPadding, bottom = bottomPadding),
+                )
+            }
         }
     }
 }
@@ -402,6 +482,6 @@ private class ComposerInputShape(private val expansion: Float) : Shape {
 @Composable
 private fun ContentComposerPreview() {
     KIRAKIRATheme {
-        ContentComposer("", R.string.comment_write, {}, {}, modifier = Modifier.padding(16.dp))
+        ContentComposer("", R.string.comment_write, {}, {})
     }
 }

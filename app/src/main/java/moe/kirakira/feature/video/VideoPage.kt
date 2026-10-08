@@ -214,8 +214,6 @@ internal fun VideoPage(
                     Modifier.fillMaxSize()
                         .padding(
                             top = inlineLayout.contentPadding.calculateTopPadding(),
-                            start = inlineLayout.contentPadding.calculateStartPadding(layoutDirection),
-                            end = inlineLayout.contentPadding.calculateEndPadding(layoutDirection),
                         )
                         .drawWithContent {
                             if (!playerFillsWindow) drawContent()
@@ -245,7 +243,7 @@ internal fun VideoPage(
                         { model.commentDraft.value = it }, { model.danmakuDraft.value = it },
                         { requireLogin(model::sendComment) }, { requireLogin { model.sendDanmaku(playback.positionMs) } },
                         model::refreshDanmaku, onOpenProfile,
-                        ::unavailable, { requireLogin {} }, inlineLayout.contentPadding.calculateBottomPadding(),
+                        ::unavailable, { requireLogin {} }, inlineLayout.contentPadding,
                         onDanmakuStyle = model::updateDanmakuStyle,
                         commentComposer = commentComposer, danmakuComposer = danmakuComposer,
                         recentKaomoji = recentKaomoji, onKaomojiInserted = kaomojiModel::record,
