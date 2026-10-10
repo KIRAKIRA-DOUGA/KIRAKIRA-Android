@@ -448,12 +448,12 @@
     <string name="danmaku_style_small">小</string>
     <string name="danmaku_style_medium">中</string>
     <string name="danmaku_style_large">大</string>
-    <string name="danmaku_style_mode">模式</string>
+    <string name="danmaku_style_mode">位置与方向</string>
     <string name="danmaku_style_rtl">从右向左</string>
     <string name="danmaku_style_ltr">从左向右</string>
     <string name="danmaku_style_top">顶部</string>
     <string name="danmaku_style_bottom">底部</string>
-    <string name="danmaku_style_rainbow">彩虹样式</string>
+    <string name="danmaku_style_rainbow">创作者专属渐变</string>
     <string name="danmaku_style_done">完成</string>
     <string name="danmaku_style_preview">样式预览</string>
     <string name="danmaku_style_preview_text">在这里预览弹幕</string>

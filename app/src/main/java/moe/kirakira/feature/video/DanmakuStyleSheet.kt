@@ -1,11 +1,10 @@
 package moe.kirakira.feature.video
 
 import android.content.res.Configuration
-import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
@@ -41,32 +41,29 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.R
 import moe.kirakira.data.content.DanmakuFontSize
 import moe.kirakira.data.content.DanmakuMode
 import moe.kirakira.data.content.DanmakuStyle
 import moe.kirakira.ui.components.ConnectedListGroup
+import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.theme.KIRAKIRATheme
-
-private val danmakuColors =
-    listOf(0xFFFFFF, 0xFF3225, 0xF06E8E, 0xFFA800, 0xFBFF34, 0x2CE73F, 0x39C5BB, 0x24C1F2, 0xDC1FED)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -163,136 +160,178 @@ internal fun DanmakuStyleContent(
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier
-            .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec<IntSize>())
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp)
-            .padding(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+    Column(modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Text(
                 stringResource(R.string.danmaku_style),
                 Modifier.weight(1f),
                 style = MaterialTheme.typography.headlineSmall,
             )
-            TextButton(onClick = { onStyle(DanmakuStyle()) }) { Text(stringResource(R.string.danmaku_style_reset)) }
-        }
-        DanmakuStylePreview(draft, style)
-        Text(stringResource(R.string.danmaku_style_color), style = MaterialTheme.typography.titleSmall)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            danmakuColors.forEach { rgb ->
-                val color = Color(0xFF000000.toInt() or rgb)
-                val checked = style.color == rgb
-                val description = stringResource(R.string.danmaku_style_color_value, DanmakuStyle(color = rgb).colorHex)
-                Surface(
-                    onClick = { onStyle(style.copy(color = rgb)) },
-                    modifier = Modifier
-                        .size(48.dp)
-                        .semantics {
-                            contentDescription = description
-                            selected = checked
-                            role = Role.RadioButton
-                        },
-                    shape = if (checked) MaterialTheme.shapes.medium else MaterialTheme.shapes.extraLarge,
-                    color = color,
-                    border = BorderStroke(
-                        if (checked) 3.dp else 1.dp,
-                        if (checked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                    ),
-                ) {
-                    if (checked) Icon(
-                        painterResource(R.drawable.ic_symbol_check), null,
-                        Modifier.padding(12.dp),
-                        tint = if (color.luminance() > 0.45f) Color.Black else Color.White,
-                    )
-                }
+            TextButton(
+                onClick = { onStyle(DanmakuStyle()) },
+                enabled = style != DanmakuStyle(),
+            ) {
+                Text(stringResource(R.string.danmaku_style_reset))
             }
-            FilterChip(
-                selected = style.color !in danmakuColors,
-                onClick = onCustomColor,
-                label = { Text(stringResource(R.string.danmaku_style_custom)) },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
-                    selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-                modifier = Modifier.heightIn(min = 48.dp),
-                leadingIcon = { Icon(painterResource(R.drawable.ic_symbol_palette), null) },
-            )
         }
-        Text(stringResource(R.string.danmaku_style_size), style = MaterialTheme.typography.titleSmall)
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            DanmakuFontSize.entries.forEachIndexed { index, size ->
-                SegmentedButton(
-                    selected = style.fontSize == size,
-                    onClick = { onStyle(style.copy(fontSize = size)) },
-                    shape = SegmentedButtonDefaults.itemShape(index, 3),
-                    modifier = Modifier.heightIn(min = 48.dp),
-                ) {
+        Column(
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+        ) {
+            DanmakuStylePreview(draft, style)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        stringResource(
-                            when (size) {
-                                DanmakuFontSize.SMALL -> R.string.danmaku_style_small
-                                DanmakuFontSize.MEDIUM -> R.string.danmaku_style_medium
-                                DanmakuFontSize.LARGE -> R.string.danmaku_style_large
-                            },
-                        ),
+                        stringResource(R.string.danmaku_style_color),
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleSmall,
                     )
+                    Text(
+                        "#${style.colorHex}",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontFamily = FontFamily.Monospace,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                DanmakuColorPalette(
+                    color = style.color,
+                    onColor = { onStyle(style.copy(color = it)) },
+                    onCustomColor = onCustomColor,
+                )
+            }
+            ConnectedListGroup {
+                SegmentedListItem(
+                    onClick = { onStyle(style.copy(enableRainbow = !style.enableRainbow)) },
+                    shapes = connectedListItemShapes(0, 1),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics {
+                            role = Role.Switch
+                            toggleableState = ToggleableState(style.enableRainbow)
+                        },
+                    leadingContent = { CreatorGradientSample() },
+                    trailingContent = { Switch(style.enableRainbow, onCheckedChange = null) },
+                    content = { Text(stringResource(R.string.danmaku_style_rainbow)) },
+                )
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.danmaku_style_size), style = MaterialTheme.typography.titleSmall)
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    DanmakuFontSize.entries.forEachIndexed { index, size ->
+                        SegmentedButton(
+                            selected = style.fontSize == size,
+                            onClick = { onStyle(style.copy(fontSize = size)) },
+                            shape = SegmentedButtonDefaults.itemShape(index, DanmakuFontSize.entries.size),
+                            modifier = Modifier.heightIn(min = 48.dp),
+                        ) {
+                            Text(
+                                stringResource(
+                                    when (size) {
+                                        DanmakuFontSize.SMALL -> R.string.danmaku_style_small
+                                        DanmakuFontSize.MEDIUM -> R.string.danmaku_style_medium
+                                        DanmakuFontSize.LARGE -> R.string.danmaku_style_large
+                                    },
+                                ),
+                            )
+                        }
+                    }
+                }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.danmaku_style_mode), style = MaterialTheme.typography.titleSmall)
+                val modes = listOf(DanmakuMode.RTL, DanmakuMode.LTR, DanmakuMode.TOP, DanmakuMode.BOTTOM)
+                modes.chunked(2).forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        row.forEach { mode ->
+                            FilterChip(
+                                selected = style.mode == mode,
+                                onClick = { onStyle(style.copy(mode = mode)) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+                                    selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimary,
+                                ),
+                                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                                leadingIcon = {
+                                    Icon(
+                                        painterResource(
+                                            when (mode) {
+                                                DanmakuMode.RTL -> R.drawable.ic_symbol_west
+                                                DanmakuMode.LTR -> R.drawable.ic_symbol_east
+                                                DanmakuMode.TOP -> R.drawable.ic_symbol_vertical_align_top
+                                                DanmakuMode.BOTTOM -> R.drawable.ic_symbol_vertical_align_bottom
+                                            },
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(FilterChipDefaults.IconSize),
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        stringResource(
+                                            when (mode) {
+                                                DanmakuMode.RTL -> R.string.danmaku_style_rtl
+                                                DanmakuMode.LTR -> R.string.danmaku_style_ltr
+                                                DanmakuMode.TOP -> R.string.danmaku_style_top
+                                                DanmakuMode.BOTTOM -> R.string.danmaku_style_bottom
+                                            },
+                                        ),
+                                    )
+                                },
+                            )
+                        }
+                    }
                 }
             }
         }
-        Text(stringResource(R.string.danmaku_style_mode), style = MaterialTheme.typography.titleSmall)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            DanmakuMode.entries.forEach { mode ->
-                FilterChip(
-                    selected = style.mode == mode,
-                    onClick = { onStyle(style.copy(mode = mode)) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
-                        selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimary,
-                    ),
-                    modifier = Modifier.heightIn(min = 48.dp),
-                    label = {
-                        Text(
-                            stringResource(
-                                when (mode) {
-                                    DanmakuMode.RTL -> R.string.danmaku_style_rtl
-                                    DanmakuMode.TOP -> R.string.danmaku_style_top
-                                    DanmakuMode.BOTTOM -> R.string.danmaku_style_bottom
-                                    DanmakuMode.LTR -> R.string.danmaku_style_ltr
-                                },
-                            ),
-                        )
-                    },
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = 4.dp,
+        ) {
+            val buttonHeight = ButtonDefaults.MediumContainerHeight
+            ShadowButton(
+                onClick = onDone,
+                modifier = Modifier
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
+                    .fillMaxWidth()
+                    .heightIn(min = buttonHeight),
+                shapes = ButtonDefaults.shapesFor(buttonHeight),
+                contentPadding = ButtonDefaults.contentPaddingFor(buttonHeight),
+            ) {
+                Text(
+                    stringResource(R.string.danmaku_style_done),
+                    style = ButtonDefaults.textStyleFor(buttonHeight),
+                    maxLines = 1,
+                    softWrap = false,
                 )
             }
         }
-        ConnectedListGroup {
-            SegmentedListItem(
-                checked = style.enableRainbow,
-                onCheckedChange = { onStyle(style.copy(enableRainbow = it)) },
-                shapes = connectedListItemShapes(0, 1),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .semantics { role = Role.Switch },
-                trailingContent = { Switch(style.enableRainbow, onCheckedChange = null) },
-                content = { Text(stringResource(R.string.danmaku_style_rainbow)) },
-            )
-        }
-        ShadowButton(
-            onClick = onDone,
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 48.dp),
-        ) {
-            Text(stringResource(R.string.danmaku_style_done))
-        }
     }
+}
+
+/** Cerasus FlyoutDanmakuFormat's rainbow-example: a 20dp pink-to-blue gradient outline. */
+@Composable
+private fun CreatorGradientSample(modifier: Modifier = Modifier) {
+    Box(
+        modifier
+            .size(24.dp)
+            .padding(2.dp)
+            .border(
+                width = 3.dp,
+                brush = Brush.horizontalGradient(listOf(Color(0xFFF2509E), Color(0xFF308BCD))),
+                shape = MaterialTheme.shapes.extraSmall,
+            ),
+    )
 }
 
 @Preview(name = "Style · Light", widthDp = 400, heightDp = 900)

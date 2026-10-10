@@ -62,7 +62,7 @@ internal fun DanmakuStylePreview(draft: String, style: DanmakuStyle, modifier: M
         shadow = Shadow(Color.Black, blurRadius = 3f),
     )
     Box(
-        modifier.fillMaxWidth().height(132.dp).clip(MaterialTheme.shapes.extraLarge)
+        modifier.fillMaxWidth().height(100.dp).clip(MaterialTheme.shapes.extraLarge)
             .background(Color(0xFF171A22)).onSizeChanged { width = it.width }
             .clearAndSetSemantics { contentDescription = "$description: $text" },
     ) {

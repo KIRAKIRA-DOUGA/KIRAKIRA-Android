@@ -111,7 +111,7 @@
 - [`send`](https://github.com/google/material-design-icons/blob/master/symbols/android/send/materialsymbolsrounded/send_24px.xml)：评论与弹幕发送，保留上游 RTL 自动镜像。
 - [`text_format`](https://github.com/google/material-design-icons/blob/master/symbols/android/text_format/materialsymbolsrounded/text_format_24px.xml)：弹幕样式入口。
 
-均使用官方 Rounded、24dp、wght 400、GRAD 0、FILL 0 路径；仅移除 theme tint、整理 XML 缩进并增加来源注释。样式面板复用现有 `palette` 与 `check`。
+均使用官方 Rounded、24dp、wght 400、GRAD 0、FILL 0 路径；仅移除 theme tint、整理 XML 缩进并增加来源注释。样式面板复用现有 `palette` 与 `check`，位置与方向选项复用下方记录的 `west`、`east`、`vertical_align_top` 与 `vertical_align_bottom`。
 
 ## 颜文字输入面板
 

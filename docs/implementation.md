@@ -752,7 +752,13 @@ Android 12+ 的系统 Splash 仍会在裁切前扩展普通矢量前景。`Splas
 
 `DanmakuStyle` 领域模型包含 RGB 颜色、字号、模式和彩虹开关；`VideoViewModel` 以只读 Flow 暴露当前视频的样式，通过更新事件接收选择。样式只保留在条目 ViewModel 内，账号修订变化时与草稿一起重置。发送捕获正文、时间与样式快照，Repository 将颜色转换为不带 `#` 的六位大写 RGB，并发送 Rosales 的 `color`、`fontSize`、`mode`、`enableRainbow` 字段。提交期间禁用编辑，失败保留草稿与样式，成功仅清空正文。
 
-评论和弹幕发送栏的容器色由共用 `ContentComposer` 内部统一使用 `MaterialTheme.colorScheme.surface`（浅色为纯白，深色遵循主题深灰），页面不单独覆盖。弹幕发送栏复用 `ContentComposer` 的可选尾部插槽。样式使用官方 ModalBottomSheet，自定义选色在同一面板内进入子页，复用已有 HSV 选色依赖；确认才应用颜色。面板打开时清除输入焦点并隐藏键盘。预览使用 14／20／28sp，彩虹描边参考 Cerasus 的粉蓝渐变；关闭系统动画时静态显示。预览独立于播放器，播放器使用更紧凑的三档字号与相同粉蓝描边，见下方弹幕显示实现。
+评论和弹幕发送栏的容器色由共用 `ContentComposer` 内部统一使用 `MaterialTheme.colorScheme.surface`（浅色为纯白，深色遵循主题深灰），页面不单独覆盖。弹幕发送栏复用 `ContentComposer` 的可选尾部插槽。样式使用官方 ModalBottomSheet，自定义选色在同一面板内进入子页，复用已有 HSV 选色依赖；确认才应用颜色。面板打开时清除输入焦点并隐藏键盘。
+
+`DanmakuStyleContent` 采用紧凑分组：标题固定在顶部，100dp 预览、颜色、渐变开关、字号及位置选项放在可滚动的内容区，标题与控件间距为 8dp、组间为 18dp。内容区使用 `weight(1f, fill = false)`，短内容按实际高度显示，受限高度下独立滚动；「完成」放在固定的 `surface` 操作区，使用 4dp 原生 elevation 和官方 Medium 尺寸配套 API 的 `ShadowButton`。系统栏及 IME Insets 沿用 ModalBottomSheet 处理，内容和底栏不重复追加。位置与方向按左右滚动、上下固定排列为等宽 2×2 FilterChip，复用 Rounded `west`、`east`、`vertical_align_top` 和 `vertical_align_bottom`，选中配色沿用 `primary/onPrimary`。
+
+`DanmakuColorPalette` 将九种预设色与自定义入口排成两排五列，保持每格至少 48dp 的点击区域。可见色块使用官方 Extra Small `IconToggleButton` 容器，`IconButtonDefaults.toggleableShapes` 负责圆形、选中圆角方形与按压形状的过渡。未选中时不绘制边框；选中外圈和勾选的淡入缩放由同一选择 Transition 驱动，采用主题 `fastEffectsSpec` 与 `fastSpatialSpec`，动画值在绘制和 `graphicsLayer` 中读取，不改变色板测量尺寸。自定义颜色选中后以实际颜色显示，并将调色板图标过渡为勾选标记；当前 HEX 显示在颜色标题尾侧。默认样式下禁用重置。
+
+色板之后的开关沿用 Cerasus `FlyoutDanmakuFormat.vue` 的「创作者专属渐变」／「Creator's Gradient」文案与 `rainbow-example`：24dp 前导区域内绘制 20dp、3dp 边框的粉蓝空心圆角示例。开关使用 `SegmentedListItem` 的 `onClick` 重载与 `Role.Switch`、`toggleableState` 语义，尾部 Switch 不独立处理点击，整行背景及形状不随开启状态变化。预览使用 14／20／28sp，彩虹描边参考 Cerasus 的粉蓝渐变；关闭系统动画时静态显示。预览独立于播放器，播放器使用更紧凑的三档字号与相同粉蓝描边，见下方弹幕显示实现。
 
 ### 弹幕显示与设置
 
