@@ -41,7 +41,7 @@ internal data class AuthUiState(
         AuthStep.LOGIN -> email.isNotBlank() && password.isNotEmpty()
         AuthStep.REGISTER_CREDENTIALS -> email.isNotBlank() && password.isNotEmpty() && confirmPassword.isNotEmpty()
         AuthStep.LOGIN_EMAIL, AuthStep.LOGIN_TOTP, AuthStep.REGISTER_VERIFY -> code.isNotBlank()
-        AuthStep.REGISTER_PROFILE -> username.isNotBlank()
+        AuthStep.REGISTER_PROFILE -> username.isNotBlank() && nickname.isNotBlank()
         AuthStep.REGISTER_INVITATION -> invitation.isNotBlank()
         AuthStep.RESET_PASSWORD -> code.isNotBlank() && password.isNotEmpty() && confirmPassword.isNotEmpty()
         AuthStep.FORGOT_EMAIL -> email.isNotBlank()

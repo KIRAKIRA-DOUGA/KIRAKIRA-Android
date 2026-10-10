@@ -240,7 +240,7 @@ internal class AuthViewModel(
                     val nickname = Normalizer.normalize(state.nickname, Normalizer.Form.NFC)
                     if (!isValidAuthName(username)) {
                         fieldFail(AuthField.USERNAME, R.string.auth_name_invalid)
-                    } else if (nickname.isNotEmpty() && !isValidAuthName(nickname)) {
+                    } else if (!isValidAuthName(nickname)) {
                         fieldFail(AuthField.NICKNAME, R.string.auth_name_invalid)
                     } else if (!repository.checkUsername(username)) {
                         fieldFail(AuthField.USERNAME, R.string.auth_username_taken)

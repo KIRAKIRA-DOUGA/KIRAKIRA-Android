@@ -318,7 +318,7 @@
     <string name="auth_password_hint">密码提示（可选）</string>
     <string name="auth_invitation">邀请码</string>
     <string name="auth_username">用户名</string>
-    <string name="auth_nickname">昵称（可选）</string>
+    <string name="auth_nickname">昵称</string>
     <string name="auth_new_password">新密码</string>
     <string name="auth_confirm_password">确认密码</string>
     <string name="auth_totp_code">身份验证器、备用或恢复代码</string>
@@ -328,7 +328,7 @@
     <string name="auth_save_session">保存登录状态</string>
     <string name="auth_email_code_description">输入邮箱验证码以完成登录</string>
     <string name="auth_totp_description">输入身份验证器生成的代码、备用码或恢复码。使用恢复码将移除 TOTP 验证器。</string>
-    <string name="auth_profile_description">选择专属用户名，也可以填写昵称</string>
+    <string name="auth_profile_description">选择专属用户名和昵称</string>
     <string name="auth_registration_description">填写邮箱并设置密码，保护你的账号。密码提示为选填。</string>
     <string name="auth_register_verify_description">输入收到的邮箱验证码，完成注册</string>
     <string name="auth_forgot_description">输入注册邮箱，查看可用的密码找回方式</string>

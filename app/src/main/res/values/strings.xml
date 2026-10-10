@@ -325,7 +325,7 @@
     <string name="auth_password_hint">Password hint (optional)</string>
     <string name="auth_invitation">Invitation code</string>
     <string name="auth_username">Username</string>
-    <string name="auth_nickname">Nickname (optional)</string>
+    <string name="auth_nickname">Nickname</string>
     <string name="auth_new_password">New password</string>
     <string name="auth_confirm_password">Confirm password</string>
     <string name="auth_totp_code">Authenticator, backup or recovery code</string>
@@ -335,7 +335,7 @@
     <string name="auth_save_session">Save your sign-in</string>
     <string name="auth_email_code_description">Enter the code sent to your email to finish signing in</string>
     <string name="auth_totp_description">Enter your authenticator code, a backup code or your recovery code. Using a recovery code removes TOTP protection.</string>
-    <string name="auth_profile_description">Choose your unique username and an optional nickname</string>
+    <string name="auth_profile_description">Choose your unique username and nickname</string>
     <string name="auth_registration_description">Use your email and a password to protect your account. A password hint is optional.</string>
     <string name="auth_register_verify_description">Enter the code from your inbox to finish creating your account</string>
     <string name="auth_forgot_description">Enter your registered email to check available recovery options</string>

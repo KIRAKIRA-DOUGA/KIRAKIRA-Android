@@ -175,7 +175,7 @@ internal class ProfileEditorViewModel(
             labels = draft.labels.map { it.copy(labelName = nfc(it.labelName)) })
         val errors = buildMap {
             if (!validProfileName(normalized.username)) put("username", R.string.profile_name_invalid)
-            if (normalized.nickname.isNotEmpty() && !validProfileName(normalized.nickname)) {
+            if (!validProfileName(normalized.nickname)) {
                 put("nickname", R.string.profile_name_invalid)
             }
             if (normalized.signature.length > 200) put("signature", R.string.profile_bio_invalid)
