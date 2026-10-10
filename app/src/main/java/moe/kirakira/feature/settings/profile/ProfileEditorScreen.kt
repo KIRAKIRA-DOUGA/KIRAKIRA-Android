@@ -106,7 +106,7 @@ internal fun ProfileEditorScreen(
     SettingsScaffold(
         title = stringResource(R.string.settings_profile),
         onBack = onBack,
-        shadingIcon = R.drawable.ic_symbol_person,
+        shadingIcon = R.drawable.ic_symbol_badge,
         modifier = modifier,
         imePadding = true,
         snackbarHost = { SnackbarHost(snackbar) },
@@ -139,7 +139,7 @@ internal fun ProfileEditorScreen(
             state.draft == null -> ContentUnavailableView(
                 ContentUnavailableState.EMPTY,
                 title = stringResource(R.string.profile_sign_in), description = null,
-                iconRes = R.drawable.ic_symbol_person,
+                iconRes = R.drawable.ic_symbol_badge,
                 primaryAction = ContentUnavailableAction(stringResource(R.string.auth_sign_in), onLogin),
                 modifier = Modifier.padding(padding),
             )

@@ -99,6 +99,7 @@
 
 ## 资料编辑图标
 
+- [`badge`](https://github.com/google/material-design-icons/blob/master/symbols/android/badge/materialsymbolsrounded/badge_24px.xml)：资料设置入口、资料页顶栏底纹与空状态，与 Cerasus 的资料入口一致。
 - [`edit`](https://github.com/google/material-design-icons/blob/master/symbols/android/edit/materialsymbolsrounded/edit_24px.xml)：编辑头像与简介。
 - [`alternate_email`](https://github.com/google/material-design-icons/blob/master/symbols/android/alternate_email/materialsymbolsrounded/alternate_email_24px.xml)：用户名输入框。
 - [`rotate_right`](https://github.com/google/material-design-icons/blob/master/symbols/android/rotate_right/materialsymbolsrounded/rotate_right_24px.xml)：头像裁剪的顺时针旋转，保留上游自动镜像。

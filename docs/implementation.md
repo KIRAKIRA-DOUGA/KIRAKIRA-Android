@@ -595,7 +595,7 @@ fun FavoriteButton(
 
 设置与历史页指定 `Alignment.BottomEnd`、`endPadding = 0.dp` 和 `DpOffset(32.dp, 32.dp)`，让图标向末端及底部各溢出 32dp，由组件边界裁切。底纹随顶栏实际高度始终贴住底边，下拉展开后也保持底部定位。设置首页使用 `ic_symbol_settings` 并开启旋转；历史页使用 `ic_symbol_history`，保持默认静止状态。历史底纹与普通顶栏一起放在 `SearchableTopAppBar` 的 `topBar` 插槽内，搜索展开时随普通顶栏退场并隐藏，退出搜索后恢复。
 
-所有设置子页面沿用这一右下角定位，但传入页面自身的现有图标且保持静止：外观使用 `ic_symbol_palette`，播放使用 `ic_symbol_play_circle`，弹幕使用 `ic_custom_danmaku`，关于使用 `ic_symbol_info`，资料使用 `ic_symbol_person`，隐私使用 `ic_symbol_shield`，安全使用 `ic_symbol_lock`。管理页的共享 `ManagementFrame` 接收同一图标参数，屏蔽总览使用 `ic_symbol_block`，屏蔽分类详情使用 `RuleCategory.iconRes()`，邀请码使用 `ic_symbol_confirmation_number`；账户切换和许可证独立包裹顶栏，分别使用 `ic_symbol_switch_account` 与 `ic_symbol_description`。头像裁剪页是独立的图片编辑顶栏，不绘制该底纹。
+所有设置子页面沿用这一右下角定位，但传入页面自身的现有图标且保持静止：外观使用 `ic_symbol_palette`，播放使用 `ic_symbol_play_circle`，弹幕使用 `ic_custom_danmaku`，关于使用 `ic_symbol_info`，资料使用 `ic_symbol_badge`，隐私使用 `ic_symbol_shield`，安全使用 `ic_symbol_lock`。管理页的共享 `ManagementFrame` 接收同一图标参数，屏蔽总览使用 `ic_symbol_block`，屏蔽分类详情使用 `RuleCategory.iconRes()`，邀请码使用 `ic_symbol_confirmation_number`；账户切换和许可证独立包裹顶栏，分别使用 `ic_symbol_switch_account` 与 `ic_symbol_description`。头像裁剪页是独立的图片编辑顶栏，不绘制该底纹。
 
 ```kotlin
 Box {

@@ -94,7 +94,7 @@ fun SettingsScreen(
 
     val personalSettings = remember {
         listOf(
-            SettingsEntry(R.string.settings_profile, R.drawable.ic_symbol_person),
+            SettingsEntry(R.string.settings_profile, R.drawable.ic_symbol_badge),
             SettingsEntry(R.string.settings_privacy, R.drawable.ic_symbol_shield),
             SettingsEntry(R.string.settings_security, R.drawable.ic_symbol_lock),
             SettingsEntry(R.string.settings_blocking, R.drawable.ic_symbol_block),
