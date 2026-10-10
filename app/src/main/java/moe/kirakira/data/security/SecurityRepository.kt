@@ -5,7 +5,10 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.put
 import moe.kirakira.core.network.ApiClient
 import moe.kirakira.core.network.ApiException
@@ -20,6 +23,11 @@ internal data class SecurityStatus(val factor: SecondFactor, val totpCreationDat
 internal class TotpSetup(val uri: String, val secret: String)
 internal class TotpSecrets(val backupCodes: List<String>, val recoveryCode: String)
 
+internal sealed interface TotpConfirmation {
+    class CodesAvailable(val secrets: TotpSecrets) : TotpConfirmation
+    data object CodesUnavailable : TotpConfirmation
+}
+
 internal enum class SecurityEmailPurpose(val businessName: String, val template: String) {
     EMAIL("update-email", "SendChangeEmailVerificationCode"),
     PASSWORD("update-password", "SendChangePasswordVerificationCode"),
@@ -33,11 +41,8 @@ internal class SecurityRepository(private val api: ApiClient, private val auth: 
         private set
     private var pending: Completion? = null
     val needsCompletion: Boolean get() = pending != null
-    var totpConfirmed: Boolean = false
-        private set
-
     fun resendSeconds(email: String): Int = auth.resendSeconds(email)
-    fun discard() { pending = null; publishedRevision = null; totpConfirmed = false }
+    fun discard() { pending = null; publishedRevision = null }
 
     suspend fun status(revision: Long): SecurityStatus = request(revision) { snapshot ->
         val dto = api.get<StatusDto>("user/checkUserHave2FAByUUID", cookie = snapshot.requiredAccount().cookie())
@@ -140,7 +145,6 @@ internal class SecurityRepository(private val api: ApiClient, private val auth: 
     }
 
     suspend fun beginTotp(revision: Long): TotpSetup = request(revision) { snapshot ->
-        totpConfirmed = false
         val dto = api.post<SetupDto>("user/createTotpAuthenticator", "{}", snapshot.requiredAccount().cookie())
         if (!dto.success || dto.isExists) rejected()
         val value = dto.result?.otpAuth ?: invalid()
@@ -150,17 +154,26 @@ internal class SecurityRepository(private val api: ApiClient, private val auth: 
         TotpSetup(value, secret)
     }
 
-    suspend fun confirmTotp(revision: Long, setup: TotpSetup, code: String): TotpSecrets = request(revision) { snapshot ->
+    suspend fun confirmTotp(revision: Long, setup: TotpSetup, code: String): TotpConfirmation = request(revision) { snapshot ->
         val body = buildJsonObject { put("clientOtp", code); put("otpAuth", setup.uri) }.toString()
         val dto = api.post<ConfirmDto>("user/confirmUserTotpAuthenticator", body, snapshot.requiredAccount().cookie())
         if (!dto.success) rejected()
-        totpConfirmed = true
-        val result = dto.result ?: invalid()
-        val codes = result.backupCode ?: invalid()
-        val recovery = result.recoveryCode ?: invalid()
-        if (codes.size != 5 || codes.distinct().size != 5 || codes.any { !it.matches(Regex("[A-Z0-9]{6}")) } ||
-            !recovery.matches(Regex("[A-Z0-9]{24}"))) invalid()
-        TotpSecrets(codes, recovery)
+        // Read the success flag independently: malformed one-time codes must never replay a confirmed binding.
+        val result = dto.result?.let {
+            try {
+                api.json.decodeFromJsonElement<SecretResult>(it)
+            } catch (_: SerializationException) {
+                null
+            }
+        }
+        val codes = result?.backupCode
+        val recovery = result?.recoveryCode
+        if (codes == null || recovery == null || codes.size != 5 || codes.distinct().size != 5 ||
+            codes.any { !it.matches(Regex("[A-Z0-9]{6}")) } || !recovery.matches(Regex("[A-Z0-9]{24}"))) {
+            TotpConfirmation.CodesUnavailable
+        } else {
+            TotpConfirmation.CodesAvailable(TotpSecrets(codes, recovery))
+        }
     }
 
     private fun checkCurrent(snapshot: AuthRepository.RequestSession) {
@@ -202,7 +215,7 @@ internal class SecurityRepository(private val api: ApiClient, private val auth: 
 }
 @Serializable private class SetupDto(val success: Boolean, val isExists: Boolean = false, val result: SetupResult? = null)
 @Serializable private class SetupResult(val otpAuth: String? = null)
-@Serializable private class ConfirmDto(val success: Boolean, val result: SecretResult? = null)
+@Serializable private class ConfirmDto(val success: Boolean, val result: JsonElement? = null)
 @Serializable private class SecretResult(val backupCode: List<String>? = null, val recoveryCode: String? = null)
 private fun rejected(): Nothing = throw ApiException(ApiFailure.REJECTED)
 private fun invalid(): Nothing = throw ApiException(ApiFailure.INVALID_RESPONSE)

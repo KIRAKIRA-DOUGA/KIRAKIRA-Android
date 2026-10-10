@@ -25,8 +25,8 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.unit.dp
 import moe.kirakira.R
+import moe.kirakira.ui.components.AccountFlowDefaults
 import moe.kirakira.ui.components.AnimatedSlashIcon
 import moe.kirakira.ui.components.SlashIconType
 
@@ -43,7 +43,7 @@ internal fun LoginForm(
     modifier: Modifier = Modifier,
 ) {
     val focusManager = LocalFocusManager.current
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(AccountFlowDefaults.FieldSpacing)) {
         OutlinedTextField(
             value = state.email,
             onValueChange = onEmailChange,

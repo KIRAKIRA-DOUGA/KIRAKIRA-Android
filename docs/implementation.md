@@ -353,7 +353,7 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 
 `ActivityNavDisplay` 在可保存状态装饰器之后添加 `rememberViewModelStoreNavEntryDecorator`，认证 ViewModel 绑定外层 `AuthRoute` 条目，旋转时保留、出栈后释放。`AuthRoute` 只携带可选邮箱以便重新登录；内部 `AuthStepRoute` 只携带步骤枚举，不包含表单数据。各步骤通过 `rememberNavBackStack` 与嵌套 `ActivityNavDisplay` 展示，复用普通转场和预测性返回。子分发器连接外层 Navigation Event 分发器，仅在认证页为当前页面时启用；子页面重置继承的页面变换，避免外层退出手势被重复应用。
 
-`AuthStep.previousStep` 统一定义内部路径：注册按资料、凭据、邀请码、验证逐级返回；登录 2FA 返回邮箱密码；重置密码和 TOTP 找回说明返回邮箱输入。顶部返回箭头与系统返回使用同一路径，根登录页的系统返回或关闭按钮退出认证。ViewModel 校验后推进步骤，导航保留路径的公共前缀，各条目独立保存滚动位置。转场中的离开页面使用仅驻留内存的表单快照，避免提前渲染下一步；退出或返回会取消当前请求，旧请求的收尾不再改写新页面状态。
+`AuthStep.previousStep` 统一定义内部路径：注册按资料、凭据、邀请码、验证逐级返回；登录 2FA 返回邮箱密码；重置密码和 TOTP 找回说明返回邮箱输入。顶部返回箭头与系统返回使用同一路径，根登录页通过系统返回退出认证，所有步骤均不提供关闭按钮。ViewModel 校验后推进步骤，导航保留路径的公共前缀，各条目独立保存滚动位置。转场中的离开页面使用仅驻留内存的表单快照，避免提前渲染下一步；退出或返回会取消当前请求，旧请求的收尾不再改写新页面状态。
 
 仅邮箱通过 `SavedStateHandle` 恢复。认证内部可保存状态以 ViewModel 生命周期内的随机键隔离：旋转沿用该键，进程重建生成新键并回到登录入口，不恢复密码、验证码及依赖这些输入的步骤。密码显隐使用条目内的普通 `remember`，步骤切换和 UI 重建后隐藏。
 
@@ -365,7 +365,9 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 
 注册新增 `REGISTER_INVITATION`：凭据步骤验证确认密码、密码提示和邮箱唯一性；邀请码步骤验证格式与可用性，再按邮箱冷却发码并前进。返回仅清空验证码，保留流程中的其他草稿；离开整个分支则清除秘密。`fieldErrors` 与带编号的 `focusField` 指向具体字段，Navigation 3 子条目等到 RESUMED、可编辑和下一帧布局后请求焦点，一次消费；返回没有新的焦点请求。未知业务拒绝仍使用页面错误，不把服务器的含糊 `success=false` 猜作某个字段错误。
 
-`AuthScreen` 使用固定高度的 `CenterAlignedTopAppBar`，在标题槽居中显示主题色图标；登录 Logo 为 40dp，其余步骤图标为 32dp，不使用底板。返回与关闭按钮对齐资料页，使用官方默认按钮尺寸、触控区域和 AppBar 槽位定位，不额外指定 48dp 尺寸或水平 Padding。正文不再根据键盘可见性或 480dp 高度阈值切换 compact 布局，统一使用固定字号与间距，并在 IME Insets 后滚动。内容最大宽度 480dp，底部安全区仍属于滚动内容。
+`AuthScreen` 与账号安全操作页共用 [AccountFlowScaffold](../app/src/main/java/moe/kirakira/ui/components/AccountFlowScaffold.kt)：`FrostedScaffold` 提供 `surface` 背景和独立毛玻璃采样，`CenterAlignedTopAppBar` 的标题槽居中显示主题色流程图标；登录 Logo 为 40dp，其余图标为 32dp，不使用底板。非登录步骤的返回使用官方平面 `IconButton` 和默认 AppBar 槽位定位，所有步骤均无关闭按钮。`AuthScreen.onClose` 参数保留调用兼容性，认证完成仍通过 `AuthPage` 的回调退出。
+
+`AccountFlowColumn` 提供最大 480dp 内容宽度、24dp 页面留白和完整滚动视口；`AccountFlowHeader` 使用 `headlineLarge` 与可选说明／进度插槽，`AccountFlowProgress` 统一步骤文字和进度条，字段间距为 16dp。主按钮位于表单末尾，`AccountFlowSubmitButton` 使用 `ButtonDefaults.MediumContainerHeight` 配套形状、内边距和文字 API、共享彩色阴影及加载语义；加载时仍测量标签以适应字体缩放。字段错误留在输入框下，全局错误复用 `AccountFlowError` 的错误色文字与无障碍播报，同步重试和代码保存确认保留短标签与完整无障碍描述。宿主根节点统一应用 `imePadding`，表单不重复处理 IME，Snackbar 同时避让键盘；系统栏留白放在 `verticalScroll` 后，随内容滚动。
 
 [PasswordCredentialGateway](../app/src/main/java/moe/kirakira/core/credentials/PasswordCredentialGateway.kt) 提供 get / save / clearSession，系统实现固定使用 AndroidX Credentials 与 Play Services 桥接。`GetPasswordOption` 显式关闭自动选中并对重新登录邮箱设置 `allowedUserIds`，返回后再次核对邮箱；不调用 View 专用联动接口。只有完整生产根地址构建的 `SYSTEM_CREDENTIALS_ENABLED` 为 true，其余使用禁用网关；测试直接注入替身。
 
@@ -373,7 +375,7 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 
 认证 ViewModel 保留密码是否源自未经修改的系统选择。仅手输或修改后的密码在完整认证、本地写盘成功后生成 `CreatePasswordRequest`；二步验证前不保存，存储失败仅保留短暂 `PasswordDraft` 供本地重试。密码重置等待本地清理完成。保存阶段为 FINISHING，取消或失败均进入成功／重置完成状态；失败显示非阻断提示。流程完成、退出或取消释放待保存对象，秘密类不生成包含密码的 toString。库内部和 JVM 字符串副本不能保证即时擦除。
 
-所有显式前进、返回、关闭和系统保存之前取消 Compose Autofill 会话，保留邮箱／用户名、Password / NewPassword 语义。系统保存的持久化边界是用户选择的密码提供者，应用不将原密码写入任何存储。未配置 Digital Asset Links，不支持本轮范围外的跨网站密码共享及 Passkey。
+所有显式前进、返回、退出和系统保存之前取消 Compose Autofill 会话，保留邮箱／用户名、Password / NewPassword 语义。系统保存的持久化边界是用户选择的密码提供者，应用不将原密码写入任何存储。未配置 Digital Asset Links，不支持本轮范围外的跨网站密码共享及 Passkey。
 
 会话 UI 状态新增 `SessionOperation(type, targetUuid)`，区分初始化、切换、移除与本机重置。操作串行执行并在写盘期间保留类型与目标；成功提交之前继续选中原账号。账号行采用居中对齐的布局，游客平时仅显示名称，普通账号显示名称与副标题，长文字单行省略；切换期间保留原有文字与布局，仅显示尾部加载器，「正在切换」通过无障碍状态描述提供；移除状态复用副标题行。loading、单选与删除按钮共用 48dp 尾部槽位，列表不插入顶部加载项或空白状态行。“添加账号”独立成组。错误携带目标 UUID，重试闭包绑定原操作。游客切换、移除当前账号或登出之后尽力调用 `clearCredentialState`，不删除提供者密码；清理失败不撤销本地操作。
 
@@ -473,23 +475,33 @@ ViewModel 分离关键词草稿、所选标签和已提交条件。视频读取�
 
 ### 设置表单操作区
 
-`SettingsScaffold` 的可选 `bottomBar` 插槽直接交给 `FrostedScaffold` 内的官方 Scaffold。资料、隐私及账号安全流程使用 [SettingsActionBar](../app/src/main/java/moe/kirakira/feature/settings/SettingsComponents.kt)，不再将主操作放在滚动内容的悬浮工具栏或表单末尾；头像裁剪保留原底部旋转与 `SettingsPrimaryButton` 完成布局。
+`SettingsScaffold` 的可选 `bottomBar` 插槽直接交给 `FrostedScaffold` 内的官方 Scaffold。资料、隐私及二步验证管理页的关闭入口使用 [SettingsActionBar](../app/src/main/java/moe/kirakira/feature/settings/SettingsComponents.kt)，主操作固定在底部；账号安全操作流程使用上文的共享认证布局与表单末尾按钮。头像裁剪保留原底部旋转与 `SettingsPrimaryButton` 完成布局。
 
-操作区以 `surface` 铺满宽度，根 `Surface` 通过 `shadowElevation = BarShadowElevation` 绘制固定 4dp 原生阴影，按钮可用、禁用及加载状态均保留底栏阴影。内部居中限制在设置页 640dp 内容区域，四周留出 16dp，主按钮按标签宽度向尾侧对齐。`ShadowButton` 使用 `ButtonDefaults.MediumContainerHeight` 及同高度的 `shapesFor`、`contentPaddingFor` 和 `textStyleFor`，默认仅显示单行文字，加载时使用 Material 2 官方按钮图标尺寸／2dp 的圆形加载器，前景继承当前按钮内容色。普通操作沿用 `primary/onPrimary`，安全停用为 `error/onError`；保留本项目共享双层彩色阴影和禁用时无阴影的规则，这是相对 [Material 官方默认实心样式](https://m3.material.io/components/buttons/guidelines)的定制。同步重试和恢复码确认使用短标签，原完整资源用于按钮无障碍描述；加载状态通过本地化状态描述表达。
+操作区以 `surface` 铺满宽度，根 `Surface` 通过 `shadowElevation = BarShadowElevation` 绘制固定 4dp 原生阴影，按钮可用、禁用及加载状态均保留底栏阴影。内部居中限制在设置页 640dp 内容区域，四周留出 16dp，主按钮按标签宽度向尾侧对齐。`ShadowButton` 使用 `ButtonDefaults.MediumContainerHeight` 及同高度的 `shapesFor`、`contentPaddingFor` 和 `textStyleFor`，默认仅显示单行文字，加载时使用 Material 2 官方按钮图标尺寸／2dp 的圆形加载器，前景继承当前按钮内容色。普通操作沿用 `primary/onPrimary`，安全停用为 `error/onError`；保留本项目共享双层彩色阴影和禁用时无阴影的规则，这是相对 [Material 官方默认实心样式](https://m3.material.io/components/buttons/guidelines)的定制。完整操作说明可通过按钮无障碍描述提供，加载状态通过本地化状态描述表达。
 
-宿主使用 `imePadding` 避让并消费键盘 Insets，操作区仅处理尚未消费的 `safeDrawing` 横向和底部安全区域。Scaffold 将底栏实测高度写入内容 padding，`SettingsColumn` 及安全页滚动 Column 将其放在 `verticalScroll` 后的底部 padding，保持完整滚动视口；Snackbar 自动放在底栏上方，不另加固定偏移或悬浮工具栏留白。游客、首次无数据加载／错误及安全概览不组合底栏，已有表单刷新或提交时保留并禁用操作。隐私重置为顶栏裸图标按钮，保留提示、加载和禁用语义，仍调用原有重新读取入口；返回、舍弃、账号隔离和业务提交继续由现有 ViewModel 管理。
+宿主使用 `imePadding` 避让并消费键盘 Insets，操作区仅处理尚未消费的 `safeDrawing` 横向和底部安全区域。Scaffold 将底栏实测高度写入内容 padding，`SettingsColumn` 及管理页滚动 Column 将其放在 `verticalScroll` 后的底部 padding，保持完整滚动视口；Snackbar 自动放在底栏上方，不另加固定偏移或悬浮工具栏留白。游客、首次无数据加载／错误及安全概览不组合底栏，已有表单刷新或提交时保留并禁用操作。隐私重置为顶栏裸图标按钮，保留提示、加载和禁用语义，仍调用原有重新读取入口；返回、舍弃、账号隔离和业务提交继续由现有 ViewModel 管理。
 
 ### 账号设置管理
 
 安全页使用 `SecuritySettingsRoute`、导航条目级 `SecuritySettingsViewModel` 与 `data/security/SecurityRepository`。页面内步骤与表单由 ViewModel 管理，敏感模型使用普通类避免生成含凭据的 `toString()`；没有敏感持久化状态或 DTO 进入 UI。每次请求捕获 `AuthRepository.RequestSession`，核对 revision 并在散列后、HTTP 返回后验证账号；取消继续传播，明确 401 才失效本机会话。设置入口对游客导航登录，恢复导航中的游客安全页提供登录操作。
 
+二步验证使用统一管理入口，安全首页与管理页共用同一 `SecurityStatus` 和状态横幅，未开启时使用中性色。`TwoFactorFlow` 分别持有管理、邮箱启用／停用、TOTP 确认、代码展示与状态核对的载荷，`SecurityStep` 仅由当前页面和分支派生为渲染标识。邮箱与密码表单保持独立，二步验证表单和一次性代码只属于对应分支。TOTP 创建由管理页的“开始绑定”操作发起，加载反馈保留在条目内，成功后直接进入二维码与验证码页；进度只计算绑定确认与保存代码两步。TOTP 确认页返回后将设置材料交给管理分支，再次进入复用同一材料；关闭成功回管理页，由用户另行启用另一方式。
+
+邮箱与密码使用 `CredentialFlow` 的填写、核验与同步分支持有表单，`SecurityStep` 由分支派生，替换独立表单与完成标志组合。填写新信息只做本地校验，核验阶段才允许发送邮件，最终提交沿用原有请求契约。邮箱核验区明确显示当前／新收件地址，TOTP 账号只给新邮箱发送邮件；密码核验页提示需要重新登录。`fieldErrors` 标记具体输入框，校验尝试编号驱动 Compose 在字段组合后聚焦第一个错误；最后一个字段使用 IME Done 对应当前步骤的主操作。核验返回时只保留新邮箱或两次输入的新密码，清空身份凭据，完整退出须确认舍弃；账号变化、失活与同步分支释放表单。验证码在 ViewModel 归一为最多六位数字，发送与提交仍由同一请求入口串行执行。
+
+`TwoFactorMutation` 标识结果尚未确认的写操作。网络故障、超时、服务异常或无法解析响应时清空输入凭据，转入 `TwoFactorFlow.Checking` 并撤下旧的验证状态；用户触发查询或重新进入安全条目时只调用状态读取接口。查询失败保留核对分支，不能提交其他写请求；确认操作查询到仍未开启时，可复用已有设置材料，由用户重新输入验证码并明确提交，查询到 TOTP 已启用则提示代码不可用。创建结果丢失时，状态接口无法判断未启用的绑定草稿，当前条目标记材料不可用，禁止再次创建。
+
 安全验证码复用 AuthRepository 的按邮箱互斥锁、单调时钟与 60 秒冷却，当前邮箱使用认证端点，新邮箱使用带当前会话的通用邮箱端点；两者独立显示剩余时间。模板对应 `SendChangeEmailVerificationCode` / `update-email`、`SendChangePasswordVerificationCode` / `update-password`、`SendDisableUserEmail2FAVerificationCode` / `delete-email-2fa`。Rosales 当前 `General2FAVerifier` 在无二步验证的严格校验分支固定查询 `update-email`：这类账号修改密码时发送密码模板但使用 `update-email` 业务名，兼容实际服务端逻辑；已启用邮箱验证仍使用 `update-password`。不改动 Rosales 或 Cerasus。
 
 邮箱与密码更新服务端确认成功后，Repository 在内存记录完成检查点；邮箱检查点只重读并发布本人资料，密码检查点只删除请求所属本机会话。存储失败释放表单凭据并提供同步重试，不重放写请求。AuthRepository 在会话互斥锁内校验请求并成功写入本地存储后、发布会话状态前，通过回调提供本次实际发布的 revision；资料与安全流程据此识别自身发布／登出，不自行推算下一修订号。账号切换或其他会话变更仍取消旧流程。密码变更后经一次性邮箱状态打开登录并尽力清理密码提供者会话，不自动读取或保存密码。
 
-UI 使用共享可折叠顶栏、官方分段列表、语义主题色状态横幅、启用徽章和分步进度。普通设置入口、开关、单选、滑块、资料和安全列表前后图标使用裸露的 24dp Material Symbols Rounded（含尾部箭头及列表内操作图标），继承列表内容颜色及禁用样式，危险操作使用主题错误色；弹幕总开关保留官方 checked 行强调。共用菜单组件的“我”页面同步使用 24dp 图标；屏蔽管理固定类别与添加表单同样使用 24dp 裸图标，用户头像保持独立。MaterialShapes 图标容器保留于隐私可见性、邀请码使用状态等状态形状切换，以及安全状态横幅、安全流程和邀请码统计的独立大图标。首页刷新保留内容；表单使用滚动布局，底部系统 Insets 随内容滚动并避让 IME。ActivityNavDisplay 的返回保护在流程内消耗返回回到首页，操作期间阻止返回；一次性代码阶段须确认后清空。TOTP URI 按结构解析并校验 `otpauth://totp` 与 Base32 密钥；ZXing Core 固定版本在后台生成带白底静区的 Bitmap，Compose 展示，生成失败仍可使用手动密钥。
+安全首页与二步验证管理页使用共享可折叠顶栏、官方分段列表和语义主题色状态横幅；操作页复用认证流程布局、居中流程图标与分步进度。普通设置入口、开关、单选、滑块、资料和安全列表前后图标使用裸露的 24dp Material Symbols Rounded（含尾部箭头及列表内操作图标），继承列表内容颜色及禁用样式，危险操作使用主题错误色；弹幕总开关保留官方 checked 行强调。共用菜单组件的“我”页面同步使用 24dp 图标；屏蔽管理固定类别与添加表单同样使用 24dp 裸图标，用户头像保持独立。MaterialShapes 图标容器保留于隐私可见性、邀请码使用状态等状态形状切换，以及安全状态横幅与邀请码统计的独立大图标。首页与管理页刷新保留内容；表单使用滚动布局，底部系统 Insets 随内容滚动并避让 IME。TOTP URI 按结构解析并校验 `otpauth://totp` 与 Base32 密钥；ZXing Core 固定版本在后台生成带白底静区的 Bitmap，Compose 展示，生成失败仍可使用手动密钥。
 
-恢复响应核对五个不同的六位备用码和 24 位恢复码；已确认绑定但返回不完整时不重新确认，清空设置材料并提示重新解绑绑定。复制通过 Android ClipboardManager 标记 `android.content.extra.IS_SENSITIVE` 与随机所有者标记，离开步骤仅清理仍属于本流程的内容，不覆盖其他应用后续复制的内容。二维码、密钥与恢复码不导出到应用磁盘；生命周期和内存保护边界与认证流程一致，Kotlin 字符串无法保证物理内存即时清零。
+`SecuritySettingsNavigation` 与 Auth 复用 `ActivityNavDisplay`、`NavigationPage` 和独立的 NavigationEvent 分发器，重置继承的页面变换以免内外宿主重复缩放。可序列化 `SecurityStepRoute` 只记录派生步骤，返回路径由业务状态同步到 `rememberNavBackStack`，共同父条目保留滚动与顶栏状态；首页与管理条目使用完整 `SettingsScaffold`，操作条目使用 `AccountFlowScaffold`，顶栏、正文和操作按钮一起执行 AOSP 普通过渡及两阶段预测性返回。邮箱和密码填写页是核验页的父条目，完成后返回首页；确认绑定与保存代码是管理页下的相邻条目，成功后不会返回确认绑定；状态核对替代管理分支，返回安全首页。返回预检与业务返回分开处理：操作期间阻止返回，代码展示与有输入的填写页阻止手势预览并由完成事件触发离开确认，确认后清空相应载荷。退出动画的内存快照只保留邮箱与非敏感状态，不保留密码、验证码或一次性代码，失活或 revision 变化时释放设置材料；核验页返回预览从当前业务草稿取得填写内容，密码默认隐藏。只有当前步骤可以处理事件、显示提示和执行复制，剪贴板在离开步骤时清理。进程重建恢复的步骤路径会被无敏感材料的初始业务状态校正回首页。
+
+恢复响应核对五个不同的六位备用码和 24 位恢复码。Repository 先读取确认结果，再单独解析代码；`TotpConfirmation.CodesAvailable` 持有一次性代码，`CodesUnavailable` 表示已启用但未取得有效代码，ViewModel 清空设置材料并回到管理页提示重新解绑绑定，不重放确认请求。复制通过 Android ClipboardManager 标记 `android.content.extra.IS_SENSITIVE` 与随机所有者标记，离开步骤仅清理仍属于本流程的内容，不覆盖其他应用后续复制的内容。二维码、密钥与恢复码不导出到应用磁盘；生命周期和内存保护边界与认证流程一致，Kotlin 字符串无法保证物理内存即时清零。
+
+Rosales `createUserTotpAuthenticatorService` 插入未启用记录，确认验证按账号查询未启用记录并要求唯一；现有接口没有草稿取消或读取能力。当前安全条目内复用材料可以避免重复创建，但离开条目、账号变化或进程重建后会释放材料，服务端遗留记录仍可能影响后续绑定。客户端不伪造清理接口，不改动 Rosales 或 Cerasus。
 
 隐私页采用 `PrivacySettingsRoute` 与导航条目级 `PrivacySettingsViewModel`，复用 `AccountSettingsRepository` 的账号 revision 请求守卫。`POST user/settings` 读取后检查 `success`、设置对象及当前账号 UID；五项缺失值默认公开，重复项或未知可见性拒绝编辑。`POST user/settings/update` 提交完整五项 `userPrivaryVisibilitiesSetting`，保留其他隐私条目并带回原有 `userLinkedAccountsVisibilitiesSetting`，避免后端更新逻辑覆盖关联设置，不提交主题等其他偏好。wire ID 使用 `privary.birthday`、`privary.age`、`privary.follow`、`privary.fans`、`privary.favorites`，可见性值使用 `public`、`following`、`private`。
 
@@ -546,7 +558,7 @@ Rosales `GET /user/logout` 仅设置清除浏览器 Cookie，没有服务端 tok
 
 设置、资料、视频与图片查看器的导航按钮统一放在官方 Material 3 顶栏的 `navigationIcon` 中，使用默认定位与系统 Insets，不额外添加按钮位置边距。设置使用 `LargeFlexibleTopAppBar`，其余三个页面使用透明 `TopAppBar`；设置保留普通返回箭头，资料和视频保留带底色返回箭头，图片查看器保留深色圆形关闭按钮。
 
-普通顶栏（含认证、资料、设置、主页面与头像裁剪）复用 [`appTopAppBarColors`](../app/src/main/java/moe/kirakira/ui/components/TopAppBar.kt)：容器及滚动后容器透明，标题使用 `primary`，导航与操作图标使用 `onSurfaceVariant`，与普通列表图标保持一致。认证页返回和关闭使用平面官方 `IconButton`，保留原有回调、无障碍描述及测试标签；资料页保留带底色按钮，通过 `appTopAppBarTonalIconButtonColors` 同步内容色与禁用透明度，按钮容器、形状及阴影继续由原组件处理。首页品牌 Logo 和认证流程标题图标保留强调色，文字操作沿用原组件默认配色；播放器和图片查看器保留白色媒体控件。
+普通顶栏（含认证、资料、设置、主页面与头像裁剪）复用 [`appTopAppBarColors`](../app/src/main/java/moe/kirakira/ui/components/TopAppBar.kt)：容器及滚动后容器透明，标题使用 `primary`，导航与操作图标使用 `onSurfaceVariant`，与普通列表图标保持一致。认证与安全操作页的返回使用平面官方 `IconButton`，保留返回回调和无障碍描述，Auth 保留原返回按钮标签并移除关闭按钮；资料页保留带底色按钮，通过 `appTopAppBarTonalIconButtonColors` 同步内容色与禁用透明度，按钮容器、形状及阴影继续由原组件处理。首页品牌 Logo 和认证流程标题图标保留强调色，文字操作沿用原组件默认配色；播放器和图片查看器保留白色媒体控件。
 
 视频顶栏作为页面全宽覆盖层，独立于已应用内容 Insets、最大宽度为 840dp 的视频区域，使用顶栏默认的顶部和水平系统 Insets。它不占用额外内容高度、不改变视频尺寸，宽屏时导航按钮仍按页面边缘定位。图片查看器继续由原有控件显隐、焦点与转场状态管理顶栏。
 
@@ -595,7 +607,7 @@ fun FavoriteButton(
 
 设置与历史页指定 `Alignment.BottomEnd`、`endPadding = 0.dp` 和 `DpOffset(32.dp, 32.dp)`，让图标向末端及底部各溢出 32dp，由组件边界裁切。底纹随顶栏实际高度始终贴住底边，下拉展开后也保持底部定位。设置首页使用 `ic_symbol_settings` 并开启旋转；历史页使用 `ic_symbol_history`，保持默认静止状态。历史底纹与普通顶栏一起放在 `SearchableTopAppBar` 的 `topBar` 插槽内，搜索展开时随普通顶栏退场并隐藏，退出搜索后恢复。
 
-所有设置子页面沿用这一右下角定位，但传入页面自身的现有图标且保持静止：外观使用 `ic_symbol_palette`，播放使用 `ic_symbol_play_circle`，弹幕使用 `ic_custom_danmaku`，关于使用 `ic_symbol_info`，资料使用 `ic_symbol_badge`，隐私使用 `ic_symbol_shield`，安全使用 `ic_symbol_lock`。管理页的共享 `ManagementFrame` 接收同一图标参数，屏蔽总览使用 `ic_symbol_block`，屏蔽分类详情使用 `RuleCategory.iconRes()`，邀请码使用 `ic_symbol_confirmation_number`；账户切换和许可证独立包裹顶栏，分别使用 `ic_symbol_switch_account` 与 `ic_symbol_description`。头像裁剪页是独立的图片编辑顶栏，不绘制该底纹。
+使用 `SettingsScaffold` 的设置子页面沿用这一右下角定位，但传入页面自身的现有图标且保持静止：外观使用 `ic_symbol_palette`，播放使用 `ic_symbol_play_circle`，弹幕使用 `ic_custom_danmaku`，关于使用 `ic_symbol_info`，资料使用 `ic_symbol_badge`，隐私使用 `ic_symbol_shield`，安全使用 `ic_symbol_lock`。管理页的共享 `ManagementFrame` 接收同一图标参数，屏蔽总览使用 `ic_symbol_block`，屏蔽分类详情使用 `RuleCategory.iconRes()`，邀请码使用 `ic_symbol_confirmation_number`；账户切换和许可证独立包裹顶栏，分别使用 `ic_symbol_switch_account` 与 `ic_symbol_description`。头像裁剪页是独立的图片编辑顶栏，不绘制该底纹。
 
 ```kotlin
 Box {

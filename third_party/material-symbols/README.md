@@ -28,12 +28,12 @@
 | 图标 | 用途 |
 | --- | --- |
 | [`mail`](https://github.com/google/material-design-icons/blob/master/symbols/android/mail/materialsymbolsrounded/mail_24px.xml) | 登录／注册邮箱验证 |
-| [`shield`](https://github.com/google/material-design-icons/blob/master/symbols/android/shield/materialsymbolsrounded/shield_24px.xml) | TOTP 验证 |
+| [`lock`](https://github.com/google/material-design-icons/blob/master/symbols/android/lock/materialsymbolsrounded/lock_24px.xml) | TOTP 验证、双重认证与身份验证器 |
 | [`person`](https://github.com/google/material-design-icons/blob/master/symbols/android/person/materialsymbolsrounded/person_24px.xml) | 注册资料 |
 | [`person_add`](https://github.com/google/material-design-icons/blob/master/symbols/android/person_add/materialsymbolsrounded/person_add_24px.xml) | 注册邮箱与密码 |
 | [`confirmation_number`](https://github.com/google/material-design-icons/blob/master/symbols/android/confirmation_number/materialsymbolsrounded/confirmation_number_24px.xml) | 邀请码 |
 | [`manage_accounts`](https://github.com/google/material-design-icons/blob/master/symbols/android/manage_accounts/materialsymbolsrounded/manage_accounts_24px.xml) | 找回密码邮箱 |
-| [`lock_reset`](https://github.com/google/material-design-icons/blob/master/symbols/android/lock_reset/materialsymbolsrounded/lock_reset_24px.xml) | 新密码 |
+| [`password`](https://github.com/google/material-design-icons/blob/master/symbols/android/password/materialsymbolsrounded/password_24px.xml) | 新密码、账号安全的密码入口与密码输入框 |
 | [`help`](https://github.com/google/material-design-icons/blob/master/symbols/android/help/materialsymbolsrounded/help_24px.xml) | TOTP 恢复说明 |
 | [`save`](https://github.com/google/material-design-icons/blob/master/symbols/android/save/materialsymbolsrounded/save_24px.xml) | 本机会话保存／清理重试与已保存密码入口 |
 

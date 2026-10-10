@@ -19,7 +19,8 @@
 - 实心按钮通过 `ShadowButtons` 封装官方组件，统一使用双层 `dropShadow`，模糊、偏移及扩张采用 Material 官方双层阴影参数并按交互高度插值；彩色投影取实际容器色，按钮与 FAB 的环境层／主层不透明度固定为 25%／50%，中性色使用黑色及官方 15%／30%，均乘以容器透明度，默认禁用时无阴影。普通按钮静止／按压／悬停或聚焦为 2dp／8dp／4dp，FAB 为 6dp／12dp／8dp，按下 120ms、恢复 180ms；形变与阴影共用形状和交互源，不重复投影。文字、描边与裸图标按钮保持平面；评论／弹幕输入框与发送按钮共用固定 4dp 阴影高度；输入框、禁用按钮及中性色容器的可用发送按钮使用系统原生 elevation，彩色容器的可用发送按钮使用共享双层彩色投影。禁用按钮保留不透明灰底和灰色图标，不增加开关，详见贡献指南。
 - 单选框通过 `ShadowRadioButton` 封装官方组件，仅选中且可用时显示阴影，静止／悬停或聚焦／按压为 1dp／2dp／4dp，按下 120ms、恢复 180ms。双层几何参数与按钮共用 Material 官方映射，阴影强度为按钮的一半：彩色 12.5%／25%、中性色黑色 7.5%／15%，均乘以选中颜色透明度。投影仅在 20dp 可见圆圈外侧，保留官方布局、动画与语义；整行点击时共用交互源，单选框 `onClick = null`，不增加开关，详见贡献指南。
 - 指定 Expressive 按钮尺寸时，使用 `ButtonDefaults` 官方尺寸常量及同一尺寸的形状、内边距、文字和图标 API，不手写标准尺寸参数或只放大容器；使用最小高度适应字体缩放，详见贡献指南。
-- 资料保存、隐私应用与账号安全流程使用 `SettingsScaffold.bottomBar` 中的 `SettingsActionBar`，底栏固定使用 4dp 原生 elevation 阴影，普通实心按钮按内容宽度靠尾侧，采用官方 Medium 尺寸、单行文字与共享彩色阴影，不使用 FAB 或悬浮工具栏；底栏实测高度放入滚动内容 padding，系统／IME Insets 不重复处理，Snackbar 由宿主避让。隐私重置位于顶栏，取消沿用返回保护；头像裁剪保留底部旋转与完成操作栏，详见贡献指南。
+- 资料保存、隐私应用与二步验证管理页的关闭入口使用 `SettingsScaffold.bottomBar` 中的 `SettingsActionBar`，底栏固定使用 4dp 原生 elevation 阴影，普通实心按钮按内容宽度靠尾侧，采用官方 Medium 尺寸、单行文字与共享彩色阴影，不使用 FAB 或悬浮工具栏；底栏实测高度放入滚动内容 padding，系统／IME Insets 不重复处理，Snackbar 由宿主避让。隐私重置位于顶栏，取消沿用返回保护；头像裁剪保留底部旋转与完成操作栏，详见贡献指南。
+- 认证与账号安全操作流程共用 `AccountFlowScaffold`，居中流程图标、480dp 窄列、大标题、描边输入框及表单末尾通栏主按钮；按钮使用官方 Medium 尺寸配套 API 与共享彩色阴影，关闭／解绑保留危险操作颜色。安全首页与二步验证管理页保留设置布局；Auth 不提供关闭按钮，根登录页通过系统返回退出。宿主统一处理 IME，系统栏留白随内容滚动，保留返回保护和敏感材料清理，详见贡献指南。
 - 个人主页与视频页复用 `FollowButton`：未关注使用 `primary/onPrimary` 及共享双层投影，已关注使用灰色 `surfaceContainerHigh/onSurfaceVariant` 且无投影；禁用时无阴影，保留官方 ToggleButton 的选中语义、尺寸与形变。
 - 邀请码顶部统计块的生成按钮是实心按钮阴影规则的例外：使用官方 `Button`，可用时固定白底与 `primary` 前景，所有交互状态均无阴影，保留官方 Expressive 尺寸、形变和禁用语义。
 - 播放器黑底控制按钮使用官方按钮和半透明黑底，所有交互及禁用状态均无阴影、无背景模糊，不接入 Haze 采样；保留 SurfaceView、配色、布局、点击反馈与无障碍语义，不增加开关，详见贡献指南。
@@ -39,7 +40,7 @@
 - 设置页普通开关仅改变 Switch 状态，不随开启状态改变整行背景与形状；使用 `onClick` 重载并保留开关状态和禁用语义。仅「显示弹幕」等功能总开关使用 `checked` 重载保留整行强调，具体分类见贡献指南。
 - 普通对话框、Sheet、下拉菜单、日期选择与开源组件详情弹层有实际连接列表条目时保留灰底（业务 Sheet 为 `surfaceContainerLow`），否则使用 `surface`；按当前条目及子页直接切换，空列表与无数据占位用 `surface`，保留条目的刷新及滚动不改变背景。日期选择器内外背景一致，不新增配色包装、组件树探测、动画或偏好，详见贡献指南与[弹层背景](docs/implementation.md#弹层背景)。
 - 普通顶部栏（含头像裁剪页）、主界面胶囊底栏及视频页 Tab 栏固定使用毛玻璃，复用 `FrostedScaffold` 的独立采样状态与共享背景，顶栏容器透明、阴影由宿主管理；Android 12+ 使用 Haze 采样，Android 8.1–11 半透明降级。普通栏面不使用原生 backdrop，规避已复现的转场 alpha 与 elevation 合成异常；无阴影黑底按钮按专用规则接入。视频页按分页内容、顶部共享背景、Tab 前景的同级顺序绘制，Tab 栏仅采样分页内容，栏高放入列表顶部留白，刷新与分页工具栏避让栏面；特殊媒体栏不变，详见贡献指南。
-- 普通顶栏导航与操作图标统一使用 `onSurfaceVariant`，填充图标按钮同步内容色及禁用透明度；认证页返回与关闭使用平面官方 `IconButton`。标题、品牌 Logo 与流程图标保留强调色，媒体顶栏保留白色控件，文字操作沿用原组件配色，详见贡献指南。
+- 普通顶栏导航与操作图标统一使用 `onSurfaceVariant`，填充图标按钮同步内容色及禁用透明度；认证与安全操作页的返回使用平面官方 `IconButton`。标题、品牌 Logo 与流程图标保留强调色，媒体顶栏保留白色控件，文字操作沿用原组件配色，详见贡献指南。
 - 需要滚动展开大标题的二级页面可复用 `ui/components/CollapsibleTopAppBar.kt` 与 `rememberCollapsibleTopAppBarScrollBehavior`，每页独立创建状态并接入 `nestedScroll`；默认进入折叠。按场景选用，不要求所有页面使用，接入示例见[实现说明](docs/implementation.md#可选的可折叠大标题栏)。
 - 滚动页面保留底部 edge-to-edge：底部系统内边距放入滚动内容（`Column` 的 `verticalScroll` 后或 `LazyColumn.contentPadding`），不要用容器外的完整 `innerPadding` 截短滚动区域；确保末项能滚动至导航栏上方。
 - 无确定进度的加载统一复用 `IndeterminateCircularProgressIndicator`，采用官方 Material 2 `CircularProgressIndicator` 的不确定进度动画与 `StrokeCap.Round` 圆角端点，不使用 Material 3 Expressive 形变加载器；普通加载及播放器中央缓冲为 40dp／4dp，文字按钮为 Material 2 官方按钮图标尺寸／2dp，图标按钮、账号行与小窗按钮为 24dp／2dp，下拉刷新内部采用 Material 2 原始比例 20dp／2.5dp。有可量化进度的加载可使用确定进度指示器。

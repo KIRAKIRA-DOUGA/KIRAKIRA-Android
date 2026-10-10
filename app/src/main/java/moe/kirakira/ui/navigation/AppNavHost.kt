@@ -451,6 +451,7 @@ internal fun AppNavHost(
                             SecuritySettingsPage(
                                 model = model,
                                 isActive = backStack.lastOrNull() == SecuritySettingsRoute,
+                                predictiveBackEnabled = predictiveBackEnabled,
                                 onBack = { if (backStack.lastOrNull() == SecuritySettingsRoute) backStack.removeLastOrNull() },
                                 onLogin = { email ->
                                     openFrom(SecuritySettingsRoute, AuthRoute(email))

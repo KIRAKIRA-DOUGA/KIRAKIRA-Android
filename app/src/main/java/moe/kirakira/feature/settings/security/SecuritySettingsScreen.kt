@@ -10,10 +10,6 @@ import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.PersistableBundle
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -27,6 +23,7 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -37,11 +34,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Badge
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -57,25 +52,27 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalAutofillManager
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
@@ -85,6 +82,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
@@ -93,27 +92,36 @@ import java.text.DateFormat
 import java.util.Date
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import moe.kirakira.R
 import moe.kirakira.core.credentials.passwordCredentialGateway
 import moe.kirakira.data.auth.SecondFactor
+import moe.kirakira.data.security.TotpSecrets
+import moe.kirakira.data.security.TotpSetup
 import moe.kirakira.feature.settings.SettingsActionBar
 import moe.kirakira.feature.settings.SettingsDefaults
 import moe.kirakira.feature.settings.SettingsErrorCard
-import moe.kirakira.feature.settings.SettingsFormCard
 import moe.kirakira.feature.settings.SettingsItem
 import moe.kirakira.feature.settings.SettingsScaffold
 import moe.kirakira.feature.settings.SettingsSection
 import moe.kirakira.feature.settings.settingsDestructiveButtonColors
+import moe.kirakira.ui.components.AccountFlowColumn
+import moe.kirakira.ui.components.AccountFlowDefaults
+import moe.kirakira.ui.components.AccountFlowError
+import moe.kirakira.ui.components.AccountFlowHeader
+import moe.kirakira.ui.components.AccountFlowProgress
+import moe.kirakira.ui.components.AccountFlowScaffold
+import moe.kirakira.ui.components.AccountFlowSubmitButton
+import moe.kirakira.ui.components.AnimatedSlashIcon
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentUnavailableAction
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
-import moe.kirakira.ui.components.IconBadge
-import moe.kirakira.ui.components.IconBadgeTone
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.ShadowFilledTonalButton
+import moe.kirakira.ui.components.SlashIconType
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.theme.KIRAKIRATheme
@@ -125,16 +133,16 @@ internal fun SecuritySettingsPage(
     isActive: Boolean,
     onBack: () -> Unit,
     onLogin: (String) -> Unit,
+    predictiveBackEnabled: Boolean = false,
 ) {
     val state by model.state.collectAsStateWithLifecycle()
     val session by model.session.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val autofill = LocalAutofillManager.current
-    val language = if (LocalConfiguration.current.locales[0].language == "zh") "zh-Hans-CN" else "en-US"
-    LaunchedEffect(isActive) {
+    LaunchedEffect(model, isActive) {
         if (!isActive) { autofill?.cancel(); model.deactivate() }
+        else model.refresh()
     }
-    LaunchedEffect(state.step) { autofill?.cancel() }
     LaunchedEffect(state.loginEmail, isActive) {
         val email = state.loginEmail ?: return@LaunchedEffect
         if (!isActive) return@LaunchedEffect
@@ -144,21 +152,15 @@ internal fun SecuritySettingsPage(
         model.consumeLogin()
     }
     DisposableEffect(Unit) { onDispose { autofill?.cancel() } }
-    SecuritySettingsScreen(
-        state = if (state.revision == session.revision) state else SecuritySettingsState(),
+    SecuritySettingsNavigation(
+        state = if (state.revision == session.revision) state else SecuritySettingsState(revision = session.revision),
+        model = model,
         email = session.activeProfile?.email,
         sessionBusy = session.isLoading || session.isBusy,
-        onBack = { autofill?.cancel(); if (model.requestBack()) onBack() },
+        isActive = isActive,
+        predictiveBackEnabled = predictiveBackEnabled,
+        onBack = onBack,
         onLogin = { onLogin("") },
-        onRefresh = model::refresh,
-        onOpen = { autofill?.cancel(); model.open(it) },
-        onEdit = model::edit,
-        onSendCode = { model.sendCode(language, it) },
-        onSubmit = { autofill?.cancel(); model.submit() },
-        onFinishCodes = model::finishCodes,
-        onCancelDiscard = model::cancelDiscardCodes,
-        onDismissMessage = model::dismissMessage,
-        onCopied = model::copied,
     )
 }
 
@@ -178,84 +180,89 @@ internal fun SecuritySettingsScreen(
     onCancelDiscard: () -> Unit,
     onDismissMessage: () -> Unit,
     onCopied: (Boolean) -> Unit,
+    onCancelDiscardCredentials: () -> Unit,
+    onDiscardCredentials: () -> Unit,
+    step: SecurityStep = state.step,
+    isActive: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val direction = LocalLayoutDirection.current
     val snackbar = remember { SnackbarHostState() }
     val message = state.message?.let { stringResource(it) }
-    val fadeInSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
-    val fadeOutSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
-    LaunchedEffect(message) {
-        if (message != null) { snackbar.showSnackbar(message); onDismissMessage() }
+    LaunchedEffect(message, isActive) {
+        if (message != null && isActive) { snackbar.showSnackbar(message); onDismissMessage() }
+        if (!isActive) snackbar.currentSnackbarData?.dismiss()
     }
-    SettingsScaffold(
-        title = stringResource(state.step.title()),
-        onBack = onBack,
-        shadingIcon = R.drawable.ic_symbol_lock,
-        modifier = modifier,
-        imePadding = true,
-        snackbarHost = { SnackbarHost(snackbar) },
-        bottomBar = {
-            if (email != null && !sessionBusy && state.status != null && state.step != SecurityStep.OVERVIEW) {
-                SecurityActionBar(state, onSubmit, onFinishCodes)
-            }
-        },
-    ) { padding ->
-        ContentPullToRefresh(
-            isRefreshing = email != null && state.loading && state.status != null,
-            onRefresh = onRefresh,
-            enabled = email != null && !sessionBusy && !state.busy && state.step == SecurityStep.OVERVIEW,
-            modifier = Modifier.fillMaxSize().consumeWindowInsets(padding),
-            indicatorTopPadding = padding.calculateTopPadding(),
-        ) {
-            AnimatedContent(
-                targetState = state.step,
-                modifier = Modifier.fillMaxSize(),
-                transitionSpec = { fadeIn(fadeInSpec) togetherWith fadeOut(fadeOutSpec) },
-                label = "security_step",
-            ) { step ->
-                // Only the active step can expose credentials during a transition.
-                val visible = step == state.step
-                key(step) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                        when {
-                            !visible -> Unit
-                            sessionBusy || (state.loading && state.status == null) -> Box(
-                                Modifier.fillMaxSize().padding(padding),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                IndeterminateCircularProgressIndicator()
-                            }
-                            email == null -> ContentUnavailableView(
-                                state = ContentUnavailableState.EMPTY,
-                                modifier = Modifier.padding(padding),
-                                title = stringResource(R.string.security_sign_in),
-                                description = null,
-                                iconRes = R.drawable.ic_symbol_shield,
-                                presentation = ContentUnavailablePresentation.PAGE,
-                                primaryAction = ContentUnavailableAction(stringResource(R.string.management_login), onLogin),
-                            )
-                            else -> Column(
-                                Modifier.widthIn(max = SettingsDefaults.MaxContentWidth).fillMaxSize()
-                                    .verticalScroll(rememberScrollState()).padding(
-                                        start = padding.calculateStartPadding(direction) + SettingsDefaults.HorizontalPadding,
-                                        end = padding.calculateEndPadding(direction) + SettingsDefaults.HorizontalPadding,
-                                        top = padding.calculateTopPadding() + SettingsDefaults.TopPadding,
-                                        bottom = padding.calculateBottomPadding() + SettingsDefaults.BottomPadding,
-                                    ),
-                                verticalArrangement = Arrangement.spacedBy(SettingsDefaults.SectionSpacing),
-                            ) {
-                                when {
-                                    state.status == null -> ContentUnavailableView(
-                                        state = ContentUnavailableState.ERROR,
-                                        description = state.error?.let { stringResource(it.messageRes()) },
-                                        presentation = ContentUnavailablePresentation.INLINE, onRetry = onRefresh,
-                                    )
-                                    step == SecurityStep.OVERVIEW -> {
-                                        SecurityOverview(state, email, onOpen)
-                                        state.error?.let { SettingsErrorCard(stringResource(it.messageRes())) }
-                                    }
-                                    else -> SecurityFlow(state, email, onEdit, onSendCode, onCopied)
+    if (step == SecurityStep.OVERVIEW || step == SecurityStep.TWO_FACTOR) {
+        SettingsScaffold(
+            title = stringResource(step.title()),
+            onBack = onBack,
+            shadingIcon = R.drawable.ic_symbol_lock,
+            modifier = modifier,
+            imePadding = true,
+            snackbarHost = { SnackbarHost(snackbar) },
+            bottomBar = {
+                val factor = state.status?.factor
+                if (email != null && !sessionBusy && step == SecurityStep.TWO_FACTOR &&
+                    (factor == SecondFactor.EMAIL || factor == SecondFactor.TOTP)
+                ) {
+                    SecurityActionBar(state, onOpen)
+                }
+            },
+        ) { padding ->
+            ContentPullToRefresh(
+                isRefreshing = email != null && state.loading && state.status != null,
+                onRefresh = onRefresh,
+                enabled = isActive && email != null && !sessionBusy && !state.busy && state.canRefresh,
+                modifier = Modifier.fillMaxSize().consumeWindowInsets(padding),
+                indicatorTopPadding = padding.calculateTopPadding(),
+            ) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                    when {
+                        sessionBusy || (state.loading && state.status == null && !state.statusPending) -> Box(
+                            modifier = Modifier.fillMaxSize().padding(padding),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            IndeterminateCircularProgressIndicator()
+                        }
+                        email == null -> ContentUnavailableView(
+                            state = ContentUnavailableState.EMPTY,
+                            modifier = Modifier.padding(padding),
+                            title = stringResource(R.string.security_sign_in),
+                            description = null,
+                            iconRes = R.drawable.ic_symbol_lock,
+                            presentation = ContentUnavailablePresentation.PAGE,
+                            primaryAction = ContentUnavailableAction(
+                                stringResource(R.string.management_login), onLogin,
+                            ),
+                        )
+                        else -> Column(
+                            modifier = Modifier
+                                .widthIn(max = SettingsDefaults.MaxContentWidth)
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                                .padding(
+                                    start = padding.calculateStartPadding(direction) + SettingsDefaults.HorizontalPadding,
+                                    end = padding.calculateEndPadding(direction) + SettingsDefaults.HorizontalPadding,
+                                    top = padding.calculateTopPadding() + SettingsDefaults.TopPadding,
+                                    bottom = padding.calculateBottomPadding() + SettingsDefaults.BottomPadding,
+                                ),
+                            verticalArrangement = Arrangement.spacedBy(SettingsDefaults.SectionSpacing),
+                        ) {
+                            when {
+                                step == SecurityStep.OVERVIEW && (state.status != null || state.statusPending) -> {
+                                    SecurityOverview(state, email, onOpen)
+                                    state.error?.let { SettingsErrorCard(stringResource(it.messageRes())) }
+                                }
+                                state.status == null -> ContentUnavailableView(
+                                    state = ContentUnavailableState.ERROR,
+                                    description = state.error?.let { stringResource(it.messageRes()) },
+                                    presentation = ContentUnavailablePresentation.INLINE,
+                                    onRetry = onRefresh,
+                                )
+                                else -> {
+                                    TwoFactorManagement(state, email, onOpen)
+                                    state.error?.let { SettingsErrorCard(stringResource(it.messageRes())) }
                                 }
                             }
                         }
@@ -263,8 +270,26 @@ internal fun SecuritySettingsScreen(
                 }
             }
         }
+    } else {
+        SecurityFlowScreen(
+            state = state,
+            step = step,
+            email = email,
+            sessionBusy = sessionBusy,
+            isActive = isActive,
+            snackbarHostState = snackbar,
+            onBack = onBack,
+            onLogin = onLogin,
+            onRefresh = onRefresh,
+            onEdit = onEdit,
+            onSendCode = onSendCode,
+            onSubmit = onSubmit,
+            onFinishCodes = onFinishCodes,
+            onCopied = onCopied,
+            modifier = modifier,
+        )
     }
-    if (state.confirmDiscardCodes) {
+    if (state.confirmDiscardCodes && isActive) {
         AlertDialog(
             onDismissRequest = onCancelDiscard,
             containerColor = MaterialTheme.colorScheme.surface,
@@ -274,18 +299,112 @@ internal fun SecuritySettingsScreen(
             dismissButton = { TextButton(onClick = onCancelDiscard) { Text(stringResource(R.string.profile_keep_editing)) } },
         )
     }
+    if (state.confirmDiscardCredentials && isActive) {
+        AlertDialog(
+            onDismissRequest = onCancelDiscardCredentials,
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text(stringResource(R.string.security_leave_changes_title)) },
+            text = { Text(stringResource(R.string.profile_discard_message)) },
+            confirmButton = { TextButton(onClick = onDiscardCredentials) { Text(stringResource(R.string.privacy_discard)) } },
+            dismissButton = { TextButton(onClick = onCancelDiscardCredentials) { Text(stringResource(R.string.profile_keep_editing)) } },
+        )
+    }
+}
+
+@Composable
+private fun SecurityFlowScreen(
+    state: SecuritySettingsState,
+    step: SecurityStep,
+    email: String?,
+    sessionBusy: Boolean,
+    isActive: Boolean,
+    snackbarHostState: SnackbarHostState,
+    onBack: () -> Unit,
+    onLogin: () -> Unit,
+    onRefresh: () -> Unit,
+    onEdit: (SecurityField, String) -> Unit,
+    onSendCode: (Boolean) -> Unit,
+    onSubmit: () -> Unit,
+    onFinishCodes: () -> Unit,
+    onCopied: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    AccountFlowScaffold(
+        icon = step.iconRes(),
+        onBack = onBack,
+        modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { padding ->
+        when {
+            sessionBusy || (state.loading && state.status == null && !state.statusPending) -> Box(
+                modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding),
+                contentAlignment = Alignment.Center,
+            ) {
+                IndeterminateCircularProgressIndicator()
+            }
+            email == null -> ContentUnavailableView(
+                state = ContentUnavailableState.EMPTY,
+                modifier = Modifier.padding(padding).consumeWindowInsets(padding),
+                title = stringResource(R.string.security_sign_in),
+                description = null,
+                iconRes = R.drawable.ic_symbol_lock,
+                presentation = ContentUnavailablePresentation.PAGE,
+                primaryAction = ContentUnavailableAction(stringResource(R.string.management_login), onLogin),
+            )
+            state.status == null && !state.statusPending -> ContentUnavailableView(
+                state = ContentUnavailableState.ERROR,
+                modifier = Modifier.padding(padding).consumeWindowInsets(padding),
+                description = state.error?.let { stringResource(it.messageRes()) },
+                presentation = ContentUnavailablePresentation.PAGE,
+                onRetry = onRefresh,
+            )
+            else -> AccountFlowColumn(padding) {
+                SecurityFlow(
+                    state = state,
+                    step = step,
+                    email = email,
+                    isActive = isActive,
+                    onEdit = onEdit,
+                    onSend = onSendCode,
+                    onSubmit = onSubmit,
+                    onFinish = onFinishCodes,
+                    onCopied = onCopied,
+                )
+            }
+        }
+    }
 }
 
 @Composable
 private fun SecurityOverview(state: SecuritySettingsState, email: String, onOpen: (SecurityStep) -> Unit) {
-    val factor = state.status?.factor ?: return
-    val protected = factor != SecondFactor.NONE
+    SecurityStatusBanner(state)
+    val canEdit = !state.working && state.status != null && !state.statusPending
+    SettingsSection(stringResource(R.string.security_account_section)) {
+        SecurityItem(R.drawable.ic_symbol_mail, stringResource(R.string.auth_email), email, 0, 2,
+            enabled = canEdit, onClick = { onOpen(SecurityStep.EMAIL) })
+        SecurityItem(R.drawable.ic_symbol_password, stringResource(R.string.security_password),
+            stringResource(R.string.security_change_password), 1, 2, enabled = canEdit,
+            onClick = { onOpen(SecurityStep.PASSWORD) })
+    }
+    SettingsSection(stringResource(R.string.security_two_factor_section)) {
+        SecurityItem(R.drawable.ic_symbol_lock, stringResource(R.string.security_two_factor_section),
+            stringResource(state.status?.factor?.label() ?: R.string.security_status_pending),
+            0, 1, enabled = !state.working, onClick = { onOpen(SecurityStep.TWO_FACTOR) })
+    }
+}
+
+@Composable
+private fun SecurityStatusBanner(state: SecuritySettingsState) {
+    val factor = state.status?.factor
+    val protected = factor != null && factor != SecondFactor.NONE
     val colors = MaterialTheme.semanticColors
+    val containerColor = if (protected) colors.success else MaterialTheme.colorScheme.surfaceContainerHigh
+    val contentColor = if (protected) colors.onSuccess else MaterialTheme.colorScheme.onSurfaceVariant
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.extraLarge,
-        color = colors.success,
-        contentColor = colors.onSuccess,
+        color = containerColor,
+        contentColor = contentColor,
     ) {
         Row(
             modifier = Modifier.padding(24.dp),
@@ -295,12 +414,12 @@ private fun SecurityOverview(state: SecuritySettingsState, email: String, onOpen
             Surface(
                 modifier = Modifier.size(72.dp),
                 shape = MaterialShapes.Cookie12Sided.toShape(),
-                color = colors.onSuccess.copy(alpha = 0.12f),
-                contentColor = colors.onSuccess,
+                color = contentColor.copy(alpha = 0.12f),
+                contentColor = contentColor,
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        painter = painterResource(if (protected) R.drawable.ic_symbol_shield else R.drawable.ic_symbol_error),
+                        painter = painterResource(if (protected) R.drawable.ic_symbol_lock else R.drawable.ic_symbol_error),
                         contentDescription = null,
                         modifier = Modifier.size(36.dp),
                     )
@@ -308,41 +427,59 @@ private fun SecurityOverview(state: SecuritySettingsState, email: String, onOpen
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
-                    stringResource(if (protected) R.string.security_protected else R.string.security_unprotected),
+                    stringResource(when {
+                        state.statusPending -> R.string.security_status_pending
+                        protected -> R.string.security_protected
+                        else -> R.string.security_unprotected
+                    }),
                     style = MaterialTheme.typography.titleLarge,
                 )
-                Text(stringResource(factor.label()), style = MaterialTheme.typography.bodyMedium)
+                if (factor != null) Text(stringResource(factor.label()), style = MaterialTheme.typography.bodyMedium)
             }
         }
-    }
-    SettingsSection(stringResource(R.string.security_account_section)) {
-        SecurityItem(R.drawable.ic_symbol_mail, stringResource(R.string.auth_email), email, 0, 2,
-            enabled = !state.working, onClick = { onOpen(SecurityStep.EMAIL) })
-        SecurityItem(R.drawable.ic_symbol_lock_reset, stringResource(R.string.security_password),
-            stringResource(R.string.security_change_password), 1, 2, enabled = !state.working,
-            onClick = { onOpen(SecurityStep.PASSWORD) })
-    }
-    SettingsSection(stringResource(R.string.security_two_factor_section)) {
-        SecurityItem(R.drawable.ic_symbol_mail, stringResource(R.string.security_email_authenticator),
-            if (factor == SecondFactor.EMAIL) email else stringResource(
-                if (factor == SecondFactor.TOTP) R.string.security_disable_current_first else R.string.security_not_enabled),
-            0, 2, enabled = !state.working && factor != SecondFactor.TOTP,
-            active = factor == SecondFactor.EMAIL,
-            onClick = { onOpen(if (factor == SecondFactor.EMAIL) SecurityStep.DISABLE_EMAIL else SecurityStep.ENABLE_EMAIL) })
-        SecurityItem(R.drawable.ic_symbol_shield, stringResource(R.string.security_totp_authenticator),
-            state.status.totpCreationDateTime?.takeIf { factor == SecondFactor.TOTP }?.let {
-                stringResource(R.string.security_added_date, DateFormat.getDateInstance().format(Date(it)))
-            } ?: stringResource(if (factor == SecondFactor.TOTP) R.string.security_enabled
-                else if (factor == SecondFactor.EMAIL) R.string.security_disable_current_first else R.string.security_not_enabled),
-            1, 2, enabled = !state.working && factor != SecondFactor.EMAIL,
-            active = factor == SecondFactor.TOTP,
-            onClick = { onOpen(if (factor == SecondFactor.TOTP) SecurityStep.DISABLE_TOTP else SecurityStep.TOTP_SETUP) })
     }
 }
 
 @Composable
+private fun TwoFactorManagement(state: SecuritySettingsState, email: String, onOpen: (SecurityStep) -> Unit) {
+    val status = state.status ?: return
+    val flow = state.twoFactor as? TwoFactorFlow.Manage ?: return
+    SecurityStatusBanner(state)
+    when (status.factor) {
+        SecondFactor.NONE -> SettingsSection(stringResource(R.string.security_verification_method)) {
+            SecurityItem(R.drawable.ic_symbol_mail, stringResource(R.string.security_email_authenticator),
+                stringResource(R.string.security_not_enabled), 0, 2, enabled = !state.working,
+                onClick = { onOpen(SecurityStep.ENABLE_EMAIL) })
+            SecurityItem(R.drawable.ic_symbol_lock, stringResource(R.string.security_totp_authenticator),
+                stringResource(when (flow.draft) {
+                    null -> R.string.security_start_binding
+                    is TotpDraft.Available -> R.string.security_continue_binding
+                    TotpDraft.Unavailable -> R.string.security_not_enabled
+                }),
+                1, 2, enabled = !state.working && flow.draft != TotpDraft.Unavailable,
+                busy = state.busy,
+                onClick = { onOpen(SecurityStep.TOTP_CONFIRM) })
+        }
+        SecondFactor.EMAIL, SecondFactor.TOTP -> SettingsSection(stringResource(R.string.security_current_method)) {
+            SettingsItem(
+                title = stringResource(status.factor.label()),
+                index = 0,
+                count = 1,
+                icon = if (status.factor == SecondFactor.EMAIL) R.drawable.ic_symbol_mail else R.drawable.ic_symbol_lock,
+                supporting = if (status.factor == SecondFactor.EMAIL) email else {
+                    status.totpCreationDateTime?.let {
+                        stringResource(R.string.security_added_date, DateFormat.getDateInstance().format(Date(it)))
+                    } ?: stringResource(R.string.security_enabled)
+                },
+            )
+        }
+    }
+    flow.notice?.let { SettingsErrorCard(stringResource(it)) }
+}
+
+@Composable
 private fun SecurityItem(icon: Int, title: String, summary: String, index: Int, count: Int,
-    enabled: Boolean, onClick: () -> Unit, active: Boolean = false) {
+    enabled: Boolean, busy: Boolean = false, onClick: () -> Unit) {
     SegmentedListItem(
         onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth(),
         shapes = connectedListItemShapes(index, count),
@@ -351,11 +488,9 @@ private fun SecurityItem(icon: Int, title: String, summary: String, index: Int, 
         },
         supportingContent = { Text(summary) },
         trailingContent = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (active) Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer) {
-                    Text(stringResource(R.string.security_enabled))
-                }
+            if (busy) {
+                IndeterminateCircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+            } else {
                 Icon(painterResource(R.drawable.ic_symbol_chevron_right), null, Modifier.size(24.dp))
             }
         },
@@ -364,233 +499,438 @@ private fun SecurityItem(icon: Int, title: String, summary: String, index: Int, 
 }
 
 @Composable
-private fun ExpressiveSecurityIcon(icon: Int, tertiary: Boolean = false, size: Int = 48, enabled: Boolean = true) {
-    IconBadge(
-        icon = icon,
-        shape = (if (tertiary) MaterialShapes.Cookie9Sided else MaterialShapes.Sunny).toShape(),
-        tone = if (tertiary) IconBadgeTone.TERTIARY else IconBadgeTone.PRIMARY,
-        size = size.dp,
-        enabled = enabled,
+private fun SecurityFlow(
+    state: SecuritySettingsState,
+    step: SecurityStep,
+    email: String,
+    isActive: Boolean,
+    onEdit: (SecurityField, String) -> Unit,
+    onSend: (Boolean) -> Unit,
+    onSubmit: () -> Unit,
+    onFinish: () -> Unit,
+    onCopied: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val progressStep = when (step) {
+        SecurityStep.EMAIL, SecurityStep.PASSWORD, SecurityStep.TOTP_CONFIRM -> 1
+        SecurityStep.VERIFY_EMAIL, SecurityStep.VERIFY_PASSWORD, SecurityStep.SECRETS -> 2
+        SecurityStep.OVERVIEW, SecurityStep.TWO_FACTOR,
+        SecurityStep.ENABLE_EMAIL, SecurityStep.DISABLE_EMAIL, SecurityStep.DISABLE_TOTP, SecurityStep.CHECK_FACTOR -> null
+    }
+    Column(modifier.fillMaxWidth()) {
+        AccountFlowHeader(
+            title = stringResource(step.title()),
+            description = if (step == SecurityStep.VERIFY_PASSWORD && !state.completionPending) {
+                stringResource(R.string.security_password_sign_in_required)
+            } else {
+                null
+            },
+            progressContent = progressStep?.let { currentStep -> { AccountFlowProgress(currentStep, 2) } },
+        )
+        Spacer(Modifier.height(AccountFlowDefaults.SectionSpacing))
+        Column(verticalArrangement = Arrangement.spacedBy(AccountFlowDefaults.FieldSpacing)) {
+            if (state.completionPending) {
+                Text(stringResource(R.string.security_completion_pending), style = MaterialTheme.typography.bodyLarge)
+            } else when (step) {
+                SecurityStep.EMAIL -> {
+                    SecurityCurrentEmail(email)
+                    SecurityTextField(
+                        state, SecurityField.EMAIL, R.string.security_new_email, onEdit,
+                        keyboardType = KeyboardType.Email, isActive = isActive, onDone = onSubmit,
+                    )
+                }
+                SecurityStep.VERIFY_EMAIL -> {
+                    Column(verticalArrangement = Arrangement.spacedBy(AccountFlowDefaults.FieldSpacing)) {
+                        Text(
+                            text = stringResource(R.string.security_verify_identity),
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.semantics { heading() },
+                        )
+                        SecurityTextField(
+                            state, SecurityField.PASSWORD, R.string.security_old_password, onEdit,
+                            keyboardType = KeyboardType.Password, isActive = isActive,
+                        )
+                        SecurityCodeField(
+                            state, onEdit, onSend, isActive = isActive,
+                            recipient = email.takeUnless { state.status?.factor == SecondFactor.TOTP },
+                        )
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(AccountFlowDefaults.FieldSpacing)) {
+                        Text(
+                            text = stringResource(R.string.security_new_email),
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.semantics { heading() },
+                        )
+                        SecurityCodeField(
+                            state, onEdit, onSend, newEmail = true, isActive = isActive,
+                            recipient = state.form[SecurityField.EMAIL], onDone = onSubmit,
+                        )
+                    }
+                }
+                SecurityStep.PASSWORD -> {
+                    SecurityTextField(
+                        state, SecurityField.NEW_PASSWORD, R.string.auth_new_password, onEdit,
+                        keyboardType = KeyboardType.Password, isActive = isActive,
+                    )
+                    SecurityTextField(
+                        state, SecurityField.CONFIRM_PASSWORD, R.string.auth_confirm_password, onEdit,
+                        keyboardType = KeyboardType.Password, isActive = isActive, onDone = onSubmit,
+                    )
+                }
+                SecurityStep.VERIFY_PASSWORD -> {
+                    SecurityTextField(
+                        state, SecurityField.PASSWORD, R.string.security_old_password, onEdit,
+                        keyboardType = KeyboardType.Password, isActive = isActive,
+                    )
+                    SecurityCodeField(
+                        state, onEdit, onSend, isActive = isActive,
+                        recipient = email.takeUnless { state.status?.factor == SecondFactor.TOTP }, onDone = onSubmit,
+                    )
+                }
+                SecurityStep.ENABLE_EMAIL -> Text(email, style = MaterialTheme.typography.bodyLarge)
+                SecurityStep.DISABLE_EMAIL, SecurityStep.DISABLE_TOTP -> {
+                    AccountFlowError(stringResource(R.string.security_disable_warning))
+                    SecurityTextField(
+                        state, SecurityField.PASSWORD, R.string.security_password, onEdit,
+                        keyboardType = KeyboardType.Password, isActive = isActive,
+                    )
+                    SecurityCodeField(state, onEdit, onSend, isActive = isActive, onDone = onSubmit)
+                }
+                SecurityStep.TOTP_CONFIRM -> {
+                    val flow = state.twoFactor as? TwoFactorFlow.ConfirmTotp
+                    if (flow != null) {
+                        TotpSetupContent(state, flow.setup, isActive, onEdit, onCopied, onSubmit)
+                    }
+                }
+                SecurityStep.SECRETS -> {
+                    val flow = state.twoFactor as? TwoFactorFlow.SaveCodes
+                    if (flow != null) RecoveryCodes(flow.secrets, isActive, onCopied)
+                }
+                SecurityStep.CHECK_FACTOR -> Text(
+                    text = stringResource(R.string.security_status_pending),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                SecurityStep.OVERVIEW, SecurityStep.TWO_FACTOR -> Unit
+            }
+        }
+        Spacer(Modifier.height(AccountFlowDefaults.SectionSpacing))
+        Column(verticalArrangement = Arrangement.spacedBy(AccountFlowDefaults.FeedbackSpacing)) {
+            state.validation?.let { AccountFlowError(stringResource(it)) }
+            state.error?.let { AccountFlowError(stringResource(it.messageRes())) }
+            SecuritySubmitButton(state, step, onSubmit, onFinish)
+        }
+    }
+}
+
+/** Only the two-factor management page retains a fixed settings action bar. */
+@Composable
+private fun SecurityActionBar(state: SecuritySettingsState, onOpen: (SecurityStep) -> Unit) {
+    val totp = state.status?.factor == SecondFactor.TOTP
+    SettingsActionBar(
+        label = stringResource(
+            when {
+                state.busy -> R.string.auth_working
+                totp -> R.string.security_disable_totp_title
+                else -> R.string.security_disable_email_title
+            },
+        ),
+        onClick = { onOpen(if (totp) SecurityStep.DISABLE_TOTP else SecurityStep.DISABLE_EMAIL) },
+        enabled = state.canSubmit,
+        busy = state.busy,
+        colors = settingsDestructiveButtonColors(),
     )
 }
 
-/** Large centered step illustration. */
 @Composable
-private fun SecurityStepIcon(icon: Int, tertiary: Boolean = false) {
-    Box(Modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
-        ExpressiveSecurityIcon(icon, tertiary, size = 96)
-    }
-}
-
-@Composable
-private fun SecurityFlow(
-    state: SecuritySettingsState, email: String,
-    onEdit: (SecurityField, String) -> Unit, onSend: (Boolean) -> Unit,
-    onCopied: (Boolean) -> Unit,
-) {
-    if (state.step == SecurityStep.TOTP_SETUP || state.step == SecurityStep.SECRETS) {
-        val step = if (state.step == SecurityStep.SECRETS) 3 else if (state.setup != null) 2 else 1
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(R.string.auth_step_progress, step, 3), style = MaterialTheme.typography.labelLarge)
-            LinearProgressIndicator(progress = { step / 3f }, modifier = Modifier.fillMaxWidth())
-        }
-    }
-    if (state.completionPending) {
-        Text(stringResource(R.string.security_completion_pending), style = MaterialTheme.typography.bodyLarge)
-    } else when (state.step) {
-        SecurityStep.EMAIL -> {
-            SecurityCurrentEmail(email)
-            SettingsFormCard {
-                SecurityTextField(state, SecurityField.EMAIL, R.string.security_new_email, onEdit, KeyboardType.Email)
-                SecurityTextField(state, SecurityField.PASSWORD, R.string.security_password, onEdit, KeyboardType.Password)
-            }
-            SettingsFormCard {
-                SecurityCodeField(state, onEdit, onSend)
-                SecurityCodeField(state, onEdit, onSend, newEmail = true)
-            }
-        }
-        SecurityStep.PASSWORD -> {
-            SettingsFormCard {
-                SecurityTextField(state, SecurityField.PASSWORD, R.string.security_old_password, onEdit, KeyboardType.Password)
-                SecurityTextField(state, SecurityField.NEW_PASSWORD, R.string.auth_new_password, onEdit, KeyboardType.Password)
-                SecurityTextField(state, SecurityField.CONFIRM_PASSWORD, R.string.auth_confirm_password, onEdit, KeyboardType.Password)
-            }
-            SettingsFormCard { SecurityCodeField(state, onEdit, onSend) }
-        }
-        SecurityStep.ENABLE_EMAIL -> {
-            SecurityStepIcon(R.drawable.ic_symbol_mail)
-            Text(email, Modifier.fillMaxWidth(), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
-        }
-        SecurityStep.DISABLE_EMAIL, SecurityStep.DISABLE_TOTP -> {
-            SettingsErrorCard(stringResource(R.string.security_disable_warning))
-            SettingsFormCard {
-                SecurityTextField(state, SecurityField.PASSWORD, R.string.security_password, onEdit, KeyboardType.Password)
-                SecurityCodeField(state, onEdit, onSend)
-            }
-        }
-        SecurityStep.TOTP_SETUP -> {
-            val setup = state.setup
-            if (setup == null) SecurityStepIcon(R.drawable.ic_symbol_shield, tertiary = true)
-            else TotpSetupContent(state, onEdit, onCopied)
-        }
-        SecurityStep.SECRETS -> RecoveryCodes(state, onCopied)
-        SecurityStep.OVERVIEW -> Unit
-    }
-    state.validation?.let { SettingsErrorCard(stringResource(it)) }
-    state.error?.let { SettingsErrorCard(stringResource(it.messageRes())) }
-}
-
-@Composable
-private fun SecurityActionBar(
+private fun SecuritySubmitButton(
     state: SecuritySettingsState,
+    step: SecurityStep,
     onSubmit: () -> Unit,
     onFinish: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    val destructive = state.step == SecurityStep.DISABLE_EMAIL || state.step == SecurityStep.DISABLE_TOTP
-    SettingsActionBar(
-        label = stringResource(when {
-            state.busy -> R.string.auth_working
-            state.completionPending -> R.string.settings_retry_sync
-            state.step == SecurityStep.SECRETS -> R.string.security_codes_saved
-            destructive -> R.string.security_disable
-            state.step == SecurityStep.ENABLE_EMAIL -> R.string.security_enable
-            state.step == SecurityStep.TOTP_SETUP && state.setup == null -> R.string.auth_continue
-            state.step == SecurityStep.TOTP_SETUP -> R.string.security_confirm
-            else -> R.string.security_save
-        }),
-        onClick = if (state.step == SecurityStep.SECRETS) onFinish else onSubmit,
-        enabled = !state.working,
+    val destructive = step == SecurityStep.DISABLE_EMAIL || step == SecurityStep.DISABLE_TOTP
+    AccountFlowSubmitButton(
+        label = stringResource(
+            when {
+                state.completionPending -> R.string.settings_retry_sync
+                step == SecurityStep.EMAIL -> R.string.security_verify_email
+                step == SecurityStep.PASSWORD -> R.string.security_verify_identity
+                step == SecurityStep.VERIFY_EMAIL -> R.string.security_change_email
+                step == SecurityStep.VERIFY_PASSWORD -> R.string.security_change_password
+                step == SecurityStep.SECRETS -> R.string.security_codes_saved
+                step == SecurityStep.CHECK_FACTOR -> R.string.security_check_status
+                step == SecurityStep.DISABLE_TOTP -> R.string.security_disable_totp_title
+                step == SecurityStep.DISABLE_EMAIL -> R.string.security_disable_email_title
+                step == SecurityStep.ENABLE_EMAIL -> R.string.security_enable
+                step == SecurityStep.TOTP_CONFIRM -> R.string.security_confirm
+                else -> R.string.security_save
+            },
+        ),
+        onClick = if (step == SecurityStep.SECRETS) onFinish else onSubmit,
+        enabled = state.canSubmit,
         busy = state.busy,
+        modifier = modifier,
         colors = if (destructive) settingsDestructiveButtonColors() else ButtonDefaults.buttonColors(),
         actionDescription = when {
-            state.busy -> null
             state.completionPending -> stringResource(R.string.profile_finish_save)
-            state.step == SecurityStep.SECRETS -> stringResource(R.string.security_done)
+            step == SecurityStep.SECRETS -> stringResource(R.string.security_done)
             else -> null
         },
     )
 }
 
-/** Current address shown above the change-email form. */
 @Composable
-private fun SecurityCurrentEmail(email: String) {
-    SettingsItem(
-        title = email,
-        index = 0,
-        count = 1,
-        icon = R.drawable.ic_symbol_mail,
-        supporting = stringResource(R.string.auth_email),
-    )
+private fun SecurityCurrentEmail(email: String, modifier: Modifier = Modifier) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            text = stringResource(R.string.security_current_email),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(email, style = MaterialTheme.typography.bodyLarge)
+    }
 }
 
 @Composable
-private fun SecurityTextField(state: SecuritySettingsState, field: SecurityField, label: Int,
-    onEdit: (SecurityField, String) -> Unit, keyboardType: KeyboardType = KeyboardType.Text) {
+private fun SecurityTextField(
+    state: SecuritySettingsState,
+    field: SecurityField,
+    label: Int,
+    onEdit: (SecurityField, String) -> Unit,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    isActive: Boolean = true,
+    onDone: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+) {
     var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(isActive) { visible = false }
     val password = keyboardType == KeyboardType.Password
+    val showPassword = visible && isActive
+    val enabled = !state.working && !state.completionPending
     val focus = LocalFocusManager.current
+    val focusRequester = remember { FocusRequester() }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val error = state.fieldErrors[field]?.let { stringResource(it) }
+    LaunchedEffect(state.validationAttempt, isActive, lifecycle) {
+        if (isActive && state.fieldErrors.keys.firstOrNull() == field) {
+            lifecycle.currentStateFlow.first { it.isAtLeast(Lifecycle.State.RESUMED) }
+            withFrameNanos { }
+            focusRequester.requestFocus()
+        }
+    }
     OutlinedTextField(
-        value = state.form[field], onValueChange = { onEdit(field, it) },
-        modifier = Modifier.fillMaxWidth().then(if (password) Modifier.semantics {
-            contentType = if (field == SecurityField.PASSWORD) ContentType.Password else ContentType.NewPassword
-        } else Modifier),
-        label = { Text(stringResource(label)) }, enabled = !state.working && !state.completionPending,
-        leadingIcon = { Icon(painterResource(field.iconRes(state)), contentDescription = null) },
-        shape = MaterialTheme.shapes.large, singleLine = true,
-        visualTransformation = if (password && !visible) PasswordVisualTransformation() else VisualTransformation.None,
-        keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = keyboardType, imeAction = ImeAction.Next),
-        keyboardActions = KeyboardActions(onNext = { focus.moveFocus(FocusDirection.Next) }),
-        trailingIcon = if (password) ({
-            IconButton(onClick = { visible = !visible }) {
-                Icon(painterResource(if (visible) R.drawable.ic_symbol_visibility_off else R.drawable.ic_symbol_visibility),
-                    stringResource(if (visible) R.string.auth_hide_password else R.string.auth_show_password))
+        value = state.form[field],
+        onValueChange = { onEdit(field, it) },
+        modifier = modifier
+            .fillMaxWidth()
+            .focusRequester(focusRequester)
+            .then(
+                when {
+                    password -> Modifier.semantics {
+                        contentType = if (field == SecurityField.PASSWORD) ContentType.Password else ContentType.NewPassword
+                    }
+                    field == SecurityField.EMAIL -> Modifier.semantics { contentType = ContentType.EmailAddress }
+                    else -> Modifier
+                },
+            ),
+        label = { Text(stringResource(label)) },
+        enabled = enabled,
+        isError = error != null,
+        supportingText = error?.let { { Text(it) } },
+        shape = MaterialTheme.shapes.large,
+        singleLine = true,
+        visualTransformation = if (password && !showPassword) {
+            PasswordVisualTransformation()
+        } else {
+            VisualTransformation.None
+        },
+        keyboardOptions = KeyboardOptions(
+            autoCorrectEnabled = false,
+            keyboardType = keyboardType,
+            imeAction = if (onDone != null) ImeAction.Done else ImeAction.Next,
+        ),
+        keyboardActions = KeyboardActions(
+            onNext = { focus.moveFocus(FocusDirection.Next) },
+            onDone = { if (isActive && enabled) onDone?.invoke() },
+        ),
+        trailingIcon = if (password) {
+            {
+                IconButton(onClick = { visible = !visible }, enabled = isActive && enabled) {
+                    AnimatedSlashIcon(
+                        type = SlashIconType.VISIBILITY,
+                        slashed = showPassword,
+                        description = stringResource(
+                            if (showPassword) R.string.auth_hide_password else R.string.auth_show_password,
+                        ),
+                    )
+                }
             }
-        }) else null,
+        } else {
+            null
+        },
     )
 }
 
 @Composable
-private fun SecurityCodeField(state: SecuritySettingsState, onEdit: (SecurityField, String) -> Unit,
-    onSend: (Boolean) -> Unit, newEmail: Boolean = false) {
+private fun SecurityCodeField(
+    state: SecuritySettingsState,
+    onEdit: (SecurityField, String) -> Unit,
+    onSend: (Boolean) -> Unit,
+    newEmail: Boolean = false,
+    isActive: Boolean = true,
+    recipient: String? = null,
+    onDone: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+) {
     val totp = !newEmail && state.status?.factor == SecondFactor.TOTP
     val backupAllowed = state.step == SecurityStep.DISABLE_TOTP
     val label = when {
         newEmail -> R.string.security_new_email_code
         totp && backupAllowed -> R.string.security_totp_or_backup
         totp -> R.string.security_totp_code
-        state.step == SecurityStep.EMAIL -> R.string.security_current_code
+        state.step == SecurityStep.VERIFY_EMAIL -> R.string.security_current_code
         else -> R.string.auth_verification_code
     }
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        SecurityTextField(state, if (newEmail) SecurityField.NEW_EMAIL_CODE else SecurityField.CODE, label, onEdit,
-            if (backupAllowed) KeyboardType.Ascii else KeyboardType.Number)
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (!recipient.isNullOrBlank()) {
+            Text(
+                text = recipient,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        SecurityTextField(
+            state, if (newEmail) SecurityField.NEW_EMAIL_CODE else SecurityField.CODE, label, onEdit,
+            keyboardType = if (backupAllowed) KeyboardType.Ascii else KeyboardType.Number,
+            isActive = isActive,
+            onDone = onDone,
+        )
         if (!totp) {
             val cooldown = if (newEmail) state.newCooldown else state.currentCooldown
-            TextButton(onClick = { onSend(newEmail) }, enabled = !state.working && cooldown == 0 &&
-                (!newEmail || state.form[SecurityField.EMAIL].isNotBlank()), modifier = Modifier.align(Alignment.End)) {
-                Text(if (cooldown > 0) stringResource(R.string.auth_resend_countdown, cooldown)
-                    else stringResource(R.string.auth_resend))
+            TextButton(
+                onClick = { onSend(newEmail) },
+                enabled = isActive && !state.working && !state.completionPending && cooldown == 0 &&
+                    (!newEmail || state.form[SecurityField.EMAIL].isNotBlank()),
+            ) {
+                Text(
+                    if (cooldown > 0) stringResource(R.string.auth_resend_countdown, cooldown)
+                    else stringResource(R.string.auth_resend),
+                )
             }
         }
     }
 }
 
 @Composable
-private fun TotpSetupContent(state: SecuritySettingsState, onEdit: (SecurityField, String) -> Unit, onCopied: (Boolean) -> Unit) {
-    val setup = state.setup ?: return
+private fun TotpSetupContent(
+    state: SecuritySettingsState,
+    setup: TotpSetup,
+    isActive: Boolean,
+    onEdit: (SecurityField, String) -> Unit,
+    onCopied: (Boolean) -> Unit,
+    onSubmit: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val context = LocalContext.current
     val clipboard = remember { SensitiveClipboard(context) }
-    DisposableEffect(clipboard) { onDispose { clipboard.clear() } }
+    DisposableEffect(clipboard, isActive) {
+        if (!isActive) clipboard.clear()
+        onDispose { clipboard.clear() }
+    }
     val bitmap by produceState<Bitmap?>(null, setup.uri) {
         value = withContext(Dispatchers.Default) { qrBitmap(setup.uri) }
     }
-    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(Modifier.size(232.dp).background(Color.White, MaterialTheme.shapes.large).padding(8.dp),
-            contentAlignment = Alignment.Center) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(AccountFlowDefaults.FieldSpacing),
+    ) {
+        Box(
+            modifier = Modifier.size(232.dp).background(Color.White, MaterialTheme.shapes.large).padding(8.dp),
+            contentAlignment = Alignment.Center,
+        ) {
             val image = bitmap
-            if (image != null) Image(image.asImageBitmap(), stringResource(R.string.security_qr_code), Modifier.fillMaxSize())
-            else Text(stringResource(R.string.security_qr_failed), color = Color.Black)
+            if (image != null) {
+                Image(image.asImageBitmap(), stringResource(R.string.security_qr_code), Modifier.fillMaxSize())
+            } else {
+                Text(stringResource(R.string.security_qr_failed), color = Color.Black)
+            }
         }
-        OutlinedButton(onClick = {
-            val opened = runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(setup.uri))); true }.getOrDefault(false)
-            if (!opened) onCopied(false)
-        }, enabled = !state.working) { Text(stringResource(R.string.security_open_authenticator)) }
+        OutlinedButton(
+            onClick = {
+                val opened = runCatching {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(setup.uri)))
+                    true
+                }.getOrDefault(false)
+                if (!opened) onCopied(false)
+            },
+            enabled = isActive && !state.working,
+        ) {
+            Text(stringResource(R.string.security_open_authenticator))
+        }
         SecretCard(stringResource(R.string.security_setup_key)) {
-            Text(setup.secret.chunked(4).joinToString(" "), Modifier.fillMaxWidth(),
-                style = MaterialTheme.typography.titleMedium, fontFamily = FontFamily.Monospace, textAlign = TextAlign.Center)
+            Text(
+                text = setup.secret.chunked(4).joinToString(" "),
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.titleMedium,
+                fontFamily = FontFamily.Monospace,
+                textAlign = TextAlign.Center,
+            )
         }
-        CopyButton(stringResource(R.string.security_copy_key)) { onCopied(clipboard.copy(setup.secret)) }
-    }
-    SettingsFormCard {
-        SecurityTextField(state, SecurityField.CODE, R.string.security_totp_code, onEdit, KeyboardType.Number)
+        CopyButton(stringResource(R.string.security_copy_key), enabled = isActive && !state.working) {
+            onCopied(clipboard.copy(setup.secret))
+        }
+        SecurityTextField(
+            state, SecurityField.CODE, R.string.security_totp_code, onEdit,
+            keyboardType = KeyboardType.Number, isActive = isActive, onDone = onSubmit,
+        )
     }
 }
 
 @Composable
-private fun RecoveryCodes(state: SecuritySettingsState, onCopied: (Boolean) -> Unit) {
-    val secrets = state.secrets ?: return
+private fun RecoveryCodes(
+    secrets: TotpSecrets,
+    isActive: Boolean,
+    onCopied: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val context = LocalContext.current
     val clipboard = remember { SensitiveClipboard(context) }
-    DisposableEffect(clipboard) { onDispose { clipboard.clear() } }
-    SecurityStepIcon(R.drawable.ic_symbol_check, tertiary = true)
-    SecretCard(stringResource(R.string.security_backup_codes)) {
-        secrets.backupCodes.chunked(2).forEach { pair ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                pair.forEach {
-                    Text(it, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium,
-                        fontFamily = FontFamily.Monospace, textAlign = TextAlign.Center)
+    DisposableEffect(clipboard, isActive) {
+        if (!isActive) clipboard.clear()
+        onDispose { clipboard.clear() }
+    }
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(AccountFlowDefaults.FieldSpacing)) {
+        SecretCard(stringResource(R.string.security_backup_codes)) {
+            secrets.backupCodes.chunked(2).forEach { pair ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    pair.forEach {
+                        Text(
+                            text = it,
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontFamily = FontFamily.Monospace,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
                 }
-                if (pair.size == 1) Spacer(Modifier.weight(1f))
             }
         }
-    }
-    SecretCard(stringResource(R.string.security_recovery_code)) {
-        Text(secrets.recoveryCode.chunked(4).joinToString(" "), Modifier.fillMaxWidth(),
-            style = MaterialTheme.typography.titleMedium, fontFamily = FontFamily.Monospace, textAlign = TextAlign.Center)
-    }
-    CopyButton(stringResource(R.string.security_copy_codes)) {
-        onCopied(clipboard.copy(secrets.backupCodes.joinToString("\n") + "\n\n" + secrets.recoveryCode))
+        SecretCard(stringResource(R.string.security_recovery_code)) {
+            Text(
+                text = secrets.recoveryCode.chunked(4).joinToString(" "),
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.titleMedium,
+                fontFamily = FontFamily.Monospace,
+                textAlign = TextAlign.Center,
+            )
+        }
+        CopyButton(stringResource(R.string.security_copy_codes), enabled = isActive) {
+            onCopied(clipboard.copy(secrets.backupCodes.joinToString("\n") + "\n\n" + secrets.recoveryCode))
+        }
     }
 }
 
@@ -609,8 +949,8 @@ private fun SecretCard(title: String, content: @Composable ColumnScope.() -> Uni
 }
 
 @Composable
-private fun CopyButton(label: String, onClick: () -> Unit) {
-    ShadowFilledTonalButton(onClick = onClick, shapes = ButtonDefaults.shapes()) {
+private fun CopyButton(label: String, enabled: Boolean = true, onClick: () -> Unit) {
+    ShadowFilledTonalButton(onClick = onClick, enabled = enabled, shapes = ButtonDefaults.shapes()) {
         Icon(painterResource(R.drawable.ic_symbol_content_copy), null, Modifier.size(ButtonDefaults.IconSize))
         Spacer(Modifier.width(ButtonDefaults.IconSpacing))
         Text(label)
@@ -647,12 +987,13 @@ private fun qrBitmap(value: String): Bitmap? = runCatching {
     Bitmap.createBitmap(pixels, 560, 560, Bitmap.Config.ARGB_8888)
 }.getOrNull()
 
-private fun SecurityField.iconRes(state: SecuritySettingsState): Int = when (this) {
-    SecurityField.EMAIL, SecurityField.NEW_EMAIL_CODE -> R.drawable.ic_symbol_mail
-    SecurityField.CODE -> if (state.status?.factor == SecondFactor.TOTP || state.step == SecurityStep.TOTP_SETUP)
-        R.drawable.ic_symbol_shield else R.drawable.ic_symbol_mail
-    SecurityField.PASSWORD -> R.drawable.ic_symbol_lock
-    SecurityField.NEW_PASSWORD, SecurityField.CONFIRM_PASSWORD -> R.drawable.ic_symbol_lock_reset
+private fun SecurityStep.iconRes(): Int = when (this) {
+    SecurityStep.EMAIL, SecurityStep.VERIFY_EMAIL, SecurityStep.ENABLE_EMAIL, SecurityStep.DISABLE_EMAIL ->
+        R.drawable.ic_symbol_mail
+    SecurityStep.PASSWORD, SecurityStep.VERIFY_PASSWORD -> R.drawable.ic_symbol_password
+    SecurityStep.SECRETS -> R.drawable.ic_symbol_check
+    SecurityStep.OVERVIEW, SecurityStep.TWO_FACTOR, SecurityStep.TOTP_CONFIRM,
+    SecurityStep.DISABLE_TOTP, SecurityStep.CHECK_FACTOR -> R.drawable.ic_symbol_lock
 }
 
 private fun SecondFactor.label(): Int = when (this) {
@@ -664,12 +1005,16 @@ private fun SecondFactor.label(): Int = when (this) {
 private fun SecurityStep.title(): Int = when (this) {
     SecurityStep.OVERVIEW -> R.string.settings_security
     SecurityStep.EMAIL -> R.string.security_change_email
+    SecurityStep.VERIFY_EMAIL -> R.string.security_verify_email_title
     SecurityStep.PASSWORD -> R.string.security_change_password
+    SecurityStep.VERIFY_PASSWORD -> R.string.security_verify_identity
+    SecurityStep.TWO_FACTOR -> R.string.security_two_factor_section
     SecurityStep.ENABLE_EMAIL -> R.string.security_enable_email_title
     SecurityStep.DISABLE_EMAIL -> R.string.security_disable_email_title
-    SecurityStep.TOTP_SETUP -> R.string.security_totp_setup_title
+    SecurityStep.TOTP_CONFIRM -> R.string.security_totp_setup_title
     SecurityStep.DISABLE_TOTP -> R.string.security_disable_totp_title
     SecurityStep.SECRETS -> R.string.security_recovery_title
+    SecurityStep.CHECK_FACTOR -> R.string.security_two_factor_section
 }
 
 @Preview
@@ -677,6 +1022,23 @@ private fun SecurityStep.title(): Int = when (this) {
 @Composable
 private fun SecuritySettingsPreview() {
     KIRAKIRATheme {
-        SecuritySettingsScreen(SecuritySettingsState(), null, false, {}, {}, {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {})
+        SecuritySettingsScreen(
+            state = SecuritySettingsState(),
+            email = null,
+            sessionBusy = false,
+            onBack = {},
+            onLogin = {},
+            onRefresh = {},
+            onOpen = {},
+            onEdit = { _, _ -> },
+            onSendCode = {},
+            onSubmit = {},
+            onFinishCodes = {},
+            onCancelDiscard = {},
+            onDismissMessage = {},
+            onCopied = {},
+            onCancelDiscardCredentials = {},
+            onDiscardCredentials = {},
+        )
     }
 }

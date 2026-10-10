@@ -24,8 +24,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.unit.dp
 import moe.kirakira.R
+import moe.kirakira.ui.components.AccountFlowDefaults
 
 @Composable
 internal fun AuthForm(
@@ -40,7 +40,7 @@ internal fun AuthForm(
     onSubmit: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(AccountFlowDefaults.FieldSpacing)) {
         when (state.step) {
             AuthStep.LOGIN, AuthStep.REGISTER_CREDENTIALS -> {
                 LoginForm(
