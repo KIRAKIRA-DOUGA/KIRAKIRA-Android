@@ -15,6 +15,8 @@
 
 ## 主题实现
 
+界面以 Material 3 Expressive 为基础，配色与高度阴影采用 Material Design 2 的视觉风格，并结合 KIRAKIRA 特色的彩色阴影。`KIRAKIRATheme` 保留 Material 3 语义颜色角色及 `MaterialExpressiveTheme` 的组件、形状、排版与动效；经典强调色和中性表面由项目主题生成器提供，关闭色调高度叠加。彩色按钮与 FAB 的投影取实际容器色，选中单选框的投影取实际选中色，中性色使用黑色；共享双层阴影几何参数来自 Material Web，原生阴影由平台绘制。设计约束、强度与场景例外见[主题配色约束](../../CONTRIBUTING.md#主题配色约束)及[按钮、单选框与阴影](../../CONTRIBUTING.md#按钮单选框与阴影)。
+
 [ThemeSettingsStore](../../app/src/main/java/moe/kirakira/data/settings/ThemeSettingsStore.kt) 负责 `kirakira_settings` 的读取、写入与旧预设颜色迁移，仅处理字符串、布尔值及 ARGB 数值。[ThemeViewModel](../../app/src/main/java/moe/kirakira/ui/theme/ThemeViewModel.kt) 提供当前主题的默认色和迁移映射，将存储结果映射为 UI 状态；保留后台首次读取、就绪门控、无效明暗模式回退和不透明颜色处理。
 
 ### 成功语义色

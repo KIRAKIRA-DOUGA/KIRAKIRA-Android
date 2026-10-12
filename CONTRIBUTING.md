@@ -17,7 +17,7 @@
 
 ## 技术选型与架构
 
-- 新应用代码使用 Kotlin，Gradle 使用 Kotlin DSL。新界面统一使用 Jetpack Compose，设计语言为 **Material 3 Expressive**；复用 `KIRAKIRATheme` 中的 `MaterialExpressiveTheme`，包括颜色、形状、排版和动效体系。
+- 新应用代码使用 Kotlin，Gradle 使用 Kotlin DSL。新界面统一使用 Jetpack Compose，以 **Material 3 Expressive** 为基础，采用 **Material Design 2** 风格的经典强调色配色与高度阴影，并结合 **KIRAKIRA 特色的彩色阴影**；组件、形状、排版与动效沿用 Material 3 Expressive。复用 `KIRAKIRATheme` 中的 `MaterialExpressiveTheme`，由主题层提供项目定制的 Material 3 语义配色。
 - 不新增以 XML Layout、Fragment、ViewBinding 或 DataBinding 为核心的页面。只有平台能力或第三方 SDK 需要时使用 `AndroidView` 等互操作，并封装生命周期与资源释放。Manifest、图标、字符串和系统主题 XML 仍正常使用。
 - 保持单 Activity 入口；`MainActivity` 负责宿主和顶层组合，不承载网络、数据库或业务规则。
 - 保留当前 `:app` 模块。新功能放在 `moe.kirakira.feature.<name>`；跨功能 UI 放 `ui/components/`，主题放 `ui/theme/`，数据访问按需放 `data/`，真正跨功能的基础设施放 `core/`。包名全小写，不将无关代码堆入 `Utils.kt`。
@@ -48,7 +48,7 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 
 ### 组件、状态与副作用
 
-- 使用 Material 3 Expressive 的组件、色彩层次和圆角分组；保持浅色、深色及动态颜色兼容，不用手绘控件替代已有标准组件。参考 [Compose Material 3](https://developer.android.com/develop/ui/compose/designsystems/material3)。
+- 使用 Material 3 Expressive 的组件、形状、排版与动效，配色采用 Material Design 2 风格的经典强调色与中性表面，阴影结合高度投影与 KIRAKIRA 彩色定制；保持浅色、深色及壁纸取色兼容，不用手绘控件替代已有标准组件。参考 [Compose Material 3](https://developer.android.com/develop/ui/compose/designsystems/material3)。
 - 使用单向数据流：状态向下传递，事件通过回调向上传递。可复用组件接收所需状态和回调，不直接获取 ViewModel、Repository 或导航控制器。
 - 可复用 UI 的第一个可选参数使用 `modifier: Modifier = Modifier`，作用于组件根节点；内容插槽放最后。[参数示例](docs/implementation/components.md#可复用-ui-参数示例)见实现说明。
 - 按[状态提升原则](https://developer.android.com/develop/ui/compose/state-hoisting)选择状态所有者：局部临时状态用 `remember`；需要恢复且可保存的 UI 状态用 `rememberSaveable`；业务状态由 ViewModel 暴露只读状态。采用 Flow 时，在屏幕入口通过 `collectAsStateWithLifecycle` 收集，并先在版本目录声明所需依赖。
@@ -58,6 +58,8 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 - 列表项目使用稳定的业务 key；不要为了压制重组而随意添加 `@Stable` / `@Immutable`。可复用组件的 Preview 使用空表单、游客账号或空列表；需要展示特定状态时使用预览专用虚构值，不依赖真实服务或运行中的 ViewModel。
 
 ### 按钮、单选框与阴影
+
+阴影采用 Material Design 2 风格的高度投影，结合 KIRAKIRA 特色的彩色阴影：彩色按钮与 FAB 的投影取实际容器色，选中单选框的投影取实际选中色，中性色使用黑色。这里的 Material Design 2 指视觉风格；共享双层投影的几何参数来自 Material Web，栏面等原生投影由平台绘制，具体强度和场景例外遵循下列规则。
 
 - 表达「添加」的悬浮操作按钮（FAB）通过共享 `ShadowFloatingActionButton` 封装官方 `FloatingActionButton`，默认使用 `CircleShape`、`MaterialTheme.colorScheme.primary` 背景与配套 `onPrimary` 前景；允许显式覆盖形状和颜色，前景默认通过 `contentColorFor(containerColor)` 匹配。仅显示 Material Symbols Rounded `add` 加号，不在图标右侧重复显示「添加」文字，不使用带文字的扩展 FAB。保留官方尺寸、本地化的「添加」无障碍描述、标准触摸目标与操作期间的禁用语义。
 - 实心按钮统一使用 `ShadowButtons` 中的共享封装，内部保留官方填充／浅色填充按钮、实心图标按钮与 FAB。交互高度、时序与强度见下表；默认禁用时无阴影。使用双层 `dropShadow`，模糊、偏移和扩张采用 Material 官方双层阴影参数，按现有交互高度在官方 elevation level 间插值。彩色投影取实际容器色，不透明度为显式例外：彩色与中性色的双层强度按下表固定，不随交互状态改变；中性色使用黑色，两类均乘以容器透明度。形变与阴影共用动画形状及交互源，不叠加原生投影或外层投影，不改变触摸区域、布局尺寸和业务状态。文字、描边与裸图标按钮保持平面，不提供阴影开关或持久化偏好。
@@ -193,7 +195,7 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 
 ## 主题配色约束
 
-- 所有颜色统一使用经典强调色，默认项目粉色，壁纸取色默认关闭；不提供配色算法选择。主题、色板与选色器统一使用 `rememberSeedColorScheme` 生成完整语义颜色，不能只替换 `primary`；错误等语义颜色保留必要区分，形状、排版与动效沿用 Material 3 Expressive。
+- 所有颜色统一使用 Material Design 2 风格的经典强调色与中性表面，默认项目粉色，壁纸取色默认关闭；不提供配色算法选择。主题、色板与选色器统一使用 `rememberSeedColorScheme` 生成完整语义颜色，不能只替换 `primary`；错误等语义颜色保留必要区分，形状、排版与动效沿用 Material 3 Expressive。
 - 壁纸颜色作为主题色板中的一个选项，仅在 Android 12+ 显示，与应用主题共用 `wallpaperAccentColor` 读取系统强调色；只提供原色来源，浅深模式均使用经典方案。选择壁纸不覆盖手动或自定义色值，系统颜色资源变化后重新读取。
 - 经典强调色在浅深模式均保留不透明原色为 `primary`，完整生成主色容器、反色与固定色角色，次要容器与主色容器共用强调色调及配套前景，使默认 Slider 的未经过轨道和导航指示器统一着色，其余次要／第三色角色维持灰阶；NavigationBar 选中图标与文字使用 `primary`，选中指示器使用 `primaryContainer`；栏面底色浅色纯白、深色深灰，普通应用栏叠加共享毛玻璃背景，关闭色调高度叠加以免重新染色。
 - 项目内可选择的 `FilterChip` 与 `InputChip` 在可用且选中时统一使用 `primary` 背景，文字及前后图标使用 `onPrimary`。调用处直接通过官方 `FilterChipDefaults.filterChipColors` 或 `InputChipDefaults.inputChipColors` 配置选中颜色，随当前主题色变化；未选中、禁用配色及边框、形状、布局和交互沿用官方默认，不新增配色包装或偏好。

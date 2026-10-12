@@ -8,7 +8,7 @@
 
 ## 技术栈与代码组织
 
-- Kotlin + Jetpack Compose，设计语言为 **Material 3 Expressive**，复用 `KIRAKIRATheme`。新页面不使用 XML Layout、Fragment、ViewBinding 或 DataBinding；平台／第三方 View 互操作须封装生命周期与资源释放，并在 PR 中说明原因。
+- Kotlin + Jetpack Compose，界面以 **Material 3 Expressive** 为基础，采用 **Material Design 2** 风格的经典强调色配色与高度阴影，并结合 **KIRAKIRA 特色的彩色阴影**；组件、形状、排版与动效沿用 Material 3 Expressive，复用 `KIRAKIRATheme`。新页面不使用 XML Layout、Fragment、ViewBinding 或 DataBinding；平台／第三方 View 互操作须封装生命周期与资源释放，并在 PR 中说明原因。
 - 保留单 Activity 与 `:app` 模块，包名为 `moe.kirakira`。源码在 `app/src/main/java/moe/kirakira/`，主题在 `ui/theme/`，资源在 `app/src/main/res/`。
 - 新功能按 `feature/<name>/` 组织，共享 UI 放 `ui/components/`；按需增加 `data/` 与 `core/`，不预建空层或无需求拆分模块。
 - 遵循 `.editorconfig` 与 Kotlin official 风格：Kotlin／XML 四空格、UTF-8、LF，禁用通配符导入，移除无用导入。类型、文件和返回 `Unit` 的 UI composable 用 `PascalCase`，普通函数和属性用 `camelCase`，资源用 `snake_case`。
@@ -22,14 +22,14 @@
 
 | 涉及内容 | 必须遵循的摘要 | 详细规范 |
 | --- | --- | --- |
-| 按钮、FAB、关注和单选框 | 复用 `ShadowButtons`、`ShadowFloatingActionButton`、`FollowButton` 与 `ShadowRadioButton`；添加 FAB 仅显示加号，保留本地化描述；指定 Expressive 尺寸使用同尺寸官方配套 API；不重复投影或新增阴影开关 | [按钮、单选框与阴影](CONTRIBUTING.md#按钮单选框与阴影) |
+| 按钮、FAB、关注和单选框 | 复用 `ShadowButtons`、`ShadowFloatingActionButton`、`FollowButton` 与 `ShadowRadioButton`；添加 FAB 仅显示加号，保留本地化描述；指定 Expressive 尺寸使用同尺寸官方配套 API；采用 Material Design 2 风格的高度阴影与 KIRAKIRA 彩色投影，不重复投影或新增阴影开关 | [按钮、单选框与阴影](CONTRIBUTING.md#按钮单选框与阴影) |
 | 分组、开关和弹层 | 使用官方 `SegmentedListItem` 与共享连接形状；普通组用 `ConnectedListGroup`，数据列表用 `ConnectedLazyColumn`；普通开关只改变 Switch；弹层背景按实际连接条目决定，空内容用 `surface` | [列表、开关与弹层](CONTRIBUTING.md#列表开关与弹层) |
 | 资料、隐私和账号流程 | 资料在顶栏用平面 `TextButton` 保存，保留同步重试与未保存返回确认；隐私选择立即提交，明确失败恢复确认值，结果不确定时暂停编辑并只读核对；重置五项公开须确认；认证与安全流程复用 `AccountFlowScaffold` 和固定底部主按钮；验证步骤直接展示邮箱，保留任务标题及输入标签；六位代码复用 `OtpInputField`，保留字母数字备用码与完整恢复码入口；错误反馈短过渡且不留占位；二步验证采用浅色状态卡与绿色启用标记，代码展示区的辅助操作使用描边按钮；Auth 无关闭按钮 | [账号表单与保存](CONTRIBUTING.md#账号表单与保存) |
 | 图标和用户名 | 默认 Material Symbols Rounded，不混用图标风格；普通设置图标裸露显示；独立 username 使用 `@username`、等宽字体和次要文字色，空白不显示，输入与 API 保留原始值 | [图标与用户名](CONTRIBUTING.md#图标与用户名) |
 | 文案和预览 | 英语与中文字符串同步维护；短单句标签不加句末标点，保留 `Alpha!` 例外；不内置 Demo，不主动增加功能机制说明；预览优先空表单、游客账号与空列表 | [文案、本地化与无障碍](CONTRIBUTING.md#文案本地化与无障碍) |
 | 加载和刷新 | 不确定加载统一使用 `IndeterminateCircularProgressIndicator` 的官方 Material 2 动画与圆角端点；刷新保留已有内容和空状态，复用 `ContentPullToRefresh` 覆盖式指示器；首次加载与分页分别处理 | [加载与刷新](CONTRIBUTING.md#加载与刷新) |
 | 栏面和滚动 | 普通栏面固定毛玻璃与阴影，复用 `FrostedScaffold`；栏面背景、alpha 和阴影同层，前景独立；普通栏面不使用原生 backdrop；滚动内容承载系统 Insets，底栏实测高度放入内容 padding，避免重复避让 | [毛玻璃应用栏](CONTRIBUTING.md#毛玻璃应用栏)、[可折叠大标题栏](CONTRIBUTING.md#可选的可折叠大标题栏) |
-| 主题配色 | 统一经典强调色，默认项目粉色，壁纸取色可选；选中的可用 Chip 使用 `primary/onPrimary`，其他状态保留官方默认；保留完整语义配色 | [主题配色约束](CONTRIBUTING.md#主题配色约束) |
+| 主题配色 | 使用 Material Design 2 风格的经典强调色，默认项目粉色，壁纸取色可选；选中的可用 Chip 使用 `primary/onPrimary`，其他状态保留官方默认；保留完整语义配色 | [主题配色约束](CONTRIBUTING.md#主题配色约束) |
 
 ## API 与敏感材料
 

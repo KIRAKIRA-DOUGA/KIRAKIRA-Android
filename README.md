@@ -2,7 +2,7 @@
 
 # KIRAKIRA Compose
 
-KIRAKIRA 的 Android 客户端，使用 **Kotlin + Jetpack Compose**，设计语言为 **Material 3 Expressive**，图标采用官方 **Material Symbols Rounded**。
+KIRAKIRA 的 Android 客户端，使用 **Kotlin + Jetpack Compose**。界面以 **Material 3 Expressive** 为基础，采用 **Material Design 2** 风格的经典强调色配色与高度阴影，并结合 **KIRAKIRA 特色的彩色阴影**；组件、形状、排版与动效沿用 Material 3 Expressive，图标采用官方 **Material Symbols Rounded**。
 
 当前已接入 Rosales 账号 API，支持登录、注册、找回密码及本机多账号会话。首页视频、关键词／多标签搜索、作者资料、评论与弹幕接入真实数据，支持 Media3 播放、应用内小窗和系统画中画。
 
