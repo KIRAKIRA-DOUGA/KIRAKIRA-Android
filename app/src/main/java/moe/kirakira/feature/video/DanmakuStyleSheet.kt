@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
@@ -61,7 +60,6 @@ import moe.kirakira.data.content.DanmakuFontSize
 import moe.kirakira.data.content.DanmakuMode
 import moe.kirakira.data.content.DanmakuStyle
 import moe.kirakira.ui.components.ConnectedListGroup
-import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
@@ -144,7 +142,7 @@ internal fun DanmakuComposer(
                     },
                 )
             } else {
-                DanmakuStyleContent(draft, style, onStyle, { custom = true }, { open = false })
+                DanmakuStyleContent(draft, style, onStyle, { custom = true })
             }
         }
     }
@@ -157,7 +155,6 @@ internal fun DanmakuStyleContent(
     style: DanmakuStyle,
     onStyle: (DanmakuStyle) -> Unit,
     onCustomColor: () -> Unit,
-    onDone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier.fillMaxWidth()) {
@@ -293,29 +290,6 @@ internal fun DanmakuStyleContent(
                 }
             }
         }
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 4.dp,
-        ) {
-            val buttonHeight = ButtonDefaults.MediumContainerHeight
-            ShadowButton(
-                onClick = onDone,
-                modifier = Modifier
-                    .padding(horizontal = 20.dp, vertical = 16.dp)
-                    .fillMaxWidth()
-                    .heightIn(min = buttonHeight),
-                shapes = ButtonDefaults.shapesFor(buttonHeight),
-                contentPadding = ButtonDefaults.contentPaddingFor(buttonHeight),
-            ) {
-                Text(
-                    stringResource(R.string.danmaku_style_done),
-                    style = ButtonDefaults.textStyleFor(buttonHeight),
-                    maxLines = 1,
-                    softWrap = false,
-                )
-            }
-        }
     }
 }
 
@@ -339,7 +313,7 @@ private fun CreatorGradientSample(modifier: Modifier = Modifier) {
 @Preview(name = "Style · Narrow · Large text", widthDp = 320, heightDp = 1000, fontScale = 2f)
 @Composable
 private fun DanmakuStyleContentPreview() {
-    KIRAKIRATheme { Surface { DanmakuStyleContent("", DanmakuStyle(), {}, {}, {}) } }
+    KIRAKIRATheme { Surface { DanmakuStyleContent("", DanmakuStyle(), {}, {}) } }
 }
 
 @Preview(name = "Style · Custom", widthDp = 400, heightDp = 900)
@@ -350,7 +324,6 @@ private fun CustomDanmakuStylePreview() {
             DanmakuStyleContent(
                 "",
                 DanmakuStyle(0x80A7EF, DanmakuFontSize.LARGE, DanmakuMode.TOP, true),
-                {},
                 {},
                 {},
             )
