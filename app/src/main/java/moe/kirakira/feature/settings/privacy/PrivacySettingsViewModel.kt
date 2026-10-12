@@ -9,32 +9,34 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import moe.kirakira.R
 import moe.kirakira.core.network.ApiException
 import moe.kirakira.core.network.ApiFailure
 import moe.kirakira.data.settings.AccountSettingsRepository
 import moe.kirakira.data.settings.PrivacyItem
+import moe.kirakira.data.settings.PrivacySaveResult
 import moe.kirakira.data.settings.PrivacySettings
 import moe.kirakira.data.settings.PrivacyVisibility
 
 internal data class PrivacySettingsState(
     val revision: Long? = null,
     val original: PrivacySettings? = null,
-    val draft: Map<PrivacyItem, PrivacyVisibility> = emptyMap(),
+    val values: Map<PrivacyItem, PrivacyVisibility> = emptyMap(),
     val loading: Boolean = false,
     val saving: Boolean = false,
+    val confirmationPending: Boolean = false,
     val error: ApiFailure? = null,
     val message: Int? = null,
     val messageFailure: ApiFailure? = null,
     val sheetOpen: Boolean = false,
     val selectedItem: PrivacyItem? = null,
-    val confirmDiscard: Boolean = false,
+    val confirmReset: Boolean = false,
 ) {
-    val dirty: Boolean get() = original != null && draft != original.values
     val busy: Boolean get() = loading || saving
-    val editable: Boolean get() = original != null && !busy
+    val editable: Boolean get() = original != null && !busy && !confirmationPending
+    val canReset: Boolean get() = editable && values.values.any { it != PrivacyVisibility.PUBLIC }
 }
 
 internal class PrivacySettingsViewModel(private val repository: AccountSettingsRepository) : ViewModel() {
@@ -66,10 +68,10 @@ internal class PrivacySettingsViewModel(private val repository: AccountSettingsR
         request = viewModelScope.launch {
             try {
                 val settings = repository.privacy(expected)
-                _state.value = PrivacySettingsState(revision = expected, original = settings, draft = settings.values)
+                _state.value = PrivacySettingsState(revision = expected, original = settings, values = settings.values)
             } catch (error: ApiException) {
                 _state.update {
-                    if (it.original == null) it.copy(error = error.failure)
+                    if (it.original == null || it.confirmationPending) it.copy(error = error.failure)
                     else it.copy(messageFailure = error.failure)
                 }
             } finally {
@@ -80,19 +82,35 @@ internal class PrivacySettingsViewModel(private val repository: AccountSettingsR
         }
     }
 
-    fun save() {
+    private fun apply(values: Map<PrivacyItem, PrivacyVisibility>) {
         val current = _state.value
         val original = current.original ?: return
-        if (!ready || !current.editable || !current.dirty) return
+        if (!ready || !current.editable) return
+        if (values == original.values) {
+            _state.update { it.copy(sheetOpen = false, confirmReset = false) }
+            return
+        }
         val expected = revision
-        _state.update { it.copy(saving = true, message = null, messageFailure = null, sheetOpen = false) }
+        _state.update {
+            it.copy(values = values, saving = true, message = null, messageFailure = null,
+                sheetOpen = false, confirmReset = false)
+        }
         request = viewModelScope.launch {
             try {
-                val settings = repository.savePrivacy(original, current.draft, expected)
-                _state.value = PrivacySettingsState(revision = expected, original = settings, draft = settings.values,
-                    message = R.string.privacy_saved)
+                when (val result = repository.savePrivacy(original, values, expected)) {
+                    is PrivacySaveResult.Confirmed -> {
+                        val settings = result.settings
+                        _state.value = PrivacySettingsState(
+                            revision = expected, original = settings, values = settings.values,
+                            message = R.string.privacy_saved,
+                        )
+                    }
+                    is PrivacySaveResult.Unconfirmed -> _state.update {
+                        it.copy(confirmationPending = true, error = result.failure)
+                    }
+                }
             } catch (error: ApiException) {
-                _state.update { it.copy(messageFailure = error.failure) }
+                _state.update { it.copy(values = original.values, messageFailure = error.failure) }
             } finally {
                 if (currentCoroutineContext().isActive && expected == session.value.revision) {
                     _state.update { it.copy(saving = false) }
@@ -102,8 +120,7 @@ internal class PrivacySettingsViewModel(private val repository: AccountSettingsR
     }
 
     fun selectAll(visibility: PrivacyVisibility) {
-        if (!ready || !_state.value.editable) return
-        _state.update { it.copy(draft = PrivacyItem.entries.associateWith { visibility }) }
+        apply(PrivacyItem.entries.associateWith { visibility })
     }
 
     fun openSelector(item: PrivacyItem?) {
@@ -113,28 +130,28 @@ internal class PrivacySettingsViewModel(private val repository: AccountSettingsR
     fun closeSelector() { _state.update { it.copy(sheetOpen = false) } }
 
     fun select(visibility: PrivacyVisibility) {
-        if (!ready || !_state.value.editable) return
-        _state.update { current ->
-            val item = current.selectedItem
-            val draft = if (item == null) PrivacyItem.entries.associateWith { visibility }
-                else current.draft + (item to visibility)
-            current.copy(draft = draft, sheetOpen = false)
-        }
+        val current = _state.value
+        if (!current.sheetOpen) return
+        val item = current.selectedItem
+        val values = if (item == null) PrivacyItem.entries.associateWith { visibility }
+            else current.values + (item to visibility)
+        apply(values)
     }
 
-    val canNavigateBack: Boolean get() = !_state.value.busy && !_state.value.dirty
-
-    fun requestBack(): Boolean {
-        if (_state.value.busy) return false
-        if (!_state.value.dirty) return true
-        _state.update { it.copy(confirmDiscard = true, sheetOpen = false) }
-        return false
+    fun requestReset() {
+        if (ready && _state.value.canReset) _state.update { it.copy(confirmReset = true, sheetOpen = false) }
     }
 
-    fun cancelDiscard() { _state.update { it.copy(confirmDiscard = false) } }
-    fun discard() {
-        if (_state.value.busy) return
-        _state.update { it.copy(draft = it.original?.values.orEmpty(), confirmDiscard = false) }
+    fun cancelReset() { _state.update { it.copy(confirmReset = false) } }
+
+    fun reset() {
+        if (!_state.value.confirmReset) return
+        selectAll(PrivacyVisibility.PUBLIC)
     }
+
+    val canNavigateBack: Boolean get() = !_state.value.busy
+
+    fun requestBack(): Boolean = canNavigateBack
+
     fun dismissMessage() { _state.update { it.copy(message = null, messageFailure = null) } }
 }

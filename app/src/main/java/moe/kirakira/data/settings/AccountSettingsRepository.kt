@@ -34,38 +34,52 @@ internal class AccountSettingsRepository(private val api: ApiClient, private val
         original: PrivacySettings,
         values: Map<PrivacyItem, PrivacyVisibility>,
         revision: Long,
-    ): PrivacySettings = request(revision) { cookie ->
-        if (values.keys != PrivacyItem.entries.toSet()) invalidResponse()
-        val entries = original.entries.filter { entry -> PrivacyItem.entries.none { it.wireName == entry.id } } +
-            PrivacyItem.entries.map { PrivacyEntry(it.wireName, values.getValue(it)) }
-        val body = buildJsonObject {
-            put("userPrivaryVisibilitiesSetting", buildJsonArray {
-                entries.forEach { entry -> add(buildJsonObject {
-                    put("privaryId", entry.id)
-                    put("visibilitiesType", entry.visibility.wireName)
-                }) }
-            })
-            put("userLinkedAccountsVisibilitiesSetting", buildJsonArray {
-                original.linkedAccounts.forEach { entry -> add(buildJsonObject {
-                    put("platformId", entry.platformId)
-                    put("visibilitiesType", entry.visibility.wireName)
-                }) }
-            })
+    ): PrivacySaveResult {
+        var updateAccepted = false
+        return try {
+            val settings = request(revision) { cookie ->
+                if (values.keys != PrivacyItem.entries.toSet()) invalidResponse()
+                val entries = original.entries.filter { entry -> PrivacyItem.entries.none { it.wireName == entry.id } } +
+                    PrivacyItem.entries.map { PrivacyEntry(it.wireName, values.getValue(it)) }
+                val body = buildJsonObject {
+                    put("userPrivaryVisibilitiesSetting", buildJsonArray {
+                        entries.forEach { entry -> add(buildJsonObject {
+                            put("privaryId", entry.id)
+                            put("visibilitiesType", entry.visibility.wireName)
+                        }) }
+                    })
+                    put("userLinkedAccountsVisibilitiesSetting", buildJsonArray {
+                        original.linkedAccounts.forEach { entry -> add(buildJsonObject {
+                            put("platformId", entry.platformId)
+                            put("visibilitiesType", entry.visibility.wireName)
+                        }) }
+                    })
+                }
+                val result = api.post<PrivacyResponseDto>("user/settings/update", body.toString(), cookie)
+                checkSuccess(result.success)
+                updateAccepted = true
+                // Rosales can return its update payload without uid; confirm that response through a fresh read.
+                val returned = result.userSettings
+                val confirmed = if (returned?.uid == null) {
+                    val read = api.post<PrivacyResponseDto>("user/settings", "{}", cookie)
+                    checkSuccess(read.success)
+                    read.userSettings ?: invalidResponse()
+                } else returned
+                val saved = confirmed.domain(session.value.activeProfile?.uid)
+                if (saved.values != values || PrivacyItem.entries.any { item ->
+                    saved.entries.none { it.id == item.wireName }
+                }) invalidResponse()
+                saved
+            }
+            PrivacySaveResult.Confirmed(settings)
+        } catch (error: ApiException) {
+            val uncertain = when (error.failure) {
+                ApiFailure.NETWORK, ApiFailure.TIMEOUT, ApiFailure.SERVER, ApiFailure.INVALID_RESPONSE -> true
+                ApiFailure.REJECTED, ApiFailure.SESSION_EXPIRED, ApiFailure.RATE_LIMITED,
+                ApiFailure.DAILY_LIMIT, ApiFailure.STORAGE -> false
+            }
+            if (updateAccepted || uncertain) PrivacySaveResult.Unconfirmed(error.failure) else throw error
         }
-        val result = api.post<PrivacyResponseDto>("user/settings/update", body.toString(), cookie)
-        checkSuccess(result.success)
-        // Rosales can return its update payload without uid; confirm that response through a fresh read.
-        val returned = result.userSettings
-        val confirmed = if (returned?.uid == null) {
-            val read = api.post<PrivacyResponseDto>("user/settings", "{}", cookie)
-            checkSuccess(read.success)
-            read.userSettings ?: invalidResponse()
-        } else returned
-        val saved = confirmed.domain(session.value.activeProfile?.uid)
-        if (saved.values != values || PrivacyItem.entries.any { item ->
-            saved.entries.none { it.id == item.wireName }
-        }) invalidResponse()
-        saved
     }
 
     private suspend fun <T> request(revision: Long, block: suspend (String) -> T): T {

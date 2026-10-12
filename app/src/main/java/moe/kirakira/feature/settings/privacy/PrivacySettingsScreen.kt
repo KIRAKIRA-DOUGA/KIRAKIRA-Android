@@ -66,7 +66,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import moe.kirakira.R
 import moe.kirakira.data.settings.PrivacyItem
 import moe.kirakira.data.settings.PrivacyVisibility
-import moe.kirakira.feature.settings.SettingsActionBar
 import moe.kirakira.feature.settings.SettingsColumn
 import moe.kirakira.feature.settings.SettingsScaffold
 import moe.kirakira.feature.settings.SettingsSection
@@ -97,13 +96,13 @@ internal fun PrivacySettingsPage(model: PrivacySettingsViewModel, onBack: () -> 
         onBack = { if (model.requestBack()) onBack() },
         onLogin = onLogin,
         onRefresh = model::refresh,
-        onSave = model::save,
         onSelectAll = model::selectAll,
         onOpenSelector = model::openSelector,
         onCloseSelector = model::closeSelector,
         onSelect = model::select,
-        onCancelDiscard = model::cancelDiscard,
-        onDiscard = { model.discard(); onBack() },
+        onRequestReset = model::requestReset,
+        onCancelReset = model::cancelReset,
+        onReset = model::reset,
         onDismissMessage = model::dismissMessage,
     )
 }
@@ -116,26 +115,26 @@ internal fun PrivacySettingsScreen(
     onBack: () -> Unit,
     onLogin: () -> Unit,
     onRefresh: () -> Unit,
-    onSave: () -> Unit,
     onSelectAll: (PrivacyVisibility) -> Unit,
     onOpenSelector: (PrivacyItem?) -> Unit,
     onCloseSelector: () -> Unit,
     onSelect: (PrivacyVisibility) -> Unit,
-    onCancelDiscard: () -> Unit,
-    onDiscard: () -> Unit,
+    onRequestReset: () -> Unit,
+    onCancelReset: () -> Unit,
+    onReset: () -> Unit,
     onDismissMessage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val snackbar = remember { SnackbarHostState() }
     val message = state.messageFailure?.let { stringResource(it.messageRes()) }
         ?: state.message?.let { stringResource(it) }
-    LaunchedEffect(message) {
+    LaunchedEffect(state.revision, message) {
         if (message != null) {
             snackbar.showSnackbar(message)
             onDismissMessage()
         }
     }
-    val actionBarVisible = signedIn && !sessionBusy && state.original != null
+    val resetVisible = signedIn && !sessionBusy && state.original != null
     val resetLabel = stringResource(R.string.privacy_reset)
     val workingDescription = stringResource(R.string.auth_working)
     SettingsScaffold(
@@ -145,21 +144,21 @@ internal fun PrivacySettingsScreen(
         modifier = modifier,
         imePadding = true,
         actions = {
-            if (actionBarVisible) {
+            if (resetVisible) {
                 TooltipBox(
                     positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
                     tooltip = { PlainTooltip { Text(resetLabel) } },
                     state = rememberTooltipState(),
                 ) {
                     IconButton(
-                        onClick = onRefresh,
-                        enabled = !state.busy,
+                        onClick = onRequestReset,
+                        enabled = state.canReset,
                         modifier = Modifier.semantics {
                             contentDescription = resetLabel
-                            if (state.loading) stateDescription = workingDescription
+                            if (state.busy) stateDescription = workingDescription
                         },
                     ) {
-                        if (state.loading) {
+                        if (state.busy) {
                             IndeterminateCircularProgressIndicator(
                                 modifier = Modifier.size(24.dp).clearAndSetSemantics {},
                                 color = LocalContentColor.current,
@@ -173,16 +172,6 @@ internal fun PrivacySettingsScreen(
             }
         },
         snackbarHost = { SnackbarHost(snackbar) },
-        bottomBar = {
-            if (actionBarVisible) {
-                SettingsActionBar(
-                    label = stringResource(R.string.privacy_apply),
-                    onClick = onSave,
-                    enabled = state.editable && state.dirty,
-                    busy = state.saving,
-                )
-            }
-        },
     ) { padding ->
         val initialLoading = sessionBusy || (state.loading && state.original == null)
         if (initialLoading) {
@@ -202,6 +191,15 @@ internal fun PrivacySettingsScreen(
         } else {
             SettingsColumn(padding = padding) {
                 when {
+                    state.confirmationPending -> ContentUnavailableView(
+                        state = ContentUnavailableState.ERROR,
+                        title = stringResource(R.string.privacy_confirmation_pending),
+                        description = state.error?.let { stringResource(it.messageRes()) },
+                        presentation = ContentUnavailablePresentation.INLINE,
+                        primaryAction = ContentUnavailableAction(
+                            stringResource(R.string.settings_retry_sync), onRefresh, enabled = !state.busy,
+                        ),
+                    )
                     state.error != null -> ContentUnavailableView(
                         state = ContentUnavailableState.ERROR,
                         description = stringResource(state.error.messageRes()),
@@ -227,17 +225,19 @@ internal fun PrivacySettingsScreen(
     if (state.sheetOpen && state.editable && signedIn && !sessionBusy) {
         PrivacyVisibilitySheet(state, onSelect, onCloseSelector)
     }
-    if (state.confirmDiscard) {
+    if (state.confirmReset && signedIn && !sessionBusy) {
         AlertDialog(
-            onDismissRequest = onCancelDiscard,
+            onDismissRequest = onCancelReset,
             containerColor = MaterialTheme.colorScheme.surface,
-            title = { Text(stringResource(R.string.privacy_discard_title)) },
-            text = { Text(stringResource(R.string.privacy_discard_message)) },
+            title = { Text(stringResource(R.string.privacy_reset_title)) },
+            text = { Text(stringResource(R.string.privacy_reset_message)) },
             confirmButton = {
-                TextButton(onClick = onDiscard) { Text(stringResource(R.string.privacy_discard)) }
+                TextButton(onClick = onReset, enabled = state.canReset) {
+                    Text(stringResource(R.string.privacy_reset))
+                }
             },
             dismissButton = {
-                TextButton(onClick = onCancelDiscard) { Text(stringResource(R.string.account_cancel)) }
+                TextButton(onClick = onCancelReset) { Text(stringResource(R.string.account_cancel)) }
             },
         )
     }
@@ -263,7 +263,7 @@ private fun PrivacyVisibilityBadge(visibility: PrivacyVisibility, enabled: Boole
 
 @Composable
 private fun PrivacySetAllGroup(state: PrivacySettingsState, onSelectAll: (PrivacyVisibility) -> Unit) {
-    val uniformVisibility = state.draft.values.distinct().singleOrNull()
+    val uniformVisibility = state.values.values.distinct().singleOrNull()
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SettingsSectionHeader(stringResource(R.string.privacy_set_all))
         Row(
@@ -305,7 +305,7 @@ private fun PrivacyGroup(
 ) {
     SettingsSection(stringResource(title)) {
         items.forEachIndexed { index, item ->
-            val visibility = state.draft.getValue(item)
+            val visibility = state.values.getValue(item)
             val label = stringResource(visibility.titleRes())
             SegmentedListItem(
                 onClick = { onSelect(item) },
@@ -344,8 +344,8 @@ private fun PrivacyVisibilitySheet(
     onSelect: (PrivacyVisibility) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val chosen = state.selectedItem?.let { state.draft[it] }
-        ?: state.draft.values.distinct().singleOrNull()
+    val chosen = state.selectedItem?.let { state.values[it] }
+        ?: state.values.values.distinct().singleOrNull()
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,

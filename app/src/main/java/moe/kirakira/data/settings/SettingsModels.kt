@@ -1,6 +1,7 @@
 package moe.kirakira.data.settings
 
 import kotlinx.serialization.Serializable
+import moe.kirakira.core.network.ApiFailure
 
 @Serializable
 internal enum class RuleCategory(val wireName: String, val endpoint: String, val field: String) {
@@ -44,6 +45,11 @@ internal enum class PrivacyVisibility(val wireName: String) {
 
 internal data class PrivacyEntry(val id: String, val visibility: PrivacyVisibility)
 internal data class LinkedPrivacyEntry(val platformId: String, val visibility: PrivacyVisibility)
+internal sealed interface PrivacySaveResult {
+    data class Confirmed(val settings: PrivacySettings) : PrivacySaveResult
+    data class Unconfirmed(val failure: ApiFailure) : PrivacySaveResult
+}
+
 internal data class PrivacySettings(
     val entries: List<PrivacyEntry>,
     val linkedAccounts: List<LinkedPrivacyEntry>,

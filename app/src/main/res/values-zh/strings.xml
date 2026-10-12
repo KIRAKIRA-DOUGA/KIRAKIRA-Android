@@ -77,10 +77,10 @@
     <string name="privacy_hidden">隐藏</string>
     <string name="privacy_set_all">全部设为</string>
     <string name="privacy_reset">重置</string>
-    <string name="privacy_apply">应用</string>
+    <string name="privacy_confirmation_pending">隐私设置待确认</string>
     <string name="privacy_saved">设置已保存</string>
-    <string name="privacy_discard_title">离开此页面？</string>
-    <string name="privacy_discard_message">尚未保存的隐私设置将被丢弃</string>
+    <string name="privacy_reset_title">重置隐私设置？</string>
+    <string name="privacy_reset_message">生日、年龄、关注、粉丝和收藏将全部设为公开</string>
     <string name="privacy_discard">离开</string>
     <string name="profile_basic">基本资料</string>
     <string name="profile_personal">个人信息</string>
