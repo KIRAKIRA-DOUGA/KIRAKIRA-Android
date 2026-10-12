@@ -5,7 +5,6 @@ import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SharedTransitionLayout
-import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.togetherWith
@@ -80,7 +79,7 @@ internal fun <T : Any> ActivityNavDisplay(
     val scope = rememberCoroutineScope()
     val motion = remember(context, scope) {
         val interpolator = AnimationUtils.loadInterpolator(context, activityInterpolatorResource())
-        PredictiveBackMotion(scope, Easing { interpolator.getInterpolation(it) })
+        PredictiveBackMotion(scope) { interpolator.getInterpolation(it) }
     }
     val entries = rememberDecoratedNavEntries(
         backStack = backStack,

@@ -83,7 +83,7 @@ internal fun rememberNavigationMotion(): NavigationMotion {
     }
 }
 
-internal val LocalNavigationPageTransform = compositionLocalOf<() -> NavigationPageTransform> {
+internal val LocalNavigationPageTransform = compositionLocalOf {
     { NavigationPageTransform() }
 }
 

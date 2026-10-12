@@ -98,7 +98,7 @@ internal fun AnimatedTabIcon(
                         animationSpec = keyframes {
                             durationMillis = 320
                             start at 0 using FastOutSlowInEasing
-                            -12f at 80 using FastOutSlowInEasing
+                            (-12f) at 80 using FastOutSlowInEasing
                             8f at 200 using FastOutSlowInEasing
                             0f at durationMillis
                         },

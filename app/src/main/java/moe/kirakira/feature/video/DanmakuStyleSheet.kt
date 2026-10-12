@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -63,7 +62,7 @@ import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun DanmakuComposer(
     draft: String,
@@ -148,7 +147,6 @@ internal fun DanmakuComposer(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun DanmakuStyleContent(
     draft: String,

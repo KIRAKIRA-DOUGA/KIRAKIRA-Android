@@ -3,6 +3,9 @@ package moe.kirakira.feature.player
 import android.content.Context
 import android.graphics.Rect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
@@ -23,11 +26,11 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import kotlin.math.abs
+import kotlin.math.round
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.math.abs
-import kotlin.math.round
 import moe.kirakira.data.content.VideoPart
 import moe.kirakira.data.history.HistoryRepository
 import okhttp3.OkHttpClient
@@ -130,13 +133,13 @@ internal class PlaybackViewModel(
 
     var player by mutableStateOf<ExoPlayer?>(null)
         private set
-    var selectedPart by mutableStateOf(savedState.get<Int>("part") ?: 0)
+    var selectedPart by mutableIntStateOf(savedState.get<Int>("part") ?: 0)
         private set
-    var positionMs by mutableStateOf(savedState.get<Long>("position") ?: 0L)
+    var positionMs by mutableLongStateOf(savedState.get<Long>("position") ?: 0L)
         private set
-    var durationMs by mutableStateOf(0L)
+    var durationMs by mutableLongStateOf(0L)
         private set
-    var bufferedPositionMs by mutableStateOf(0L)
+    var bufferedPositionMs by mutableLongStateOf(0L)
         private set
     var playing by mutableStateOf(false)
         private set
@@ -154,7 +157,7 @@ internal class PlaybackViewModel(
         private set
     var actualVideoHeight by mutableStateOf<Int?>(null)
         private set
-    var speed by mutableStateOf(savedState.get<Float>("speed")?.takeIf { it.isFinite() && it in 0.25f..4f } ?: 1f)
+    var speed by mutableFloatStateOf(savedState.get<Float>("speed")?.takeIf { it.isFinite() && it in 0.25f..4f } ?: 1f)
         private set
     var continuousSpeed by mutableStateOf(savedState.get<Boolean>("continuous_speed") ?: false)
         private set

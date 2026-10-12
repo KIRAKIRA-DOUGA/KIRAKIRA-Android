@@ -133,7 +133,7 @@ internal class ProfileRepository(private val api: ApiClient, private val auth: A
             .setType(MultipartBody.FORM)
             .addFormDataPart("file", "avatar.jpg", file.asRequestBody("image/jpeg".toMediaType()))
             .build()).build()
-        val response = suspendCancellableCoroutine<String> { continuation ->
+        val response = suspendCancellableCoroutine { continuation ->
             val call = uploadClient.newCall(request)
             continuation.invokeOnCancellation { call.cancel() }
             call.enqueue(object : Callback {

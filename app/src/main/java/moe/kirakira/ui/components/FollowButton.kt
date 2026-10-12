@@ -1,5 +1,3 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
-
 package moe.kirakira.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState

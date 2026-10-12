@@ -71,8 +71,7 @@ internal fun AuthPage(
         val operation = state.credentialOperation ?: return@LaunchedEffect
         if (!isActive || activity == null) return@LaunchedEffect
         lifecycleOwner.lifecycle.currentStateFlow.first { it.isAtLeast(Lifecycle.State.RESUMED) }
-        val host = credentialHost
-        if (!viewModel.claimCredentialOperation(operation.id, host)) return@LaunchedEffect
+        if (!viewModel.claimCredentialOperation(operation.id, credentialHost)) return@LaunchedEffect
         autofill?.cancel()
         try {
             when (operation) {
@@ -85,7 +84,7 @@ internal fun AuthPage(
                         PasswordSelection.Failed
                     }
                     currentCoroutineContext().ensureActive()
-                    viewModel.credentialSelected(operation.id, host, result, language)
+                    viewModel.credentialSelected(operation.id, credentialHost, result, language)
                 }
                 is AuthCredentialOperation.Save -> {
                     val result = try {
@@ -101,11 +100,11 @@ internal fun AuthPage(
                             else R.string.auth_password_save_failed
                         Toast.makeText(activity, message, Toast.LENGTH_LONG).show()
                     }
-                    viewModel.passwordSaved(operation.id, host, result)
+                    viewModel.passwordSaved(operation.id, credentialHost, result)
                 }
             }
         } finally {
-            viewModel.abandonCredentialOperation(operation.id, host)
+            viewModel.abandonCredentialOperation(operation.id, credentialHost)
         }
     }
     LaunchedEffect(state.submission, lifecycleOwner, isActive) {

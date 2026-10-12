@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import java.io.File
 import java.text.Normalizer
 import java.util.UUID
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CompletableDeferred
@@ -377,7 +378,7 @@ internal class ProfileEditorViewModel(
 
     private companion object {
         val cacheProcessId = UUID.randomUUID().toString()
-        val cleanupExecutor = Executors.newSingleThreadExecutor()
+        val cleanupExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     }
 }
 

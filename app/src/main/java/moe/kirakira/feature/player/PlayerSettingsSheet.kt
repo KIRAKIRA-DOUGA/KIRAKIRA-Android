@@ -27,7 +27,6 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -82,7 +81,7 @@ internal fun speedNumber(speed: Float): String = BigDecimal(speed.toString()).st
 internal fun speedLabel(speed: Float): String = stringResource(R.string.player_speed_value, speedNumber(speed))
 
 @Composable
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 internal fun PlayerSettingsButtons(
     state: PlayerUiState,
     enabled: Boolean,
@@ -172,7 +171,7 @@ internal fun PlayerSettingsButtons(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PlayerSettingsSheet(
     panel: PlayerSettingsPanel,

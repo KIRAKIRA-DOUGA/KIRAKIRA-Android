@@ -406,8 +406,6 @@
     <string name="player_play">Play</string>
     <string name="player_fullscreen">Fullscreen</string>
     <string name="player_exit_fullscreen">Exit fullscreen</string>
-    <string name="player_pip">Picture in picture</string>
-    <string name="player_pip_unavailable">Picture in picture is unavailable on this device</string>
     <string name="player_part">Part %1$d</string>
     <string name="content_mutation_uncertain">The request could not be confirmed. Refresh before sending again.</string>
     <string name="settings_in_app_mini_player">In-app mini player</string>
@@ -488,7 +486,7 @@
     <string name="kaomoji_sad">Sad</string>
     <string name="kaomoji_embarrassed">Speechless</string>
     <string name="kaomoji_recent_empty">No recent kaomoji</string>
-    <string name="kaomoji_too_long">Text cannot exceed %1$d characters</string>
+    <string name="kaomoji_too_long">Character limit: %1$d</string>
     <string name="player_quality">Quality</string>
     <string name="player_speed">Playback speed</string>
     <string name="player_quality_auto">Auto</string>

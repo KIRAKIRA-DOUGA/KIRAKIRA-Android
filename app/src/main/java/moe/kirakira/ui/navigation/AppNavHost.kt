@@ -154,7 +154,7 @@ internal fun AppNavHost(
     val homeViewModel = contentRepository?.let { viewModel { HomeViewModel(it) } }
     val searchViewModel = contentRepository?.let { viewModel { SearchViewModel(it) } }
     val homeVideos = homeViewModel?.videos?.collectAsStateWithLifecycle()?.value
-        ?: moe.kirakira.feature.video.ContentState<List<moe.kirakira.data.content.VideoSummary>>()
+        ?: moe.kirakira.feature.video.ContentState()
     fun openFrom(source: NavKey, target: NavKey) {
         if (backStack.lastOrNull() != source) return
         val existingIndex = backStack.indexOf(target)

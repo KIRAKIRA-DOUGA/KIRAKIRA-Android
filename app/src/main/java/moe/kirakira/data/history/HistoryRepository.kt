@@ -154,7 +154,7 @@ internal class HistoryRepository(
                     if (video != null) {
                         val entry = HistoryEntry(video, System.currentTimeMillis(), position)
                         committed[id] = entry
-                        // A write must not turn an unrequested full history into a partial, loaded list.
+                        // Saving an entry must not turn an unrequested full history into a partial, loaded list.
                         if (current.entries != null) _history.value = current.copy(
                             entries = (current.entries.filterNot { it.video.id == id } + entry).sortedByDescending { it.updatedAt },
                         )

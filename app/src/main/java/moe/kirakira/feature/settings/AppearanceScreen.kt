@@ -33,13 +33,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlin.math.floor
 import moe.kirakira.R
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorSettings
 import moe.kirakira.ui.theme.ThemeMode
 import moe.kirakira.ui.theme.ThemePresetColor
 import moe.kirakira.ui.theme.wallpaperAccentColor
-import kotlin.math.floor
 
 private sealed interface AppearanceColorOption {
     val key: String
@@ -76,7 +76,7 @@ fun AppearanceScreen(
     val usesSystemColors = themeColors.useSystemColors && wallpaperColor != null
     val modes = remember { listOf(ThemeMode.SYSTEM, ThemeMode.LIGHT, ThemeMode.DARK) }
     val colorOptions = remember(wallpaperColor) {
-        buildList<AppearanceColorOption> {
+        buildList {
             ThemePresetColor.entries.forEach { add(AppearanceColorOption.Preset(it)) }
             wallpaperColor?.let { add(AppearanceColorOption.Wallpaper(it)) }
             add(AppearanceColorOption.Custom)

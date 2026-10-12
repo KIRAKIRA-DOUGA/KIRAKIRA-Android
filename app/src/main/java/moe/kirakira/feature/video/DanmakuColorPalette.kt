@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconToggleButton
@@ -54,7 +53,6 @@ private val danmakuColors =
     listOf(0xFFFFFF, 0xFF3225, 0xF06E8E, 0xFFA800, 0xFBFF34, 0x2CE73F, 0x39C5BB, 0x24C1F2, 0xDC1FED)
 private val danmakuColorRows = (danmakuColors + listOf<Int?>(null)).chunked(5)
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun DanmakuColorPalette(
     color: Int,
@@ -107,7 +105,6 @@ internal fun DanmakuColorPalette(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun DanmakuColorOption(
     checked: Boolean,
@@ -168,8 +165,7 @@ private fun DanmakuColorOption(
                 val alpha = indicatorAlpha.value.coerceIn(0f, 1f)
                 if (alpha > 0f) {
                     val swatchSize = Size(buttonSize.width.toPx(), buttonSize.height.toPx())
-                    val swatchOutline = shape.createOutline(swatchSize, layoutDirection, this)
-                    val roundRect = when (swatchOutline) {
+                    val roundRect = when (val swatchOutline = shape.createOutline(swatchSize, layoutDirection, this)) {
                         is Outline.Rounded -> swatchOutline.roundRect
                         is Outline.Rectangle -> RoundRect(swatchOutline.rect)
                         is Outline.Generic -> return@drawWithContent

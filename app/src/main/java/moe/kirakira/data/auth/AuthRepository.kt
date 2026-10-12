@@ -295,7 +295,7 @@ internal class AuthRepository(
 
     private suspend fun commit(next: StoredSessions, onPublishing: (Long) -> Unit = {}) {
         currentCoroutineContext().ensureActive()
-        // Keep disk and the published active identity consistent even if an entry is popped during the write.
+        // Keep disk and the published active identity consistent even if an entry is popped during persistence.
         withContext(NonCancellable) {
             store.write(next)
             stored = next

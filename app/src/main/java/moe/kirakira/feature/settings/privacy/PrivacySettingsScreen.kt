@@ -400,13 +400,6 @@ private fun PrivacyItem.titleRes(): Int = when (this) {
     PrivacyItem.FOLLOWERS -> R.string.me_followers_count
     PrivacyItem.FAVORITES -> R.string.me_favorites
 }
-private fun PrivacyItem.iconRes(): Int = when (this) {
-    PrivacyItem.BIRTHDAY -> R.drawable.ic_symbol_calendar_today
-    PrivacyItem.AGE -> R.drawable.ic_symbol_schedule
-    PrivacyItem.FOLLOWING -> R.drawable.ic_symbol_person_add
-    PrivacyItem.FOLLOWERS -> R.drawable.ic_symbol_person
-    PrivacyItem.FAVORITES -> R.drawable.ic_symbol_star
-}
 private fun PrivacyVisibility.titleRes(): Int = when (this) {
     PrivacyVisibility.PUBLIC -> R.string.privacy_public
     PrivacyVisibility.FOLLOWING -> R.string.privacy_followers_only
@@ -425,6 +418,21 @@ private fun PrivacyVisibility.iconRes(): Int = when (this) {
 @Composable
 private fun PrivacySettingsPreview() {
     KIRAKIRATheme(dynamicColor = false) {
-        PrivacySettingsScreen(PrivacySettingsState(), false, false, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+        PrivacySettingsScreen(
+            state = PrivacySettingsState(),
+            signedIn = false,
+            sessionBusy = false,
+            onBack = {},
+            onLogin = {},
+            onRefresh = {},
+            onSelectAll = {},
+            onOpenSelector = {},
+            onCloseSelector = {},
+            onSelect = {},
+            onRequestReset = {},
+            onCancelReset = {},
+            onReset = {},
+            onDismissMessage = {},
+        )
     }
 }

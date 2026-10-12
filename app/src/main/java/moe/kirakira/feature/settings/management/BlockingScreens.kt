@@ -1,4 +1,4 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 
 package moe.kirakira.feature.settings.management
 
@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -42,21 +44,19 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.text.DateFormat
 import java.util.Date
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.foundation.layout.heightIn
-import moe.kirakira.ui.components.ShadowButton
-import moe.kirakira.ui.components.ShadowFilledTonalButton
-import moe.kirakira.ui.components.ShadowFloatingActionButton
-import moe.kirakira.feature.settings.SettingsSectionHeader
 import moe.kirakira.R
-import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.data.settings.RuleCategory
 import moe.kirakira.data.settings.RuleEntry
 import moe.kirakira.data.settings.RulePage
 import moe.kirakira.data.settings.RuleTag
+import moe.kirakira.feature.settings.SettingsSectionHeader
 import moe.kirakira.ui.components.AccountAvatar
-import moe.kirakira.ui.components.connectedListItemShapes
+import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.ShadowButton
+import moe.kirakira.ui.components.ShadowFilledTonalButton
+import moe.kirakira.ui.components.ShadowFloatingActionButton
+import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 @Composable
@@ -352,7 +352,19 @@ private fun BlockingPreview() {
 @Composable
 private fun EmptyRulesPreview() {
     KIRAKIRATheme(dynamicColor = false) {
-        RuleManagementScreen(RuleCategory.BLOCK, SettingsLoad(RulePage(emptyList(), 0, 1)), true, false, null,
-            {}, {}, {}, {}, {}, {}, {})
+        RuleManagementScreen(
+            category = RuleCategory.BLOCK,
+            state = SettingsLoad(RulePage(emptyList(), 0, 1)),
+            signedIn = true,
+            busy = false,
+            message = null,
+            onBack = {},
+            onLogin = {},
+            onRefresh = {},
+            onMore = {},
+            onAdd = {},
+            onRemove = {},
+            onDismissMessage = {},
+        )
     }
 }

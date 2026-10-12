@@ -47,8 +47,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.filter
-import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.R
+import moe.kirakira.ui.components.ShadowButton
 
 private enum class AccountSwipeValue { CLOSED, REVEALED, REMOVE }
 
@@ -172,13 +172,12 @@ internal fun SwipeToRemoveAccount(
                         if (revealed) add(CustomAccessibilityAction(closeLabel) { onClose(); true })
                     }
                 },
-            {
-                if (state.offset.isFinite() && state.offset != 0f) {
-                    onClose()
-                } else {
-                    onSelect()
-                }
-            },
-        )
+        ) {
+            if (state.offset.isFinite() && state.offset != 0f) {
+                onClose()
+            } else {
+                onSelect()
+            }
+        }
     }
 }

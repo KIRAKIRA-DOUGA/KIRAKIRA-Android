@@ -18,6 +18,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -81,7 +82,7 @@ internal fun VideoCommentsPage(
         if (!composerActive) showJumpDialog = false
     }
     var toolbarSize by remember { mutableStateOf(IntSize.Zero) }
-    var headerHeight by remember { mutableStateOf(0) }
+    var headerHeight by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val currentPage by remember(entries, state.firstPage) {
         derivedStateOf {
@@ -94,7 +95,7 @@ internal fun VideoCommentsPage(
         }
     }
     val atTop by remember { derivedStateOf { !listState.canScrollBackward } }
-    var previousFirstPage by remember { mutableStateOf(state.firstPage) }
+    var previousFirstPage by remember { mutableIntStateOf(state.firstPage) }
     // Capture the old layout before LazyColumn receives prepended items, including when
     // a header (rather than a comment) is its first visible key.
     val prependAnchor = remember(state.pages) {

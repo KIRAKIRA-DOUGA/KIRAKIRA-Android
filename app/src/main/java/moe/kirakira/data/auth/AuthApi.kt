@@ -2,7 +2,6 @@ package moe.kirakira.data.auth
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 import moe.kirakira.core.network.ApiClient
 import moe.kirakira.core.network.ApiException
 import moe.kirakira.core.network.ApiFailure

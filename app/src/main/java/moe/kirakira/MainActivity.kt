@@ -70,7 +70,7 @@ class MainActivity : ComponentActivity() {
     fun updatePictureInPicture(eligible: Boolean, bounds: Rect?, aspectRatio: Float = 16f / 9f, autoEnter: Boolean = true) {
         canEnterPictureInPicture = eligible && packageManager.hasSystemFeature("android.software.picture_in_picture")
         autoEnterPictureInPicture = canEnterPictureInPicture && autoEnter
-        val ratio = aspectRatio.takeIf { it.isFinite() }?.coerceIn(1f / 2.39f, 2.39f) ?: 16f / 9f
+        val ratio = aspectRatio.takeIf { it.isFinite() }?.coerceIn(1f / 2.39f, 2.39f) ?: (16f / 9f)
         val builder = PictureInPictureParams.Builder().setAspectRatio(Rational((ratio * 10000).toInt(), 10000))
         if (bounds != null && !bounds.isEmpty) builder.setSourceRectHint(bounds)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) builder.setAutoEnterEnabled(autoEnterPictureInPicture)
@@ -209,7 +209,7 @@ class MainActivity : ComponentActivity() {
             if (videoFullscreen) hide(WindowInsetsCompat.Type.systemBars())
             else show(WindowInsetsCompat.Type.systemBars())
         }
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.isNavigationBarContrastEnforced = false
         }
     }

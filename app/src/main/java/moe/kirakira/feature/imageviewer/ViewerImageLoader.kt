@@ -1,7 +1,6 @@
 package moe.kirakira.feature.imageviewer
 
 import android.content.Context
-import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -10,6 +9,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.unit.IntSize
+import androidx.core.net.toUri
 import coil3.BitmapImage
 import coil3.ImageLoader
 import coil3.compose.asPainter
@@ -22,6 +22,11 @@ import coil3.request.allowHardware
 import coil3.request.maxBitmapSize
 import coil3.size.Precision
 import coil3.size.Scale
+import coil3.size.Size as CoilSize
+import java.io.IOException
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.floor
+import kotlin.math.sqrt
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -32,11 +37,6 @@ import me.saket.telephoto.subsamplingimage.ImageBitmapOptions
 import me.saket.telephoto.subsamplingimage.SubSamplingImageSource
 import me.saket.telephoto.subsamplingimage.util.canBeSubSampled
 import me.saket.telephoto.zoomable.ZoomableImageSource
-import coil3.size.Size as CoilSize
-import java.io.IOException
-import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.math.floor
-import kotlin.math.sqrt
 
 internal enum class ViewerImagePhase { LOADING, PREPARING_TILES, READY, PREVIEW, FAILED }
 internal enum class ViewerImageFallback { SOURCE_UNAVAILABLE, CACHE_READ, DECODER, REQUEST_TIMEOUT, FIRST_FRAME_TIMEOUT }
@@ -227,7 +227,7 @@ internal class ViewerImageLoader(
         try {
             when (val original = image.source) {
                 is ImageSource.Resource -> source = SubSamplingImageSource.resource(original.id, preview)
-                is ImageSource.ContentUri -> source = SubSamplingImageSource.contentUri(Uri.parse(original.value), preview)
+                is ImageSource.ContentUri -> source = SubSamplingImageSource.contentUri(original.value.toUri(), preview)
                 is ImageSource.RemoteUrl -> withContext(Dispatchers.IO) {
                     val cacheKey = result.diskCacheKey ?: return@withContext
                     val snapshot = imageLoader.diskCache?.openSnapshot(cacheKey) ?: return@withContext

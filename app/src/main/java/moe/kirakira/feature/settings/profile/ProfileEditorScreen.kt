@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.ButtonDefaults as Material2ButtonDefaults
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
@@ -26,7 +27,6 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -92,9 +92,7 @@ import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorDefaults
-import androidx.compose.material.ButtonDefaults as Material2ButtonDefaults
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun ProfileEditorScreen(
     state: ProfileEditorState,
@@ -182,7 +180,7 @@ internal fun ProfileEditorScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ProfileIdentity(state: ProfileEditorState, onPick: () -> Unit) {
     val draft = state.draft ?: return
@@ -265,7 +263,6 @@ private fun ProfileTextField(
     )
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun PersonalInformation(state: ProfileEditorState, onEdit: (String, String) -> Unit) {
     val draft = state.draft ?: return
@@ -314,7 +311,6 @@ private fun PersonalInformation(state: ProfileEditorState, onEdit: (String, Stri
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BirthdayDialog(value: String, onDismiss: () -> Unit, onSelect: (String) -> Unit) {
     val initial = runCatching { LocalDate.parse(value).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli() }.getOrNull()

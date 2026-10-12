@@ -22,8 +22,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -36,6 +34,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -73,7 +72,7 @@ import moe.kirakira.feature.settings.PlaybackSettings
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
-@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
+
 @Composable
 internal fun PlaybackHost(
     playback: PlaybackViewModel,
@@ -92,8 +91,8 @@ internal fun PlaybackHost(
         visible = playback.initialLoading,
         immediatelyHidden = playback.failed || playback.player == null || !playback.miniPlayer || pip || imageViewerActive,
     )
-    var horizontal by rememberSaveable { mutableStateOf(1f) }
-    var vertical by rememberSaveable { mutableStateOf(1f) }
+    var horizontal by rememberSaveable { mutableFloatStateOf(1f) }
+    var vertical by rememberSaveable { mutableFloatStateOf(1f) }
     LaunchedEffect(settings?.autoQuality, settings?.preferredVideoHeight) {
         settings?.let { playback.setQualityPreference(it.autoQuality, it.preferredVideoHeight) }
     }

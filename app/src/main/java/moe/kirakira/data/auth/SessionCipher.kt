@@ -3,7 +3,6 @@ package moe.kirakira.data.auth
 import javax.crypto.Cipher
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import moe.kirakira.core.network.ApiException
 import moe.kirakira.core.network.ApiFailure

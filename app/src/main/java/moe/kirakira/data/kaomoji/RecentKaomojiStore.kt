@@ -1,6 +1,7 @@
 package moe.kirakira.data.kaomoji
 
 import android.content.Context
+import androidx.core.content.edit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -34,7 +35,9 @@ internal class RecentKaomojiStore private constructor(context: Context) {
                 if (text !in catalog) continue
                 val next = (listOf(text) + state.value).distinct().take(24)
                 state.value = next
-                preferences.edit().putString("recent", JSONArray(next).toString()).commit()
+                preferences.edit(commit = true) {
+                    putString("recent", JSONArray(next).toString())
+                }
             }
         }
     }

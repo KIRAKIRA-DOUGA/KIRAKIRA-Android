@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -59,7 +58,6 @@ internal fun ProfileAvatar(
     AccountAvatar(state.profile.avatar, modifier, size, clipToCircle = LocalImageSharedScope.current == null)
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun ProfileHeader(
     state: ProfileUiState,
@@ -213,7 +211,7 @@ private fun ProfileStat(count: Int, label: String, onClick: () -> Unit) {
         Text(
             text = stringResource(R.string.video_count, count),
             style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Bold,
         )
         Spacer(Modifier.width(4.dp))
         Text(

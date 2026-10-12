@@ -32,14 +32,14 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.unit.IntSize
 import androidx.navigationevent.NavigationEvent
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sign
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 /**
  * Compose port of DefaultCrossActivityBackAnimation and CrossActivityBackAnimation.
@@ -148,7 +148,7 @@ internal class PredictiveBackMotion(
                 animate(
                     initialValue = 0f,
                     targetValue = 1f,
-                    animationSpec = tween<Float>(
+                    animationSpec = tween(
                         durationMillis = ACTIVITY_TRANSITION_MILLIS,
                         easing = Easing { animatorInterpolator.getInterpolation(it) },
                     ),
@@ -191,7 +191,7 @@ internal class PredictiveBackMotion(
                     initialValue = rawProgress,
                     targetValue = 0f,
                     initialVelocity = velocity,
-                    animationSpec = spring<Float>(
+                    animationSpec = spring(
                         dampingRatio = Spring.DampingRatioNoBouncy,
                         stiffness = Spring.StiffnessMedium,
                         visibilityThreshold = 0.0075f,

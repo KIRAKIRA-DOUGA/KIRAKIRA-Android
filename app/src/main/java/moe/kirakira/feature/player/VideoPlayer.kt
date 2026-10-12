@@ -30,8 +30,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -121,7 +119,7 @@ internal data class PlayerUiState(
 )
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
-@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
+
 @Composable
 internal fun VideoPlayer(
     player: Player?,
@@ -736,16 +734,16 @@ internal fun rememberTouchExplorationEnabled(): Boolean {
 private fun VideoPlayerPreview() {
     KIRAKIRATheme {
         VideoPlayer(
-            null,
-            PlayerUiState(available = true, durationMs = 180_000, positionMs = 45_000, bufferedPositionMs = 120_000),
-            null,
-            false,
-            false,
-            {},
-            {},
-            {},
-            {},
-            {},
+            player = null,
+            state = PlayerUiState(available = true, durationMs = 180_000, positionMs = 45_000, bufferedPositionMs = 120_000),
+            image = null,
+            fullscreen = false,
+            pictureInPicture = false,
+            onToggle = {},
+            onSeek = {},
+            onBack = {},
+            onFullscreen = {},
+            onRetry = {},
         )
     }
 }

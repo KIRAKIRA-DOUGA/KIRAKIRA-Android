@@ -33,7 +33,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -56,8 +55,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -76,8 +75,8 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import moe.kirakira.R
-import moe.kirakira.data.content.DanmakuStyle
 import moe.kirakira.data.content.DanmakuEntry
+import moe.kirakira.data.content.DanmakuStyle
 import moe.kirakira.data.content.PublicProfile
 import moe.kirakira.data.content.Reaction
 import moe.kirakira.data.content.VideoComment
@@ -411,7 +410,6 @@ private fun VideoContentLayout(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun VideoAuthor(
     author: PublicProfile,
@@ -474,7 +472,6 @@ private fun VideoMetadata(@DrawableRes icon: Int, text: String, description: Str
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun VideoActions(
     detail: VideoDetail,
@@ -502,7 +499,6 @@ private fun VideoActions(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ReactionAction(
     checked: Boolean,

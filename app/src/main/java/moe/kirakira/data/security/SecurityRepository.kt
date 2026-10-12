@@ -1,6 +1,6 @@
 package moe.kirakira.data.security
 
-import android.net.Uri
+import androidx.core.net.toUri
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -148,7 +148,7 @@ internal class SecurityRepository(private val api: ApiClient, private val auth: 
         val dto = api.post<SetupDto>("user/createTotpAuthenticator", "{}", snapshot.requiredAccount().cookie())
         if (!dto.success || dto.isExists) rejected()
         val value = dto.result?.otpAuth ?: invalid()
-        val uri = Uri.parse(value)
+        val uri = value.toUri()
         if (uri.scheme != "otpauth" || uri.host != "totp") invalid()
         val secret = uri.getQueryParameter("secret")?.takeIf { it.matches(Regex("[A-Z2-7]+")) } ?: invalid()
         TotpSetup(value, secret)

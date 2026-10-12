@@ -146,7 +146,7 @@ Compose [共享元素转场](https://developer.android.com/develop/ui/compose/an
 固定全屏的黑色背景由查看器页面绘制为不透明黑色，仅随 Navigation 3 页面转场淡入淡出，不再移入共享覆盖层或叠加自己的透明度动画。头像白色圆框留在资料页原位，不参与共享边界动画。返回时用 Telephoto 的当前内容几何反向补偿缩放，手势取消无需修改其内部缩放状态。来源不在组合中时仅淡入或淡出。用户关闭系统动画时，Compose
 时长缩放统一生效。
 
-[ViewerImage](../../app/src/main/java/moe/kirakira/feature/imageviewer/ViewerImage.kt) 是可序列化的图片描述，支持资源 ID、可读 `content://` URI 和公开 HTTPS 图片 URL，并接收默认 `null` 的可选 `thumbnail`；调用方负责保留 URI 读取授权。查看 UI 位于 `ui/components/image/`，接收受控的 `ZoomableImageSource`、加载状态、回调与可选共享元素修饰符；导出由 `feature/imageviewer/` 负责。
+[ViewerImage](../../app/src/main/java/moe/kirakira/feature/imageviewer/ViewerImage.kt) 是可序列化的图片描述，支持 drawable 资源 ID、可读 `content://` URI 和公开 HTTPS 图片 URL，并接收默认 `null` 的可选 `thumbnail`；调用方负责保留 URI 读取授权。查看 UI 位于 `ui/components/image/`，接收受控的 `ZoomableImageSource`、加载状态、回调与可选共享元素修饰符；导出由 `feature/imageviewer/` 负责。
 
 查看器使用全屏黑色背景，系统状态栏和导航栏保持透明并使用浅色图标；透明顶栏仅放深色圆形底衬的白色关闭按钮，确保白色图片上仍有足够对比度；转场禁用点击时保留相同配色，由整体淡出控制透明度。下载和复制位于避开系统导航栏的右下角 `HorizontalFloatingToolbar`。两组控件通过共享转场覆盖层悬浮在图片上方并淡入淡出，黑底留在页面内。复用时将稳定的来源键同时用于缩略图的 `imageSharedBounds(key, viewer = false)` 与查看页的 `imageSharedBounds(key, viewer = true, drawable = 可绘制状态)`，并通过 `ImageViewerRoute` 打开页面。无可匹配来源时传入 `null` 键。
 
@@ -166,7 +166,7 @@ Compose [共享元素转场](https://developer.android.com/develop/ui/compose/an
 
 界面根节点只观察触摸，不消费事件；单击使用 [Telephoto 的 `onClick`](https://saket.github.io/telephoto/zoomableimage/#click-listeners)，不叠加 `clickable` 抢占双击与缩放。顶栏和工具栏使用 Material 3 动效淡出，隐藏后移出点击和无障碍树，系统返回始终由导航宿主处理。
 
-缩放继续使用 [Telephoto](https://saket.github.io/telephoto/zoomableimage/) 的 `ZoomableImage`，图片请求由上述适配器控制。保存和复制始终使用 `ViewerImage.source` 的原始字节和 MIME 类型，不导出缩略图或预览：Android 10+ 通过 `MediaStore.Images` 的 `IS_PENDING` 公开，Android 8–9 获得旧版写权限后写入公共 `Pictures/KIRAKIRA` 并扫描媒体。复制将原始字节写入专用缓存，通过 `FileProvider` 交给系统剪贴板，超过七天的复制缓存于下一次复制时清理。网络头像通过公开 HTTPS 来源接口加载和导出。
+缩放继续使用 [Telephoto](https://saket.github.io/telephoto/zoomableimage/) 的 `ZoomableImage`，图片请求由上述适配器控制。资源来源的导出仅支持能由 `BitmapFactory` 解码的位图 drawable，不支持 XML／vector drawable；资源仍以 `@DrawableRes` 标记，使用 `openRawResource()` 获取编码字节。保存和复制始终使用 `ViewerImage.source` 的原始字节和 MIME 类型，不导出缩略图或预览：Android 10+ 通过 `MediaStore.Images` 的 `IS_PENDING` 公开，Android 8–9 获得旧版写权限后写入公共 `Pictures/KIRAKIRA` 并扫描媒体。复制将原始字节写入专用缓存，通过 `FileProvider` 交给系统剪贴板，超过七天的复制缓存于下一次复制时清理。网络头像通过公开 HTTPS 来源接口加载和导出。
 
 ## 弹幕与输入区
 

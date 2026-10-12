@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
@@ -69,7 +68,7 @@ import moe.kirakira.ui.components.ShadowFilledIconButton
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 /** Stateless navigation/operation surface; zoom state and image requests can be shared by callers. */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 @Composable
 fun ImageViewerScreen(
     image: ZoomableImageSource,

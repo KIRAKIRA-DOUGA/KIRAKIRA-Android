@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
-
 package moe.kirakira.feature.settings
 
 import androidx.annotation.DrawableRes
@@ -24,9 +22,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.ButtonDefaults as Material2ButtonDefaults
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -57,6 +55,7 @@ import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import moe.kirakira.R
 import moe.kirakira.ui.components.CollapsibleTopAppBar
 import moe.kirakira.ui.components.ConnectedListGroup
@@ -71,8 +70,6 @@ import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorDefaults
-import kotlin.math.roundToInt
-import androidx.compose.material.ButtonDefaults as Material2ButtonDefaults
 
 /** Shared spacing for settings subpages so every page lines up with the settings list. */
 internal object SettingsDefaults {
@@ -81,9 +78,6 @@ internal object SettingsDefaults {
     val TopPadding = 16.dp
     val BottomPadding = 16.dp
     val SectionSpacing = 24.dp
-
-    /** Extra bottom room that keeps the last item clear of a FAB. */
-    val FabClearance = 88.dp
 }
 
 /**

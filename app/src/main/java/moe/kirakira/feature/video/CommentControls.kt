@@ -11,7 +11,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
@@ -42,7 +41,6 @@ import androidx.compose.ui.unit.dp
 import moe.kirakira.R
 import moe.kirakira.ui.theme.BarShadowElevation
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun CommentToolbar(
     currentPage: Int,

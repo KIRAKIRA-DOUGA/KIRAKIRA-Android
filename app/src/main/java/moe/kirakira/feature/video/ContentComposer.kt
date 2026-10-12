@@ -27,7 +27,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -83,12 +82,12 @@ import androidx.compose.ui.unit.dp
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import moe.kirakira.R
 import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.materialColorShadow
 import moe.kirakira.ui.theme.KIRAKIRATheme
-import kotlin.math.abs
-import kotlin.math.roundToInt
 
 /** The composer applies Scaffold safe-drawing insets internally so its panel can reach the edges. */
 @Composable
@@ -152,7 +151,6 @@ internal fun rememberComposerState(videoId: Int, sessionRevision: Long, draft: S
         ),
     ) { ComposerState() }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun ContentComposer(
     draft: String,
@@ -417,7 +415,6 @@ internal fun ContentComposer(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ComposerInputLayout(
     expansion: Float,

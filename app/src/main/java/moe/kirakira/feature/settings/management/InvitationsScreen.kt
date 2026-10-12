@@ -229,7 +229,17 @@ private fun InvitationStatistic(label: String, count: Int?) {
 @Composable
 private fun InvitationsPreview() {
     KIRAKIRATheme(dynamicColor = false) {
-        InvitationsScreen(SettingsLoad(emptyList()), true, false, null, 0,
-            {}, {}, {}, {}, {})
+        InvitationsScreen(
+            state = SettingsLoad(emptyList()),
+            signedIn = true,
+            busy = false,
+            message = null,
+            accountRevision = 0,
+            onBack = {},
+            onLogin = {},
+            onRefresh = {},
+            onCreate = {},
+            onDismissMessage = {},
+        )
     }
 }

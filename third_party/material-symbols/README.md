@@ -60,8 +60,6 @@
 
 以下图标来自上述官方 Rounded、24dp、wght 400 路径；播放／暂停采用 FILL 1，其余采用 FILL 0，保留原始路径数据并移除 tint，由主题着色：
 
-- [`play_arrow`](https://github.com/google/material-design-icons/blob/master/symbols/android/play_arrow/materialsymbolsrounded/play_arrow_fill1_24px.xml)
-- [`pause`](https://github.com/google/material-design-icons/blob/master/symbols/android/pause/materialsymbolsrounded/pause_fill1_24px.xml)
 - [`fullscreen`](https://github.com/google/material-design-icons/blob/master/symbols/android/fullscreen/materialsymbolsrounded/fullscreen_24px.xml)
 - [`fullscreen_exit`](https://github.com/google/material-design-icons/blob/master/symbols/android/fullscreen_exit/materialsymbolsrounded/fullscreen_exit_24px.xml)
 - [`speed`](https://github.com/google/material-design-icons/blob/master/symbols/android/speed/materialsymbolsrounded/speed_24px.xml)：播放器倍速入口。
@@ -138,7 +136,6 @@
 | [`vertical_align_bottom`](https://github.com/google/material-design-icons/blob/master/symbols/android/vertical_align_bottom/materialsymbolsrounded/vertical_align_bottom_24px.xml) | 弹幕：底部弹幕 |
 | [`east`](https://github.com/google/material-design-icons/blob/master/symbols/android/east/materialsymbolsrounded/east_24px.xml) | 弹幕：从左到右 |
 | [`west`](https://github.com/google/material-design-icons/blob/master/symbols/android/west/materialsymbolsrounded/west_24px.xml) | 弹幕：从右到左（滚动） |
-| [`code`](https://github.com/google/material-design-icons/blob/master/symbols/android/code/materialsymbolsrounded/code_24px.xml) | 关于：源代码 |
 | [`description`](https://github.com/google/material-design-icons/blob/master/symbols/android/description/materialsymbolsrounded/description_24px.xml) | 关于：开源许可 |
 | [`policy`](https://github.com/google/material-design-icons/blob/master/symbols/android/policy/materialsymbolsrounded/policy_24px.xml) | 关于：隐私政策 |
 | [`gavel`](https://github.com/google/material-design-icons/blob/master/symbols/android/gavel/materialsymbolsrounded/gavel_24px.xml) | 关于：服务条款 |
