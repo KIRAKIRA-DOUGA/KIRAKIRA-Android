@@ -1,3 +1,5 @@
+<img src="docs/assets/app-icon.svg" alt="KIRAKIRA Compose 应用图标" width="128" height="128" />
+
 # KIRAKIRA Compose
 
 KIRAKIRA 的 Android 客户端，使用 **Kotlin + Jetpack Compose**，设计语言为 **Material 3 Expressive**，图标采用官方 **Material Symbols Rounded**。
