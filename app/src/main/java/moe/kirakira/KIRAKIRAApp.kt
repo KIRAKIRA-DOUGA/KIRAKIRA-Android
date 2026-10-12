@@ -1,8 +1,10 @@
 package moe.kirakira
 
+import android.app.Application
 import android.content.res.Configuration
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -26,7 +28,11 @@ fun KIRAKIRAApp(
     onVideoPageActiveChange: (Boolean) -> Unit = {},
     onImageViewerActiveChange: (Boolean) -> Unit = {},
 ) {
-    val sessionViewModel = if (LocalInspectionMode.current) null else viewModel<SessionViewModel>()
+    val context = LocalContext.current
+    val dependencies = if (LocalInspectionMode.current) null else viewModel<AppDependenciesViewModel>()
+    val sessionViewModel = dependencies?.let {
+        viewModel { SessionViewModel(context.applicationContext as Application, it.auth, it.credentials) }
+    }
     val accountState = sessionViewModel?.state?.collectAsStateWithLifecycle()?.value ?: SessionState(isLoading = false)
 
     AppNavHost(
@@ -39,7 +45,7 @@ fun KIRAKIRAApp(
         onVideoPageActiveChange = onVideoPageActiveChange,
         onImageViewerActiveChange = onImageViewerActiveChange,
         accountState = accountState,
-        authRepository = sessionViewModel?.repository,
+        dependencies = dependencies,
         onSelectAccount = { sessionViewModel?.select(it) },
         onRemoveAccount = { sessionViewModel?.remove(it) },
         onLogout = { sessionViewModel?.logout() },

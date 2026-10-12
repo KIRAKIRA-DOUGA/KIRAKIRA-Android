@@ -20,7 +20,7 @@
 | `AuthScreen` / `AuthForm` / `LoginForm` | 展示登录、2FA、注册、密码找回步骤，上报操作              |
 | `AuthPage` / `AuthNavigation`           | 外层条目共享表单状态，内部步骤返回栈、转场、键盘、隐藏密码与成功返回事件 |
 | `AuthViewModel`                         | 条目内表单、校验、异步提交、验证码冷却展示                |
-| `SessionViewModel`                      | 应用级唯一 Repository、启动加载／资料刷新、切换／移除／登出  |
+| `SessionViewModel`                      | 启动加载／资料刷新、切换／移除／登出，依赖由宿主注入  |
 | `AuthRepository`                        | 认证编排、SHA-256、账号去重、冷却、会话事务和领域状态       |
 | `AuthApi` / `SessionStore`              | 私有 DTO 与 HTTP 协议／加密原子存储              |
 
@@ -87,7 +87,7 @@
 
 ### 网络与错误
 
-[ApiClient](../../app/src/main/java/moe/kirakira/core/network/ApiClient.kt) 统一使用 OkHttp 与 serialization，连接 15 秒、读写 20 秒、完整调用 30 秒，响应上限 1 MiB。通过 callback 与 `suspendCancellableCoroutine` 绑定取消，解析和散列使用 Default，存储使用 IO。认证请求关闭自动重试、重定向和缓存，不安装日志或全局 CookieJar；API 路径为代码常量，query 通过 builder 编码，单次请求明确绑定凭据快照。头像请求不共享会话。
+[ApiClient](../../app/src/main/java/moe/kirakira/core/network/ApiClient.kt) 由宿主 `AppDependenciesViewModel` 统一创建并注入各 API Repository，认证与内容请求共享同一 OkHttp 客户端。统一使用 OkHttp 与 serialization，连接 15 秒、读写 20 秒、完整调用 30 秒，响应上限 1 MiB。通过 callback 与 `suspendCancellableCoroutine` 绑定取消，解析和散列使用 Default，存储使用 IO。认证请求关闭自动重试、重定向和缓存，不安装日志或全局 CookieJar；API 路径为代码常量，query 通过 builder 编码，单次请求明确绑定凭据快照。头像请求不共享会话。
 
 HTTP 401、429、5xx 分别映射失效、限流、服务故障，其余失败与网络／超时／响应格式异常分开。HTTP 2xx 仍需检查业务 `success` 和必要字段；获取自己资料还校验 uuid 与 uid。服务器消息不直接显示，统一使用 UI 字符串资源。
 

@@ -125,7 +125,7 @@ Compose [共享元素转场](https://developer.android.com/develop/ui/compose/an
 
 历史页使用官方 `LazyColumn` 按日期标题与记录逐项懒加载，保留日期及视频的稳定 key，并以 `date`、`history`、`status` 区分 `contentType`。记录使用透明背景的官方 `ListItem`，通过 `Modifier.clickable(role = Role.Button)` 保留整行点击、涟漪及按钮语义，以官方行内留白分隔，不添加卡片圆角、阴影或分隔线。列表最大宽度为 840dp，水平 `contentPadding` 仅包含系统 Insets，记录使用 `ListItem` 的官方 16dp 水平内边距，日期标题与状态区域单独对齐到 16dp；顶部与底部安全区域继续放入滚动内容。封面与文字共用内容插槽，保留 16:9 封面、现有封面裁剪及进度条；有效宽度除以字体缩放小于 300dp 时改为纵向布局，避免大字体挤压文字。
 
-`HistoryHostViewModel` 在导航宿主中持有唯一的 `data/history/HistoryRepository`，使用宿主 `viewModelScope` 管理内存缓存、共享读取及串行进度队列；历史页的 `HistoryViewModel` 绑定 `HistoryRoute`，只持有搜索和刷新任务。仓库按会话 revision 清空缓存并取消旧账号读写，请求前后核对账号快照，明确 401 交由统一会话失效处理，游客不调用历史接口。DTO 留在数据层，领域记录使用 `HistoryEntry`：Rosales 的 `duration` 为秒、`lastUpdateDateTime` 为毫秒时间戳、`anchor` 为秒数字符串，在历史边界将时长与有效锚点转换为毫秒；负数、非有限或溢出锚点不参与展示与续播。
+`AppDependenciesViewModel` 在 Activity 宿主作用域持有唯一的 `data/history/HistoryRepository`，使用宿主 `viewModelScope` 管理内存缓存、共享读取及串行进度队列；历史页的 `HistoryViewModel` 绑定 `HistoryRoute`，只持有搜索和刷新任务。仓库按会话 revision 清空缓存并取消旧账号读写，请求前后核对账号快照，明确 401 交由统一会话失效处理，游客不调用历史接口。DTO 留在数据层，领域记录使用 `HistoryEntry`：Rosales 的 `duration` 为秒、`lastUpdateDateTime` 为毫秒时间戳、`anchor` 为秒数字符串，在历史边界将时长与有效锚点转换为毫秒；负数、非有限或溢出锚点不参与展示与续播。
 
 历史读取不传 `videoTitle`，标题与作者过滤在本地完成；接口无分页或删除能力。首次视频详情与续播准备并发执行，不等待历史接口才请求详情。续播准备等待已排队的进度提交及 `loadIfNeeded`，总等待上限为 1500 毫秒；完成时由视频 ViewModel 发布一次续播位置快照，失败或超时按无云端位置处理，不使用迟到的查询结果跳转。自动播放等待该快照，手动播放不受历史等待限制。历史页刷新先等待当时的同步任务，避免从视频返回时读到尚未提交的锚点；刷新进行中新提交成功的记录合并到返回列表，后续刷新重新以云端列表为准，避免内存更新覆盖其他设备的新进度。
 
@@ -146,7 +146,7 @@ Compose [共享元素转场](https://developer.android.com/develop/ui/compose/an
 固定全屏的黑色背景由查看器页面绘制为不透明黑色，仅随 Navigation 3 页面转场淡入淡出，不再移入共享覆盖层或叠加自己的透明度动画。头像白色圆框留在资料页原位，不参与共享边界动画。返回时用 Telephoto 的当前内容几何反向补偿缩放，手势取消无需修改其内部缩放状态。来源不在组合中时仅淡入或淡出。用户关闭系统动画时，Compose
 时长缩放统一生效。
 
-[ViewerImage](../../app/src/main/java/moe/kirakira/feature/imageviewer/ViewerImage.kt) 是可序列化的图片描述，支持 drawable 资源 ID、可读 `content://` URI 和公开 HTTPS 图片 URL，并接收默认 `null` 的可选 `thumbnail`；调用方负责保留 URI 读取授权。查看 UI 位于 `ui/components/image/`，接收受控的 `ZoomableImageSource`、加载状态、回调与可选共享元素修饰符；导出由 `feature/imageviewer/` 负责。
+[ViewerImage](../../app/src/main/java/moe/kirakira/feature/imageviewer/ViewerImage.kt) 是可序列化的图片描述，其来源模型 [ImageSource](../../app/src/main/java/moe/kirakira/data/image/ImageSource.kt) 支持 drawable 资源 ID、可读 `content://` URI 和公开 HTTPS 图片 URL，并保留迁移前的序列化类型名。描述接收默认 `null` 的可选 `thumbnail`；调用方负责保留 URI 读取授权。查看 UI 位于 `ui/components/image/`，接收受控的 `ZoomableImageSource`、加载状态、回调与可选共享元素修饰符；导出数据访问由 `data/image/` 负责，只接收来源与文件名。
 
 查看器使用全屏黑色背景，系统状态栏和导航栏保持透明并使用浅色图标；透明顶栏仅放深色圆形底衬的白色关闭按钮，确保白色图片上仍有足够对比度；转场禁用点击时保留相同配色，由整体淡出控制透明度。下载和复制位于避开系统导航栏的右下角 `HorizontalFloatingToolbar`。两组控件通过共享转场覆盖层悬浮在图片上方并淡入淡出，黑底留在页面内。复用时将稳定的来源键同时用于缩略图的 `imageSharedBounds(key, viewer = false)` 与查看页的 `imageSharedBounds(key, viewer = true, drawable = 可绘制状态)`，并通过 `ImageViewerRoute` 打开页面。无可匹配来源时传入 `null` 键。
 
@@ -167,6 +167,10 @@ Compose [共享元素转场](https://developer.android.com/develop/ui/compose/an
 界面根节点只观察触摸，不消费事件；单击使用 [Telephoto 的 `onClick`](https://saket.github.io/telephoto/zoomableimage/#click-listeners)，不叠加 `clickable` 抢占双击与缩放。顶栏和工具栏使用 Material 3 动效淡出，隐藏后移出点击和无障碍树，系统返回始终由导航宿主处理。
 
 缩放继续使用 [Telephoto](https://saket.github.io/telephoto/zoomableimage/) 的 `ZoomableImage`，图片请求由上述适配器控制。资源来源的导出仅支持能由 `BitmapFactory` 解码的位图 drawable，不支持 XML／vector drawable；资源仍以 `@DrawableRes` 标记，使用 `openRawResource()` 获取编码字节。保存和复制始终使用 `ViewerImage.source` 的原始字节和 MIME 类型，不导出缩略图或预览：Android 10+ 通过 `MediaStore.Images` 的 `IS_PENDING` 公开，Android 8–9 获得旧版写权限后写入公共 `Pictures/KIRAKIRA` 并扫描媒体。复制将原始字节写入专用缓存，通过 `FileProvider` 交给系统剪贴板，超过七天的复制缓存于下一次复制时清理。网络头像通过公开 HTTPS 来源接口加载和导出。
+
+[ImageExportRepository](../../app/src/main/java/moe/kirakira/data/image/ImageExportRepository.kt) 由宿主依赖容器注入独立、无认证的共享 OkHttp 客户端；远程下载在可取消回调内完成响应头与流读取，取消时关闭请求，外层始终清理临时文件。保留 HTTPS 重定向限制和 32 MiB 文件上限。宿主作用域的 [ImageExportViewModel](../../app/src/main/java/moe/kirakira/feature/imageviewer/ImageExportViewModel.kt) 按查看器实例记录保存／复制状态，同一实例操作期间禁用两个导出按钮，只将对应图标替换为固定 24dp 的白色转圈。关闭和缩放仍可使用，中央转圈仅用于图片加载。已开始的导出不随图片页出栈取消；导航宿主收集完成事件，以 Toast 提示成功或失败，包括 Android 13+ 的复制成功。权限拒绝继续使用带设置入口的 Snackbar。任务只在宿主生命周期内保留，不保证 Activity 结束或进程终止后完成。
+
+不同查看器实例的图片复制共用宿主 `Mutex`，按发起顺序执行缓存准备、剪贴板提交及成功反馈，避免慢速旧任务覆盖后一次复制。排队期间保留对应按钮的加载状态；失败或取消会释放锁，后续复制可继续，图片保存不受此锁限制。
 
 ## 弹幕与输入区
 

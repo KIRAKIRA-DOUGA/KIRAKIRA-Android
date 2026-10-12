@@ -32,7 +32,7 @@ import kotlinx.coroutines.launch
 import moe.kirakira.R
 import moe.kirakira.core.image.deliveryImageUrl
 import moe.kirakira.data.content.FollowListKind
-import moe.kirakira.feature.imageviewer.ImageSource
+import moe.kirakira.data.image.ImageSource
 import moe.kirakira.feature.imageviewer.ViewerImage
 import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.ContentUnavailablePresentation

@@ -37,6 +37,7 @@ import me.saket.telephoto.subsamplingimage.ImageBitmapOptions
 import me.saket.telephoto.subsamplingimage.SubSamplingImageSource
 import me.saket.telephoto.subsamplingimage.util.canBeSubSampled
 import me.saket.telephoto.zoomable.ZoomableImageSource
+import moe.kirakira.data.image.ImageSource
 
 internal enum class ViewerImagePhase { LOADING, PREPARING_TILES, READY, PREVIEW, FAILED }
 internal enum class ViewerImageFallback { SOURCE_UNAVAILABLE, CACHE_READ, DECODER, REQUEST_TIMEOUT, FIRST_FRAME_TIMEOUT }

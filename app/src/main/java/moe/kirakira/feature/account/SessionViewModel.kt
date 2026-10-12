@@ -6,31 +6,17 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import moe.kirakira.BuildConfig
 import moe.kirakira.core.credentials.PasswordCredentialGateway
-import moe.kirakira.core.credentials.passwordCredentialGateway
-import moe.kirakira.core.network.ApiClient
 import moe.kirakira.core.network.ApiException
-import moe.kirakira.data.auth.AuthApi
 import moe.kirakira.data.auth.AuthRepository
 import moe.kirakira.data.auth.SessionOperation
 import moe.kirakira.data.auth.SessionOperationType
-import moe.kirakira.data.auth.SessionStore
 
 internal class SessionViewModel(
     application: Application,
     val repository: AuthRepository,
     private val credentials: PasswordCredentialGateway,
 ) : AndroidViewModel(application) {
-    constructor(application: Application) : this(
-        application,
-        AuthRepository(
-            AuthApi(ApiClient(BuildConfig.API_BASE_URL)),
-            SessionStore(application, BuildConfig.API_BASE_URL),
-            BuildConfig.API_BASE_URL,
-        ),
-        passwordCredentialGateway(application),
-    )
     val state = repository.session
     private var operation: Job? = null
     private var retryOperation: (suspend () -> Unit)? = null

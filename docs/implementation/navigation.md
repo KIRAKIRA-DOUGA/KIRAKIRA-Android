@@ -11,7 +11,9 @@
 
 ## 导航与状态管理
 
-应用保持单 Activity、单 `:app` 模块。[KIRAKIRAApp](../../app/src/main/java/moe/kirakira/KIRAKIRAApp.kt) 连接应用级状态和导航，[AppNavHost](../../app/src/main/java/moe/kirakira/ui/navigation/AppNavHost.kt) 注册页面并处理进入、返回事件。主题、会话及认证状态使用 ViewModel，会话由 `data/auth` Repository 管理，各功能通过对应数据层隔离 API 访问，通过构造参数注入依赖。
+应用保持单 Activity、单 `:app` 模块。[KIRAKIRAApp](../../app/src/main/java/moe/kirakira/KIRAKIRAApp.kt) 连接应用级状态和导航，并创建宿主作用域的 [AppDependenciesViewModel](../../app/src/main/java/moe/kirakira/AppDependenciesViewModel.kt)。它持有唯一的 API 客户端、认证、内容、账号设置及历史 Repository，旋转时沿用原实例；历史任务使用其 `viewModelScope`，宿主清除时取消。`SessionViewModel` 接收同一认证 Repository 与凭据网关，只编排会话操作。资料编辑和账号安全 Repository 含有流程检查点，由依赖容器工厂在条目 ViewModel 创建时提供，随条目释放，仍共用 API 客户端。
+
+[AppNavHost](../../app/src/main/java/moe/kirakira/ui/navigation/AppNavHost.kt) 保留统一转场、返回保护和播放协调，同时在宿主作用域创建 `ImageExportViewModel` 并收集其结果 Toast，让导出任务跨越图片页出栈。图片仓库及无认证客户端由依赖容器共享。页面注册分别放在 `MainEntries`、`ContentEntries`、`ImageViewerEntries`、`SettingsEntries` 和 `AccountEntries`；注册函数显式接收依赖与事件。组合内的 [AppNavigationState](../../app/src/main/java/moe/kirakira/ui/navigation/AppNavigationState.kt) 协调返回栈操作、底栏高度、返回保护与图片查看器退场计数，只有返回栈交给 Navigation 3 保存，ViewModel 引用与组合计数不进入保存状态。
 
 页面导航使用 Navigation 3，`rememberNavBackStack` 保存返回栈，[ActivityNavDisplay](../../app/src/main/java/moe/kirakira/ui/navigation/ActivityNavDisplay.kt) 封装 `NavDisplay`，保留页面状态和生命周期；页面通过 `NavigationPage` 接入宿主。路由和宿主使用要求见[架构规范](../../CONTRIBUTING.md#技术选型与架构)。
 

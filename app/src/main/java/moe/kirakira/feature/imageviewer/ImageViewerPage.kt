@@ -32,7 +32,6 @@ import androidx.core.net.toUri
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.SingletonImageLoader
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
@@ -47,6 +46,7 @@ import moe.kirakira.ui.components.image.rememberImageViewerControlsState
 internal fun ImageViewerPage(
     image: ViewerImage,
     instanceId: String,
+    exports: ImageExportViewModel,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     imageModifier: Modifier = Modifier,
@@ -58,8 +58,9 @@ internal fun ImageViewerPage(
     val context = LocalContext.current
     val resources by rememberUpdatedState(LocalResources.current)
     val activity = LocalActivity.current
-    val viewModel = viewModel { ImageViewerViewModel(context.applicationContext, image) }
-    val busy by viewModel.busy.collectAsStateWithLifecycle()
+    val operations by exports.operations.collectAsStateWithLifecycle()
+    val operation = operations[instanceId]
+    val busy = operation != null
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var permissionPending by remember { mutableStateOf(false) }
@@ -81,7 +82,7 @@ internal fun ImageViewerPage(
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         permissionPending = false
         if (granted) {
-            viewModel.save()
+            exports.save(instanceId, image)
         } else {
             scope.launch {
                 val permanentlyDenied = activity != null && !ActivityCompat.shouldShowRequestPermissionRationale(
@@ -96,12 +97,6 @@ internal fun ImageViewerPage(
                     if (intent.resolveActivity(context.packageManager) != null) context.startActivity(intent)
                 }
             }
-        }
-    }
-    LaunchedEffect(viewModel) {
-        viewModel.feedback.collect { message ->
-            snackbar.currentSnackbarData?.dismiss()
-            snackbar.showSnackbar(resources.getString(message))
         }
     }
     key(instanceId, attempt) {
@@ -149,7 +144,8 @@ internal fun ImageViewerPage(
             description = image.description,
             imageState = imageState,
             loadFailed = loadFailed,
-            busy = busy || permissionPending,
+            saving = operation == ImageExportOperation.SAVE || permissionPending,
+            copying = operation == ImageExportOperation.COPY,
             transitioning = transitioning,
             controlsVisible = controls.visible || keepControlsVisible,
             snackbarHostState = snackbar,
@@ -164,10 +160,10 @@ internal fun ImageViewerPage(
                         permission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
                     }
                 } else {
-                    viewModel.save()
+                    exports.save(instanceId, image)
                 }
             },
-            onCopy = viewModel::copy,
+            onCopy = { exports.copy(instanceId, image) },
             onRetry = { attempt++ },
             onToggleControls = { if (!keepControlsVisible) controls.toggle() },
             onInteractionChange = controls::onInteractionChange,

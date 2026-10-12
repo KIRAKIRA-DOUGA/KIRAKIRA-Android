@@ -102,14 +102,19 @@ app/src/main/
 ├── java/moe/kirakira/
 │   ├── MainActivity.kt       # Activity 宿主
 │   ├── KIRAKIRAApp.kt        # 应用入口、应用级状态与导航连接
+│   ├── AppDependenciesViewModel.kt # 宿主依赖、共享 API 客户端与历史任务作用域
 │   ├── core/network/        # HTTPS 客户端、响应解码、取消和统一失败类型
-│   ├── data/                # 认证、内容、历史、资料、安全与账号设置的数据访问
+│   ├── data/                # 认证、内容、历史、资料、安全、图片导出与设置的数据访问
 │   ├── feature/             # 主界面、视频、账户、认证与设置等功能
 │   │   └── main/MainScreen.kt # 四栏切换、顶栏与底栏
 │   └── ui/                  # Expressive 主题、共享组件与导航
+│       ├── content/         # 跨功能加载状态与账号请求协调
+│       ├── components/video/ # 共享视频卡片、封面、布局类型与格式化
 │       └── navigation/
 │           ├── AppRoutes.kt  # 页面路由定义
-│           └── AppNavHost.kt # 页面注册与进入、返回逻辑
+│           ├── AppNavHost.kt # 统一转场、返回保护与播放协调
+│           ├── AppNavigationState.kt # 组合内导航协调状态
+│           └── *Entries.kt   # 按功能拆分的页面注册
 ├── res/                     # 英文 / 中文字符串、Material Symbols、系统配置
 └── AndroidManifest.xml
 app/src/test/                 # 本机单元测试

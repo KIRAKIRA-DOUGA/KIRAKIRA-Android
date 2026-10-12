@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
@@ -49,6 +50,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntSize
@@ -75,7 +77,8 @@ fun ImageViewerScreen(
     description: String,
     imageState: ZoomableImageState,
     loadFailed: Boolean,
-    busy: Boolean,
+    saving: Boolean,
+    copying: Boolean,
     transitioning: Boolean,
     controlsVisible: Boolean,
     snackbarHostState: SnackbarHostState,
@@ -93,7 +96,9 @@ fun ImageViewerScreen(
     onDrawableChange: (Boolean) -> Unit = {},
     visibilityProgress: () -> Float = { 1f },
 ) {
-    val available = imageState.isImageDisplayed && !loadFailed && !busy && !transitioning
+    val available = imageState.isImageDisplayed && !loadFailed && !saving && !copying && !transitioning
+    val saveLabel = stringResource(R.string.image_save)
+    val copyLabel = stringResource(R.string.image_copy)
     SideEffect { onDrawableChange(imageState.isImageDisplayed || placeholder != null) }
     val toggleLabel = stringResource(
         if (controlsVisible) R.string.image_hide_controls else R.string.image_show_controls,
@@ -161,7 +166,7 @@ fun ImageViewerScreen(
                     .windowInsetsPadding(WindowInsets.safeDrawing)
                     .padding(top = 80.dp, bottom = 96.dp),
             )
-        } else if (busy || (!imageState.isImageDisplayed && !transitioning)) {
+        } else if (!imageState.isImageDisplayed && !transitioning) {
             IndeterminateCircularProgressIndicator(color = Color.White)
         }
         AnimatedVisibility(
@@ -213,11 +218,27 @@ fun ImageViewerScreen(
                 ),
                 modifier = Modifier.onFocusChanged { toolbarFocused = it.hasFocus }.focusGroup(),
             ) {
-                IconButton(onClick = onSave, enabled = controlsVisible && available) {
-                    Icon(painterResource(R.drawable.ic_symbol_download), stringResource(R.string.image_save))
+                IconButton(
+                    onClick = onSave,
+                    enabled = controlsVisible && available,
+                    modifier = Modifier.semantics { contentDescription = saveLabel },
+                ) {
+                    if (saving) {
+                        IndeterminateCircularProgressIndicator(Modifier.size(24.dp), Color.White, 2.dp)
+                    } else {
+                        Icon(painterResource(R.drawable.ic_symbol_download), null)
+                    }
                 }
-                IconButton(onClick = onCopy, enabled = controlsVisible && available) {
-                    Icon(painterResource(R.drawable.ic_symbol_content_copy), stringResource(R.string.image_copy))
+                IconButton(
+                    onClick = onCopy,
+                    enabled = controlsVisible && available,
+                    modifier = Modifier.semantics { contentDescription = copyLabel },
+                ) {
+                    if (copying) {
+                        IndeterminateCircularProgressIndicator(Modifier.size(24.dp), Color.White, 2.dp)
+                    } else {
+                        Icon(painterResource(R.drawable.ic_symbol_content_copy), null)
+                    }
                 }
             }
         }
@@ -248,7 +269,8 @@ private fun ImageViewerPreview() {
             description = "Avatar",
             imageState = rememberZoomableImageState(),
             loadFailed = false,
-            busy = false,
+            saving = false,
+            copying = false,
             transitioning = false,
             controlsVisible = true,
             snackbarHostState = SnackbarHostState(),

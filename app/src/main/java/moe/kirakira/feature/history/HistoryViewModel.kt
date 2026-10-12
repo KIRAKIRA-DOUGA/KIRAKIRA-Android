@@ -6,14 +6,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import moe.kirakira.core.network.ApiClient
 import moe.kirakira.core.network.ApiException
-import moe.kirakira.data.auth.AuthRepository
 import moe.kirakira.data.history.HistoryRepository
-
-internal class HistoryHostViewModel(api: ApiClient, auth: AuthRepository) : ViewModel() {
-    val repository = HistoryRepository(api, auth, viewModelScope)
-}
 
 internal data class HistoryQuery(val revision: Long, val text: String = "")
 
