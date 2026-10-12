@@ -55,6 +55,8 @@
 
 ### 安全与二步验证
 
+`SecuritySettingsPage` 收集 ViewModel 和会话状态，处理失活及重新登录事件；`SecuritySettingsNavigation` 管理内部步骤，向只接收状态和回调的 `SecuritySettingsScreen` 传入当前展示状态。概览与二步验证管理位于 `SecurityOverview`，流程布局与提交按钮位于 `SecurityFlowScreen`，输入字段位于 `SecurityFormFields`，TOTP 绑定和恢复码展示位于 `SecurityTotpContent`。`SecuritySensitiveClipboard` 与 `SecurityQrCode` 分别封装平台剪贴板操作与二维码生成；复制内容仍按原所有者标记清理，敏感材料只驻留流程内存。
+
 安全页使用 `SecuritySettingsRoute`、导航条目级 `SecuritySettingsViewModel` 与 `data/security/SecurityRepository`。页面内步骤与表单由 ViewModel 管理，敏感模型使用普通类避免生成含凭据的 `toString()`；没有敏感持久化状态或 DTO 进入 UI。每次请求捕获 `AuthRepository.RequestSession`，核对 revision 并在散列后、HTTP 返回后验证账号；取消继续传播，明确 401 才失效本机会话。设置入口对游客导航登录，恢复导航中的游客安全页提供登录操作。
 
 二步验证使用统一管理入口，安全首页与管理页共用同一 `SecurityStatus`；首页保留状态横幅，管理页在账号流程布局中展示验证状态。状态横幅与 `TwoFactorEnabledCard` 共用 `surfaceContainerLow`、主题大圆角及 64dp 方式图标容器，已启用时使用主题色图标并复用 `TwoFactorEnabledBadge` 的绿色勾选标记；未启用或待核对时保持中性色，待核对不展示旧方式或启用标记。管理页以 `titleLarge` 突出当前方式，分隔线下直接展示邮箱，绑定日期保留标签及本地化值，长邮箱允许换行，缺少绑定时间时不显示空信息区。`TwoFactorFlow` 分别持有管理、邮箱启用／停用、TOTP 确认、代码展示与状态核对的载荷，`SecurityStep` 仅由当前页面和分支派生为渲染标识。
@@ -63,7 +65,7 @@
 
 邮箱与密码使用 `CredentialFlow` 的填写、核验与同步分支持有表单，`SecurityStep` 由分支派生，替换独立表单与完成标志组合。填写新信息只做本地校验，核验阶段才允许发送邮件，最终提交沿用原有请求契约。邮箱填写页只保留新邮箱输入框，不单独展示当前邮箱；核验区直接显示当前收件地址，新邮箱保留任务标题，TOTP 账号只给新邮箱发送邮件；密码核验页提示需要重新登录。`fieldErrors` 标记具体输入框，校验尝试编号驱动 Compose 在字段组合后聚焦第一个错误；最后一个字段使用 IME Done 对应当前步骤的主操作。核验返回时只保留新邮箱或两次输入的新密码，清空身份凭据，完整退出须确认舍弃；账号变化、失活与同步分支释放表单。验证码在 ViewModel 归一为最多六位数字，发送与提交仍由同一请求入口串行执行。
 
-`SecuritySettingsState.descriptionRes()` 在屏幕层按步骤和当前验证方式选择中英文说明，不引入业务状态；修改邮箱／密码核验分别显示邮箱或验证器引导，密码核验保留重新登录的后果。邮箱启用说明提醒确认收件能力，绑定页说明扫描二维码或输入设置密钥后填写验证码，代码页提醒离开后不可再次查看。同步完成待重试时返回空说明，状态核对页沿用现有状态文案，避免继续显示待填写引导。私有 `SecretCard` 的可空 `supportingContent` 插槽在标题下、分隔线上方显示备用码及恢复码用途，以次要文字颜色呈现；该区域位于 `SelectionContainer` 外，复制内容仍为原始代码，没有说明时不预留间距。
+`SecuritySettingsState.descriptionRes()` 在屏幕层按步骤和当前验证方式选择中英文说明，不引入业务状态；修改邮箱／密码核验分别显示邮箱或验证器引导，密码核验保留重新登录的后果。邮箱启用说明提醒确认收件能力，绑定页说明扫描二维码或输入设置密钥后填写验证码，代码页提醒离开后不可再次查看。同步完成待重试时返回空说明，状态核对页沿用现有状态文案，避免继续显示待填写引导。私有 `SecretCard` 的可空 `supportingContent` 插槽在标题下、分隔线上方显示备用码及恢复码用途，以次要文字颜色呈现；用途说明不进入复制内容，敏感代码统一由专用按钮复制原始值，没有说明时不预留间距。
 
 `TwoFactorMutation` 标识结果尚未确认的写操作。网络故障、超时、服务异常或无法解析响应时清空输入凭据，转入 `TwoFactorFlow.Checking` 并撤下旧的验证状态；用户触发查询或重新进入安全条目时只调用状态读取接口。查询失败保留核对分支，不能提交其他写请求；确认操作查询到仍未开启时，可复用已有设置材料，由用户重新输入验证码并明确提交，查询到 TOTP 已启用则提示代码不可用。创建结果丢失时，状态接口无法判断未启用的绑定草稿，当前条目标记材料不可用，禁止再次创建。
 
@@ -81,7 +83,7 @@
 
 恢复响应核对五个不同的六位备用码和 24 位恢复码，两者的字符集均为数字及大写字母；邮箱验证码为六位数字。安全核验和绑定确认复用六格 `OtpInputField`，解绑验证器的输入允许字母数字备用码，其他安全核验仅接受数字。Repository 先读取确认结果，再单独解析代码；`TotpConfirmation.CodesAvailable` 持有一次性代码，`CodesUnavailable` 表示已启用但未取得有效代码，ViewModel 清空设置材料并回到管理页提示重新解绑绑定，不重放确认请求。复制通过 Android ClipboardManager 标记 `android.content.extra.IS_SENSITIVE` 与随机所有者标记，离开步骤仅清理仍属于本流程的内容，不覆盖其他应用后续复制的内容。二维码、密钥与恢复码不导出到应用磁盘；生命周期和内存保护边界与认证流程一致，Kotlin 字符串无法保证物理内存即时清零。
 
-二维码使用白底正方形展示，宽度随可用空间收缩，外层与 `SecretCard` 统一采用 `surfaceContainerLow`；打开验证器及复制按钮均为官方 `OutlinedButton`，在各自展示区末端对齐。`SecretCard` 用标题与分隔线区分内容，选择容器仅包围代码，辅助操作由可选 `actionContent` 提供。备用码按当前字体实际测量选择一列或两列，行间使用轻分隔线，末行单个代码占满行宽后居中；`GroupedSecret` 使用 `FlowRow` 将设置密钥及恢复码按四位分组排布，换行保留完整分组。排版不改变复制值或服务端协议，不缓存敏感文本测量结果；验证码排版与错误过渡复用[账号流程组件](components.md#账号流程布局)。
+二维码使用白底正方形展示，宽度随可用空间收缩，外层与 `SecretCard` 统一采用 `surfaceContainerLow`；打开验证器及复制按钮均为官方 `OutlinedButton`，在各自展示区末端对齐。`SecretCard` 用标题与分隔线区分内容，代码区不启用长按选择，复制等辅助操作由可选 `actionContent` 提供。备用码按当前字体实际测量选择一列或两列，行间使用轻分隔线，末行单个代码占满行宽后居中；`GroupedSecret` 使用 `FlowRow` 将设置密钥及恢复码按四位分组排布，换行保留完整分组。排版不改变复制值或服务端协议，不缓存敏感文本测量结果；验证码排版与错误过渡复用[账号流程组件](components.md#账号流程布局)。
 
 Rosales `createUserTotpAuthenticatorService` 插入未启用记录，确认验证按账号查询未启用记录并要求唯一；现有接口没有草稿取消或读取能力。当前安全条目内复用材料可以避免重复创建，但离开条目、账号变化或进程重建后会释放材料，服务端遗留记录仍可能影响后续绑定。客户端不伪造清理接口，不改动 Rosales 或 Cerasus。
 
