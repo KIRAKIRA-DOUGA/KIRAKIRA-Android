@@ -47,6 +47,8 @@ Manifest 的 `icon` 与 `roundIcon` 分别引用 `mipmap-anydpi` 中的 `ic_laun
 
 启动屏浅色使用品牌粉色 `#F06E8E` 背景和白色图标，深色使用 `#121212` 背景和品牌粉色图标，始终跟随系统浅深色。应用内明暗模式只更新 Compose 主题，不向系统写入应用夜间模式。
 
+启动主题的共用属性由 `Theme.KIRAKIRA.Splash.Base` 提供，Manifest 继续引用 `Theme.KIRAKIRA.Splash`；Android 10+ 的系统栏对比度属性仅在 `values-v29` 中声明，低版本沿用基础主题。
+
 所有 Android 版本的 `ic_splash` 均通过资源别名引用独立的透明矢量 `ic_splash_foreground`，不提供自适应图标背景层，移除可能在 HyperOS 上显示为外框描边的图标底板。系统 Splash 和 Compose 覆盖层共用这份矢量几何与配色，桌面与关于页图标保持原样。
 
 Android 12+ 的系统 Splash 仍会在裁切前扩展普通矢量前景。`SplashRevealController` 使用公开的 `AdaptiveIconDrawable.getExtraInsetFraction()` 计算该扩展比例，并沿用平台对中心与半宽高的整数取整方式；Android 8.1–11 直接使用图标视图边界。退出动画不依赖启动资源必须为 `AdaptiveIconDrawable`，保持交接首帧的图标大小与位置一致。
