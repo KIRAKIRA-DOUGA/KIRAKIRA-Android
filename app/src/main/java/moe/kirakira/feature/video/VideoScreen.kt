@@ -89,6 +89,10 @@ import moe.kirakira.ui.components.FollowButton
 import moe.kirakira.ui.components.PagerTabRow
 import moe.kirakira.ui.components.frostedBarBackground
 import moe.kirakira.ui.components.rememberTabChangeHandler
+import moe.kirakira.ui.components.video.categoryText
+import moe.kirakira.ui.components.video.dateText
+import moe.kirakira.ui.components.video.durationText
+import moe.kirakira.ui.content.ContentState
 import moe.kirakira.ui.theme.BarShadowElevation
 
 internal enum class VideoTab { INTRODUCTION, COMMENTS, DANMAKU }

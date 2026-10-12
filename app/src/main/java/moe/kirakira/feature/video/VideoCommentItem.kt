@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import moe.kirakira.R
 import moe.kirakira.data.content.VideoComment
 import moe.kirakira.ui.components.AccountAvatar
+import moe.kirakira.ui.components.video.dateText
 
 @Composable
 internal fun VideoCommentItem(

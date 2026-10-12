@@ -68,9 +68,6 @@ import moe.kirakira.R
 import moe.kirakira.core.network.ApiFailure
 import moe.kirakira.data.content.FollowListKind
 import moe.kirakira.data.content.VideoSummary
-import moe.kirakira.feature.settings.VideoCardLayout
-import moe.kirakira.feature.video.ContentState
-import moe.kirakira.feature.video.VideoCardRow
 import moe.kirakira.ui.components.BackdropIconButton
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
@@ -81,6 +78,9 @@ import moe.kirakira.ui.components.PagerTabRow
 import moe.kirakira.ui.components.appTopAppBarColors
 import moe.kirakira.ui.components.frostedBarBackground
 import moe.kirakira.ui.components.messageRes
+import moe.kirakira.ui.components.video.VideoCardLayout
+import moe.kirakira.ui.components.video.VideoCardRow
+import moe.kirakira.ui.content.ContentState
 import moe.kirakira.ui.theme.ThemeColorDefaults
 import moe.kirakira.ui.theme.barSurfaceLayer
 

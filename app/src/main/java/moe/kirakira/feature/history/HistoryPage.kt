@@ -68,11 +68,8 @@ import java.time.Instant
 import java.time.ZoneId
 import java.util.Date
 import moe.kirakira.R
+import moe.kirakira.data.auth.isReadyForContent
 import moe.kirakira.data.history.HistoryEntry
-import moe.kirakira.feature.video.ContentState
-import moe.kirakira.feature.video.VideoArtwork
-import moe.kirakira.feature.video.durationText
-import moe.kirakira.feature.video.isReadyForContent
 import moe.kirakira.ui.components.CollapsibleTopAppBar
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
@@ -86,6 +83,9 @@ import moe.kirakira.ui.components.ShadingIcon
 import moe.kirakira.ui.components.TopAppBarSearchButton
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
+import moe.kirakira.ui.components.video.VideoArtwork
+import moe.kirakira.ui.components.video.durationText
+import moe.kirakira.ui.content.ContentState
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 @Composable

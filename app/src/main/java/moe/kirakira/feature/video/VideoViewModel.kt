@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withTimeoutOrNull
 import moe.kirakira.core.network.ApiException
+import moe.kirakira.data.auth.isReadyForContent
 import moe.kirakira.data.content.ContentRepository
 import moe.kirakira.data.content.DanmakuEntry
 import moe.kirakira.data.content.DanmakuStyle
@@ -14,6 +15,8 @@ import moe.kirakira.data.content.Reaction
 import moe.kirakira.data.content.VideoComment
 import moe.kirakira.data.content.VideoDetail
 import moe.kirakira.data.history.HistoryRepository
+import moe.kirakira.ui.content.ContentState
+import moe.kirakira.ui.content.ContentViewModel
 
 internal data class VideoResumeState(val ready: Boolean = false, val positionMs: Long? = null)
 

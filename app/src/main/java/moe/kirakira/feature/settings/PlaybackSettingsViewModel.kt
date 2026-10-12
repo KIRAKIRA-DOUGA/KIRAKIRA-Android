@@ -1,8 +1,6 @@
 package moe.kirakira.feature.settings
 
 import android.app.Application
-import android.content.Context
-import androidx.core.content.edit
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -10,36 +8,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-internal data class PlaybackSettings(
-    val outsideAppMiniPlayer: Boolean = true,
-    val inAppMiniPlayer: Boolean = true,
-    val autoplay: Boolean = false,
-    val autoQuality: Boolean = true,
-    val preferredVideoHeight: Int? = null,
-)
-
-private class PlaybackSettingsStore(context: Context) {
-    private val preferences = context.getSharedPreferences("kirakira_settings", Context.MODE_PRIVATE)
-
-    fun read() = PlaybackSettings(
-        outsideAppMiniPlayer = preferences.getBoolean("playback_outside_app_mini_player", true),
-        inAppMiniPlayer = preferences.getBoolean("playback_in_app_mini_player", true),
-        autoplay = preferences.getBoolean("playback_autoplay", false),
-        autoQuality = preferences.getBoolean("playback_auto_quality", true),
-        preferredVideoHeight = preferences.getInt("playback_video_height", 0).takeIf { it > 0 },
-    )
-
-    fun write(settings: PlaybackSettings) {
-        preferences.edit {
-            putBoolean("playback_outside_app_mini_player", settings.outsideAppMiniPlayer)
-            putBoolean("playback_in_app_mini_player", settings.inAppMiniPlayer)
-            putBoolean("playback_autoplay", settings.autoplay)
-            putBoolean("playback_auto_quality", settings.autoQuality)
-            putInt("playback_video_height", settings.preferredVideoHeight ?: 0)
-        }
-    }
-}
+import moe.kirakira.data.settings.PlaybackSettings
+import moe.kirakira.data.settings.PlaybackSettingsStore
 
 internal class PlaybackSettingsViewModel(application: Application) : AndroidViewModel(application) {
     private val state = MutableStateFlow<PlaybackSettings?>(null)

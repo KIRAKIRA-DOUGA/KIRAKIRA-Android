@@ -5,12 +5,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import moe.kirakira.core.network.ApiException
 import moe.kirakira.core.network.ApiFailure
+import moe.kirakira.data.auth.isReadyForContent
 import moe.kirakira.data.content.ContentRepository
 import moe.kirakira.data.content.FollowListKind
 import moe.kirakira.data.content.FollowListUser
-import moe.kirakira.feature.video.ContentState
-import moe.kirakira.feature.video.ContentViewModel
-import moe.kirakira.feature.video.isReadyForContent
+import moe.kirakira.ui.content.ContentState
+import moe.kirakira.ui.content.ContentViewModel
 
 internal data class FollowListState(
     val revision: Long,

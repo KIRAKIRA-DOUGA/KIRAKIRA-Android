@@ -13,7 +13,7 @@
 
 ## 视频搜索
 
-`feature/search/SearchViewModel` 复用 `ContentViewModel` 的会话就绪与 revision 防护，在主导航宿主创建；`SearchPage` 与导航宿主的顶栏插槽收集同一个 ViewModel 的状态，`SearchTopBar`、`SearchScreen` 与标签面板仅接收状态、事件回调。UI 不接触 DTO 或会话，结果使用现有 `VideoSummary`、`VideoCardRow` 与 `VideoRoute`，标签复用 `VideoTag.displayName` 的多语言回退。
+`feature/search/SearchViewModel` 复用共享 [ContentViewModel](../../app/src/main/java/moe/kirakira/ui/content/ContentViewModel.kt) 的会话就绪与 revision 防护，在主导航宿主创建；`SearchPage` 与导航宿主的顶栏插槽收集同一个 ViewModel 的状态，`SearchTopBar`、`SearchScreen` 与标签面板仅接收状态、事件回调。UI 不接触 DTO 或会话，结果使用现有 `VideoSummary`、`VideoCardRow` 与 `VideoRoute`，标签复用 `VideoTag.displayName` 的多语言回退。
 
 主页面与标签面板共用 `QuerySearchBar`，使用官方 `SearchBar` 与 `SearchBarDefaults.InputField` 的公开内联重载，保持同页编辑和结果展示，不打开额外的展开搜索页面。当前版本的 state 重载在折叠 SearchBar 内禁用软键盘、要求配合独立展开页面，因此此处保留已弃用但仍公开的内联重载，不抑制弃用警告。输入按受控字符串同步 ViewModel，不额外保存查询；标签入口使用只读输入以避免打开面板前弹出键盘。
 
@@ -53,6 +53,8 @@ ViewModel 分离关键词草稿、所选标签和已提交条件。视频读取�
 标签页复用可折叠顶栏和视频卡片，正文顶部展示标签名称与原名；名称面板使用官方 `ModalBottomSheet` 与只读 `SegmentedListItem`，底部 Insets 放入滚动内容。只接入现有只读接口，不使用视频上传接口模拟标签编辑。
 
 ## 视频列表布局
+
+跨功能的视频列表展示集中在 `ui/components/video/`：`VideoCard`、`VideoCardRow`、`VideoArtwork`、`VideoCardLayout` 与内容格式化函数由首页、搜索、标签、资料、历史和播放器按需复用。通用加载状态与账号请求协调位于 `ui/content/`，会话就绪条件 `SessionState.isReadyForContent` 由 `data/auth` 定义；共享组件不依赖具体功能包。
 
 [评论页](../../app/src/main/java/moe/kirakira/feature/video/VideoCommentsPage.kt)与[弹幕条目](../../app/src/main/java/moe/kirakira/feature/video/DanmakuListItem.kt)使用透明背景的普通 `Row`／`Column` 布局，不使用分段背景、首尾圆角或分段间距，也不添加卡片或分割线；保留条目内边距、评论头像与操作按钮，以及弹幕左侧时间和右侧正文的对齐。
 

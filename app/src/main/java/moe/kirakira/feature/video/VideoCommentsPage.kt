@@ -43,6 +43,7 @@ import moe.kirakira.data.content.Reaction
 import moe.kirakira.data.content.VideoComment
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
+import moe.kirakira.ui.content.ContentState
 
 @Composable
 internal fun VideoCommentsPage(

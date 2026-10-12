@@ -8,8 +8,8 @@ import moe.kirakira.data.content.ContentRepository
 import moe.kirakira.data.content.FollowStats
 import moe.kirakira.data.content.PublicProfile
 import moe.kirakira.data.content.VideoSummary
-import moe.kirakira.feature.video.ContentState
-import moe.kirakira.feature.video.ContentViewModel
+import moe.kirakira.ui.content.ContentState
+import moe.kirakira.ui.content.ContentViewModel
 
 internal class ProfileViewModel(val uid: Long, repository: ContentRepository) : ContentViewModel(repository) {
     private val _profile = MutableStateFlow(ContentState<PublicProfile>(loading = true))

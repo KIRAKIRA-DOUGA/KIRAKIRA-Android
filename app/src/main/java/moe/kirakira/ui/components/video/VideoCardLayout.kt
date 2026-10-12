@@ -1,4 +1,4 @@
-package moe.kirakira.feature.settings
+package moe.kirakira.ui.components.video
 
 import androidx.annotation.StringRes
 import moe.kirakira.R

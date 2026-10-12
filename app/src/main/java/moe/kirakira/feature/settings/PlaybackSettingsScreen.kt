@@ -5,6 +5,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import moe.kirakira.R
+import moe.kirakira.data.settings.PlaybackSettings
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 @Composable

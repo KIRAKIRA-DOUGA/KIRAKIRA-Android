@@ -69,3 +69,7 @@ internal class StoredSessions(
     val accounts: List<StoredAccount> = emptyList(),
     val activeUuid: String? = null,
 )
+
+/** Published identity is ready after the initial account validation finishes. */
+internal val SessionState.isReadyForContent: Boolean
+    get() = !isLoading && operation?.type != SessionOperationType.INITIALIZE

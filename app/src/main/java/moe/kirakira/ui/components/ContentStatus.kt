@@ -8,7 +8,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import moe.kirakira.feature.video.ContentState
+import moe.kirakira.ui.content.ContentState
 
 @Composable
 internal fun ContentStatus(

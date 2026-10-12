@@ -1,4 +1,4 @@
-package moe.kirakira.feature.video
+package moe.kirakira.ui.content
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -11,11 +11,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import moe.kirakira.core.network.ApiException
 import moe.kirakira.core.network.ApiFailure
-import moe.kirakira.data.auth.SessionOperationType
-import moe.kirakira.data.auth.SessionState
+import moe.kirakira.data.auth.isReadyForContent
 import moe.kirakira.data.content.ContentRepository
-
-internal data class ContentState<T>(val data: T? = null, val loading: Boolean = false, val error: ApiFailure? = null)
 
 /** In-flight reads, mutations and drafts belong to one published account revision. */
 internal abstract class ContentViewModel(protected val repository: ContentRepository) : ViewModel() {
@@ -89,6 +86,3 @@ internal abstract class ContentViewModel(protected val repository: ContentReposi
         return job
     }
 }
-
-internal val SessionState.isReadyForContent: Boolean
-    get() = !isLoading && operation?.type != SessionOperationType.INITIALIZE

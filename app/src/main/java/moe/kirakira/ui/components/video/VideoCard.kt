@@ -1,4 +1,4 @@
-package moe.kirakira.feature.video
+package moe.kirakira.ui.components.video
 
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.clickable
@@ -31,7 +31,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
 import moe.kirakira.data.content.VideoSummary
-import moe.kirakira.feature.settings.VideoCardLayout
 
 @Composable
 internal fun VideoCard(

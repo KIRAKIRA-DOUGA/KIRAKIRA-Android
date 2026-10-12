@@ -15,6 +15,8 @@
 
 ## 主题实现
 
+[ThemeSettingsStore](../../app/src/main/java/moe/kirakira/data/settings/ThemeSettingsStore.kt) 负责 `kirakira_settings` 的读取、写入与旧预设颜色迁移，仅处理字符串、布尔值及 ARGB 数值。[ThemeViewModel](../../app/src/main/java/moe/kirakira/ui/theme/ThemeViewModel.kt) 提供当前主题的默认色和迁移映射，将存储结果映射为 UI 状态；保留后台首次读取、就绪门控、无效明暗模式回退和不透明颜色处理。
+
 ### 成功语义色
 
 主题层的 [ThemeSemanticColors](../../app/src/main/java/moe/kirakira/ui/theme/ThemeSemanticColors.kt) 提供不可变的 `success` 与 `onSuccess`，通过 `MaterialTheme.semanticColors` 读取，供成功／完成状态复用，不占用 Material 3 的既有颜色角色。`KIRAKIRATheme` 根据自身 `darkTheme` 参数通过 `CompositionLocal` 提供配色：浅色固定使用 `#008577`，深色使用 `#00594F`，配套前景均为白色，不引用个性色预设，不受强调色或壁纸取色影响。

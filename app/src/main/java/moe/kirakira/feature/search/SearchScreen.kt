@@ -51,10 +51,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.distinctUntilChanged
 import moe.kirakira.R
-import moe.kirakira.feature.video.VideoCardRow
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.FrostedScaffold
+import moe.kirakira.ui.components.video.VideoCardRow
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 @Composable

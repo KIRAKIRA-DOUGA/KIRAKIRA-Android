@@ -5,8 +5,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import moe.kirakira.data.content.ContentRepository
 import moe.kirakira.data.content.VideoSummary
 import moe.kirakira.data.content.VideoTag
-import moe.kirakira.feature.video.ContentState
-import moe.kirakira.feature.video.ContentViewModel
+import moe.kirakira.ui.content.ContentState
+import moe.kirakira.ui.content.ContentViewModel
 
 internal data class TagLookup(val tag: VideoTag?)
 

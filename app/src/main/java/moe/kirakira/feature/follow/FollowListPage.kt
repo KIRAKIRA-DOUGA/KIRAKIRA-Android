@@ -5,7 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import moe.kirakira.feature.video.isReadyForContent
+import moe.kirakira.data.auth.isReadyForContent
 
 @Composable
 internal fun FollowListPage(

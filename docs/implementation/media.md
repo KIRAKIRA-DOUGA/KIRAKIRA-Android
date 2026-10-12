@@ -22,7 +22,7 @@
 
 视频画面的控制层局部提供 `LocalRippleConfiguration`，统一使用白色水波纹并保留官方透明度与动效，包含进度条和媒体错误页重试按钮；弹出的清晰度与倍速设置面板继续跟随应用主题，进度条本身保留主题色。弹幕 Switch 开启时使用白色轨道、黑色滑块与白色图标，关闭时使用透明轨道、白色描边及滑块与黑色图标；禁用状态显式使用半透明配色，不随浅深色主题变化，保留官方尺寸、状态语义和划线过渡。
 
-`PlaybackSettingsViewModel` 通过独立存储封装异步读取 `kirakira_settings` 的 `playback_in_app_mini_player`、`playback_outside_app_mini_player`（均默认 true）与 `playback_autoplay`（默认 false），使用 SharedPreferences apply 异步落盘。不迁移旧画中画开关。应用级状态经导航传入视频页与播放设置页，不绑定账号。
+`PlaybackSettings` 模型与 `PlaybackSettingsStore` 位于 `data/settings/`；`PlaybackSettingsViewModel` 通过该存储封装异步读取 `kirakira_settings` 的 `playback_in_app_mini_player`、`playback_outside_app_mini_player`（均默认 true）与 `playback_autoplay`（默认 false），使用 SharedPreferences apply 异步落盘。不迁移旧画中画开关。应用级状态经导航传入视频页与播放设置页，不绑定账号。
 
 `VideoPlayer` 接收播放状态、Media3 画面实例和事件回调，不持有 ViewModel。返回按钮和控制栏共享显隐状态与三秒计时器；缓冲、失败、进度交互、设置面板及触摸探索阻止自动隐藏，暂停与结束状态同样支持轻触显隐和三秒自动隐藏。控件使用主题效果动效，退出动画期间禁用交互并清除语义。控制层以黑色渐变遮罩衬托白色图标和文字，播放／暂停按钮居中，使用 60% 不透明度的黑色圆形容器和 Rounded FILL 1 白色图标，加载时同一 64dp 圆形容器内改为 40dp 白色 Material 2 圆角圆形加载器，不提供播放点击动作；底部不再使用主题 Surface。
 
@@ -194,7 +194,7 @@ Compose [共享元素转场](https://developer.android.com/develop/ui/compose/an
 
 帧循环直接读取 Media3 `currentPosition`，不使用页面 500ms 轮询。暂停／缓冲时冻结并等待 Player 事件；空白区等待下一条的播放时间，seek、恢复、倍速变化通过监听器唤醒。池、尺寸和设置变化重建当前布局，视频／分 P／账号修订构成内容标识。画中画、页面非活动、播放器释放和播放失败时移除绘制层，取消协程及移除监听器；退出画中画后按真实进度重建，不补发错过的弹幕。
 
-`DanmakuSettingsRoute` 使用现有 Navigation 3 宿主和可折叠顶栏。`DanmakuSettingsViewModel` 由导航宿主持有，向设置页与播放器提供同一份状态；只写 `kirakira_settings` 下独立的 `danmaku_*` 键，不覆盖播放或主题设置。读取在 IO 调度器完成，写入使用 SharedPreferences.apply，范围与步长统一归一化；加载完成前禁用编辑并不绘制。偏好为设备级非敏感数据，沿用该偏好文件已有的备份白名单。
+`DanmakuSettingsRoute` 使用现有 Navigation 3 宿主和可折叠顶栏。`DanmakuSettings` 模型与 `DanmakuSettingsStore` 位于 `data/settings/`，播放器直接依赖数据层模型。`DanmakuSettingsViewModel` 由导航宿主持有，向设置页与播放器提供同一份状态，通过该存储只写 `kirakira_settings` 下独立的 `danmaku_*` 键，不覆盖播放或主题设置。读取在 IO 调度器完成，写入使用 SharedPreferences.apply，范围与步长统一归一化；加载完成前禁用编辑并不绘制。偏好为设备级非敏感数据，沿用该偏好文件已有的备份白名单。
 
 弹幕设置的滑块条目保留官方 `SegmentedListItem` 分组样式，标题与当前数值在 `content` 内同排，Slider 在 `supportingContent` 内占满内容宽度，避免尾部数值列压缩滑块。
 

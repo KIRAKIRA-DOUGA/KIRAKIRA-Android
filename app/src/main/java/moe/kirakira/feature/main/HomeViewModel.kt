@@ -4,8 +4,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import moe.kirakira.data.content.ContentRepository
 import moe.kirakira.data.content.VideoSummary
-import moe.kirakira.feature.video.ContentState
-import moe.kirakira.feature.video.ContentViewModel
+import moe.kirakira.ui.content.ContentState
+import moe.kirakira.ui.content.ContentViewModel
 
 internal class HomeViewModel(repository: ContentRepository) : ContentViewModel(repository) {
     private val _videos = MutableStateFlow(ContentState<List<VideoSummary>>(loading = true))

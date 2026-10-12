@@ -7,9 +7,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import moe.kirakira.core.network.ApiException
 import moe.kirakira.core.network.ApiFailure
+import moe.kirakira.data.auth.isReadyForContent
 import moe.kirakira.data.content.CommentPage
 import moe.kirakira.data.content.ContentRepository
 import moe.kirakira.data.content.VideoComment
+import moe.kirakira.ui.content.ContentState
 
 internal data class CommentEntry(val comment: VideoComment, val page: Int)
 internal data class CommentLocation(val request: Long, val page: Int)

@@ -68,7 +68,7 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import moe.kirakira.MainActivity
 import moe.kirakira.R
-import moe.kirakira.feature.settings.PlaybackSettings
+import moe.kirakira.data.settings.PlaybackSettings
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)

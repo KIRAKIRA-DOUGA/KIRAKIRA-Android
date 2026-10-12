@@ -1,12 +1,12 @@
-package moe.kirakira.feature.video
+package moe.kirakira.ui.components.video
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
-import moe.kirakira.R
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
+import moe.kirakira.R
 
 @Composable
 internal fun categoryText(category: String): String {

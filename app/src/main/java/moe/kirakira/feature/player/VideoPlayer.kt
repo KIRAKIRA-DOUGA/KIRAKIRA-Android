@@ -84,9 +84,7 @@ import androidx.media3.common.Player
 import kotlinx.coroutines.delay
 import moe.kirakira.R
 import moe.kirakira.data.content.DanmakuEntry
-import moe.kirakira.feature.settings.DanmakuSettings
-import moe.kirakira.feature.video.VideoArtwork
-import moe.kirakira.feature.video.durationText
+import moe.kirakira.data.settings.DanmakuSettings
 import moe.kirakira.ui.components.AnimatedSlashIcon
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
@@ -94,6 +92,8 @@ import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.SlashIconType
 import moe.kirakira.ui.components.rememberSlashIconProgress
+import moe.kirakira.ui.components.video.VideoArtwork
+import moe.kirakira.ui.components.video.durationText
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 private val PlayerSeekThumbSize = DpSize(16.dp, 16.dp)

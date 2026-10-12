@@ -34,7 +34,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
-import moe.kirakira.feature.settings.VideoCardLayout
+import moe.kirakira.ui.components.video.VideoCardLayout
 
 @Composable
 internal fun SearchTopBar(

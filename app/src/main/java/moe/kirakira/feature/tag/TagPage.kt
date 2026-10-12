@@ -49,17 +49,17 @@ import java.util.Locale
 import moe.kirakira.R
 import moe.kirakira.data.content.VideoSummary
 import moe.kirakira.data.content.VideoTag
-import moe.kirakira.feature.settings.VideoCardLayout
-import moe.kirakira.feature.video.ContentState
-import moe.kirakira.feature.video.VideoCardRow
 import moe.kirakira.ui.components.CollapsibleTopAppBar
+import moe.kirakira.ui.components.ConnectedLazyColumn
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
-import moe.kirakira.ui.components.ConnectedLazyColumn
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
+import moe.kirakira.ui.components.video.VideoCardLayout
+import moe.kirakira.ui.components.video.VideoCardRow
+import moe.kirakira.ui.content.ContentState
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 @Composable

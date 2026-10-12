@@ -23,14 +23,14 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.LineHeightStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -45,7 +45,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withTimeoutOrNull
 import moe.kirakira.data.content.DanmakuEntry
 import moe.kirakira.data.content.DanmakuFontSize
-import moe.kirakira.feature.settings.DanmakuSettings
+import moe.kirakira.data.settings.DanmakuSettings
 
 private data class DanmakuSprite(
     val flight: DanmakuFlight,

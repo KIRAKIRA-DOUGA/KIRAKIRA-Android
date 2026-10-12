@@ -5,7 +5,7 @@ import kotlin.math.roundToLong
 import kotlinx.coroutines.yield
 import moe.kirakira.data.content.DanmakuEntry
 import moe.kirakira.data.content.DanmakuMode
-import moe.kirakira.feature.settings.DanmakuSettings
+import moe.kirakira.data.settings.DanmakuSettings
 
 private const val FIXED_DURATION_MS = 4_000L
 private const val MIN_BASE_SCROLL_DURATION_MS = 6_000L

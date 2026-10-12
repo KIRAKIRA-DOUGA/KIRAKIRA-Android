@@ -62,11 +62,11 @@ import moe.kirakira.MainActivity
 import moe.kirakira.R
 import moe.kirakira.data.content.ContentRepository
 import moe.kirakira.data.history.HistoryRepository
+import moe.kirakira.data.settings.DanmakuSettings
+import moe.kirakira.data.settings.PlaybackSettings
 import moe.kirakira.feature.player.PlaybackViewModel
 import moe.kirakira.feature.player.PlayerUiState
 import moe.kirakira.feature.player.VideoPlayer
-import moe.kirakira.feature.settings.DanmakuSettings
-import moe.kirakira.feature.settings.PlaybackSettings
 import moe.kirakira.ui.components.messageRes
 
 private data object FullscreenInfo : NavigationEventInfo()
