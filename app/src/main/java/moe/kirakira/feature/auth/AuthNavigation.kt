@@ -136,13 +136,6 @@ private fun AuthStepPage(
             }
         }
     }
-    LaunchedEffect(currentStep, lifecycle) {
-        if (currentStep && step == AuthStep.LOGIN) {
-            lifecycle.currentStateFlow.first { it.isAtLeast(Lifecycle.State.RESUMED) }
-            viewModel.requestSavedPassword(automatic = true)
-        }
-    }
-
     fun whenCurrent(action: () -> Unit) {
         if (isActive && viewModel.uiState.value.step == step) action()
     }

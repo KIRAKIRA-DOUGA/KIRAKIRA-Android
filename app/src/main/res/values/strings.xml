@@ -34,12 +34,13 @@
     <string name="security_enabled">Enabled</string>
     <string name="security_not_enabled">Not enabled</string>
     <string name="security_disable_current_first">Disable your current verification method first</string>
-    <string name="security_added_date">Added %1$s</string>
+    <string name="security_binding_date">Binding date</string>
     <string name="security_enable_email_title">Enable email verification</string>
     <string name="security_disable_email_title">Disable email verification</string>
     <string name="security_disable_totp_title">Remove authenticator</string>
     <string name="security_disable_warning">This removes your current two-step verification method</string>
     <string name="security_totp_setup_title">Set up authenticator</string>
+    <string name="security_confirm_binding">Verify setup</string>
     <string name="security_qr_code">Authenticator setup QR code</string>
     <string name="security_qr_failed">QR code unavailable</string>
     <string name="security_open_authenticator">Open authenticator app</string>
@@ -272,6 +273,7 @@
     <string name="auth_sign_in_button" translatable="false">LINK START</string>
     <string name="auth_description">Sign in to your KIRAKIRA account</string>
     <string name="auth_email">Email address</string>
+    <string name="auth_verification_account">Account</string>
     <string name="auth_password">Password</string>
     <string name="auth_email_invalid">Enter a valid email address</string>
     <string name="auth_show_password">Show password</string>
@@ -358,7 +360,7 @@
     <string name="auth_totp_recovery_description">Password reset by email is unavailable for accounts with TOTP. If you remember your password, return to sign-in and use an authenticator, backup or recovery code. Otherwise contact support.</string>
     <string name="auth_save_session_description">Authentication succeeded, but saving the session did not finish. Retry to save this sign-in without registering or verifying again.</string>
     <string name="auth_resend_countdown">Resend in %1$d s</string>
-    <string name="auth_resend">Send verification code</string>
+    <string name="auth_resend">Send code</string>
     <string name="auth_contact_support">Contact support</string>
     <string name="auth_continue">Continue</string>
     <string name="auth_working">Working…</string>
@@ -372,6 +374,7 @@
     <string name="auth_totp_title">Verify it’s you</string>
     <string name="auth_recovery_title">Recover your access</string>
     <string name="auth_step_progress">Step %1$d of %2$d</string>
+    <string name="auth_step_progress_compact">%1$d / %2$d</string>
     <string name="auth_invitation_description">Enter your invitation code. We’ll check it and send a verification code to your email.</string>
     <string name="auth_password_picker_failed">Could not open your password manager. You can sign in manually.</string>
     <string name="auth_password_picker_unavailable">No matching saved password or password provider is available. You can sign in manually.</string>

@@ -2,6 +2,7 @@ package moe.kirakira.feature.settings.security
 
 import kotlinx.serialization.Serializable
 import moe.kirakira.core.network.ApiFailure
+import moe.kirakira.data.auth.SecondFactor
 import moe.kirakira.data.security.SecurityStatus
 import moe.kirakira.data.security.TotpSecrets
 import moe.kirakira.data.security.TotpSetup
@@ -69,7 +70,11 @@ internal sealed interface TotpDraft {
 
 /** Plain payload classes prevent generated toString() methods from exposing credentials or setup materials. */
 internal sealed interface TwoFactorFlow {
-    class Manage(val draft: TotpDraft? = null, val notice: Int? = null) : TwoFactorFlow
+    class Manage(
+        val draft: TotpDraft? = null,
+        val notice: Int? = null,
+        val selectedFactor: SecondFactor? = null,
+    ) : TwoFactorFlow
     class EnableEmail(val draft: TotpDraft? = null) : TwoFactorFlow
     class DisableEmail(val form: SecurityForm = SecurityForm.Empty) : TwoFactorFlow
     class DisableTotp(val form: SecurityForm = SecurityForm.Empty) : TwoFactorFlow
@@ -117,7 +122,16 @@ internal data class SecuritySettingsState(
         is CredentialFlow.VerifyPassword -> flow.form[SecurityField.PASSWORD].isNotEmpty() &&
             flow.form[SecurityField.CODE].isNotBlank()
         CredentialFlow.SyncEmail, CredentialFlow.SyncPassword -> true
-        CredentialFlow.Idle -> page == SecurityPage.TWO_FACTOR
+        CredentialFlow.Idle -> page == SecurityPage.TWO_FACTOR && when (val factorFlow = twoFactor) {
+            is TwoFactorFlow.Manage -> when (status?.factor) {
+                SecondFactor.NONE -> factorFlow.selectedFactor == SecondFactor.EMAIL ||
+                    (factorFlow.selectedFactor == SecondFactor.TOTP && factorFlow.draft != TotpDraft.Unavailable)
+                SecondFactor.EMAIL, SecondFactor.TOTP -> true
+                null -> false
+            }
+            is TwoFactorFlow.EnableEmail, is TwoFactorFlow.DisableEmail, is TwoFactorFlow.DisableTotp,
+            is TwoFactorFlow.ConfirmTotp, is TwoFactorFlow.SaveCodes, is TwoFactorFlow.Checking -> true
+        }
     }
     val confirmDiscardCredentials: Boolean get() = when (val flow = credentials) {
         is CredentialFlow.EditEmail -> flow.confirmDiscard

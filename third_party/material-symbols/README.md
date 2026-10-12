@@ -2,7 +2,7 @@
 
 本目录保存 Google Material Symbols 的 [Apache 2.0 许可证](LICENSE)。图标来自 [Google 官方仓库](https://github.com/google/material-design-icons/tree/master/symbols/android)。
 
-- 样式：Material Symbols Rounded，24dp，wght 400，GRAD 0；默认 FILL 0，底栏首页与“我”的选中形态、播放器播放／暂停图标使用 FILL 1。
+- 样式：Material Symbols Rounded，24dp，wght 400，GRAD 0；默认 FILL 0，底栏首页与“我”的选中形态、播放器播放／暂停及账号流程字段错误图标使用 FILL 1。
 - 上游路径：`symbols/android/<name>/materialsymbolsrounded/<name>_24px.xml`。
 - 本地路径：`app/src/main/res/drawable/ic_symbol_<name>.xml`。
 - 修改：移除 XML theme tint（由 Compose `Icon` 提供主题颜色）、调整缩进并增加来源注释；保留原始路径数据及上游 `autoMirrored` 设置（例如 `chevron_right`、`label`）。
@@ -18,6 +18,8 @@
 | `close` | [close_24px.xml](https://github.com/google/material-design-icons/blob/master/symbols/android/close/materialsymbolsrounded/close_24px.xml) | 关闭认证页 |
 | `visibility` | [visibility_24px.xml](https://github.com/google/material-design-icons/blob/master/symbols/android/visibility/materialsymbolsrounded/visibility_24px.xml) | 显示密码 |
 | `visibility_off` | [visibility_off_24px.xml](https://github.com/google/material-design-icons/blob/master/symbols/android/visibility_off/materialsymbolsrounded/visibility_off_24px.xml) | 隐藏密码 |
+
+账号流程字段错误另用官方 Rounded、24dp、wght 400、GRAD 0、FILL 1 的 [`error_fill1_24px.xml`](https://github.com/google/material-design-icons/blob/master/symbols/android/error/materialsymbolsrounded/error_fill1_24px.xml)，本地为 `ic_symbol_error_filled.xml`。仅移除上游 theme tint、整理缩进并增加来源注释，保留原始路径数据；Compose 使用主题 `error` 色，图标仅作装饰。原有 `ic_symbol_error.xml` 的 FILL 0 路径及用途继续保留。
 
 注册入口复用现有 `add` 图标，品牌标识复用应用自身的 `logo_kirakira`。
 

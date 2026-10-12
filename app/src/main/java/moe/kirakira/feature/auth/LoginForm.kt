@@ -2,6 +2,7 @@ package moe.kirakira.feature.auth
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -10,6 +11,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.focus.FocusDirection
@@ -25,8 +27,10 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.dp
 import moe.kirakira.R
 import moe.kirakira.ui.components.AccountFlowDefaults
+import moe.kirakira.ui.components.AccountFlowFieldErrorIcon
 import moe.kirakira.ui.components.AnimatedSlashIcon
 import moe.kirakira.ui.components.SlashIconType
 
@@ -43,6 +47,9 @@ internal fun LoginForm(
     modifier: Modifier = Modifier,
 ) {
     val focusManager = LocalFocusManager.current
+    val emailError = state.fieldErrors[AuthField.EMAIL]
+        ?: R.string.auth_email_invalid.takeIf { state.emailInvalid }
+    val passwordError = state.fieldErrors[AuthField.PASSWORD]
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(AccountFlowDefaults.FieldSpacing)) {
         OutlinedTextField(
             value = state.email,
@@ -56,9 +63,9 @@ internal fun LoginForm(
             label = { Text(stringResource(R.string.auth_email)) },
             singleLine = true,
             shape = MaterialTheme.shapes.large,
-            isError = state.fieldErrors[AuthField.EMAIL] != null || state.emailInvalid,
-            supportingText = (state.fieldErrors[AuthField.EMAIL]
-                ?: R.string.auth_email_invalid.takeIf { state.emailInvalid })?.let { { Text(stringResource(it)) } },
+            isError = emailError != null,
+            supportingText = emailError?.let { { Text(stringResource(it)) } },
+            trailingIcon = if (emailError != null) { { AccountFlowFieldErrorIcon() } } else null,
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.None,
                 autoCorrectEnabled = false,
@@ -85,16 +92,26 @@ internal fun LoginForm(
             label = { Text(stringResource(R.string.auth_password)) },
             singleLine = true,
             shape = MaterialTheme.shapes.large,
+            isError = passwordError != null,
+            supportingText = passwordError?.let { { Text(stringResource(it)) } },
             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
-                IconButton(onClick = onPasswordVisibilityChange, enabled = state.canEdit) {
-                    AnimatedSlashIcon(
-                        type = SlashIconType.VISIBILITY,
-                        slashed = passwordVisible,
-                        description = stringResource(
-                            if (passwordVisible) R.string.auth_hide_password else R.string.auth_show_password,
-                        ),
-                    )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (passwordError != null) {
+                        AccountFlowFieldErrorIcon()
+                    }
+                    IconButton(onClick = onPasswordVisibilityChange, enabled = state.canEdit) {
+                        AnimatedSlashIcon(
+                            type = SlashIconType.VISIBILITY,
+                            slashed = passwordVisible,
+                            description = stringResource(
+                                if (passwordVisible) R.string.auth_hide_password else R.string.auth_show_password,
+                            ),
+                        )
+                    }
                 }
             },
             keyboardOptions = KeyboardOptions(

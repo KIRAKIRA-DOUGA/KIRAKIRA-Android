@@ -3,10 +3,14 @@
 package moe.kirakira.ui.components
 
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
@@ -18,6 +22,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -54,9 +59,11 @@ import androidx.compose.material.ButtonDefaults as Material2ButtonDefaults
 internal object AccountFlowDefaults {
     val MaxContentWidth = 480.dp
     val ContentPadding = 24.dp
-    val SectionSpacing = 28.dp
-    val FieldSpacing = 16.dp
+    val HeaderSpacing = 32.dp
+    val SectionSpacing = 32.dp
+    val FieldSpacing = 24.dp
     val FeedbackSpacing = 12.dp
+    val ActionBarVerticalPadding = 16.dp
 }
 
 /** Shared account-flow host. IME avoidance includes the Snackbar and consumes the inset once. */
@@ -68,10 +75,13 @@ internal fun AccountFlowScaffold(
     iconSize: Dp = 32.dp,
     backButtonModifier: Modifier = Modifier,
     snackbarHost: @Composable () -> Unit = {},
+    bottomBar: @Composable () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
 ) {
     FrostedScaffold(
-        modifier = modifier.fillMaxSize().imePadding(),
+        modifier = modifier
+            .fillMaxSize()
+            .imePadding(),
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             CenterAlignedTopAppBar(
@@ -97,8 +107,30 @@ internal fun AccountFlowScaffold(
             )
         },
         snackbarHost = snackbarHost,
+        bottomBar = bottomBar,
         content = content,
     )
+}
+
+/** Account-flow actions align with the form and stay above the system navigation area. */
+@Composable
+internal fun AccountFlowActionBar(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    FormActionBar(modifier) {
+        Box(
+            modifier = Modifier
+                .padding(
+                    horizontal = AccountFlowDefaults.ContentPadding,
+                    vertical = AccountFlowDefaults.ActionBarVerticalPadding,
+                )
+                .widthIn(max = AccountFlowDefaults.MaxContentWidth)
+                .fillMaxWidth(),
+        ) {
+            content()
+        }
+    }
 }
 
 /** Width-capped form with system-bar padding inside the full-height scroll viewport. */
@@ -142,16 +174,16 @@ internal fun AccountFlowHeader(
     progressContent: (@Composable () -> Unit)? = null,
 ) {
     Column(modifier.fillMaxWidth()) {
-        if (progressContent != null) {
-            progressContent()
-            Spacer(Modifier.height(AccountFlowDefaults.SectionSpacing))
-        }
         Text(
             text = title,
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.semantics { heading() },
         )
+        if (progressContent != null) {
+            Spacer(Modifier.height(12.dp))
+            progressContent()
+        }
         if (description != null) {
             Spacer(Modifier.height(8.dp))
             Text(
@@ -165,18 +197,85 @@ internal fun AccountFlowHeader(
 
 @Composable
 internal fun AccountFlowProgress(currentStep: Int, stepCount: Int, modifier: Modifier = Modifier) {
-    Column(modifier.fillMaxWidth()) {
+    val description = stringResource(R.string.auth_step_progress, currentStep, stepCount)
+    val progress = currentStep.toFloat() / stepCount
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clearAndSetSemantics {
+                contentDescription = description
+                progressBarRangeInfo = ProgressBarRangeInfo(progress, 0f..1f)
+            },
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Text(
-            text = stringResource(R.string.auth_step_progress, currentStep, stepCount),
-            style = MaterialTheme.typography.labelLarge,
+            text = stringResource(R.string.auth_step_progress_compact, currentStep, stepCount),
+            style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.primary,
         )
-        Spacer(Modifier.height(8.dp))
         LinearProgressIndicator(
-            progress = { currentStep.toFloat() / stepCount },
-            modifier = Modifier.fillMaxWidth(),
+            progress = { progress },
+            modifier = Modifier
+                .weight(1f)
+                .height(4.dp),
         )
     }
+}
+
+/** A plain form group. Actions wrap without narrowing the fields or their context. */
+@Composable
+internal fun AccountFlowSection(
+    title: String,
+    modifier: Modifier = Modifier,
+    supportingContent: (@Composable () -> Unit)? = null,
+    actionContent: (@Composable () -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(modifier.fillMaxWidth()) {
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            itemVerticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier
+                    .then(if (actionContent != null) Modifier.padding(end = 12.dp) else Modifier)
+                    .semantics { heading() },
+            )
+            if (actionContent != null) {
+                Box(
+                    modifier = Modifier.width(IntrinsicSize.Max).weight(1f),
+                    contentAlignment = Alignment.CenterEnd,
+                ) {
+                    actionContent()
+                }
+            }
+        }
+        if (supportingContent != null) {
+            Spacer(Modifier.height(4.dp))
+            supportingContent()
+        }
+        Spacer(Modifier.height(16.dp))
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(AccountFlowDefaults.FieldSpacing),
+            content = content,
+        )
+    }
+}
+
+@Composable
+internal fun AccountFlowFieldErrorIcon(modifier: Modifier = Modifier) {
+    Icon(
+        painter = painterResource(R.drawable.ic_symbol_error_filled),
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.error,
+        modifier = modifier.size(24.dp),
+    )
 }
 
 @Composable
@@ -227,11 +326,15 @@ internal fun AccountFlowSubmitButton(
                 style = ButtonDefaults.textStyleFor(height),
                 maxLines = 1,
                 softWrap = false,
-                modifier = if (busy) Modifier.alpha(0f).clearAndSetSemantics { } else Modifier,
+                modifier = if (busy) Modifier
+                    .alpha(0f)
+                    .clearAndSetSemantics { } else Modifier,
             )
             if (busy) {
                 IndeterminateCircularProgressIndicator(
-                    modifier = Modifier.size(Material2ButtonDefaults.IconSize).clearAndSetSemantics { },
+                    modifier = Modifier
+                        .size(Material2ButtonDefaults.IconSize)
+                        .clearAndSetSemantics { },
                     strokeWidth = 2.dp,
                 )
             }

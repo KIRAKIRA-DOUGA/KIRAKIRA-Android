@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -20,13 +18,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonColors
@@ -65,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import moe.kirakira.R
 import moe.kirakira.ui.components.CollapsibleTopAppBar
 import moe.kirakira.ui.components.ConnectedListGroup
+import moe.kirakira.ui.components.FormActionBar
 import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.SectionHeader
@@ -515,7 +511,7 @@ internal fun settingsDestructiveButtonColors(): ButtonColors = ButtonDefaults.bu
 )
 
 /**
- * Fixed form action placed in [SettingsScaffold]'s bottom bar. Scaffold measures its height for
+ * Full-width form action placed in [SettingsScaffold]'s bottom bar. Scaffold measures its height for
  * scroll padding and Snackbar placement; the parent handles IME padding before these system insets.
  */
 @Composable
@@ -530,53 +526,41 @@ internal fun SettingsActionBar(
 ) {
     val height = ButtonDefaults.MediumContainerHeight
     val workingDescription = if (busy) stringResource(R.string.auth_working) else null
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 8.dp,
-    ) {
+    FormActionBar(modifier) {
         Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .widthIn(max = SettingsDefaults.MaxContentWidth)
+                .fillMaxWidth()
+                .padding(
+                    horizontal = SettingsDefaults.HorizontalPadding,
+                    vertical = SettingsDefaults.BottomPadding,
+                ),
         ) {
-            Box(
+            ShadowButton(
+                onClick = onClick,
+                enabled = enabled && !busy,
                 modifier = Modifier
-                    .widthIn(max = SettingsDefaults.MaxContentWidth)
                     .fillMaxWidth()
-                    .windowInsetsPadding(
-                        WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
-                    )
-                    .padding(
-                        horizontal = SettingsDefaults.HorizontalPadding,
-                        vertical = SettingsDefaults.BottomPadding,
-                    ),
-                contentAlignment = Alignment.CenterEnd,
+                    .heightIn(min = height)
+                    .semantics {
+                        actionDescription?.let { contentDescription = it }
+                        workingDescription?.let { stateDescription = it }
+                    },
+                shapes = ButtonDefaults.shapesFor(height),
+                colors = colors,
+                contentPadding = ButtonDefaults.contentPaddingFor(height, hasStartIcon = busy),
             ) {
-                ShadowButton(
-                    onClick = onClick,
-                    enabled = enabled && !busy,
-                    modifier = Modifier
-                        .heightIn(min = height)
-                        .semantics {
-                            actionDescription?.let { contentDescription = it }
-                            workingDescription?.let { stateDescription = it }
-                        },
-                    shapes = ButtonDefaults.shapesFor(height),
-                    colors = colors,
-                    contentPadding = ButtonDefaults.contentPaddingFor(height, hasStartIcon = busy),
-                ) {
-                    if (busy) {
-                        IndeterminateCircularProgressIndicator(
-                            modifier = Modifier
-                                .size(Material2ButtonDefaults.IconSize)
-                                .clearAndSetSemantics {},
-                            color = LocalContentColor.current,
-                            strokeWidth = 2.dp,
-                        )
-                        Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(height)))
-                    }
-                    Text(label, style = ButtonDefaults.textStyleFor(height), maxLines = 1, softWrap = false)
+                if (busy) {
+                    IndeterminateCircularProgressIndicator(
+                        modifier = Modifier
+                            .size(Material2ButtonDefaults.IconSize)
+                            .clearAndSetSemantics {},
+                        color = LocalContentColor.current,
+                        strokeWidth = 2.dp,
+                    )
+                    Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(height)))
                 }
+                Text(label, style = ButtonDefaults.textStyleFor(height), maxLines = 1, softWrap = false)
             }
         }
     }

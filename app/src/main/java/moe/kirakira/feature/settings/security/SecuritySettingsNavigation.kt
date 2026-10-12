@@ -19,6 +19,7 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import androidx.navigationevent.compose.rememberNavigationEventDispatcherOwner
+import moe.kirakira.data.auth.SecondFactor
 import moe.kirakira.ui.navigation.ActivityNavDisplay
 import moe.kirakira.ui.navigation.LocalNavigationPageTransform
 import moe.kirakira.ui.navigation.NavigationPage
@@ -155,6 +156,7 @@ private fun SecurityStepPage(
         onLogin = { whenCurrent(onLogin) },
         onRefresh = { whenCurrent(model::refresh) },
         onOpen = { whenCurrent { autofill?.cancel(); model.open(it) } },
+        onSelectFactor = { whenCurrent { model.selectFactor(it) } },
         onEdit = { field, value -> whenCurrent { model.edit(field, value) } },
         onSendCode = { whenCurrent { model.sendCode(language, it) } },
         onSubmit = { whenCurrent { autofill?.cancel(); model.submit() } },
@@ -179,6 +181,13 @@ private fun SecuritySettingsState.forStep(step: SecurityStep): SecuritySettingsS
                 is TwoFactorFlow.Manage -> current.draft
                 is TwoFactorFlow.EnableEmail -> current.draft
                 is TwoFactorFlow.ConfirmTotp -> TotpDraft.Available(current.setup)
+                is TwoFactorFlow.DisableEmail, is TwoFactorFlow.DisableTotp,
+                is TwoFactorFlow.SaveCodes, is TwoFactorFlow.Checking -> null
+            },
+            selectedFactor = when (val current = twoFactor) {
+                is TwoFactorFlow.Manage -> current.selectedFactor
+                is TwoFactorFlow.EnableEmail -> SecondFactor.EMAIL
+                is TwoFactorFlow.ConfirmTotp -> SecondFactor.TOTP
                 is TwoFactorFlow.DisableEmail, is TwoFactorFlow.DisableTotp,
                 is TwoFactorFlow.SaveCodes, is TwoFactorFlow.Checking -> null
             },
@@ -227,7 +236,7 @@ private fun SecuritySettingsState.forTransition(): SecuritySettingsState = copy(
         is TwoFactorFlow.DisableTotp -> TwoFactorFlow.DisableTotp()
         is TwoFactorFlow.SaveCodes -> TwoFactorFlow.Manage()
         is TwoFactorFlow.Checking -> TwoFactorFlow.Checking(flow.mutation.withoutSecrets())
-        is TwoFactorFlow.Manage -> TwoFactorFlow.Manage(notice = flow.notice)
+        is TwoFactorFlow.Manage -> TwoFactorFlow.Manage(notice = flow.notice, selectedFactor = flow.selectedFactor)
         is TwoFactorFlow.EnableEmail -> TwoFactorFlow.EnableEmail()
     },
     fieldErrors = emptyMap(),

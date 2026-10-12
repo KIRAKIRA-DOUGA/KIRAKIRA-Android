@@ -78,6 +78,10 @@ internal class SecuritySettingsViewModel(private val repository: SecurityReposit
                     twoFactor = TwoFactorFlow.Manage(
                         draft = manage?.draft.takeIf { status.factor == SecondFactor.NONE },
                         notice = manage?.notice.takeIf { status.factor == previous.status?.factor },
+                        selectedFactor = manage?.selectedFactor.takeIf {
+                            status.factor == SecondFactor.NONE && status.factor == previous.status?.factor &&
+                                (it != SecondFactor.TOTP || manage?.draft != TotpDraft.Unavailable)
+                        },
                     ),
                 )
             }
@@ -130,6 +134,21 @@ internal class SecuritySettingsViewModel(private val repository: SecurityReposit
             error = null,
             fieldErrors = next.fieldErrors - clearedErrors,
             newCooldown = if (field == SecurityField.EMAIL) repository.resendSeconds(value.trim()) else next.newCooldown,
+        )
+    }
+
+    fun selectFactor(factor: SecondFactor) {
+        val current = _state.value
+        val manage = current.twoFactor as? TwoFactorFlow.Manage ?: return
+        if (!ready || current.working || current.page != SecurityPage.TWO_FACTOR ||
+            current.status?.factor != SecondFactor.NONE || factor == SecondFactor.NONE ||
+            (factor == SecondFactor.TOTP && manage.draft == TotpDraft.Unavailable)
+        ) return
+        _state.value = current.copy(
+            twoFactor = TwoFactorFlow.Manage(manage.draft, manage.notice, factor),
+            validation = null,
+            error = null,
+            message = null,
         )
     }
 
@@ -195,8 +214,10 @@ internal class SecuritySettingsViewModel(private val repository: SecurityReposit
                 is TwoFactorFlow.Manage, is TwoFactorFlow.Checking -> {
                     _state.update { it.copy(page = SecurityPage.OVERVIEW, validation = null, error = null) }
                 }
-                is TwoFactorFlow.EnableEmail -> manageFactor(flow.draft)
-                is TwoFactorFlow.ConfirmTotp -> manageFactor(TotpDraft.Available(flow.setup))
+                is TwoFactorFlow.EnableEmail -> manageFactor(flow.draft, selectedFactor = SecondFactor.EMAIL)
+                is TwoFactorFlow.ConfirmTotp -> manageFactor(
+                    TotpDraft.Available(flow.setup), selectedFactor = SecondFactor.TOTP,
+                )
                 is TwoFactorFlow.SaveCodes -> {
                     _state.update { it.copy(twoFactor = TwoFactorFlow.SaveCodes(flow.secrets, confirmDiscard = true)) }
                 }
@@ -259,9 +280,13 @@ internal class SecuritySettingsViewModel(private val repository: SecurityReposit
         refresh()
     }
 
-    private fun manageFactor(draft: TotpDraft? = null, notice: Int? = null) {
+    private fun manageFactor(
+        draft: TotpDraft? = null,
+        notice: Int? = null,
+        selectedFactor: SecondFactor? = null,
+    ) {
         _state.update { it.copy(page = SecurityPage.TWO_FACTOR, credentials = CredentialFlow.Idle,
-            twoFactor = TwoFactorFlow.Manage(draft, notice), validation = null, error = null) }
+            twoFactor = TwoFactorFlow.Manage(draft, notice, selectedFactor), validation = null, error = null) }
     }
 
     fun dismissMessage() { _state.update { it.copy(message = null) } }
@@ -410,6 +435,20 @@ internal class SecuritySettingsViewModel(private val repository: SecurityReposit
 
     private fun submitFactor(flow: TwoFactorFlow) {
         when (flow) {
+            is TwoFactorFlow.Manage -> {
+                if (!_state.value.canSubmit) return
+                val step = when (_state.value.status?.factor) {
+                    SecondFactor.NONE -> when (flow.selectedFactor) {
+                        SecondFactor.EMAIL -> SecurityStep.ENABLE_EMAIL
+                        SecondFactor.TOTP -> SecurityStep.TOTP_CONFIRM
+                        SecondFactor.NONE, null -> return
+                    }
+                    SecondFactor.EMAIL -> SecurityStep.DISABLE_EMAIL
+                    SecondFactor.TOTP -> SecurityStep.DISABLE_TOTP
+                    null -> return
+                }
+                open(step)
+            }
             is TwoFactorFlow.EnableEmail -> runOperation(mutation = TwoFactorMutation.EnableEmail(flow.draft)) {
                 repository.enableEmail(revision)
                 completeFactor(SecurityStatus(SecondFactor.EMAIL), R.string.security_email_2fa_enabled)
@@ -430,7 +469,7 @@ internal class SecuritySettingsViewModel(private val repository: SecurityReposit
                     }
                 }
             }
-            is TwoFactorFlow.Manage, is TwoFactorFlow.SaveCodes, is TwoFactorFlow.Checking -> Unit
+            is TwoFactorFlow.SaveCodes, is TwoFactorFlow.Checking -> Unit
         }
     }
 

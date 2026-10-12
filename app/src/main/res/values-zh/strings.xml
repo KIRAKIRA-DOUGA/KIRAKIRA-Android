@@ -34,12 +34,13 @@
     <string name="security_enabled">已启用</string>
     <string name="security_not_enabled">未开启</string>
     <string name="security_disable_current_first">请先关闭当前验证方式</string>
-    <string name="security_added_date">绑定于 %1$s</string>
+    <string name="security_binding_date">绑定日期</string>
     <string name="security_enable_email_title">启用邮箱验证</string>
     <string name="security_disable_email_title">关闭邮箱验证</string>
     <string name="security_disable_totp_title">解绑身份验证器</string>
     <string name="security_disable_warning">此操作将关闭当前二步验证方式</string>
     <string name="security_totp_setup_title">绑定身份验证器</string>
+    <string name="security_confirm_binding">验证绑定</string>
     <string name="security_qr_code">身份验证器绑定二维码</string>
     <string name="security_qr_failed">二维码暂不可用</string>
     <string name="security_open_authenticator">打开身份验证器</string>
@@ -264,6 +265,7 @@
 
     <string name="auth_description">登录你的 KIRAKIRA 账号</string>
     <string name="auth_email">电子邮件地址</string>
+    <string name="auth_verification_account">账号</string>
     <string name="auth_password">密码</string>
     <string name="auth_email_invalid">请输入有效的电子邮件地址</string>
     <string name="auth_show_password">显示密码</string>
@@ -350,7 +352,7 @@
     <string name="auth_reset_description">输入邮箱验证码并设置新密码</string>
     <string name="auth_totp_recovery_description">启用 TOTP 的账号暂不支持通过邮箱找回密码。如果记得密码，可返回登录并使用身份验证器、备用码或恢复码；否则请联系管理员。</string>
     <string name="auth_save_session_description">身份验证已成功，但会话尚未保存。重试即可保存，无需重复注册或验证。</string>
-    <string name="auth_resend_countdown">%1$d 秒后可重新发送</string>
+    <string name="auth_resend_countdown">%1$d 秒后重发</string>
     <string name="auth_resend">发送验证码</string>
     <string name="auth_contact_support">联系管理员</string>
     <string name="auth_continue">继续</string>
@@ -365,6 +367,7 @@
     <string name="auth_totp_title">确认是你本人</string>
     <string name="auth_recovery_title">找回账号访问权限</string>
     <string name="auth_step_progress">第 %1$d 步，共 %2$d 步</string>
+    <string name="auth_step_progress_compact">%1$d / %2$d</string>
     <string name="auth_invitation_description">填写邀请码，验证通过后将向你的邮箱发送验证码</string>
     <string name="auth_password_picker_failed">无法打开密码管理器，你仍可以手动登录</string>
     <string name="auth_password_picker_unavailable">没有匹配的已保存密码或可用的密码提供者，你仍可以手动登录</string>
