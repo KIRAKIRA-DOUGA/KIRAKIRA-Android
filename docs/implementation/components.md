@@ -255,16 +255,22 @@ SearchableTopAppBar(
 
 `AuthScreen` 与账号安全操作页共用 [AccountFlowScaffold](../../app/src/main/java/moe/kirakira/ui/components/AccountFlowScaffold.kt)：`FrostedScaffold` 提供 `surface` 背景和独立毛玻璃采样，`CenterAlignedTopAppBar` 的标题槽居中显示主题色流程图标；登录 Logo 为 40dp，其余图标为 32dp，不使用底板。非登录步骤的返回使用官方平面 `IconButton` 和默认 AppBar 槽位定位，所有步骤均无关闭按钮。`AuthScreen.onClose` 参数保留调用兼容性，认证完成仍通过 `AuthPage` 的回调退出。
 
-`AccountFlowColumn` 提供最大 480dp 内容宽度、24dp 页面留白和完整滚动视口；`AccountFlowHeader` 使用半粗 `headlineLarge` 与可选说明／进度插槽。标题下方间隔 12dp，`AccountFlowProgress` 横排本地化的紧凑步骤文字（如“2 / 2”）和 4dp 进度条，整组提供完整步骤描述与进度语义。页头到表单及独立分组之间为 32dp，字段间距为 24dp。
+`AccountFlowColumn` 提供最大 480dp 内容宽度、24dp 页面留白和完整滚动视口；`AccountFlowHeader` 使用半粗 `headlineLarge` 与可选说明／进度插槽。标题下方间隔 12dp，`AccountFlowProgress` 横排本地化的紧凑步骤文字（如“2 / 2”）和 4dp 进度条，整组提供完整步骤描述与进度语义。页头到表单及独立分组之间为 32dp，字段间距为 24dp。认证页按步骤启用既有本地化说明资源；安全流程按步骤、当前验证方式及同步状态选择说明，常规页以一到两句引导表达待完成操作，状态核对和本机同步分支只显示现有状态说明。
 
 主操作通过 `AccountFlowScaffold.bottomBar` 接入 `AccountFlowActionBar`，固定在底部，横向与正文对齐、纵向留白为 16dp；`AccountFlowSubmitButton` 占满内容宽度，使用 `ButtonDefaults.MediumContainerHeight` 配套形状、内边距和文字 API、共享彩色阴影及加载语义，加载时仍测量标签以适应字体缩放。发送验证码、复制及打开验证器等辅助操作保留在对应内容旁。字段错误说明保留在输入框下，全局错误复用 `AccountFlowError` 的错误色文字与无障碍播报，同步重试和代码保存确认保留短标签与完整无障碍描述。
 
 宿主根节点统一应用 `imePadding`，表单和底栏不重复处理 IME；`AccountFlowActionBar` 复用 [FormActionBar](../../app/src/main/java/moe/kirakira/ui/components/FormActionBar.kt) 的 `surface` 背景、固定 4dp 原生阴影与系统安全区域。Scaffold 将底栏实测高度交给正文的滚动 padding，确保末项可滚动至按钮上方，Snackbar 自动避让底栏和键盘。
 
-`AccountFlowSection` 只负责无底板的标题、上下文和表单布局，接受可选 `supportingContent`、`actionContent` 及正文插槽，不持有业务状态。标题行使用 `FlowRow`，操作插槽由末端对齐的加权 `Box` 承载，并通过 `width(IntrinsicSize.Max)` 按完整操作内容的固有宽度决定换行，避免把长按钮挤进标题剩余宽度；发送按钮在空间不足时换行，换行后仍靠内容末端对齐；邮箱独占下一行并允许完整换行，上下文与标题相隔 4dp，标题区域与字段相隔 16dp。邮箱确认页以 32dp 间距分开身份验证与新邮箱验证，输入框继续使用各自标签。登录辅助入口也使用可换行布局；认证表单通过 `onResend` 回调把发送操作放在验证码旁。发送操作前移后，密码到验证码、当前邮箱验证码到新邮箱验证码的 IME“下一项”通过显式焦点目标连接，普通按钮仍可通过硬件键盘访问。页面只在存在通知或错误时插入反馈区域及 12dp 间距，重复字段用途的副标题不再显示。
+`AccountFlowSection` 只负责无底板的标题、上下文和表单布局，接受可空 `title`、可选 `supportingContent`、`actionContent` 及正文插槽，不持有业务状态。有标题时上下文在标题下方，相隔 4dp；标题为空时上下文直接进入页头行，邮箱保留普通文字语义，不标记为标题。页头使用 `FlowRow`，操作插槽由末端对齐的加权 `Box` 承载，并通过 `width(IntrinsicSize.Max)` 按完整操作内容的固有宽度决定换行，避免把长按钮挤进剩余宽度；发送按钮在空间不足时换行，换行后仍靠内容末端对齐，长邮箱允许完整换行。分组页头与字段相隔 16dp，没有标题、上下文或操作时不组合页头及关联间距。认证与当前邮箱核验直接显示邮箱，不重复“账号”或邮箱标签；新邮箱与身份验证保留任务标题。邮箱确认页以 32dp 间距分开身份验证与新邮箱验证，输入框继续使用各自标签。登录辅助入口也使用可换行布局；认证表单通过 `onResend` 回调把发送操作放在验证码旁。发送操作前移后，密码到验证码、当前邮箱验证码到新邮箱验证码的 IME“下一项”通过显式焦点目标连接，普通按钮仍可通过硬件键盘访问。页面只在存在通知或错误时插入反馈区域及 12dp 间距；操作引导保留在页头，不重复添加账号或邮箱分组标签。
 
-账号流程靠边文字按钮沿用 [ExpandableText](../../app/src/main/java/moe/kirakira/ui/components/ExpandableText.kt) 的对齐方式：显式保留 `ButtonDefaults.TextButtonContentPadding`，按当前布局方向读取 start／end 内边距；忘记密码和联系支持向 start 偏移对应内边距，注册和发送验证码向 end 偏移对应内边距，使可见文字与标题及输入框边缘对齐。按钮沿用相同的 48dp 最小宽度，避免短标签因额外居中留白而错位，保留官方最小触摸目标、涟漪及禁用语义。登录注册入口也使用按固有宽度换行的末端对齐容器；偏移只作用于按钮，正文宽度与页面留白保持原值。
+账号流程靠边文字按钮沿用 [ExpandableText](../../app/src/main/java/moe/kirakira/ui/components/ExpandableText.kt) 的对齐方式：显式保留 `ButtonDefaults.TextButtonContentPadding`，按当前布局方向读取 start／end 内边距；忘记密码和联系支持向 start 偏移对应内边距，注册和发送验证码向 end 偏移对应内边距，使可见文字与标题及输入框边缘对齐。按钮沿用相同的 48dp 最小宽度，避免短标签因额外居中留白而错位，保留官方最小触摸目标、涟漪及禁用语义。登录注册入口与表单之间使用 `AccountFlowDefaults.FieldSpacing` 的 24dp 留白，并使用按固有宽度换行的末端对齐容器；偏移只作用于按钮，正文宽度与页面留白保持原值。
 
 字段错误态复用内部 `AccountFlowFieldErrorIcon(modifier)`，绘制 24dp 官方 Material Symbols Rounded `error` 的 FILL 1 资源并使用主题 `error` 色，原有空心资源继续保留。普通字段通过 `trailingIcon` 显示；带显隐按钮的密码框在同一行显示错误图标与原按钮，间隔 8dp，保留按钮的点击与键盘语义。图标的 `contentDescription` 为 `null`，无独立点击、背景或阴影，错误说明仍由输入框 supporting text 提供，沿用官方间距并避免重复播报。登录／注册密码及重置密码的新密码字段均绑定现有 `fieldErrors[AuthField.PASSWORD]`；安全表单继续使用 `fieldErrors[SecurityField]`。正常状态不生成错误图标或错误说明占位，不改变校验、焦点与显隐状态的所有权。现有预览提供单字段、多字段及密码显示时的错误态，并配置中英文、浅深主题、320dp 窄屏和两倍字体；这些配置不代表已完成设备或截图验证。
+
+[AccountFlowFeedback](../../app/src/main/java/moe/kirakira/ui/components/AccountFlowFeedback.kt) 在组合内保留非敏感提示文字，供退出动画完成前绘制；`Transition<Boolean>` 仅管理显示状态，业务错误仍由页面传入。页面级提示使用淡入淡出与纵向展开／收缩，关联留白放在内容插槽中一同过渡。`accountFlowSupportingError` 在字段错误退出完成后返回空插槽，输入框通过 `animateContentSize` 平滑调整整体高度，恢复官方正常高度；退出中的提示清除语义，保留当前字段校验及焦点逻辑。所有过渡使用主题 `motionScheme`，遵循系统动画缩放。`accountFlowCodeTextStyle` 为认证与安全验证码以及代码展示提供统一等宽样式，参数遵循[账号表单规范](../../CONTRIBUTING.md#账号表单与保存)。
+
+[OtpInputField](../../app/src/main/java/moe/kirakira/ui/components/OtpInputField.kt) 使用一个 `BasicTextField` 处理六格输入，代码由流程持有，组合内仅用普通 `remember` 保留选择位置；完整编辑器保留布局范围和语义，视觉格使用官方 `OutlinedTextFieldDefaults.Container`，只在当前格连接编辑器的聚焦交互源。六格字符在共享等宽样式上采用主题 `headlineSmall` 的字号与行高，保留 Medium 字重和 1sp 字距；格子仅限制最小高度，字体放大时随文字高度增长。点击已填格选中对应字符，空格定位到已有代码末端；粘贴、退格、全选替换与 IME 操作由同一编辑器处理。六格内容不重复提供语义，整个输入组作为一个编辑目标；错误图标和提示位于组级区域。数字输入与字母数字备用码分别使用数字及 ASCII 键盘，过滤规则对应后端字符集，六位输入不自动提交。认证页额外提供完整恢复码输入，粘贴完整恢复码时切换显示，未将敏感材料放入可保存状态。
+
+`AuthFilledCodePreview` 与 `SecurityFilledCodePreview` 提供独立的“验证码已填写”预览，涵盖邮箱验证码、字母数字备用码和认证页的长恢复码；安全页另展示邮箱与 TOTP 两种修改邮箱核验、邮箱与 TOTP 两种修改密码核验，以及绑定验证器的确认输入。填写值仅为预览专用虚构材料，密码保持为空；预览配置包含中英文、浅深主题和窄屏大字体，不代表已完成设备视觉检查。
 
 TOTP 页面把二维码与打开验证器操作放在同一区域，密钥与复制操作相邻，验证输入独立分组。密钥和恢复码沿用原有专用容器，复制按钮在容器外绘制以保留其阴影；备用码按当前等宽字形的实际测量宽度，在两列和一列之间选择，恢复码按四字符分组换行。窄屏和大字体仅调整内容换行与列数，配色、阴影、底栏和流程状态不变。

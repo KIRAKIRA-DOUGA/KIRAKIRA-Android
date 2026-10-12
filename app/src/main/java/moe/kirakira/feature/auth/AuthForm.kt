@@ -1,9 +1,11 @@
 package moe.kirakira.feature.auth
 
 import androidx.annotation.StringRes
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
@@ -15,6 +17,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.focus.FocusDirection
@@ -26,6 +32,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -35,6 +42,10 @@ import moe.kirakira.R
 import moe.kirakira.ui.components.AccountFlowDefaults
 import moe.kirakira.ui.components.AccountFlowFieldErrorIcon
 import moe.kirakira.ui.components.AccountFlowSection
+import moe.kirakira.ui.components.OtpInputField
+import moe.kirakira.ui.components.OtpInputType
+import moe.kirakira.ui.components.accountFlowCodeTextStyle
+import moe.kirakira.ui.components.accountFlowSupportingError
 
 @Composable
 internal fun AuthForm(
@@ -52,6 +63,7 @@ internal fun AuthForm(
 ) {
     val buttonContentPadding = ButtonDefaults.TextButtonContentPadding
     val buttonEndPadding = buttonContentPadding.calculateEndPadding(LocalLayoutDirection.current)
+    val buttonStartPadding = buttonContentPadding.calculateStartPadding(LocalLayoutDirection.current)
     Column(modifier, verticalArrangement = Arrangement.spacedBy(AccountFlowDefaults.FieldSpacing)) {
         when (state.step) {
             AuthStep.LOGIN, AuthStep.REGISTER_CREDENTIALS -> {
@@ -133,6 +145,9 @@ internal fun AuthForm(
                 )
             }
             AuthStep.LOGIN_EMAIL, AuthStep.LOGIN_TOTP, AuthStep.REGISTER_VERIFY, AuthStep.RESET_PASSWORD -> {
+                var recoveryInput by remember { mutableStateOf(false) }
+                val useRecoveryInput = state.step == AuthStep.LOGIN_TOTP && (recoveryInput || state.code.length > 6)
+                val focusManager = LocalFocusManager.current
                 Column(verticalArrangement = Arrangement.spacedBy(AccountFlowDefaults.SectionSpacing)) {
                     if (state.step == AuthStep.RESET_PASSWORD) {
                         Column(verticalArrangement = Arrangement.spacedBy(AccountFlowDefaults.FieldSpacing)) {
@@ -160,10 +175,7 @@ internal fun AuthForm(
                         }
                     }
                     AccountFlowSection(
-                        title = stringResource(
-                            if (state.step == AuthStep.LOGIN_TOTP) R.string.auth_verification_account
-                            else R.string.auth_email,
-                        ),
+                        title = null,
                         supportingContent = state.email.takeIf { it.isNotBlank() }?.let { email ->
                             {
                                 Text(
@@ -196,20 +208,68 @@ internal fun AuthForm(
                             null
                         },
                     ) {
-                        AuthTextField(
-                            value = state.code,
-                            modifier = Modifier.focusRequester(focusRequesters.getValue(AuthField.CODE)),
-                            errorRes = state.fieldErrors[AuthField.CODE],
-                            onValueChange = { onFieldChange(AuthField.CODE, it) },
-                            label = if (state.step == AuthStep.LOGIN_TOTP) {
+                        if (useRecoveryInput) {
+                            AuthTextField(
+                                value = state.code,
+                                onValueChange = { onFieldChange(AuthField.CODE, it) },
+                                label = R.string.security_recovery_code,
+                                enabled = state.canEdit,
+                                modifier = Modifier.focusRequester(focusRequesters.getValue(AuthField.CODE)),
+                                textStyle = accountFlowCodeTextStyle(),
+                                keyboardType = KeyboardType.Ascii,
+                                errorRes = state.fieldErrors[AuthField.CODE],
+                                onSubmit = onSubmit,
+                            )
+                        } else {
+                            val codeLabel = if (state.step == AuthStep.LOGIN_TOTP) {
                                 R.string.auth_totp_code
                             } else {
                                 R.string.auth_verification_code
-                            },
-                            enabled = state.canEdit,
-                            keyboardType = if (state.step == AuthStep.LOGIN_TOTP) KeyboardType.Ascii else KeyboardType.Number,
-                            onSubmit = onSubmit,
-                        )
+                            }
+                            OtpInputField(
+                                value = state.code,
+                                onValueChange = { onFieldChange(AuthField.CODE, it) },
+                                label = stringResource(codeLabel),
+                                enabled = state.canEdit,
+                                modifier = Modifier
+                                    .focusRequester(focusRequesters.getValue(AuthField.CODE))
+                                    .testTag("auth_field_$codeLabel"),
+                                error = state.fieldErrors[AuthField.CODE]?.let { stringResource(it) },
+                                inputType = if (state.step == AuthStep.LOGIN_TOTP) {
+                                    OtpInputType.ALPHANUMERIC
+                                } else {
+                                    OtpInputType.NUMERIC
+                                },
+                                onRecoveryCodePaste = if (state.step == AuthStep.LOGIN_TOTP) {
+                                    { code ->
+                                        recoveryInput = true
+                                        onFieldChange(AuthField.CODE, code)
+                                    }
+                                } else {
+                                    null
+                                },
+                                onDone = onSubmit,
+                            )
+                        }
+                        if (state.step == AuthStep.LOGIN_TOTP) {
+                            TextButton(
+                                onClick = {
+                                    focusManager.clearFocus()
+                                    recoveryInput = !useRecoveryInput
+                                    onFieldChange(AuthField.CODE, "")
+                                },
+                                enabled = state.canEdit,
+                                modifier = Modifier.offset(x = -buttonStartPadding).defaultMinSize(minWidth = 48.dp),
+                                contentPadding = buttonContentPadding,
+                            ) {
+                                Text(
+                                    stringResource(
+                                        if (useRecoveryInput) R.string.auth_use_verification_code
+                                        else R.string.auth_use_recovery_code,
+                                    ),
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -225,6 +285,7 @@ private fun AuthTextField(
     @StringRes label: Int,
     enabled: Boolean,
     modifier: Modifier = Modifier,
+    textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
     keyboardType: KeyboardType = KeyboardType.Text,
     secret: Boolean = false,
     @StringRes errorRes: Int? = null,
@@ -235,15 +296,18 @@ private fun AuthTextField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = modifier.fillMaxWidth().testTag("auth_field_$label").then(
-            if (secret) Modifier.semantics { contentType = ContentType.NewPassword } else Modifier,
-        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .animateContentSize(MaterialTheme.motionScheme.fastSpatialSpec())
+            .testTag("auth_field_$label")
+            .then(if (secret) Modifier.semantics { contentType = ContentType.NewPassword } else Modifier),
         label = { Text(stringResource(label)) },
+        textStyle = textStyle,
         shape = MaterialTheme.shapes.large,
         enabled = enabled,
         singleLine = true,
         isError = errorRes != null,
-        supportingText = errorRes?.let { { Text(stringResource(it)) } },
+        supportingText = accountFlowSupportingError(errorRes?.let { stringResource(it) }),
         trailingIcon = if (errorRes != null) { { AccountFlowFieldErrorIcon() } } else null,
         visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
         keyboardOptions = KeyboardOptions(

@@ -7,8 +7,9 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
-import android.net.Uri
 import android.os.PersistableBundle
+import androidx.annotation.StringRes
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -16,8 +17,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -79,7 +82,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -87,6 +89,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -115,6 +118,7 @@ import moe.kirakira.ui.components.AccountFlowActionBar
 import moe.kirakira.ui.components.AccountFlowColumn
 import moe.kirakira.ui.components.AccountFlowDefaults
 import moe.kirakira.ui.components.AccountFlowError
+import moe.kirakira.ui.components.AccountFlowFeedback
 import moe.kirakira.ui.components.AccountFlowFieldErrorIcon
 import moe.kirakira.ui.components.AccountFlowHeader
 import moe.kirakira.ui.components.AccountFlowProgress
@@ -131,8 +135,11 @@ import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.IconBadge
 import moe.kirakira.ui.components.IconBadgeTone
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
-import moe.kirakira.ui.components.ShadowFilledTonalButton
+import moe.kirakira.ui.components.OtpInputField
+import moe.kirakira.ui.components.OtpInputType
 import moe.kirakira.ui.components.SlashIconType
+import moe.kirakira.ui.components.accountFlowCodeTextStyle
+import moe.kirakira.ui.components.accountFlowSupportingError
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.theme.semanticColors
@@ -193,9 +200,9 @@ internal fun SecuritySettingsScreen(
     onCopied: (Boolean) -> Unit,
     onCancelDiscardCredentials: () -> Unit,
     onDiscardCredentials: () -> Unit,
+    modifier: Modifier = Modifier,
     step: SecurityStep = state.step,
     isActive: Boolean = true,
-    modifier: Modifier = Modifier,
 ) {
     val direction = LocalLayoutDirection.current
     val snackbar = remember { SnackbarHostState() }
@@ -433,36 +440,31 @@ private fun SecurityOverview(state: SecuritySettingsState, email: String, onOpen
 @Composable
 private fun SecurityStatusBanner(state: SecuritySettingsState) {
     val factor = state.status?.factor
-    val protected = factor != null && factor != SecondFactor.NONE
-    val colors = MaterialTheme.semanticColors
-    val containerColor = if (protected) colors.success else MaterialTheme.colorScheme.surfaceContainerHigh
-    val contentColor = if (protected) colors.onSuccess else MaterialTheme.colorScheme.onSurfaceVariant
+    val protected = !state.statusPending && factor != null && factor != SecondFactor.NONE
+    val scheme = MaterialTheme.colorScheme
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.extraLarge,
-        color = containerColor,
-        contentColor = contentColor,
+        color = scheme.surfaceContainerLow,
+        contentColor = scheme.onSurface,
     ) {
         Row(
             modifier = Modifier.padding(24.dp),
-            horizontalArrangement = Arrangement.spacedBy(20.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Surface(
-                modifier = Modifier.size(72.dp),
+            IconBadge(
+                icon = when {
+                    state.statusPending -> R.drawable.ic_symbol_lock
+                    factor == SecondFactor.EMAIL -> R.drawable.ic_symbol_mail
+                    factor == SecondFactor.TOTP -> R.drawable.ic_symbol_lock
+                    else -> R.drawable.ic_symbol_error
+                },
                 shape = MaterialShapes.Cookie12Sided.toShape(),
-                color = contentColor.copy(alpha = 0.12f),
-                contentColor = contentColor,
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        painter = painterResource(if (protected) R.drawable.ic_symbol_lock else R.drawable.ic_symbol_error),
-                        contentDescription = null,
-                        modifier = Modifier.size(36.dp),
-                    )
-                }
-            }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                tone = if (protected) IconBadgeTone.PRIMARY else IconBadgeTone.NEUTRAL,
+                size = 64.dp,
+            )
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     stringResource(when {
                         state.statusPending -> R.string.security_status_pending
@@ -471,7 +473,14 @@ private fun SecurityStatusBanner(state: SecuritySettingsState) {
                     }),
                     style = MaterialTheme.typography.titleLarge,
                 )
-                if (factor != null) Text(stringResource(factor.label()), style = MaterialTheme.typography.bodyMedium)
+                if (protected) {
+                    Text(
+                        text = stringResource(factor.label()),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = scheme.onSurfaceVariant,
+                    )
+                    TwoFactorEnabledBadge()
+                }
             }
         }
     }
@@ -528,7 +537,7 @@ private fun TwoFactorManagement(
                 TwoFactorEnabledCard(status, email)
             }
         }
-        flow.notice?.let { AccountFlowError(stringResource(it)) }
+        AccountFlowFeedback(flow.notice?.let { stringResource(it) }) { AccountFlowError(it) }
     }
 }
 
@@ -539,7 +548,6 @@ private fun TwoFactorEnabledCard(
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
-    val colors = MaterialTheme.semanticColors
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.extraLarge,
@@ -567,24 +575,7 @@ private fun TwoFactorEnabledCard(
                         style = MaterialTheme.typography.titleLarge,
                         modifier = Modifier.semantics { heading() },
                     )
-                    Surface(
-                        shape = MaterialTheme.shapes.small,
-                        color = colors.success,
-                        contentColor = colors.onSuccess,
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_symbol_check),
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                            )
-                            Text(stringResource(R.string.security_enabled), style = MaterialTheme.typography.labelLarge)
-                        }
-                    }
+                    TwoFactorEnabledBadge()
                 }
             }
             if (status.factor == SecondFactor.EMAIL || status.totpCreationDateTime != null) {
@@ -607,6 +598,30 @@ private fun TwoFactorEnabledCard(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun TwoFactorEnabledBadge(modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.semanticColors
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.small,
+        color = colors.success,
+        contentColor = colors.onSuccess,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_symbol_check),
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+            )
+            Text(stringResource(R.string.security_enabled), style = MaterialTheme.typography.labelLarge)
         }
     }
 }
@@ -656,11 +671,7 @@ private fun SecurityFlow(
     Column(modifier.fillMaxWidth()) {
         AccountFlowHeader(
             title = stringResource(step.title()),
-            description = if (step == SecurityStep.VERIFY_PASSWORD && !state.completionPending) {
-                stringResource(R.string.security_password_sign_in_required)
-            } else {
-                null
-            },
+            description = state.descriptionRes()?.let { stringResource(it) },
             progressContent = progressStep?.let { currentStep -> { AccountFlowProgress(currentStep, 2) } },
         )
         Spacer(Modifier.height(AccountFlowDefaults.HeaderSpacing))
@@ -749,12 +760,13 @@ private fun SecurityFlow(
                 SecurityStep.OVERVIEW -> Unit
             }
         }
-        if (state.validation != null || state.error != null) {
+        AccountFlowFeedback(state.validation?.let { stringResource(it) }) { message ->
             Spacer(Modifier.height(AccountFlowDefaults.FeedbackSpacing))
-            Column(verticalArrangement = Arrangement.spacedBy(AccountFlowDefaults.FeedbackSpacing)) {
-                state.validation?.let { AccountFlowError(stringResource(it)) }
-                state.error?.let { AccountFlowError(stringResource(it.messageRes())) }
-            }
+            AccountFlowError(message)
+        }
+        AccountFlowFeedback(state.error?.let { stringResource(it.messageRes()) }) { message ->
+            Spacer(Modifier.height(AccountFlowDefaults.FeedbackSpacing))
+            AccountFlowError(message)
         }
     }
 }
@@ -813,14 +825,7 @@ private fun SecuritySubmitButton(
 
 @Composable
 private fun SecurityCurrentEmail(email: String, modifier: Modifier = Modifier) {
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(
-            text = stringResource(R.string.security_current_email),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(email, style = MaterialTheme.typography.bodyMedium)
-    }
+    Text(email, modifier = modifier.fillMaxWidth(), style = MaterialTheme.typography.bodyMedium)
 }
 
 @Composable
@@ -829,10 +834,10 @@ private fun SecurityTextField(
     field: SecurityField,
     label: Int,
     onEdit: (SecurityField, String) -> Unit,
+    modifier: Modifier = Modifier,
     keyboardType: KeyboardType = KeyboardType.Text,
     isActive: Boolean = true,
     onDone: (() -> Unit)? = null,
-    modifier: Modifier = Modifier,
     focusRequester: FocusRequester = remember { FocusRequester() },
     onNext: (() -> Unit)? = null,
 ) {
@@ -851,11 +856,26 @@ private fun SecurityTextField(
             focusRequester.requestFocus()
         }
     }
+    if (field == SecurityField.CODE || field == SecurityField.NEW_EMAIL_CODE) {
+        OtpInputField(
+            value = state.form[field],
+            onValueChange = { onEdit(field, it) },
+            label = stringResource(label),
+            enabled = isActive && enabled,
+            modifier = modifier.focusRequester(focusRequester),
+            error = error,
+            inputType = if (keyboardType == KeyboardType.Ascii) OtpInputType.ALPHANUMERIC else OtpInputType.NUMERIC,
+            onNext = onNext,
+            onDone = onDone,
+        )
+        return
+    }
     OutlinedTextField(
         value = state.form[field],
         onValueChange = { onEdit(field, it) },
         modifier = modifier
             .fillMaxWidth()
+            .animateContentSize(MaterialTheme.motionScheme.fastSpatialSpec())
             .focusRequester(focusRequester)
             .then(
                 when {
@@ -869,7 +889,7 @@ private fun SecurityTextField(
         label = { Text(stringResource(label)) },
         enabled = enabled,
         isError = error != null,
-        supportingText = error?.let { { Text(it) } },
+        supportingText = accountFlowSupportingError(error),
         shape = MaterialTheme.shapes.large,
         singleLine = true,
         visualTransformation = if (password && !showPassword) {
@@ -923,11 +943,11 @@ private fun SecurityCodeField(
     state: SecuritySettingsState,
     onEdit: (SecurityField, String) -> Unit,
     onSend: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
     newEmail: Boolean = false,
     isActive: Boolean = true,
     recipient: String? = null,
     onDone: (() -> Unit)? = null,
-    modifier: Modifier = Modifier,
     focusRequester: FocusRequester = remember { FocusRequester() },
     onNext: (() -> Unit)? = null,
 ) {
@@ -943,13 +963,11 @@ private fun SecurityCodeField(
         else -> R.string.auth_verification_code
     }
     AccountFlowSection(
-        title = stringResource(
-            when {
-                newEmail -> R.string.security_new_email
-                totp -> R.string.security_totp_authenticator
-                else -> R.string.security_current_email
-            },
-        ),
+        title = when {
+            newEmail -> stringResource(R.string.security_new_email)
+            totp -> stringResource(R.string.security_totp_authenticator)
+            else -> null
+        },
         modifier = modifier,
         supportingContent = recipient?.takeIf { it.isNotBlank() }?.let { email ->
             {
@@ -1014,50 +1032,56 @@ private fun TotpSetupContent(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(AccountFlowDefaults.SectionSpacing),
     ) {
-        Column(
+        Surface(
             modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
         ) {
-            Box(
-                modifier = Modifier.size(232.dp).background(Color.White, MaterialTheme.shapes.large).padding(8.dp),
-                contentAlignment = Alignment.Center,
+            Column(
+                modifier = Modifier.padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                val image = bitmap
-                if (image != null) {
-                    Image(image.asImageBitmap(), stringResource(R.string.security_qr_code), Modifier.fillMaxSize())
-                } else {
-                    Text(stringResource(R.string.security_qr_failed), color = Color.Black)
+                Box(
+                    modifier = Modifier
+                        .widthIn(max = 232.dp)
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
+                        .background(Color.White, MaterialTheme.shapes.large)
+                        .padding(8.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    val image = bitmap
+                    if (image != null) {
+                        Image(image.asImageBitmap(), stringResource(R.string.security_qr_code), Modifier.fillMaxSize())
+                    } else {
+                        Text(stringResource(R.string.security_qr_failed), color = Color.Black)
+                    }
+                }
+                OutlinedButton(
+                    onClick = {
+                        val opened = runCatching {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, setup.uri.toUri()))
+                            true
+                        }.getOrDefault(false)
+                        if (!opened) onCopied(false)
+                    },
+                    enabled = isActive && !state.working,
+                    modifier = Modifier.align(Alignment.End),
+                ) {
+                    Text(stringResource(R.string.security_open_authenticator))
                 }
             }
-            OutlinedButton(
-                onClick = {
-                    val opened = runCatching {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(setup.uri)))
-                        true
-                    }.getOrDefault(false)
-                    if (!opened) onCopied(false)
-                },
-                enabled = isActive && !state.working,
-            ) {
-                Text(stringResource(R.string.security_open_authenticator))
-            }
         }
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            SecretCard(stringResource(R.string.security_setup_key)) {
-                Text(
-                    text = setup.secret.chunked(4).joinToString(" "),
-                    modifier = Modifier.fillMaxWidth(),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontFamily = FontFamily.Monospace,
-                    textAlign = TextAlign.Center,
-                )
-            }
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+        SecretCard(
+            title = stringResource(R.string.security_setup_key),
+            actionContent = {
                 CopyButton(stringResource(R.string.security_copy_key), enabled = isActive && !state.working) {
                     onCopied(clipboard.copy(setup.secret))
                 }
-            }
+            },
+        ) {
+            GroupedSecret(setup.secret)
         }
         AccountFlowSection(title = stringResource(R.string.security_confirm_binding)) {
             SecurityTextField(
@@ -1081,69 +1105,125 @@ private fun RecoveryCodes(
         if (!isActive) clipboard.clear()
         onDispose { clipboard.clear() }
     }
-    val codeStyle = MaterialTheme.typography.titleMedium.copy(fontFamily = FontFamily.Monospace)
+    val codeStyle = accountFlowCodeTextStyle()
     val textMeasurer = rememberTextMeasurer(cacheSize = 0)
     val density = LocalDensity.current
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(AccountFlowDefaults.SectionSpacing)) {
-        SecretCard(stringResource(R.string.security_backup_codes)) {
+        SecretCard(
+            title = stringResource(R.string.security_backup_codes),
+            supportingContent = {
+                Text(
+                    text = stringResource(R.string.security_backup_codes_description),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+        ) {
             BoxWithConstraints(Modifier.fillMaxWidth()) {
                 val widestCode = secrets.backupCodes.maxOfOrNull {
                     textMeasurer.measure(it, style = codeStyle, softWrap = false, maxLines = 1).size.width
                 } ?: 0
                 val gap = with(density) { 16.dp.roundToPx() }
                 val columns = if (widestCode * 2 + gap <= constraints.maxWidth) 2 else 1
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    secrets.backupCodes.chunked(columns).forEach { codes ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column {
+                    secrets.backupCodes.chunked(columns).forEachIndexed { index, codes ->
+                        if (index > 0) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        ) {
                             codes.forEach { code ->
                                 Text(
                                     text = code,
                                     modifier = Modifier.weight(1f),
                                     style = codeStyle,
                                     textAlign = TextAlign.Center,
+                                    softWrap = false,
                                 )
                             }
-                            if (codes.size < columns) Spacer(Modifier.weight(1f))
                         }
                     }
                 }
             }
         }
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            SecretCard(stringResource(R.string.security_recovery_code)) {
+        SecretCard(
+            title = stringResource(R.string.security_recovery_code),
+            supportingContent = {
                 Text(
-                    text = secrets.recoveryCode.chunked(4).joinToString(" "),
-                    modifier = Modifier.fillMaxWidth(),
-                    style = codeStyle,
-                    textAlign = TextAlign.Center,
+                    text = stringResource(R.string.security_recovery_code_description),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            }
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+            },
+            actionContent = {
                 CopyButton(stringResource(R.string.security_copy_codes), enabled = isActive) {
                     onCopied(clipboard.copy(secrets.backupCodes.joinToString("\n") + "\n\n" + secrets.recoveryCode))
                 }
-            }
+            },
+        ) {
+            GroupedSecret(secrets.recoveryCode)
         }
     }
 }
 
 /** Selectable monospace card for one-time secrets. */
 @Composable
-private fun SecretCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainerHighest) {
-        SelectionContainer {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                content()
+private fun SecretCard(
+    title: String,
+    modifier: Modifier = Modifier,
+    supportingContent: (@Composable () -> Unit)? = null,
+    actionContent: (@Composable () -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.semantics { heading() },
+                )
+                supportingContent?.invoke()
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            SelectionContainer {
+                Column(Modifier.fillMaxWidth(), content = content)
+            }
+            if (actionContent != null) {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) { actionContent() }
             }
         }
     }
 }
 
 @Composable
-private fun CopyButton(label: String, enabled: Boolean = true, onClick: () -> Unit) {
-    ShadowFilledTonalButton(onClick = onClick, enabled = enabled, shapes = ButtonDefaults.shapes()) {
+private fun GroupedSecret(value: String, modifier: Modifier = Modifier) {
+    FlowRow(
+        modifier = modifier.fillMaxWidth().semantics(mergeDescendants = true) { },
+        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        value.chunked(4).forEach { group ->
+            Text(group, style = accountFlowCodeTextStyle(), softWrap = false)
+        }
+    }
+}
+
+@Composable
+private fun CopyButton(
+    label: String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    OutlinedButton(onClick = onClick, modifier = modifier, enabled = enabled) {
         Icon(painterResource(R.drawable.ic_symbol_content_copy), null, Modifier.size(ButtonDefaults.IconSize))
         Spacer(Modifier.width(ButtonDefaults.IconSpacing))
         Text(label)
@@ -1208,4 +1288,34 @@ private fun SecurityStep.title(): Int = when (this) {
     SecurityStep.DISABLE_TOTP -> R.string.security_disable_totp_title
     SecurityStep.SECRETS -> R.string.security_recovery_title
     SecurityStep.CHECK_FACTOR -> R.string.security_two_factor_section
+}
+
+@StringRes
+private fun SecuritySettingsState.descriptionRes(): Int? {
+    if (completionPending) return null
+    return when (step) {
+        SecurityStep.EMAIL -> R.string.security_change_email_description
+        SecurityStep.VERIFY_EMAIL -> if (status?.factor == SecondFactor.TOTP) {
+            R.string.security_verify_email_totp_description
+        } else {
+            R.string.security_verify_email_description
+        }
+        SecurityStep.PASSWORD -> R.string.security_change_password_description
+        SecurityStep.VERIFY_PASSWORD -> if (status?.factor == SecondFactor.TOTP) {
+            R.string.security_verify_password_totp_description
+        } else {
+            R.string.security_verify_password_description
+        }
+        SecurityStep.TWO_FACTOR -> when (status?.factor) {
+            SecondFactor.NONE -> R.string.security_select_factor_description
+            SecondFactor.EMAIL, SecondFactor.TOTP -> R.string.security_manage_factor_description
+            null -> null
+        }
+        SecurityStep.ENABLE_EMAIL -> R.string.security_enable_email_description
+        SecurityStep.DISABLE_EMAIL -> R.string.security_disable_email_description
+        SecurityStep.TOTP_CONFIRM -> R.string.security_totp_setup_description
+        SecurityStep.DISABLE_TOTP -> R.string.security_disable_totp_description
+        SecurityStep.SECRETS -> R.string.security_save_codes_description
+        SecurityStep.OVERVIEW, SecurityStep.CHECK_FACTOR -> null
+    }
 }

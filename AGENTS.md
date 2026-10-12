@@ -24,7 +24,7 @@
 | --- | --- | --- |
 | 按钮、FAB、关注和单选框 | 复用 `ShadowButtons`、`ShadowFloatingActionButton`、`FollowButton` 与 `ShadowRadioButton`；添加 FAB 仅显示加号，保留本地化描述；指定 Expressive 尺寸使用同尺寸官方配套 API；不重复投影或新增阴影开关 | [按钮、单选框与阴影](CONTRIBUTING.md#按钮单选框与阴影) |
 | 分组、开关和弹层 | 使用官方 `SegmentedListItem` 与共享连接形状；普通组用 `ConnectedListGroup`，数据列表用 `ConnectedLazyColumn`；普通开关只改变 Switch；弹层背景按实际连接条目决定，空内容用 `surface` | [列表、开关与弹层](CONTRIBUTING.md#列表开关与弹层) |
-| 资料、隐私和账号流程 | 资料在顶栏用平面 `TextButton` 保存，保留同步重试与未保存返回确认；隐私选择立即提交，明确失败恢复确认值，结果不确定时暂停编辑并只读核对；重置五项公开须确认；认证与安全流程复用 `AccountFlowScaffold` 和固定底部主按钮；Auth 无关闭按钮 | [账号表单与保存](CONTRIBUTING.md#账号表单与保存) |
+| 资料、隐私和账号流程 | 资料在顶栏用平面 `TextButton` 保存，保留同步重试与未保存返回确认；隐私选择立即提交，明确失败恢复确认值，结果不确定时暂停编辑并只读核对；重置五项公开须确认；认证与安全流程复用 `AccountFlowScaffold` 和固定底部主按钮；验证步骤直接展示邮箱，保留任务标题及输入标签；六位代码复用 `OtpInputField`，保留字母数字备用码与完整恢复码入口；错误反馈短过渡且不留占位；二步验证采用浅色状态卡与绿色启用标记，代码展示区的辅助操作使用描边按钮；Auth 无关闭按钮 | [账号表单与保存](CONTRIBUTING.md#账号表单与保存) |
 | 图标和用户名 | 默认 Material Symbols Rounded，不混用图标风格；普通设置图标裸露显示；独立 username 使用 `@username`、等宽字体和次要文字色，空白不显示，输入与 API 保留原始值 | [图标与用户名](CONTRIBUTING.md#图标与用户名) |
 | 文案和预览 | 英语与中文字符串同步维护；短单句标签不加句末标点，保留 `Alpha!` 例外；不内置 Demo，不主动增加功能机制说明；预览优先空表单、游客账号与空列表 | [文案、本地化与无障碍](CONTRIBUTING.md#文案本地化与无障碍) |
 | 加载和刷新 | 不确定加载统一使用 `IndeterminateCircularProgressIndicator` 的官方 Material 2 动画与圆角端点；刷新保留已有内容和空状态，复用 `ContentPullToRefresh` 覆盖式指示器；首次加载与分页分别处理 | [加载与刷新](CONTRIBUTING.md#加载与刷新) |

@@ -1,5 +1,6 @@
 package moe.kirakira.feature.auth
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -33,6 +34,7 @@ import moe.kirakira.ui.components.AccountFlowDefaults
 import moe.kirakira.ui.components.AccountFlowFieldErrorIcon
 import moe.kirakira.ui.components.AnimatedSlashIcon
 import moe.kirakira.ui.components.SlashIconType
+import moe.kirakira.ui.components.accountFlowSupportingError
 
 @Composable
 internal fun LoginForm(
@@ -56,6 +58,7 @@ internal fun LoginForm(
             onValueChange = onEmailChange,
             modifier = Modifier
                 .fillMaxWidth()
+                .animateContentSize(MaterialTheme.motionScheme.fastSpatialSpec())
                 .focusRequester(emailFocusRequester)
                 .testTag("auth_email")
                 .semantics { contentType = ContentType.EmailAddress + ContentType.Username },
@@ -64,7 +67,7 @@ internal fun LoginForm(
             singleLine = true,
             shape = MaterialTheme.shapes.large,
             isError = emailError != null,
-            supportingText = emailError?.let { { Text(stringResource(it)) } },
+            supportingText = accountFlowSupportingError(emailError?.let { stringResource(it) }),
             trailingIcon = if (emailError != null) { { AccountFlowFieldErrorIcon() } } else null,
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.None,
@@ -79,6 +82,7 @@ internal fun LoginForm(
             onValueChange = onPasswordChange,
             modifier = Modifier
                 .fillMaxWidth()
+                .animateContentSize(MaterialTheme.motionScheme.fastSpatialSpec())
                 .focusRequester(passwordFocusRequester)
                 .testTag("auth_password")
                 .semantics {
@@ -93,7 +97,7 @@ internal fun LoginForm(
             singleLine = true,
             shape = MaterialTheme.shapes.large,
             isError = passwordError != null,
-            supportingText = passwordError?.let { { Text(stringResource(it)) } },
+            supportingText = accountFlowSupportingError(passwordError?.let { stringResource(it) }),
             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
                 Row(

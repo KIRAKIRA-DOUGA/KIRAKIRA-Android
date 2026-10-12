@@ -1,5 +1,3 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
-
 package moe.kirakira.ui.components
 
 import androidx.annotation.DrawableRes
@@ -50,9 +48,12 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import moe.kirakira.R
 import androidx.compose.material.ButtonDefaults as Material2ButtonDefaults
 
@@ -65,6 +66,12 @@ internal object AccountFlowDefaults {
     val FeedbackSpacing = 12.dp
     val ActionBarVerticalPadding = 16.dp
 }
+
+@Composable
+internal fun accountFlowCodeTextStyle(): TextStyle = MaterialTheme.typography.titleMedium.copy(
+    fontFamily = FontFamily.Monospace,
+    letterSpacing = 1.sp,
+)
 
 /** Shared account-flow host. IME avoidance includes the Snackbar and consumes the inset once. */
 @Composable
@@ -177,7 +184,8 @@ internal fun AccountFlowHeader(
         Text(
             text = title,
             style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold,
             modifier = Modifier.semantics { heading() },
         )
         if (progressContent != null) {
@@ -226,40 +234,53 @@ internal fun AccountFlowProgress(currentStep: Int, stepCount: Int, modifier: Mod
 /** A plain form group. Actions wrap without narrowing the fields or their context. */
 @Composable
 internal fun AccountFlowSection(
-    title: String,
+    title: String?,
     modifier: Modifier = Modifier,
     supportingContent: (@Composable () -> Unit)? = null,
     actionContent: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(modifier.fillMaxWidth()) {
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-            itemVerticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier
-                    .then(if (actionContent != null) Modifier.padding(end = 12.dp) else Modifier)
-                    .semantics { heading() },
-            )
-            if (actionContent != null) {
-                Box(
-                    modifier = Modifier.width(IntrinsicSize.Max).weight(1f),
-                    contentAlignment = Alignment.CenterEnd,
-                ) {
-                    actionContent()
+        if (title != null || supportingContent != null || actionContent != null) {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (title != null) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier
+                            .then(if (actionContent != null) Modifier.padding(end = 12.dp) else Modifier)
+                            .semantics { heading() },
+                    )
+                } else if (supportingContent != null) {
+                    Box(
+                        modifier = Modifier
+                            .then(if (actionContent != null) Modifier.padding(end = 12.dp) else Modifier),
+                    ) {
+                        supportingContent()
+                    }
+                }
+                if (actionContent != null) {
+                    Box(
+                        modifier = Modifier
+                            .width(IntrinsicSize.Max)
+                            .weight(1f),
+                        contentAlignment = Alignment.CenterEnd,
+                    ) {
+                        actionContent()
+                    }
                 }
             }
+            if (title != null && supportingContent != null) {
+                Spacer(Modifier.height(4.dp))
+                supportingContent()
+            }
+            Spacer(Modifier.height(16.dp))
         }
-        if (supportingContent != null) {
-            Spacer(Modifier.height(4.dp))
-            supportingContent()
-        }
-        Spacer(Modifier.height(16.dp))
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(AccountFlowDefaults.FieldSpacing),

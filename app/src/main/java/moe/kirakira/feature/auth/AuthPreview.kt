@@ -125,3 +125,22 @@ private fun AuthVerificationPreview() {
         ),
     )
 }
+
+internal class AuthFilledCodePreviewProvider : PreviewParameterProvider<AuthUiState> {
+    override val values = sequenceOf(
+        AuthUiState(step = AuthStep.LOGIN_EMAIL, email = "preview@example.com", code = "123456"),
+        AuthUiState(step = AuthStep.LOGIN_TOTP, email = "preview@example.com", code = "A1B2C3"),
+        AuthUiState(step = AuthStep.LOGIN_TOTP, email = "preview@example.com", code = "ABCD1234EFGH5678JKLM9012"),
+    )
+
+    override fun getDisplayName(index: Int): String = listOf("Email code", "Backup code", "Recovery code")[index]
+}
+
+@Preview(name = "Auth · Filled verification code", locale = "en", widthDp = 411, heightDp = 891)
+@Preview(name = "认证 · 验证码已填写", locale = "zh", widthDp = 411, heightDp = 891)
+@Preview(name = "Auth · Filled code, dark", uiMode = Configuration.UI_MODE_NIGHT_YES, widthDp = 411, heightDp = 891)
+@Preview(name = "认证 · 验证码已填写、大字体", locale = "zh", widthDp = 320, heightDp = 640, fontScale = 2f)
+@Composable
+private fun AuthFilledCodePreview(@PreviewParameter(AuthFilledCodePreviewProvider::class) state: AuthUiState) {
+    AuthPreviewContent(state)
+}

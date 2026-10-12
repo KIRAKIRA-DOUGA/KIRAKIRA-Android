@@ -93,6 +93,8 @@ HTTP 401、429、5xx 分别映射失效、限流、服务故障，其余失败�
 
 当前 Rosales 的 `/user/self` 对无效 token 和数据库故障都可能返回 HTTP 200 + `success=false`，缺少可靠业务错误码。因此此类拒绝标记需要重新验证、撤下该账号当前身份，但保留加密 token 供用户重试；不能宣称一定已过期。明确 401 才清除 token，账号条目保留。网络和超时保留离线资料及会话。后续后端提供稳定错误码后应更新这一映射，而不是匹配中文 `message`。
 
+`SessionFeedback` 为 `NETWORK` 与 `TIMEOUT` 使用账号弹窗专属的中英文标题、共用保留账号说明及“继续使用”按钮，不修改通用 `ApiFailure.messageRes()` 映射。目标账号名称与正文间隔 8dp；关闭按钮、系统返回及点击弹窗外侧统一调用 `onDismissError`，重试仍调用原操作的回调。其他异常沿用原有文案与按钮，会话状态、API 和存储格式不变。
+
 ### 会话存储与切换
 
 [SessionStore](../../app/src/main/java/moe/kirakira/data/auth/SessionStore.kt) 用 Android Keystore 的不可导出 AES-256 密钥、随机 IV 和 AES/GCM/NoPadding 加密完整账号库，通过 `AtomicFile` 写入 `noBackupFilesDir`。读写失败不会退回明文或覆盖为假成功；UI 提供重试及需要确认的本机账号库重置。加密选择参考 [Android 密码学建议](https://developer.android.com/privacy-and-security/cryptography) 与 [Keystore](https://developer.android.com/privacy-and-security/keystore)。

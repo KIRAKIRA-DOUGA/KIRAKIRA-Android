@@ -12,10 +12,11 @@ import moe.kirakira.data.security.TotpSecrets
 import moe.kirakira.data.security.TotpSetup
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
-// Synthetic fixtures belong only to these previews; forms contain no passwords or verification codes.
+// Synthetic fixtures belong only to these previews; filled codes are fictional and passwords stay empty.
 private const val PREVIEW_EMAIL = "preview@example.com"
 private const val PREVIEW_NEW_EMAIL = "new@example.com"
 private const val PREVIEW_BINDING_DATE = 1767225600000L
+private const val PREVIEW_CODE = "123456"
 
 @Preview(name = "Security · Guest", showBackground = true)
 @Preview(name = "Security · Guest, dark", uiMode = Configuration.UI_MODE_NIGHT_YES, showBackground = true)
@@ -71,6 +72,68 @@ private fun SecurityVerificationPreview(
         ),
         email = "current.preview.with.a.long.email.address@example.com",
     )
+}
+
+internal class SecurityFilledCodePreviewProvider : PreviewParameterProvider<SecuritySettingsState> {
+    override val values = sequenceOf(
+        SecuritySettingsState(
+            page = SecurityPage.EMAIL,
+            status = SecurityStatus(SecondFactor.EMAIL),
+            credentials = CredentialFlow.VerifyEmail(
+                SecurityForm.Empty
+                    .with(SecurityField.EMAIL, PREVIEW_NEW_EMAIL)
+                    .with(SecurityField.CODE, PREVIEW_CODE)
+                    .with(SecurityField.NEW_EMAIL_CODE, "654321"),
+            ),
+        ),
+        SecuritySettingsState(
+            page = SecurityPage.TWO_FACTOR,
+            status = SecurityStatus(SecondFactor.NONE),
+            twoFactor = TwoFactorFlow.ConfirmTotp(
+                setup = previewTotpSetup(),
+                form = SecurityForm.Empty.with(SecurityField.CODE, PREVIEW_CODE),
+            ),
+        ),
+        SecuritySettingsState(
+            page = SecurityPage.EMAIL,
+            status = SecurityStatus(SecondFactor.TOTP),
+            credentials = CredentialFlow.VerifyEmail(
+                SecurityForm.Empty
+                    .with(SecurityField.EMAIL, PREVIEW_NEW_EMAIL)
+                    .with(SecurityField.CODE, PREVIEW_CODE)
+                    .with(SecurityField.NEW_EMAIL_CODE, "654321"),
+            ),
+        ),
+        SecuritySettingsState(
+            page = SecurityPage.PASSWORD,
+            status = SecurityStatus(SecondFactor.EMAIL),
+            credentials = CredentialFlow.VerifyPassword(SecurityForm.Empty.with(SecurityField.CODE, PREVIEW_CODE)),
+        ),
+        SecuritySettingsState(
+            page = SecurityPage.PASSWORD,
+            status = SecurityStatus(SecondFactor.TOTP),
+            credentials = CredentialFlow.VerifyPassword(SecurityForm.Empty.with(SecurityField.CODE, PREVIEW_CODE)),
+        ),
+    )
+
+    override fun getDisplayName(index: Int): String = listOf(
+        "Email change · Email codes",
+        "Authenticator setup · Code",
+        "Email change · Authenticator code",
+        "Password change · Email code",
+        "Password change · Authenticator code",
+    )[index]
+}
+
+@Preview(name = "Security · Filled verification code", locale = "en", widthDp = 411, heightDp = 891)
+@Preview(name = "账号安全 · 验证码已填写", locale = "zh", widthDp = 411, heightDp = 891)
+@Preview(name = "Security · Filled code, dark", uiMode = Configuration.UI_MODE_NIGHT_YES, widthDp = 411, heightDp = 891)
+@Preview(name = "账号安全 · 验证码已填写、大字体", locale = "zh", widthDp = 320, heightDp = 640, fontScale = 2f)
+@Composable
+private fun SecurityFilledCodePreview(
+    @PreviewParameter(SecurityFilledCodePreviewProvider::class) state: SecuritySettingsState,
+) {
+    SecurityPreviewContent(state)
 }
 
 internal class EnabledFactorPreviewProvider : PreviewParameterProvider<SecondFactor> {
@@ -143,10 +206,7 @@ private fun securityStepPreviewState(step: SecurityStep): SecuritySettingsState 
         SecurityStep.TOTP_CONFIRM -> state.copy(
             page = SecurityPage.TWO_FACTOR,
             twoFactor = TwoFactorFlow.ConfirmTotp(
-                TotpSetup(
-                    uri = "otpauth://totp/KIRAKIRA:preview?secret=AAAAAAAAAAAAAAAA&issuer=KIRAKIRA",
-                    secret = "AAAAAAAAAAAAAAAA",
-                ),
+                previewTotpSetup(),
             ),
         )
         SecurityStep.DISABLE_TOTP -> state.copy(
@@ -168,3 +228,8 @@ private fun securityStepPreviewState(step: SecurityStep): SecuritySettingsState 
         )
     }
 }
+
+private fun previewTotpSetup(): TotpSetup = TotpSetup(
+    uri = "otpauth://totp/KIRAKIRA:preview?secret=AAAAAAAAAAAAAAAA&issuer=KIRAKIRA",
+    secret = "AAAAAAAAAAAAAAAA",
+)

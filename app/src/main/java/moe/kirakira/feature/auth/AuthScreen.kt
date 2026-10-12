@@ -2,7 +2,6 @@ package moe.kirakira.feature.auth
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Spacer
@@ -36,6 +35,7 @@ import moe.kirakira.ui.components.AccountFlowActionBar
 import moe.kirakira.ui.components.AccountFlowColumn
 import moe.kirakira.ui.components.AccountFlowDefaults
 import moe.kirakira.ui.components.AccountFlowError
+import moe.kirakira.ui.components.AccountFlowFeedback
 import moe.kirakira.ui.components.AccountFlowHeader
 import moe.kirakira.ui.components.AccountFlowProgress
 import moe.kirakira.ui.components.AccountFlowScaffold
@@ -79,13 +79,18 @@ internal fun AuthScreen(
         else -> R.string.auth_sign_in
     }
     val description = when (state.step) {
+        AuthStep.LOGIN -> R.string.auth_description
+        AuthStep.LOGIN_EMAIL -> R.string.auth_email_code_description
         AuthStep.LOGIN_TOTP -> R.string.auth_totp_description
+        AuthStep.REGISTER_PROFILE -> R.string.auth_profile_description
+        AuthStep.REGISTER_CREDENTIALS -> R.string.auth_registration_description
+        AuthStep.REGISTER_INVITATION -> R.string.auth_invitation_description
+        AuthStep.REGISTER_VERIFY -> R.string.auth_register_verify_description
+        AuthStep.FORGOT_EMAIL -> R.string.auth_forgot_description
+        AuthStep.RESET_PASSWORD -> R.string.auth_reset_description
         AuthStep.TOTP_HELP -> R.string.auth_totp_recovery_description
         AuthStep.SAVE_SESSION -> R.string.auth_save_session_description
         AuthStep.SAVE_PASSWORD_RESET -> R.string.auth_finish_reset_description
-        AuthStep.LOGIN, AuthStep.LOGIN_EMAIL, AuthStep.REGISTER_PROFILE, AuthStep.REGISTER_CREDENTIALS,
-        AuthStep.REGISTER_INVITATION, AuthStep.REGISTER_VERIFY, AuthStep.FORGOT_EMAIL, AuthStep.RESET_PASSWORD,
-            -> null
     }
     val submitLabel = when (state.step) {
         AuthStep.LOGIN, AuthStep.LOGIN_EMAIL, AuthStep.LOGIN_TOTP -> R.string.auth_sign_in_button
@@ -141,7 +146,7 @@ internal fun AuthScreen(
         AccountFlowColumn(padding) {
             AccountFlowHeader(
                 title = heading,
-                description = description?.let { stringResource(it) },
+                description = stringResource(description),
                 progressContent = if (registrationStep > 0) {
                     { AccountFlowProgress(registrationStep, 4) }
                 } else {
@@ -166,7 +171,7 @@ internal fun AuthScreen(
                 )
             }
             if (state.step == AuthStep.LOGIN) {
-                Spacer(Modifier.height(AccountFlowDefaults.FeedbackSpacing))
+                Spacer(Modifier.height(AccountFlowDefaults.FieldSpacing))
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -208,20 +213,19 @@ internal fun AuthScreen(
             }
             val hasError = state.errorRes != null ||
                 (state.submission == AuthSubmission.FAILED && state.fieldErrors.isEmpty())
-            if (state.noticeRes != null || hasError) {
+            AccountFlowFeedback(state.noticeRes?.let { stringResource(it) }) { message ->
                 Spacer(Modifier.height(AccountFlowDefaults.FeedbackSpacing))
-                Column(verticalArrangement = Arrangement.spacedBy(AccountFlowDefaults.FeedbackSpacing)) {
-                    state.noticeRes?.let {
-                        Text(
-                            text = stringResource(it),
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                        )
-                    }
-                    if (hasError) {
-                        AccountFlowError(stringResource(state.errorRes ?: R.string.auth_sign_in_failed))
-                    }
-                }
+                Text(
+                    text = message,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                )
+            }
+            AccountFlowFeedback(
+                message = if (hasError) stringResource(state.errorRes ?: R.string.auth_sign_in_failed) else null,
+            ) { message ->
+                Spacer(Modifier.height(AccountFlowDefaults.FeedbackSpacing))
+                AccountFlowError(message)
             }
         }
     }
