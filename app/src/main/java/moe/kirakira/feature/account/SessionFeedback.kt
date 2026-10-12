@@ -1,5 +1,6 @@
 package moe.kirakira.feature.account
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -11,6 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import moe.kirakira.R
 import moe.kirakira.core.network.ApiFailure
 import moe.kirakira.data.auth.SessionState
@@ -25,6 +27,7 @@ internal fun SessionFeedback(
     onLogin: (String) -> Unit,
 ) {
     val error = state.error ?: return
+    val isConnectionFailure = error == ApiFailure.NETWORK || error == ApiFailure.TIMEOUT
     var confirmingReset by remember(error) { mutableStateOf(false) }
     if (confirmingReset) {
         AlertDialog(
@@ -50,14 +53,25 @@ internal fun SessionFeedback(
     AlertDialog(
         onDismissRequest = onDismissError,
         containerColor = MaterialTheme.colorScheme.surface,
-        title = { Text(stringResource(R.string.account_session_problem)) },
+        title = {
+            val title = when (error) {
+                ApiFailure.NETWORK -> R.string.account_connection_error_title
+                ApiFailure.TIMEOUT -> R.string.account_connection_timeout_title
+                ApiFailure.SERVER, ApiFailure.INVALID_RESPONSE, ApiFailure.REJECTED,
+                ApiFailure.SESSION_EXPIRED, ApiFailure.RATE_LIMITED, ApiFailure.DAILY_LIMIT,
+                ApiFailure.STORAGE -> R.string.account_session_problem
+            }
+            Text(stringResource(title))
+        },
         text = {
-            val message = if (error == ApiFailure.REJECTED) {
+            val message = if (isConnectionFailure) {
+                R.string.account_connection_error_message
+            } else if (error == ApiFailure.REJECTED) {
                 R.string.account_session_unverified
             } else {
                 error.messageRes()
             }
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 state.accounts.find { it.profile.uuid == state.failedAccountUuid }?.let {
                     Text(it.profile.displayName)
                 }
@@ -84,7 +98,10 @@ internal fun SessionFeedback(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismissError) { Text(stringResource(R.string.account_cancel)) }
+            TextButton(onClick = onDismissError) {
+                val label = if (isConnectionFailure) R.string.account_continue else R.string.account_cancel
+                Text(stringResource(label))
+            }
         },
     )
 }

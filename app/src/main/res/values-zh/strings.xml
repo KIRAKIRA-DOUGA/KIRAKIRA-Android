@@ -324,6 +324,10 @@
     <string name="account_storage_error">无法安全读取或保存账号，请检查存储空间后重试。新会话尚未启用。</string>
     <string name="account_session_unverified">无法验证此账号，请重试或重新登录。已保留本机账号信息。</string>
     <string name="account_session_problem">账号状态提示</string>
+    <string name="account_connection_error_title">暂时无法连接服务器</string>
+    <string name="account_connection_timeout_title">连接服务器超时</string>
+    <string name="account_connection_error_message">已保留此设备上的账号和登录信息。你可以继续使用，或检查网络后重试。</string>
+    <string name="account_continue">继续使用</string>
     <string name="account_needs_login">需要重新登录</string>
     <string name="account_logout_message">移除当前账号在此设备上的会话并切回游客？其他已保存账号会保留。</string>
     <string name="auth_cooling_down">操作过于频繁，请等待倒计时结束后再发送验证码</string>

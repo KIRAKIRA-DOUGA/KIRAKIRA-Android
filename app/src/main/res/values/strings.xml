@@ -331,6 +331,10 @@
     <string name="account_storage_error">Could not read or save accounts securely. Free up storage and retry. No new session has been activated.</string>
     <string name="account_session_unverified">Could not verify this account. Retry or sign in again. Saved account details have been kept.</string>
     <string name="account_session_problem">Account needs attention</string>
+    <string name="account_connection_error_title">Couldn’t connect to the server</string>
+    <string name="account_connection_timeout_title">Connection timed out</string>
+    <string name="account_connection_error_message">Your accounts and sign-in information are still saved on this device. You can continue using the app, or check your connection and try again.</string>
+    <string name="account_continue">Continue</string>
     <string name="account_needs_login">Sign in again</string>
     <string name="account_logout_message">Remove the current session from this device and switch to Guest? Other saved accounts will remain.</string>
     <string name="auth_cooling_down">Please wait before requesting another code</string>
