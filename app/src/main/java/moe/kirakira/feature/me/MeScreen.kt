@@ -125,7 +125,7 @@ private fun ProfileListItem(
         Text(
             text = profile?.displayName ?: stringResource(R.string.auth_sign_in),
             style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )

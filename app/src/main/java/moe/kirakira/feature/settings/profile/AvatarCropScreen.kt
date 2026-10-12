@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -57,7 +56,7 @@ import moe.kirakira.ui.components.appTopAppBarColors
 import moe.kirakira.ui.theme.ThemeColorDefaults
 
 /** Only the proven crop engine is a View; controls, state and surrounding UI are Compose. */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun AvatarCropScreen(
     state: ProfileEditorState,
@@ -115,7 +114,7 @@ internal fun AvatarCropScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(stringResource(R.string.profile_edit_avatar), fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.profile_edit_avatar), fontWeight = FontWeight.Bold)
                 },
                 colors = appTopAppBarColors(),
                 navigationIcon = {
@@ -131,47 +130,63 @@ internal fun AvatarCropScreen(
         },
         snackbarHost = { SnackbarHost(snackbar) },
         // Same tone as the top bar so the crop canvas reads as one framed surface.
-        bottomBar = { Surface(color = ThemeColorDefaults.appBarContainerColor()) {
-            Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                TooltipBox(positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-                    tooltip = { PlainTooltip { Text(stringResource(R.string.profile_rotate)) } },
-                    state = rememberTooltipState()) {
-                    ShadowFilledTonalIconButton(
-                        onClick = { cropper?.rotateImage(90) },
-                        enabled = state.cropReady && !state.cropBusy,
-                        modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
-                        shapes = IconButtonDefaults.shapes(),
+        bottomBar = {
+            Surface(color = ThemeColorDefaults.appBarContainerColor()) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+                        tooltip = { PlainTooltip { Text(stringResource(R.string.profile_rotate)) } },
+                        state = rememberTooltipState(),
                     ) {
-                        Icon(painterResource(R.drawable.ic_symbol_rotate_right), stringResource(R.string.profile_rotate))
+                        ShadowFilledTonalIconButton(
+                            onClick = { cropper?.rotateImage(90) },
+                            enabled = state.cropReady && !state.cropBusy,
+                            modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
+                            shapes = IconButtonDefaults.shapes(),
+                        ) {
+                            Icon(
+                                painterResource(R.drawable.ic_symbol_rotate_right),
+                                stringResource(R.string.profile_rotate),
+                            )
+                        }
                     }
+                    SettingsPrimaryButton(
+                        label = stringResource(R.string.profile_done),
+                        onClick = onConfirm,
+                        icon = R.drawable.ic_symbol_check,
+                        enabled = state.cropReady && !state.cropBusy,
+                        busy = state.cropBusy,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
-                SettingsPrimaryButton(
-                    label = stringResource(R.string.profile_done),
-                    onClick = onConfirm,
-                    icon = R.drawable.ic_symbol_check,
-                    enabled = state.cropReady && !state.cropBusy,
-                    busy = state.cropBusy,
-                    modifier = Modifier.weight(1f),
-                )
             }
-        } },
+        },
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+        Box(Modifier
+            .fillMaxSize()
+            .padding(padding), contentAlignment = Alignment.Center) {
             AndroidView(
-                factory = { context -> CropImageView(context).apply {
-                    setAspectRatio(1, 1)
-                    setFixedAspectRatio(true)
-                    cropShape = CropImageView.CropShape.OVAL
-                    guidelines = CropImageView.Guidelines.ON_TOUCH
-                    isShowProgressBar = false
-                    isSaveEnabled = false
-                    setOnSetImageUriCompleteListener { _, _, error -> currentLoaded(source, error == null) }
-                    val viewport = state.cropViewState
-                    if (viewport is Bundle) onRestoreInstanceState(viewport)
-                    else setImageUriAsync(Uri.fromFile(source))
-                    cropper = this
-                } },
+                factory = { context ->
+                    CropImageView(context).apply {
+                        setAspectRatio(1, 1)
+                        setFixedAspectRatio(true)
+                        cropShape = CropImageView.CropShape.OVAL
+                        guidelines = CropImageView.Guidelines.ON_TOUCH
+                        isShowProgressBar = false
+                        isSaveEnabled = false
+                        setOnSetImageUriCompleteListener { _, _, error -> currentLoaded(source, error == null) }
+                        val viewport = state.cropViewState
+                        if (viewport is Bundle) onRestoreInstanceState(viewport)
+                        else setImageUriAsync(Uri.fromFile(source))
+                        cropper = this
+                    }
+                },
                 modifier = Modifier.fillMaxSize(),
                 onRelease = { view ->
                     val viewport = view.onSaveInstanceState()
@@ -197,11 +212,15 @@ internal fun AvatarCropScreen(
                     cropper = null
                 },
             )
-            if (state.cropBusy) Box(Modifier.matchParentSize().pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
-                }
-            })
+            if (state.cropBusy) Box(
+                Modifier
+                    .matchParentSize()
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
+                        }
+                    },
+            )
             if (!state.cropReady || state.cropBusy) IndeterminateCircularProgressIndicator()
         }
     }

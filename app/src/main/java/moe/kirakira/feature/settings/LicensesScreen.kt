@@ -118,7 +118,7 @@ internal fun LicensesContent(
                     offset = DpOffset(32.dp, 32.dp),
                 )
                 TopAppBar(
-                    title = { Text(stringResource(R.string.about_licenses), fontWeight = FontWeight.SemiBold) },
+                    title = { Text(stringResource(R.string.about_licenses), fontWeight = FontWeight.Bold) },
                     navigationIcon = {
                         IconButton(onClick = onBack, modifier = Modifier.testTag("licenses_back")) {
                             Icon(

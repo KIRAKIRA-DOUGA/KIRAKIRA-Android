@@ -29,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
@@ -43,6 +44,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Constraints
@@ -97,6 +99,7 @@ internal fun VideoPage(
     val kaomojiModel: KaomojiViewModel = viewModel()
     val recentKaomoji by kaomojiModel.recent.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val resources by rememberUpdatedState(LocalResources.current)
     val detail by model.detail.collectAsStateWithLifecycle()
     val resume by model.resume.collectAsStateWithLifecycle()
     val comments by model.comments.collectAsStateWithLifecycle()
@@ -135,7 +138,7 @@ internal fun VideoPage(
     val value = detail.data
     val signedIn = session.activeUuid != null
     fun requireLogin(action: () -> Unit) { if (signedIn) action() else { playback.pause(); onLogin() } }
-    fun unavailable() { scope.launch { snackbar.showSnackbar(context.getString(R.string.video_action_unavailable)) } }
+    fun unavailable() { scope.launch { snackbar.showSnackbar(resources.getString(R.string.video_action_unavailable)) } }
     val lifecycleOwner = LocalLifecycleOwner.current
     val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsStateWithLifecycle()
     LaunchedEffect(value, resume, playbackSettings, isActive, lifecycleState, session.revision) {
@@ -154,7 +157,7 @@ internal fun VideoPage(
         previouslyActive = isActive
     }
     LaunchedEffect(error) {
-        error?.let { snackbar.showSnackbar(context.getString(if (it == moe.kirakira.core.network.ApiFailure.NETWORK ||
+        error?.let { snackbar.showSnackbar(resources.getString(if (it == moe.kirakira.core.network.ApiFailure.NETWORK ||
                 it == moe.kirakira.core.network.ApiFailure.TIMEOUT) R.string.content_mutation_uncertain else it.messageRes())); model.dismissActionError() }
     }
     LaunchedEffect(fullscreen, pip, isActive) {

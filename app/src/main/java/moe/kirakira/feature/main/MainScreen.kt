@@ -270,12 +270,12 @@ private fun MainTopBar(
         AppDestination.HOME -> HomeTopBar(onOpenMe = onOpenMe, avatar = avatar)
 
         AppDestination.FOLLOWING -> TopAppBar(
-            title = { Text(stringResource(R.string.nav_following), fontWeight = FontWeight.SemiBold) },
+            title = { Text(stringResource(R.string.nav_following), fontWeight = FontWeight.Bold) },
             colors = appTopAppBarColors(),
         )
 
         AppDestination.ME -> TopAppBar(
-            title = { Text(stringResource(R.string.nav_me), fontWeight = FontWeight.SemiBold) },
+            title = { Text(stringResource(R.string.nav_me), fontWeight = FontWeight.Bold) },
             colors = appTopAppBarColors(),
         )
 

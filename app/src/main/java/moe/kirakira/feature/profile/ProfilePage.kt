@@ -17,15 +17,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import java.util.UUID
 import kotlinx.coroutines.launch
 import moe.kirakira.R
 import moe.kirakira.core.image.deliveryImageUrl
@@ -39,7 +41,6 @@ import moe.kirakira.ui.components.appTopAppBarColors
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.components.rememberTabChangeHandler
 import okio.ByteString.Companion.encodeUtf8
-import java.util.UUID
 
 internal enum class ProfileTab { VIDEOS, COLLECTIONS }
 internal enum class ProfileAction(@param:StringRes val messageRes: Int) {
@@ -64,33 +65,45 @@ internal fun ProfilePage(
     val session by model.session.collectAsStateWithLifecycle()
     val error by model.actionError.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
-    val context = LocalContext.current
+    val resources by rememberUpdatedState(LocalResources.current)
     val density = LocalDensity.current
     val sourceInstanceId = rememberSaveable { UUID.randomUUID().toString() }
     val scope = rememberCoroutineScope()
     LaunchedEffect(error) {
-        error?.let { snackbar.showSnackbar(context.getString(it.messageRes())); model.dismissActionError() }
+        error?.let { snackbar.showSnackbar(resources.getString(it.messageRes())); model.dismissActionError() }
     }
     val value = profile.data
     if (value == null) {
-        FrostedScaffold(modifier, snackbarHost = { SnackbarHost(snackbar) }, topBar = {
-            TopAppBar(
-                title = {
-                    if (!profile.loading) {
-                        Text(stringResource(R.string.me_profile), fontWeight = FontWeight.SemiBold)
-                    }
-                },
-                colors = appTopAppBarColors(),
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            painterResource(R.drawable.ic_symbol_arrow_back),
-                            stringResource(R.string.navigate_back),
-                        )
-                    }
-                },
+        FrostedScaffold(
+            modifier, snackbarHost = { SnackbarHost(snackbar) },
+            topBar = {
+                TopAppBar(
+                    title = {
+                        if (!profile.loading) {
+                            Text(stringResource(R.string.me_profile), fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    colors = appTopAppBarColors(),
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                painterResource(R.drawable.ic_symbol_arrow_back),
+                                stringResource(R.string.navigate_back),
+                            )
+                        }
+                    },
+                )
+            },
+        ) { padding ->
+            ContentStatus(
+                profile,
+                model::refresh,
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                presentation = ContentUnavailablePresentation.PAGE,
             )
-        }) { padding -> ContentStatus(profile, model::refresh, Modifier.fillMaxSize().padding(padding), presentation = ContentUnavailablePresentation.PAGE) }
+        }
         return
     }
     val avatarIdentity = remember(value.uid, value.avatar) {
@@ -115,13 +128,13 @@ internal fun ProfilePage(
         onEditProfile = {
             if (model.uid == model.session.value.activeProfile?.uid) onEditProfile()
         },
-        onUnavailableAction = { action -> scope.launch { snackbar.showSnackbar(context.getString(action.messageRes)) } },
+        onUnavailableAction = { action -> scope.launch { snackbar.showSnackbar(resources.getString(action.messageRes)) } },
         onOpenAvatar = {
             deliveryImageUrl(value.avatar)?.let { url ->
                 onOpenImage(
                     ViewerImage(
                         source = ImageSource.RemoteUrl(url),
-                        description = context.getString(R.string.profile_view_avatar, value.name),
+                        description = resources.getString(R.string.profile_view_avatar, value.name),
                         fileName = "avatar_${value.uid}",
                         sharedKey = state.avatarKey,
                         thumbnail = deliveryImageUrl(value.avatar, with(density) { profileAvatarSize.roundToPx() })

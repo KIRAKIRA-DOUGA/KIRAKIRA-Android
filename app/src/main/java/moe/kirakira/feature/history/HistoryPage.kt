@@ -38,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -46,9 +47,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -138,7 +139,7 @@ internal fun HistoryScreen(
     val scroll = rememberCollapsibleTopAppBarScrollBehavior()
     val list = rememberLazyListState()
     val snackbar = remember { SnackbarHostState() }
-    val context = LocalContext.current
+    val resources by rememberUpdatedState(LocalResources.current)
     var searchExpanded by rememberSaveable { mutableStateOf(query.isNotEmpty()) }
     var searchOpening by remember { mutableStateOf(false) }
     val collapseSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
@@ -170,7 +171,7 @@ internal fun HistoryScreen(
     }
     LaunchedEffect(state.error, isActive) {
         if (isActive && state.data != null) state.error?.let {
-            snackbar.showSnackbar(context.getString(it.messageRes()))
+            snackbar.showSnackbar(resources.getString(it.messageRes()))
         }
     }
     FrostedScaffold(
@@ -374,6 +375,16 @@ private fun HistoryMetadata(@androidx.annotation.DrawableRes icon: Int, text: St
 @Composable
 private fun HistoryPreview() {
     KIRAKIRATheme(dynamicColor = false) {
-        HistoryScreen(ContentState(), false, true, "", {}, {}, {}, {}, {})
+        HistoryScreen(
+            state = ContentState(),
+            signedIn = false,
+            ready = true,
+            query = "",
+            onQueryChange = {},
+            onRefresh = {},
+            onBack = {},
+            onLogin = {},
+            onOpenVideo = {},
+        )
     }
 }

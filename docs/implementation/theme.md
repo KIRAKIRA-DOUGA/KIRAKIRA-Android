@@ -63,7 +63,7 @@
 
 `ThemeSelectionCard` 使用官方可点击 `Card` 管理涟漪、焦点与交互，使用主题 large 形状与 1dp 静止阴影。明暗模式使用 `compact` 布局，选中时整张卡片使用 `primary/onPrimary`，未选中使用 `surface/onSurface`；预览图标通过 `LocalContentColor` 同步继承动画颜色，未选中为 `primary`，选中为 `onPrimary`。角色、壁纸与自定义卡片的预览区保持 `surface` 底色及原始图片／原色图标，仅下方文字区在选中时使用 `primary` 背景，标题和副标题同步使用 `onPrimary`；未选中文字区使用 `surface/onSurface`，副标题使用 `onSurfaceVariant`。
 
-1.5dp 描边在透明与完整 `primary` 之间渐变，背景、标题、图标与色标中的勾选沿用主题 Expressive effects 动效。根节点覆盖为单选角色与选中状态，合并主题／角色名称或 HEX 色值，子预览与标签清除独立语义。明暗卡片的图标区域宽高比为 1.6，跟随系统／浅色／深色分别居中显示 40dp 的 `brightness_auto`／`light_mode`／`dark_mode`；标题使用 `labelLarge` 居中排列并允许换行。`ThemeViewModel` 初始值、缺失或无效偏好的回退均为 `ThemeMode.SYSTEM`，有效的 `theme_mode` 偏好按已保存值恢复。
+1.5dp 描边在透明与完整 `primary` 之间渐变，背景、标题、图标与色标中的勾选沿用主题 Expressive effects 动效。根节点覆盖为单选角色与选中状态，合并主题／角色名称或 HEX 色值，子预览与标签清除独立语义。明暗卡片的图标区域固定高 64dp，标题区顶部留白为 4dp，使图标与文字间距不随卡片宽度增大；跟随系统／浅色／深色分别居中显示 40dp 的 `brightness_auto`／`light_mode`／`dark_mode`；标题使用 `labelLarge` 居中排列并允许换行。`ThemeViewModel` 初始值、缺失或无效偏好的回退均为 `ThemeMode.SYSTEM`，有效的 `theme_mode` 偏好按已保存值恢复。
 
 七张角色卡片的图片区域固定为 1:1，继续按 `BiasAlignment(0f, -0.84f)` 靠上裁切。文字区保留 24dp 原色色标、`titleSmall` 主题名与 `bodySmall` 日文角色名；选中时在色标内显示 24dp 的 Rounded `check`，前景使用 `onPrimary`，不在图片上叠加标记或为尾部勾选预留宽度。色标与图标共享固定的 24dp 槽位，垂直居中且不随选中状态改变尺寸。文字区通过 Column weight 填满行等高后的剩余空间，保持底边对齐；标题允许换行和增高，选中变化仅影响绘制。角色图片通过 Coil `AsyncImage` 按卡片约束在后台解码并复用内存缓存；首次加载透出卡片原有底色，禁用额外 crossfade，图片出现不改变布局。角色图片离线打包，来源与转换方式见 [Cerasus 个性色资源](../../third_party/cerasus-palettes/README.md)。
 
@@ -73,7 +73,7 @@
 
 MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引入 View 组件库；两项配色依赖的实际 APK 增量需通过同构建配置比较，不以依赖包大小代替。
 
-页面顶栏的标题槽通过 `TopAppBarDefaults.topAppBarColors(titleContentColor = MaterialTheme.colorScheme.primary)` 使用当前主题主色；共享 `CollapsibleTopAppBar` 与主界面的公共颜色配置集中设置，独立顶栏在调用处设置。顶栏标题文字显式使用 `FontWeight.SemiBold`（600），保持组件默认字号与行高；使用系统默认字体，由平台负责字重匹配与必要的加粗合成。可折叠标题在展开与折叠时保持相同颜色与字重，背景与导航图标沿用各页面配置。
+页面顶栏的标题槽通过 `TopAppBarDefaults.topAppBarColors(titleContentColor = MaterialTheme.colorScheme.primary)` 使用当前主题主色；共享 `CollapsibleTopAppBar` 与主界面的公共颜色配置集中设置，独立顶栏在调用处设置。顶栏标题文字显式使用 `FontWeight.Bold`（700），保持组件默认字号与行高；使用系统默认字体，由平台负责字重匹配与必要的加粗合成。可折叠标题在展开与折叠时保持相同颜色与字重，背景与导航图标沿用各页面配置。
 
 ### 栏面阴影
 

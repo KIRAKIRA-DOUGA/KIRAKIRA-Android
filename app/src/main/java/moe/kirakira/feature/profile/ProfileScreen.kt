@@ -105,8 +105,8 @@ internal fun ProfileScreen(
     onOpenVideo: (Int) -> Unit,
     onBack: () -> Unit,
     onRetry: () -> Unit,
-    isRefreshing: Boolean = false,
     modifier: Modifier = Modifier,
+    isRefreshing: Boolean = false,
     videoCardLayout: VideoCardLayout = VideoCardLayout.GRID,
     profileError: ApiFailure? = null,
     statsError: ApiFailure? = null,
@@ -138,15 +138,19 @@ internal fun ProfileScreen(
     }
 
     val hazeState = rememberHazeState()
-    Box(modifier
-        .fillMaxSize()
-        .background(background)) {
+    Box(
+        modifier
+            .fillMaxSize()
+            .background(background),
+    ) {
         ProfileHeaderBackground(
             listState = profileListState,
             coverHeight = coverHeight,
-            modifier = Modifier.matchParentSize().then(
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Modifier.hazeSource(hazeState) else Modifier,
-            ),
+            modifier = Modifier
+                .matchParentSize()
+                .then(
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Modifier.hazeSource(hazeState) else Modifier,
+                ),
         )
         Scaffold(
             modifier = Modifier.fillMaxSize(),
@@ -155,14 +159,16 @@ internal fun ProfileScreen(
             topBar = {
                 Box {
                     if (tabsPinned) {
-                        Box(Modifier.matchParentSize().frostedBarBackground(hazeState = hazeState))
+                        Box(Modifier
+                            .matchParentSize()
+                            .frostedBarBackground(hazeState = hazeState))
                     }
                     TopAppBar(
                         title = {
                             if (tabsPinned) {
                                 Text(
                                     text = state.profile.name.ifBlank { stringResource(R.string.content_unknown_author) },
-                                    fontWeight = FontWeight.SemiBold,
+                                    fontWeight = FontWeight.Bold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
@@ -216,7 +222,9 @@ internal fun ProfileScreen(
                 ContentPullToRefresh(
                     isRefreshing = isRefreshing,
                     onRefresh = onRetry,
-                    modifier = Modifier.widthIn(max = 640.dp).fillMaxSize(),
+                    modifier = Modifier
+                        .widthIn(max = 640.dp)
+                        .fillMaxSize(),
                     indicatorTopPadding = innerPadding.calculateTopPadding(),
                 ) {
                     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -224,7 +232,7 @@ internal fun ProfileScreen(
                         // list stops with the tabs at the toolbar edge while drawing behind it.
                         val pagerHeight = (
                             maxHeight - innerPadding.calculateTopPadding() - with(density) { tabRowHeight.toDp() }
-                        ).coerceAtLeast(0.dp)
+                            ).coerceAtLeast(0.dp)
                         LazyColumn(
                             state = profileListState,
                             contentPadding = PaddingValues(top = innerPadding.calculateTopPadding()),
@@ -240,7 +248,9 @@ internal fun ProfileScreen(
                                     onOpenFollowList = onOpenFollowList,
                                     onOpenAvatar = onOpenAvatar,
                                     modifier = Modifier.fillMaxWidth(),
-                                    coverRemainderHeight = (coverHeight - innerPadding.calculateTopPadding()).coerceAtLeast(0.dp),
+                                    coverRemainderHeight = (coverHeight - innerPadding.calculateTopPadding()).coerceAtLeast(
+                                        0.dp,
+                                    ),
                                 )
                             }
                             if (profileError != null) {
@@ -292,7 +302,8 @@ internal fun ProfileScreen(
                                     key = { ProfileTab.entries[it].name },
                                 ) { page ->
                                     val tab = ProfileTab.entries[page]
-                                    val statusHeight = (pagerHeight - innerPadding.calculateBottomPadding()).coerceAtLeast(0.dp)
+                                    val statusHeight =
+                                        (pagerHeight - innerPadding.calculateBottomPadding()).coerceAtLeast(0.dp)
                                     if (tab == ProfileTab.VIDEOS) {
                                         LazyColumn(
                                             state = videosListState,
@@ -302,10 +313,13 @@ internal fun ProfileScreen(
                                             if (videos.error != null || videos.data.isNullOrEmpty()) {
                                                 item(key = "profile_videos_status") {
                                                     ContentStatus(
-                                                        videos.copy(loading = videos.loading && videos.data == null), onRetry,
-                                                        Modifier.fillMaxWidth().then(
-                                                            if (videos.data.isNullOrEmpty()) Modifier.heightIn(min = statusHeight) else Modifier,
-                                                        ),
+                                                        videos.copy(loading = videos.loading && videos.data == null),
+                                                        onRetry,
+                                                        Modifier
+                                                            .fillMaxWidth()
+                                                            .then(
+                                                                if (videos.data.isNullOrEmpty()) Modifier.heightIn(min = statusHeight) else Modifier,
+                                                            ),
                                                         videos.data.isNullOrEmpty(),
                                                     )
                                                 }
@@ -347,7 +361,9 @@ internal fun ProfileScreen(
                                                     description = null,
                                                     iconRes = R.drawable.ic_symbol_star,
                                                     presentation = ContentUnavailablePresentation.INLINE,
-                                                    modifier = Modifier.fillMaxWidth().heightIn(min = statusHeight),
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .heightIn(min = statusHeight),
                                                 )
                                             }
                                         }
@@ -392,7 +408,9 @@ private fun ProfileHeaderBackground(
     Layout(
         modifier = modifier,
         content = {
-            Box(Modifier.barSurfaceLayer().background(background)) {
+            Box(Modifier
+                .barSurfaceLayer()
+                .background(background)) {
                 ProfileCover(listState, coverHeight)
             }
         },
@@ -418,10 +436,12 @@ private fun ProfileHeaderBackground(
 private fun ProfileCover(listState: LazyListState, height: Dp) {
     val background = ThemeColorDefaults.pageBackgroundColor()
     val scrimHeight = with(LocalDensity.current) { (height - 48.dp).toPx() }
-    Box(Modifier
-        .fillMaxWidth()
-        .wrapContentHeight(align = Alignment.Top, unbounded = true)
-        .height(height)) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .wrapContentHeight(align = Alignment.Top, unbounded = true)
+            .height(height),
+    ) {
         Image(
             painter = painterResource(R.drawable.profile_banner_placeholder),
             contentDescription = null,

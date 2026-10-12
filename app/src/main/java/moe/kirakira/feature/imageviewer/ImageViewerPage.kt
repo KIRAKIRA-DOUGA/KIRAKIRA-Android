@@ -3,7 +3,6 @@ package moe.kirakira.feature.imageviewer
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.LocalActivity
@@ -20,13 +19,16 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.unit.IntSize
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -54,6 +56,7 @@ internal fun ImageViewerPage(
     visibilityProgress: () -> Float = { 1f },
 ) {
     val context = LocalContext.current
+    val resources by rememberUpdatedState(LocalResources.current)
     val activity = LocalActivity.current
     val viewModel = viewModel { ImageViewerViewModel(context.applicationContext, image) }
     val busy by viewModel.busy.collectAsStateWithLifecycle()
@@ -85,11 +88,11 @@ internal fun ImageViewerPage(
                     activity, Manifest.permission.WRITE_EXTERNAL_STORAGE,
                 )
                 val result = snackbar.showSnackbar(
-                    context.getString(R.string.image_storage_denied),
-                    actionLabel = if (permanentlyDenied) context.getString(R.string.image_open_settings) else null,
+                    resources.getString(R.string.image_storage_denied),
+                    actionLabel = if (permanentlyDenied) resources.getString(R.string.image_open_settings) else null,
                 )
                 if (result == SnackbarResult.ActionPerformed) {
-                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))
+                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${context.packageName}".toUri())
                     if (intent.resolveActivity(context.packageManager) != null) context.startActivity(intent)
                 }
             }
@@ -98,7 +101,7 @@ internal fun ImageViewerPage(
     LaunchedEffect(viewModel) {
         viewModel.feedback.collect { message ->
             snackbar.currentSnackbarData?.dismiss()
-            snackbar.showSnackbar(context.getString(message))
+            snackbar.showSnackbar(resources.getString(message))
         }
     }
     key(instanceId, attempt) {

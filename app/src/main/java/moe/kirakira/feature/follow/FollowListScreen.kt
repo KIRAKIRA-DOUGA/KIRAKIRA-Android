@@ -17,9 +17,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -80,19 +80,23 @@ internal fun FollowListScreen(
             }
         }
     }
-    val title = stringResource(when (kind) {
-        FollowListKind.FOLLOWING -> R.string.follow_list_following_title
-        FollowListKind.FOLLOWERS -> R.string.follow_list_followers_title
-    })
-    val emptyTitle = stringResource(when (kind) {
-        FollowListKind.FOLLOWING -> R.string.follow_list_following_empty
-        FollowListKind.FOLLOWERS -> R.string.follow_list_followers_empty
-    })
+    val title = stringResource(
+        when (kind) {
+            FollowListKind.FOLLOWING -> R.string.follow_list_following_title
+            FollowListKind.FOLLOWERS -> R.string.follow_list_followers_title
+        },
+    )
+    val emptyTitle = stringResource(
+        when (kind) {
+            FollowListKind.FOLLOWING -> R.string.follow_list_following_empty
+            FollowListKind.FOLLOWERS -> R.string.follow_list_followers_empty
+        },
+    )
     FrostedScaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text(title, fontWeight = FontWeight.SemiBold) },
+                title = { Text(title, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(painterResource(R.drawable.ic_symbol_arrow_back), stringResource(R.string.navigate_back))
@@ -107,14 +111,18 @@ internal fun FollowListScreen(
             onRefresh = onRefresh,
             enabled = ready && isActive,
             indicatorTopPadding = padding.calculateTopPadding(),
-            modifier = Modifier.fillMaxSize().consumeWindowInsets(padding),
+            modifier = Modifier
+                .fillMaxSize()
+                .consumeWindowInsets(padding),
         ) {
             BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                 val statusHeight = (maxHeight - padding.calculateTopPadding() -
                     padding.calculateBottomPadding() - 32.dp).coerceAtLeast(0.dp)
                 LazyColumn(
                     state = list,
-                    modifier = Modifier.widthIn(max = 840.dp).fillMaxSize(),
+                    modifier = Modifier
+                        .widthIn(max = 840.dp)
+                        .fillMaxSize(),
                     contentPadding = PaddingValues(
                         start = padding.calculateStartPadding(direction),
                         end = padding.calculateEndPadding(direction),
@@ -127,7 +135,9 @@ internal fun FollowListScreen(
                             ContentStatus(
                                 state = content.copy(loading = !ready || content.loading),
                                 onRetry = onRefresh,
-                                modifier = Modifier.fillMaxWidth().heightIn(min = statusHeight),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = statusHeight),
                             )
                         }
                     } else if (users.isEmpty()) {
@@ -137,7 +147,9 @@ internal fun FollowListScreen(
                                 title = emptyTitle,
                                 description = null,
                                 iconRes = R.drawable.ic_symbol_person,
-                                modifier = Modifier.fillMaxWidth().heightIn(min = statusHeight),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = statusHeight),
                                 presentation = ContentUnavailablePresentation.INLINE,
                             )
                         }
@@ -168,7 +180,9 @@ internal fun FollowListScreen(
                     }
                     if (state.loadingMore) {
                         item(key = "loading_more", contentType = "status") {
-                            Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                            Box(Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp), contentAlignment = Alignment.Center) {
                                 IndeterminateCircularProgressIndicator()
                             }
                         }
@@ -198,7 +212,9 @@ private fun FollowListUserRow(
     enabled: Boolean = true,
 ) {
     ListItem(
-        modifier = modifier.fillMaxWidth().clickable(enabled = enabled, role = Role.Button, onClick = onClick),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { AccountAvatar(user.avatar, size = 48.dp) },
         supportingContent = if (user.username.isNotBlank()) {

@@ -35,7 +35,7 @@ fun CollapsibleTopAppBar(
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     LargeFlexibleTopAppBar(
-        title = { Text(title, fontWeight = FontWeight.SemiBold) },
+        title = { Text(title, fontWeight = FontWeight.Bold) },
         modifier = modifier,
         expandedHeight = CollapsibleTopAppBarExpandedHeight,
         scrollBehavior = scrollBehavior,

@@ -1,5 +1,3 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
-
 package moe.kirakira.feature.settings
 
 import androidx.compose.animation.animateColorAsState
@@ -63,7 +61,12 @@ internal fun <T> ThemeCardRow(
     ) {
         items.forEach { item ->
             key(itemKey(item)) {
-                content(item, Modifier.weight(1f).fillMaxHeight())
+                content(
+                    item,
+                    Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                )
             }
         }
         repeat(columns - items.size) { Spacer(Modifier.weight(1f)) }
@@ -140,7 +143,7 @@ internal fun ThemeSelectionCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(if (compact) 1.6f else 1f)
+                    .then(if (compact) Modifier.height(64.dp) else Modifier.aspectRatio(1f))
                     .clearAndSetSemantics {},
                 content = preview,
             )
@@ -150,7 +153,7 @@ internal fun ThemeSelectionCard(
             .fillMaxWidth()
             .weight(1f)
             .background(labelContainer)
-            .padding(12.dp)
+            .padding(start = 12.dp, top = if (compact) 0.dp else 12.dp, end = 12.dp, bottom = 12.dp)
             .clearAndSetSemantics {}
         if (compact) {
             Box(modifier = labelModifier, contentAlignment = Alignment.Center) {
@@ -169,7 +172,9 @@ internal fun ThemeSelectionCard(
             ) {
                 if (seedColor != null) {
                     Box(
-                        modifier = Modifier.size(24.dp).background(seedColor, CircleShape),
+                        modifier = Modifier
+                            .size(24.dp)
+                            .background(seedColor, CircleShape),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
