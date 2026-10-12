@@ -13,12 +13,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
@@ -30,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.InputChip
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PlainTooltip
@@ -57,6 +59,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -71,7 +77,6 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import moe.kirakira.R
 import moe.kirakira.data.auth.AccountProfile
-import moe.kirakira.feature.settings.SettingsActionBar
 import moe.kirakira.feature.settings.SettingsColumn
 import moe.kirakira.feature.settings.SettingsErrorCard
 import moe.kirakira.feature.settings.SettingsFormCard
@@ -87,6 +92,7 @@ import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorDefaults
+import androidx.compose.material.ButtonDefaults as Material2ButtonDefaults
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -103,6 +109,11 @@ internal fun ProfileEditorScreen(
     modifier: Modifier = Modifier,
     snackbar: SnackbarHostState = remember { SnackbarHostState() },
 ) {
+    val saveLabel = stringResource(
+        if (state.completionOnly) R.string.settings_retry_sync else R.string.profile_save,
+    )
+    val saveDescription = if (state.completionOnly) stringResource(R.string.profile_finish_save) else null
+    val workingDescription = stringResource(R.string.auth_working)
     SettingsScaffold(
         title = stringResource(R.string.settings_profile),
         onBack = onBack,
@@ -110,19 +121,26 @@ internal fun ProfileEditorScreen(
         modifier = modifier,
         imePadding = true,
         snackbarHost = { SnackbarHost(snackbar) },
-        bottomBar = {
+        actions = {
             if (state.draft != null) {
-                SettingsActionBar(
-                    label = stringResource(
-                        if (state.completionOnly) R.string.settings_retry_sync else R.string.profile_save,
-                    ),
+                TextButton(
                     onClick = onSave,
                     enabled = state.dirty && !state.loading && !state.busy && !state.preparingImage,
-                    busy = state.busy,
-                    actionDescription = if (state.completionOnly) {
-                        stringResource(R.string.profile_finish_save)
-                    } else null,
-                )
+                    modifier = Modifier.semantics {
+                        saveDescription?.let { contentDescription = it }
+                        if (state.busy) stateDescription = workingDescription
+                    },
+                ) {
+                    if (state.busy) {
+                        IndeterminateCircularProgressIndicator(
+                            modifier = Modifier.size(Material2ButtonDefaults.IconSize).clearAndSetSemantics {},
+                            color = LocalContentColor.current,
+                            strokeWidth = 2.dp,
+                        )
+                        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                    }
+                    Text(saveLabel, maxLines = 1, softWrap = false)
+                }
             }
         },
     ) { padding ->
