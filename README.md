@@ -13,7 +13,7 @@ KIRAKIRA 的 Android 客户端，使用 **Kotlin + Jetpack Compose**，设计语
 | 历史记录 | 云端视频历史、标题／作者搜索、日期分组和进度展示，首 P 支持进度同步与自动续播 |
 | 视频页 | 真实视频详情与分 P 播放、全屏、应用内小窗和系统画中画，支持关注、赞踩、评论分页、弹幕叠加显示与评论／弹幕发布 |
 | 外观 | 明暗模式、统一经典强调色、预设／壁纸／自定义颜色、毛玻璃应用栏和固定阴影，设置持久保存 |
-| 账户与认证 | 密码登录、邮箱／TOTP 二步验证、四步邀请码注册、系统密码选择与保存、找回密码、加密会话、游客／多账号切换及登出 |
+| 账户与认证 | 密码登录、邮箱／TOTP 二步验证、四步邀请码注册、系统密码自动填充与保存、找回密码、加密会话、游客／多账号切换及登出 |
 | 用户主页与图片 | “我”展示真实账号资料；设置中可编辑完整资料、裁剪与上传头像；本人和作者主页支持关注／粉丝分页列表，头像可放大、保存或复制，作者作品来自 API |
 | 账号安全 | 修改邮箱与密码、邮箱二步验证、TOTP 绑定／解绑及一次性备用码与恢复码展示，使用 Material 3 Expressive 页面 |
 | 屏蔽与邀请 | 五类屏蔽／隐藏规则管理，邀请码统计、生成、筛选与复制，按账号接入真实 API |
@@ -50,10 +50,11 @@ API 默认连接 `https://rosales.kirakira.moe/`，构建时可覆盖 HTTPS 地�
 | --- | --- |
 | [功能现状](docs/features.md) | 各页面能做什么、状态保存与限制 |
 | [开发指南](docs/development.md) | 环境配置、运行安装、目录结构与可选检查命令 |
-| [实现说明](docs/implementation.md) | 导航、主题、认证、共享顶栏接入与动效实现 |
+| [实现索引](docs/implementation.md) | 导航、内容、媒体、主题、共享组件、认证会话与账号设置专题 |
 | [贡献指南](CONTRIBUTING.md) | 技术选型、代码与 UI 规范、依赖、检查及提交要求 |
-| [代理执行摘要](AGENTS.md) | 开发者与代码代理的执行约定 |
+| [代理执行摘要](AGENTS.md) | 开发者与代码代理的执行约定及规范入口 |
+| [认证离线测试](docs/auth-testing.md) | 测试隔离、专项命令、适用范围与带日期的历史验证记录 |
 
 参与开发前阅读贡献指南，启用 [.editorconfig](.editorconfig) 支持。使用 [PR 模板](.github/pull_request_template.md)记录变更原因与检查结果。
 
-第三方来源与维护记录：[Material Symbols](third_party/material-symbols/README.md)、[AOSP 页面转场](third_party/android-motion/README.md)、[开源组件声明](third_party/aboutlibraries/README.md)。
+第三方来源与维护记录：[Material Symbols](third_party/material-symbols/README.md)、[AOSP 页面转场](third_party/android-motion/README.md)、[Android 下拉刷新](third_party/android-refresh/README.md)、[Cerasus 颜色资源](third_party/cerasus-palettes/README.md)、[Cerasus 图标与动画](third_party/cerasus-icons/README.md)、[GitHub Logo](third_party/github/README.md)、[开源组件声明](third_party/aboutlibraries/README.md)。

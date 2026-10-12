@@ -40,21 +40,34 @@ Material 3 单独使用公开 Expressive 主题与分段列表 API 的版本，�
 
 检查政策以[贡献指南](../CONTRIBUTING.md#构建与检查)为准：代码或构建变更默认只执行 Debug 构建，纯文档修改只检查内容和链接。测试、`verify`、额外 Lint 和设备／截图检查仅按用户明确要求执行，不因查阅上述命令而自动运行。
 
-`verify` 在[根构建脚本](../build.gradle.kts)中聚合 Debug 构建、单元测试和 Android Lint，不包含设备测试，也不检查全部 Kotlin 格式规则。测试和 Lint 报告位于 `app/build/reports/`。已有布局测试覆盖中英文导航和选中状态恢复；设备测试需要模拟器或连接的设备。
+`verify` 在[根构建脚本](../build.gradle.kts)中聚合 Debug 构建、单元测试和 Android Lint，不包含设备测试，也不检查全部 Kotlin 格式规则。测试和 Lint 报告位于 `app/build/reports/`。设备测试需要模拟器或连接的设备；已有用例和历史结果不代表当前版本已经验证。
 
-明确要求认证测试时，可执行 `./gradlew :app:testDebugUnitTest --offline`。认证用例使用内存 HTTP 响应和账号存储，不访问生产服务；协程测试依赖只用于 JVM 测试。覆盖范围、隔离机制和未验证项见[认证离线测试](auth-testing.md)。
+认证专项使用内存传输、账号存储与虚构身份；各变体的隔离方式、完整命令和历史结果统一维护在[认证离线测试](auth-testing.md)。
 
-Keystore 专项设备测试通过 `-Pkirakira.cryptoCheck=true` 选择 `cryptoCheck` 变体：独立包名 `moe.kirakira.cryptocheck`、无网络权限、无主界面入口，API 地址固定为保留的 `.invalid` 域名。该开关只切换测试构建类型及测试源目录，不修改普通 Debug／Release 的生产环境配置。专项源码位于 `app/src/cryptoCheckAndroidTest/`，不参与默认 Debug 设备测试。构建、安装与运行命令见[认证离线测试](auth-testing.md#keystore-专项设备测试)。
+| 专项入口 | 用途 |
+| --- | --- |
+| 不带专项属性的 `:app:testDebugUnitTest` | JVM 认证、会话与网络用例 |
+| `-Pkirakira.cryptoCheck=true` | 无网络权限的隔离 Keystore 设备验证 |
+| `-Pkirakira.authUiCheck=true` | 无网络权限、使用凭据替身的隔离认证 UI 验证 |
+
+两个专项属性互斥，普通 JVM 命令不带这些属性。认证 UI 中的部分旧断言已不对应当前界面，适用范围见[专项说明](auth-testing.md#认证体验与系统密码专项)。
 
 仓库未配置 CI 工作流、ktlint、Detekt 或覆盖率门槛；远端 CI 和分支保护需维护者自行配置。PR 默认报告构建结果，纯文档修改报告内容与链接检查结果。
 
-认证 UI 专项使用 `-Pkirakira.authUiCheck=true`，包名 `moe.kirakira.authuicheck`，无 INTERNET 权限、无生产入口，使用内存 HTTP / Store 和凭据替身。`authUiCheck` 与 `cryptoCheck` 两个开关不能同时启用；两者保留独立测试源目录。共享认证替身在 `app/src/authTestShared/`，不进入生产 APK。命令与结果见[认证专项验证](auth-testing.md#认证体验与系统密码专项)。
+### Compose 布局预览
+
+在 Android Studio 打开预览文件，切换到 **Design** 或 **Split** 并刷新 Preview：
+
+- [AuthPreview.kt](../app/src/main/java/moe/kirakira/feature/auth/AuthPreview.kt) 的 `AuthStepPreview` 覆盖认证各步骤。
+- [SecuritySettingsPreview.kt](../app/src/main/java/moe/kirakira/feature/settings/security/SecuritySettingsPreview.kt) 的 `SecurityStepPreview` 覆盖修改邮箱、密码及二步验证各步骤；`TwoFactorEnabledPreview` 分别展示邮箱验证和身份验证器已开启的管理页，`SecuritySettingsPreview` 保留游客态预览。
+
+预览直接向界面传入固定状态，不创建 ViewModel 或访问 API。账号安全预览提供中英文版本；邮箱、绑定时间、设置密钥与一次性代码均为预览专用虚构值，密码和验证码输入框保持为空，流程回调不会发送验证码或提交账号修改。
 
 ### 动画性能采样
 
 Android Studio 的 Build Variants 可选择 `performance`，再以 Run 启动；命令行也可使用 `:app:installPerformance`。此变体沿用 Release 代码、依赖和配置，使用 `isDebuggable=false`、`isProfileable=true` 与 R8 优化；Debug 保留日常调试用途。Debug 执行开销会显著放大 Compose 页面首帧的组合、子组合和布局耗时，性能比较应分别记录构建类型，不能把非调试包的结果算作同配置 Debug 优化收益。依据见 [Compose 性能配置](https://developer.android.com/develop/ui/compose/performance#properly-configure)。
 
-性能包包含依赖提供的 Baseline Profiles，不新增采集测试或依赖。Gradle 安装时同时提交 APK 和 `.dm` 编译元数据；此次 Android 17 实机安装后自动采用了 `speed-profile`，无需手动编译。每次采样仍应使用 `adb shell dumpsys package moe.kirakira` 核对实际 Dexopt 状态，并记录首次进入和重复进入。未预编译的设备也可在应用启动并等待 ProfileInstaller 写入后执行 `adb shell cmd package compile -m speed-profile -f moe.kirakira`，冷启动重录；预编译前后的样本分开报告。Debug 请求编译可能被设备限制为 `verify`，命令返回成功不代表代码已预编译。
+性能包包含依赖提供的 Baseline Profiles，不新增采集测试或依赖。Gradle 安装时同时提交 APK 和 `.dm` 编译元数据；安装后的实际 ART 编译状态由设备决定。每次采样仍应使用 `adb shell dumpsys package moe.kirakira` 核对实际 Dexopt 状态，并记录首次进入和重复进入。未预编译的设备也可在应用启动并等待 ProfileInstaller 写入后执行 `adb shell cmd package compile -m speed-profile -f moe.kirakira`，冷启动重录；预编译前后的样本分开报告。Debug 请求编译可能被设备限制为 `verify`，命令返回成功不代表代码已预编译。
 
 `performance` 使用本机默认 Debug 密钥，仅供本地采样，禁用真实系统凭据提供者。它与 Debug 使用相同应用 ID 和签名，互相覆盖安装时保留同一后端的数据；不要将此 APK 作为正式发行包。采样完成后可通过 `:app:installDebug` 恢复调试包。默认检查入口仍是 `:app:assembleDebug`，性能采样只在用户要求时执行。
 
@@ -72,7 +85,7 @@ Android Studio 的 Build Variants 可选择 `performance`，再以 Run 启动；
 
 非生产 API 根地址构建的 `SYSTEM_CREDENTIALS_ENABLED=false`，禁用真实系统密码提供者；仅完整的默认生产根地址启用。
 
-账号库保存在不参与备份的 `noBackupFilesDir/sessions.v1.enc`，密码和验证码不持久保存。会话与完整 API 根地址绑定；切换构建环境时不加载另一后端的账号，首次保存新环境会话会替换本机旧环境账号库。可选的 userDataBootstrapHint 同样加密保存，仅首页过滤请求使用。图片分发默认固定生产 Cloudflare 地址，覆盖 API 地址不会自动切换图片环境。协议与已知服务端限制见[API 与会话](implementation.md#api-与会话)。
+账号库保存在不参与备份的 `noBackupFilesDir/sessions.v1.enc`，密码和验证码不持久保存。会话与完整 API 根地址绑定；切换构建环境时不加载另一后端的账号，首次保存新环境会话会替换本机旧环境账号库。可选的 userDataBootstrapHint 同样加密保存，仅首页过滤请求使用。图片分发默认固定生产 Cloudflare 地址，覆盖 API 地址不会自动切换图片环境。协议与已知服务端限制见[API 与会话](implementation/auth.md#api-与会话)。
 
 ## 环境排障
 
@@ -90,7 +103,7 @@ app/src/main/
 │   ├── MainActivity.kt       # Activity 宿主
 │   ├── KIRAKIRAApp.kt        # 应用入口、应用级状态与导航连接
 │   ├── core/network/        # HTTPS 客户端、响应解码、取消和统一失败类型
-│   ├── data/                # auth 认证会话与 content 视频、资料、评论、弹幕
+│   ├── data/                # 认证、内容、历史、资料、安全与账号设置的数据访问
 │   ├── feature/             # 主界面、视频、账户、认证与设置等功能
 │   │   └── main/MainScreen.kt # 四栏切换、顶栏与底栏
 │   └── ui/                  # Expressive 主题、共享组件与导航
@@ -102,6 +115,9 @@ app/src/main/
 app/src/test/                 # 本机单元测试
 app/src/androidTest/          # Android 与 Compose UI 测试
 gradle/                      # Wrapper、JDK 配置和版本目录
+docs/                        # 功能、开发、实现索引和认证专项指南
+├── implementation/          # 按专题维护的实现说明
+└── validation/              # 带日期与验证范围的历史记录
 ```
 
 后续功能继续按 `feature/<name>/` 组织，详细边界见[贡献指南](../CONTRIBUTING.md#技术选型与架构)。官方图标来源与许可见 [Material Symbols 记录](../third_party/material-symbols/README.md)。

@@ -25,15 +25,12 @@
 
 ## 提交前自查
 
-- [ ] 已按 CONTRIBUTING.md 检查本次变更，完成适用的格式化与导入清理。
-- [ ] 已记录构建结果或纯文档检查结果；未自行增加或运行用户未要求的测试和额外检查。
-- [ ] 文案、主题和 Compose 状态处理符合规范，或已说明不适用。
-- [ ] 可选择的 Chip 在可用且选中时使用主题 `primary` 背景与 `onPrimary` 文字、图标，其他状态沿用官方默认，或已说明不适用。
-- [ ] 独立 username 使用 `@` 前缀、等宽字体与 `onSurfaceVariant`，空白值不展示文字行；输入、存储和 API 保留原始值，名称回退沿用名称样式，或已说明不适用。
-- [ ] 普通弹层有实际连接列表条目时保留灰底，否则使用 `surface`；空内容与子页切换同步背景，日期选择器内外同色，或已说明不适用。
-- [ ] 涉及刷新时保留已有内容与布局，下拉刷新不额外插入列表顶部加载指示器；首次加载与分页加载分别处理，或已说明不适用。
-- [ ] 界面遵循 Material 3 Expressive；不确定进度加载器复用官方 Material 2 圆形加载器与圆角端点，尺寸符合贡献指南；图标使用标准 Material Symbols 或已说明同风格自绘原因。
-- [ ] 资料、隐私及二步验证管理页使用固定底部实心按钮，认证与账号安全操作流程使用表单末尾通栏按钮；按钮均使用官方 Medium 尺寸配套 API，固定底栏具有 4dp 原生 elevation 阴影，系统／IME Insets、滚动内容与 Snackbar 正确避让；隐私重置位于顶栏，或已说明不适用。
-- [ ] 新界面文案已同步中英文；Demo 占位内容仅维护一份不可翻译资源。布局实现兼顾长文本和字体缩放，或已说明不适用。
-- [ ] 涉及 API 时已记录契约、环境、错误与取消策略、会话／账号隔离和依赖权限变化；未记录凭据或宣称未执行的服务端联调。
-- [ ] 已按 CONTRIBUTING.md 的文档分工同步相关专题与配置，没有混入凭据、个人路径或生成文件。
+<!-- 只勾选已完成的检查；不适用项在上方说明。详细参数以 CONTRIBUTING.md 为准。 -->
+
+- [ ] 已遵循 [技术选型与架构](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/blob/main/CONTRIBUTING.md#技术选型与架构)及 [Kotlin 风格](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/blob/main/CONTRIBUTING.md#kotlin-风格与命名)，完成适用的格式化与导入清理。
+- [ ] 已遵循 [Compose 与界面规范](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/blob/main/CONTRIBUTING.md#compose-与界面规范)，核对涉及的组件、状态、配色、阴影、表单和 Insets 规则。
+- [ ] 新文案已同步中英文，布局兼顾长文本、字体缩放与无障碍；不内置 Demo 内容，预览使用空表单、游客账号或空列表。
+- [ ] 涉及认证或 API 时，已遵循 [认证状态约束](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/blob/main/CONTRIBUTING.md#认证状态约束)和 [API 与会话规范](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/blob/main/CONTRIBUTING.md#api-与会话接入规范)，保留账号隔离、错误与取消处理及敏感材料边界。
+- [ ] 已按 [构建与检查](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/blob/main/CONTRIBUTING.md#构建与检查)记录实际执行结果，未自行增加或运行用户未要求的测试和额外检查，未将历史记录或未运行项写为通过。
+- [ ] 已按 [文档维护分工](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/blob/main/CONTRIBUTING.md#文档维护)同步所属专题、摘要及配置，检查移动后的链接与锚点。
+- [ ] 变更聚焦，未混入凭据、个人路径、生成文件或无关工具链升级；规范例外已说明原因。
