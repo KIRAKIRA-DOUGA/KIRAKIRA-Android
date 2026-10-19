@@ -1,5 +1,12 @@
 package moe.kirakira.ui.components
 
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -13,18 +20,24 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
@@ -56,17 +69,40 @@ internal fun OtpInputField(
     onNext: (() -> Unit)? = null,
     onDone: (() -> Unit)? = null,
 ) {
-    // Only cursor position is local; the flow owns the code and never saves it to disk.
+    // Selection and focus are local; the flow owns the code and never saves it to disk.
     var selection by remember { mutableStateOf(TextRange(value.length)) }
+    var isFocused by remember { mutableStateOf(false) }
     val editorFocus = remember { FocusRequester() }
     val interaction = remember { MutableInteractionSource() }
     val idleInteraction = remember { MutableInteractionSource() }
     val keyboard = LocalSoftwareKeyboardController.current
+    val motion = MaterialTheme.motionScheme
     val editorSelection = TextRange(
         selection.start.coerceIn(0, value.length),
         selection.end.coerceIn(0, value.length),
     )
     val activeCell = editorSelection.min.coerceAtMost(5)
+    val cursorColor = if (error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+    val cursorAlpha = if (enabled && isFocused) {
+        key(value, editorSelection) {
+            rememberInfiniteTransition(label = "otpCursor").animateFloat(
+                initialValue = 1f,
+                targetValue = 0f,
+                animationSpec = infiniteRepeatable(
+                    animation = keyframes {
+                        durationMillis = 1000
+                        1f at 0
+                        1f at 499
+                        0f at 500
+                        0f at 1000
+                    },
+                ),
+                label = "otpCursorAlpha",
+            )
+        }
+    } else {
+        null
+    }
     val codeStyle = accountFlowCodeTextStyle().copy(
         fontSize = MaterialTheme.typography.headlineSmall.fontSize,
         lineHeight = MaterialTheme.typography.headlineSmall.lineHeight,
@@ -90,7 +126,7 @@ internal fun OtpInputField(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (error != null) AccountFlowFieldErrorIcon()
+            if (error != null) TextFieldErrorIcon()
         }
         BasicTextField(
             value = TextFieldValue(value, editorSelection),
@@ -131,6 +167,7 @@ internal fun OtpInputField(
             modifier = Modifier
                 .fillMaxWidth()
                 .focusRequester(editorFocus)
+                .onFocusChanged { isFocused = it.isFocused }
                 .semantics {
                     contentDescription = label
                     if (error != null) this.error(error)
@@ -148,10 +185,11 @@ internal fun OtpInputField(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         repeat(6) { index ->
+                            val character = value.getOrNull(index)?.toString().orEmpty()
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .heightIn(min = OutlinedTextFieldDefaults.MinHeight)
+                                    .heightIn(min = TextFieldDefaults.MinHeight)
                                     .then(
                                         if (enabled) Modifier.pointerInput(index, value.length) {
                                             detectTapGestures {
@@ -164,20 +202,73 @@ internal fun OtpInputField(
                                     ),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                OutlinedTextFieldDefaults.Container(
+                                TextFieldDefaults.Container(
+                                    focusedIndicatorLineThickness = 0.dp,
+                                    unfocusedIndicatorLineThickness = 0.dp,
+                                    colors = FilledTextFieldDefaults.colors(),
                                     enabled = enabled,
                                     isError = error != null,
                                     interactionSource = if (index == activeCell) interaction else idleInteraction,
                                     modifier = Modifier.matchParentSize(),
                                     shape = MaterialTheme.shapes.large,
                                 )
-                                Text(
-                                    text = value.getOrNull(index)?.toString().orEmpty(),
-                                    modifier = Modifier.padding(vertical = 12.dp),
-                                    style = codeStyle,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.38f),
-                                    softWrap = false,
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .padding(vertical = 12.dp)
+                                        .drawWithContent {
+                                            drawContent()
+                                            if (index == activeCell && cursorAlpha != null) {
+                                                val cursorWidth = 2.dp.toPx()
+                                                val cursorHeight = codeStyle.fontSize.toPx()
+                                                val cursorX = when {
+                                                    character.isEmpty() -> center.x
+                                                    editorSelection.start > index -> size.width + 3.dp.toPx()
+                                                    else -> -3.dp.toPx()
+                                                }
+                                                drawRoundRect(
+                                                    color = cursorColor.copy(alpha = cursorAlpha.value),
+                                                    topLeft = Offset(
+                                                        cursorX - cursorWidth / 2,
+                                                        center.y - cursorHeight / 2,
+                                                    ),
+                                                    size = Size(cursorWidth, cursorHeight),
+                                                    cornerRadius = CornerRadius(cursorWidth / 2),
+                                                )
+                                            }
+                                        },
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    // Keep the empty cell's height stable while removing old characters immediately.
+                                    Text(
+                                        text = "",
+                                        style = codeStyle,
+                                        softWrap = false,
+                                    )
+                                    if (character.isNotEmpty()) {
+                                        key(character) {
+                                            val visibility = remember {
+                                                MutableTransitionState(false).apply { targetState = true }
+                                            }
+                                            androidx.compose.animation.AnimatedVisibility(
+                                                visibleState = visibility,
+                                                enter = slideInVertically(
+                                                    animationSpec = motion.fastSpatialSpec(),
+                                                    initialOffsetY = { it },
+                                                ) + fadeIn(motion.fastEffectsSpec()),
+                                                label = "otpCharacter",
+                                            ) {
+                                                Text(
+                                                    text = character,
+                                                    style = codeStyle,
+                                                    color = MaterialTheme.colorScheme.onSurface.copy(
+                                                        alpha = if (enabled) 1f else 0.38f,
+                                                    ),
+                                                    softWrap = false,
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

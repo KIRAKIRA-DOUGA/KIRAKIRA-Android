@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -50,6 +51,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import moe.kirakira.R
 import moe.kirakira.data.settings.Invitation
+import moe.kirakira.ui.components.AnimatedNumberText
 import moe.kirakira.ui.components.IconBadgeTone
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.connectedListItemShapes
@@ -107,7 +109,10 @@ internal fun InvitationsScreen(
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
                         Column(Modifier.weight(1f)) {
                             Text(stringResource(R.string.invitation_unused), style = MaterialTheme.typography.titleMedium)
-                            Text(if (state.data == null) "—" else unused.toString(), style = MaterialTheme.typography.displayLarge)
+                            if (state.data == null) Text("—", style = MaterialTheme.typography.displayLarge)
+                            else key(accountRevision) {
+                                AnimatedNumberText(unused, style = MaterialTheme.typography.displayLarge)
+                            }
                         }
                         Surface(
                             modifier = Modifier.size(64.dp),
@@ -125,8 +130,8 @@ internal fun InvitationsScreen(
                         }
                     }
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(32.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        InvitationStatistic(stringResource(R.string.invitation_total), state.data?.size)
-                        InvitationStatistic(stringResource(R.string.invitation_used), state.data?.let { it.size - unused })
+                        InvitationStatistic(stringResource(R.string.invitation_total), state.data?.size, accountRevision)
+                        InvitationStatistic(stringResource(R.string.invitation_used), state.data?.let { it.size - unused }, accountRevision)
                     }
                     Button(
                         onClick = onCreate,
@@ -213,12 +218,16 @@ internal fun InvitationsScreen(
             )
         }
     }
+
 }
 
 @Composable
-private fun InvitationStatistic(label: String, count: Int?) {
+private fun InvitationStatistic(label: String, count: Int?, accountRevision: Long) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(count?.toString() ?: "—", style = MaterialTheme.typography.headlineSmall)
+        if (count == null) Text("—", style = MaterialTheme.typography.headlineSmall)
+        else key(accountRevision) {
+            AnimatedNumberText(count, style = MaterialTheme.typography.headlineSmall)
+        }
         Text(label, style = MaterialTheme.typography.labelLarge)
     }
 }

@@ -49,6 +49,7 @@ import java.util.Locale
 import moe.kirakira.R
 import moe.kirakira.data.content.VideoSummary
 import moe.kirakira.data.content.VideoTag
+import moe.kirakira.ui.components.AnimatedCountLabel
 import moe.kirakira.ui.components.CollapsibleTopAppBar
 import moe.kirakira.ui.components.ConnectedLazyColumn
 import moe.kirakira.ui.components.ContentPullToRefresh
@@ -149,10 +150,19 @@ internal fun TagScreen(
                                 emptyIconRes = R.drawable.ic_symbol_label, empty = tag.data != null && value == null)
                         }
                         item("count") {
-                            Text(videos.data?.let { pluralStringResource(R.plurals.tag_video_count, it.size, it.size) }
-                                ?: stringResource(R.string.tag_related_videos),
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.fillMaxWidth().semantics { heading() })
+                            val count = videos.data?.size
+                            if (count == null) {
+                                Text(stringResource(R.string.tag_related_videos),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.fillMaxWidth().semantics { heading() })
+                            } else {
+                                AnimatedCountLabel(
+                                    count = count.toLong(),
+                                    template = pluralStringResource(R.plurals.tag_video_count, count),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.fillMaxWidth().semantics { heading() },
+                                )
+                            }
                         }
                         if (videos.error != null || videos.data.isNullOrEmpty()) item("video-status") {
                             ContentStatus(videos.copy(loading = videos.loading && videos.data == null), onRetryVideos,

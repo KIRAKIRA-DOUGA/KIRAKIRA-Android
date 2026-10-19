@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import moe.kirakira.R
 import moe.kirakira.ui.components.CollapsibleTopAppBar
 import moe.kirakira.ui.components.ConnectedListGroup
+import moe.kirakira.ui.components.DestructiveTextButton
 import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.SectionHeader
 import moe.kirakira.ui.components.SegmentedMenuItem
@@ -73,7 +74,7 @@ fun SettingsScreen(
             title = { Text(stringResource(R.string.settings_log_out)) },
             text = { Text(stringResource(R.string.account_logout_message)) },
             confirmButton = {
-                TextButton(
+                DestructiveTextButton(
                     onClick = {
                         confirmLogout = false
                         onLogout()

@@ -12,12 +12,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
@@ -37,7 +35,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
@@ -75,10 +72,12 @@ import moe.kirakira.ui.components.ContentUnavailableAction
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
+import moe.kirakira.ui.components.DestructiveTextButton
 import moe.kirakira.ui.components.IconBadge
 import moe.kirakira.ui.components.IconBadgeTone
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.ShadowRadioButton
+import moe.kirakira.ui.components.ShadowToggleButton
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.theme.KIRAKIRATheme
@@ -232,7 +231,7 @@ internal fun PrivacySettingsScreen(
             title = { Text(stringResource(R.string.privacy_reset_title)) },
             text = { Text(stringResource(R.string.privacy_reset_message)) },
             confirmButton = {
-                TextButton(onClick = onReset, enabled = state.canReset) {
+                DestructiveTextButton(onClick = onReset, enabled = state.canReset) {
                     Text(stringResource(R.string.privacy_reset))
                 }
             },
@@ -273,10 +272,15 @@ private fun PrivacySetAllGroup(state: PrivacySettingsState, onSelectAll: (Privac
             PrivacyVisibility.entries.forEachIndexed { index, visibility ->
                 val checked = uniformVisibility == visibility
                 val label = stringResource(visibility.titleRes())
-                ToggleButton(
+                ShadowToggleButton(
                     checked = checked,
                     onCheckedChange = { onSelectAll(visibility) },
                     enabled = state.editable,
+                    icon = { Icon(painterResource(visibility.iconRes()), contentDescription = null) },
+                    colors = ToggleButtonDefaults.colors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                    ),
                     shapes = when (index) {
                         0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
                         PrivacyVisibility.entries.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
@@ -287,8 +291,6 @@ private fun PrivacySetAllGroup(state: PrivacySettingsState, onSelectAll: (Privac
                         selected = checked
                     },
                 ) {
-                    Icon(painterResource(visibility.iconRes()), contentDescription = null)
-                    Spacer(Modifier.width(ToggleButtonDefaults.IconSpacing))
                     Text(label, maxLines = 1)
                 }
             }
@@ -303,7 +305,7 @@ private fun PrivacyGroup(
     state: PrivacySettingsState,
     onSelect: (PrivacyItem) -> Unit,
 ) {
-    SettingsSection(stringResource(title)) {
+    SettingsSection(title = stringResource(title)) {
         items.forEachIndexed { index, item ->
             val visibility = state.values.getValue(item)
             val label = stringResource(visibility.titleRes())
@@ -314,7 +316,9 @@ private fun PrivacyGroup(
                 modifier = Modifier
                     .fillMaxWidth()
                     .semantics { stateDescription = label },
-                leadingContent = { PrivacyVisibilityBadge(visibility, state.editable) },
+                leadingContent = {
+                    Icon(painterResource(item.iconRes()), contentDescription = null, modifier = Modifier.size(24.dp))
+                },
                 supportingContent = {
                     val fadeSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
                     AnimatedContent(
@@ -400,6 +404,14 @@ private fun PrivacyItem.titleRes(): Int = when (this) {
     PrivacyItem.FOLLOWERS -> R.string.me_followers_count
     PrivacyItem.FAVORITES -> R.string.me_favorites
 }
+private fun PrivacyItem.iconRes(): Int = when (this) {
+    PrivacyItem.BIRTHDAY -> R.drawable.ic_symbol_cake
+    PrivacyItem.AGE -> R.drawable.ic_symbol_calendar_today
+    PrivacyItem.FOLLOWING -> R.drawable.ic_symbol_person_add
+    PrivacyItem.FOLLOWERS -> R.drawable.ic_symbol_group
+    PrivacyItem.FAVORITES -> R.drawable.ic_symbol_star
+}
+
 private fun PrivacyVisibility.titleRes(): Int = when (this) {
     PrivacyVisibility.PUBLIC -> R.string.privacy_public
     PrivacyVisibility.FOLLOWING -> R.string.privacy_followers_only

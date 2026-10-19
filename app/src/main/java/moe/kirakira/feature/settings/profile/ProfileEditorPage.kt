@@ -20,6 +20,7 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import moe.kirakira.R
+import moe.kirakira.ui.components.DestructiveTextButton
 
 @Composable
 internal fun ProfileEditorPage(model: ProfileEditorViewModel, onBack: () -> Unit, onLogin: () -> Unit) {
@@ -43,7 +44,7 @@ internal fun ProfileEditorPage(model: ProfileEditorViewModel, onBack: () -> Unit
         containerColor = MaterialTheme.colorScheme.surface,
         title = { Text(stringResource(R.string.profile_discard_title)) },
         text = { Text(stringResource(if (state.completionOnly) R.string.profile_saved_pending else R.string.profile_discard_message)) },
-        confirmButton = { TextButton(onClick = onBack) { Text(stringResource(R.string.profile_discard)) } },
+        confirmButton = { DestructiveTextButton(onClick = onBack) { Text(stringResource(R.string.profile_discard)) } },
         dismissButton = { TextButton(onClick = model::dismissDiscard) { Text(stringResource(R.string.profile_keep_editing)) } },
     )
     val source = state.cropSource

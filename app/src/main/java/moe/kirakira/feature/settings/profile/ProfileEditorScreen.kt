@@ -8,24 +8,26 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.ButtonDefaults as Material2ButtonDefaults
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,10 +35,11 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.SelectableDropdownMenuItem
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -55,6 +58,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
@@ -83,9 +87,12 @@ import moe.kirakira.feature.settings.SettingsFormCard
 import moe.kirakira.feature.settings.SettingsScaffold
 import moe.kirakira.feature.settings.SettingsSection
 import moe.kirakira.ui.components.AccountAvatar
+import moe.kirakira.ui.components.CharacterCount
 import moe.kirakira.ui.components.ContentUnavailableAction
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
+import moe.kirakira.ui.components.ExpressiveMenuPopup
+import moe.kirakira.ui.components.FilledTextField
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.ShadowFilledIconButton
 import moe.kirakira.ui.components.connectedListItemShapes
@@ -131,11 +138,11 @@ internal fun ProfileEditorScreen(
                 ) {
                     if (state.busy) {
                         IndeterminateCircularProgressIndicator(
-                            modifier = Modifier.size(Material2ButtonDefaults.IconSize).clearAndSetSemantics {},
+                            modifier = Modifier.size(ButtonDefaults.iconSizeFor(ButtonDefaults.MinHeight)).clearAndSetSemantics {},
                             color = LocalContentColor.current,
                             strokeWidth = 2.dp,
                         )
-                        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                        Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(ButtonDefaults.MinHeight)))
                     }
                     Text(saveLabel, maxLines = 1, softWrap = false)
                 }
@@ -163,7 +170,7 @@ internal fun ProfileEditorScreen(
                 ProfileIdentity(state, onPickAvatar)
                 if (state.error != null) SettingsErrorCard(stringResource(
                     if (state.completionOnly) R.string.profile_saved_pending else state.error.messageRes()))
-                SettingsSection(stringResource(R.string.profile_basic)) {
+                SettingsSection {
                     SettingsFormCard {
                         ProfileTextField(state, "username", state.draft.username,
                             stringResource(R.string.auth_username), R.drawable.ic_symbol_alternate_email, onEdit)
@@ -246,17 +253,16 @@ private fun ProfileTextField(
     @DrawableRes icon: Int, onEdit: (String, String) -> Unit, multiline: Boolean = false,
 ) {
     val error = state.fieldErrors[field]
-    OutlinedTextField(
+    FilledTextField(
         value = value, onValueChange = { onEdit(field, it) },
         modifier = Modifier.fillMaxWidth(), enabled = state.editable,
         label = { Text(label) }, leadingIcon = { ProfileIcon(icon) },
-        shape = MaterialTheme.shapes.large,
         singleLine = !multiline, minLines = if (multiline) 3 else 1, maxLines = if (multiline) 6 else 1,
-        isError = error != null,
+        errorMessage = error?.let { stringResource(it) },
         supportingText = if (error != null || multiline) ({
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 if (error != null) Text(stringResource(error), Modifier.weight(1f)) else Spacer(Modifier.weight(1f))
-                if (multiline) Text(stringResource(R.string.profile_character_count, value.length, 200))
+                if (multiline) CharacterCount(count = value.length, limit = 200)
             }
         }) else null,
         keyboardOptions = KeyboardOptions(imeAction = if (multiline) ImeAction.Default else ImeAction.Next),
@@ -272,10 +278,18 @@ private fun PersonalInformation(state: ProfileEditorState, onEdit: (String, Stri
     val locale = LocalConfiguration.current.locales[0]
     val genderValues = listOf("", "male", "female", "other")
     val genderLabels = listOf(R.string.profile_not_set, R.string.profile_male, R.string.profile_female, R.string.profile_other)
+    val genderItemColors = MenuDefaults.selectableItemColors(
+        containerColor = Color.Transparent,
+        disabledContainerColor = Color.Transparent,
+        selectedContainerColor = MaterialTheme.colorScheme.primary,
+        selectedTextColor = MaterialTheme.colorScheme.onPrimary,
+        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+        selectedTrailingContentColor = MaterialTheme.colorScheme.onPrimary,
+    )
     if (showBirthday) BirthdayDialog(draft.birthday, onDismiss = { showBirthday = false }, onSelect = {
         onEdit("birthday", it); showBirthday = false
     })
-    SettingsSection(stringResource(R.string.profile_personal)) {
+    SettingsSection {
         SegmentedListItem(
             onClick = { showBirthday = true }, enabled = state.editable,
             shapes = connectedListItemShapes(0, 2),
@@ -296,15 +310,31 @@ private fun PersonalInformation(state: ProfileEditorState, onEdit: (String, Stri
                 trailingContent = { ProfileListIcon(R.drawable.ic_symbol_chevron_right) },
                 content = { Text(stringResource(R.string.profile_gender)) },
             )
-            DropdownMenu(
+            ExpressiveMenuPopup(
                 expanded = showGender,
                 onDismissRequest = { showGender = false },
-                containerColor = MaterialTheme.colorScheme.surface,
             ) {
-                genderValues.forEachIndexed { index, value ->
-                    DropdownMenuItem(text = { Text(stringResource(genderLabels[index])) }, onClick = {
-                        onEdit("gender", value); showGender = false
-                    }, trailingIcon = if (draft.gender == value) ({ ProfileIcon(R.drawable.ic_symbol_check) }) else null)
+                DropdownMenuGroup(
+                    shapes = MenuDefaults.groupShape(index = 0, count = 1),
+                    modifier = Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()),
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentPadding = PaddingValues(vertical = 4.dp),
+                ) {
+                    genderValues.forEachIndexed { index, value ->
+                        SelectableDropdownMenuItem(
+                            selected = draft.gender == value,
+                            text = { Text(stringResource(genderLabels[index])) },
+                            onClick = {
+                                onEdit("gender", value)
+                                showGender = false
+                            },
+                            shapes = MenuDefaults.itemShape(index = index, count = genderValues.size),
+                            colors = genderItemColors,
+                            trailingContent = if (draft.gender == value) {
+                                { ProfileIcon(R.drawable.ic_symbol_check) }
+                            } else null,
+                        )
+                    }
                 }
             }
         }
@@ -344,7 +374,7 @@ private fun ProfileLabels(state: ProfileEditorState, onAdd: (String) -> Unit, on
     onEdit: (String, String) -> Unit) {
     val input = state.labelInput
     fun add() { onAdd(input) }
-    SettingsSection(stringResource(R.string.profile_labels)) { SettingsFormCard {
+    SettingsSection { SettingsFormCard {
         if (!state.draft?.labels.isNullOrEmpty()) FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
@@ -357,9 +387,12 @@ private fun ProfileLabels(state: ProfileEditorState, onAdd: (String) -> Unit, on
                 }
             }
         }
-        OutlinedTextField(input, { onEdit("labelInput", it) }, modifier = Modifier.fillMaxWidth(), enabled = state.editable,
+        FilledTextField(
+            value = input,
+            onValueChange = { onEdit("labelInput", it) },
+            modifier = Modifier.fillMaxWidth(), enabled = state.editable,
             label = { Text(stringResource(R.string.profile_add_label)) }, singleLine = true,
-            shape = MaterialTheme.shapes.large, leadingIcon = { ProfileIcon(R.drawable.ic_symbol_label) },
+            leadingIcon = { ProfileIcon(R.drawable.ic_symbol_label) },
             trailingIcon = { IconButton(onClick = ::add, enabled = state.editable && input.isNotBlank()) {
                 ProfileIcon(R.drawable.ic_symbol_add, stringResource(R.string.profile_add_label))
             } }, keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),

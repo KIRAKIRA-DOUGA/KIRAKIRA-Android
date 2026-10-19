@@ -7,4 +7,5 @@ internal data class AccountItem(
     val name: String,
     val handle: String? = null,
     val avatar: String? = null,
+    val needsLogin: Boolean = false,
 )

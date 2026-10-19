@@ -89,7 +89,6 @@ private fun AuthPreviewContent(
             onPasswordVisibilityChange = {},
             onSubmit = {},
             onRegister = {},
-            onClose = {},
             onBack = {},
         )
     }

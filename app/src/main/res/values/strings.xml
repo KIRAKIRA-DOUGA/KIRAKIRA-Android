@@ -4,9 +4,7 @@
     <string name="security_sign_in">Sign in to manage account security</string>
     <string name="security_protected">Two-step verification is on</string>
     <string name="security_unprotected">Two-step verification is off</string>
-    <string name="security_account_section">Account access</string>
     <string name="security_two_factor_section">Two-step verification</string>
-    <string name="security_verification_method">Verification method</string>
     <string name="security_continue_binding">Continue binding</string>
     <string name="security_status_pending">Verification status needs confirmation</string>
     <string name="security_check_status">Check status</string>
@@ -92,12 +90,9 @@
     <string name="privacy_reset_title">Reset privacy settings?</string>
     <string name="privacy_reset_message">Birthday, age, following, followers, and favorites will all be public</string>
     <string name="privacy_discard">Leave</string>
-    <string name="profile_basic">Basic details</string>
-    <string name="profile_personal">Personal information</string>
     <string name="profile_bio">Bio</string>
     <string name="profile_birthday">Birthday</string>
     <string name="profile_gender">Gender</string>
-    <string name="profile_labels">Tags</string>
     <string name="profile_not_set">Not set</string>
     <string name="profile_male">Male</string>
     <string name="profile_female">Female</string>
@@ -121,7 +116,6 @@
     <string name="profile_image_failed">Could not open or crop this image. Try another image.</string>
     <string name="profile_name_invalid">Use 1–20 supported characters, with no leading, trailing or repeated separators</string>
     <string name="profile_bio_invalid">Bio must be 200 characters or fewer</string>
-    <string name="profile_character_count">%1$d / %2$d</string>
     <string name="character_count">%1$s / %2$d</string>
     <string name="app_name" translatable="false">KIRAKIRA</string>
     <string name="nav_home">Home</string>
@@ -145,10 +139,9 @@
     <string name="search_sort_duration">Duration</string>
     <string name="search_sort_ascending">Ascending order</string>
     <string name="search_sort_descending">Descending order</string>
-    <string name="search_selected">Selected</string>
     <plurals name="search_video_count">
-        <item quantity="one">%d video</item>
-        <item quantity="other">%d videos</item>
+        <item quantity="one">%1$s video</item>
+        <item quantity="other">%1$s videos</item>
     </plurals>
     <string name="me_following_count">Following</string>
     <string name="me_followers_count">Followers</string>
@@ -262,29 +255,28 @@
     <string name="video_more">More</string>
     <string name="video_action_unavailable">This action is coming soon</string>
     <string name="video_action_count">%1$s, %2$d</string>
-    <string name="video_count">%1$d</string>
     <string name="animated_count">%1$s</string>
 
     <!-- Comment sorting and navigation -->
     <string name="video_comments_previous_page">Jump to previous page</string>
     <string name="video_comments_next_page">Jump to next page</string>
-    <string name="video_comments_page_count">%1$d / %2$d</string>
+    <string name="video_comments_page_count">%1$s / %2$s</string>
     <string name="video_comments_page_description">Page %1$d of %2$d. Jump to a page.</string>
     <string name="video_comments_jump_title">Jump to comments</string>
     <string name="video_comments_page">Page</string>
-    <string name="video_comments_jump_range">Enter a whole number from 1 to %1$d</string>
+    <string name="video_comments_jump_range">Enter a whole number from 1 to %1$s</string>
     <string name="video_comments_jump">Jump</string>
     <string name="video_comments_cancel">Cancel</string>
     <string name="video_comment_floor">#%1$d</string>
     <string name="video_comment_reply">Reply</string>
 
     <plurals name="video_comments_total">
-        <item quantity="one">%1$d comment</item>
-        <item quantity="other">%1$d comments</item>
+        <item quantity="one">%1$s comment</item>
+        <item quantity="other">%1$s comments</item>
     </plurals>
     <plurals name="video_danmaku_total">
-        <item quantity="one">%1$d danmaku message</item>
-        <item quantity="other">%1$d danmaku messages</item>
+        <item quantity="one">%1$s danmaku message</item>
+        <item quantity="other">%1$s danmaku messages</item>
     </plurals>
 
     <string name="auth_sign_in">Sign in</string>
@@ -434,8 +426,8 @@
     <string name="profile_stats_load_failed">Could not load follow counts</string>
 
     <!-- Account settings management -->
-    <string name="management_people">People</string>
-    <string name="management_content">Content rules</string>
+    <string name="management_people">Users</string>
+    <string name="management_content">Content</string>
     <string name="management_blocked_users">Blocked users</string>
     <string name="management_hidden_users">Hidden users</string>
     <string name="management_tags">Tags</string>
@@ -450,13 +442,12 @@
     <string name="management_added">Added</string>
     <string name="management_removed">Removed</string>
     <string name="management_add">Add</string>
-    <string name="management_rule_count">Rules · %1$d</string>
+    <string name="management_rule_count">Rules · %1$s</string>
     <string name="management_no_rules">No rules yet</string>
     <string name="management_uid">UID %1$d</string>
     <string name="management_uid_label">UID</string>
     <string name="management_remove_named">Remove %1$s</string>
     <string name="management_load_more">Load more</string>
-    <string name="management_character_count">%1$d / 30</string>
     <string name="management_lookup">Find user</string>
     <string name="management_search_tags">Search tags</string>
     <string name="management_confirm_add">Confirm addition</string>
@@ -524,7 +515,6 @@
     <string name="settings_predictive_back">Predictive back</string>
     <string name="danmaku_section_display">Display</string>
     <string name="danmaku_section_types">Danmaku types</string>
-    <string name="about_section_more">More</string>
     <string name="tag_title">Tag</string>
     <string name="tag_related_videos">Related videos</string>
     <string name="tag_names">Names and aliases</string>
@@ -536,8 +526,8 @@
     <string name="tag_original_name">Original</string>
     <string name="tag_other_language">Other languages</string>
     <plurals name="tag_video_count">
-        <item quantity="one">%1$d video</item>
-        <item quantity="other">%1$d videos</item>
+        <item quantity="one">%1$s video</item>
+        <item quantity="other">%1$s videos</item>
     </plurals>
     <string name="history_search">Search history</string>
     <string name="history_sign_in">Sign in to view history</string>

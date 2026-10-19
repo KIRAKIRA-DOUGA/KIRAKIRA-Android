@@ -1,5 +1,7 @@
 package moe.kirakira.feature.settings
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -17,15 +19,28 @@ internal fun PlaybackSettingsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val values = settings ?: PlaybackSettings()
-    val ready = settings != null
     SettingsPage(
         title = stringResource(R.string.settings_playback),
         onBack = onBack,
         shadingIcon = R.drawable.ic_symbol_play_circle,
         modifier = modifier,
     ) {
-        SettingsSection(stringResource(R.string.settings_section_mini_player)) {
+        PlaybackSettingsContent(settings, onOutsideAppMiniPlayerChange, onInAppMiniPlayerChange, onAutoplayChange)
+    }
+}
+
+@Composable
+internal fun PlaybackSettingsContent(
+    settings: PlaybackSettings?,
+    onOutsideAppMiniPlayerChange: (Boolean) -> Unit,
+    onInAppMiniPlayerChange: (Boolean) -> Unit,
+    onAutoplayChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val values = settings ?: PlaybackSettings()
+    val ready = settings != null
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(SettingsDefaults.SectionSpacing)) {
+        SettingsSection(title = stringResource(R.string.settings_section_mini_player)) {
             SettingsSwitchItem(
                 title = stringResource(R.string.settings_in_app_mini_player),
                 checked = values.inAppMiniPlayer,
@@ -45,7 +60,7 @@ internal fun PlaybackSettingsScreen(
                 enabled = ready,
             )
         }
-        SettingsSection(stringResource(R.string.settings_playback)) {
+        SettingsSection {
             SettingsSwitchItem(
                 title = stringResource(R.string.settings_autoplay),
                 checked = values.autoplay,

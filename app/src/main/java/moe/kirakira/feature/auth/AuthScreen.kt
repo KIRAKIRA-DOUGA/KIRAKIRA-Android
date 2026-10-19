@@ -5,25 +5,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -40,6 +33,8 @@ import moe.kirakira.ui.components.AccountFlowHeader
 import moe.kirakira.ui.components.AccountFlowProgress
 import moe.kirakira.ui.components.AccountFlowScaffold
 import moe.kirakira.ui.components.AccountFlowSubmitButton
+import moe.kirakira.ui.components.FormButtonEdge
+import moe.kirakira.ui.components.FormTextButton
 
 @Composable
 internal fun AuthScreen(
@@ -52,19 +47,17 @@ internal fun AuthScreen(
     onPasswordVisibilityChange: () -> Unit,
     onSubmit: () -> Unit,
     onRegister: () -> Unit,
-    // Retained for existing callers; the toolbar no longer offers a close action.
-    onClose: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    isActive: Boolean = true,
+    // Compatibility for existing offline UI-check callers; production exit is owned by AuthPage.
+    @Suppress("UNUSED_PARAMETER") onClose: () -> Unit = {},
     onFieldChange: (AuthField, String) -> Unit = { _, _ -> },
     onForgotPassword: () -> Unit = {},
     onResend: () -> Unit = {},
     onRecoveryHelp: () -> Unit = {},
     focusRequesters: Map<AuthField, FocusRequester> = remember { AuthField.entries.associateWith { FocusRequester() } },
 ) {
-    val buttonContentPadding = ButtonDefaults.TextButtonContentPadding
-    val buttonStartPadding = buttonContentPadding.calculateStartPadding(LocalLayoutDirection.current)
-    val buttonEndPadding = buttonContentPadding.calculateEndPadding(LocalLayoutDirection.current)
     val title = when (state.step) {
         AuthStep.REGISTER_PROFILE -> R.string.auth_profile_title
         AuthStep.REGISTER_CREDENTIALS -> R.string.auth_credentials_title
@@ -142,8 +135,8 @@ internal fun AuthScreen(
                 }
             }
         },
-    ) { padding ->
-        AccountFlowColumn(padding) {
+    ) { padding, scrollState ->
+        AccountFlowColumn(padding, scrollState = scrollState) {
             AccountFlowHeader(
                 title = heading,
                 description = stringResource(description),
@@ -168,6 +161,7 @@ internal fun AuthScreen(
                     onSubmit = onSubmit,
                     onFieldChange = onFieldChange,
                     onResend = onResend,
+                    isActive = isActive,
                 )
             }
             if (state.step == AuthStep.LOGIN) {
@@ -176,11 +170,10 @@ internal fun AuthScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    TextButton(
+                    FormTextButton(
                         onClick = onForgotPassword,
-                        enabled = state.canEdit,
-                        modifier = Modifier.offset(x = -buttonStartPadding).defaultMinSize(minWidth = 48.dp),
-                        contentPadding = buttonContentPadding,
+                        enabled = state.canEdit && isActive,
+                        edge = FormButtonEdge.START,
                     ) {
                         Text(stringResource(R.string.auth_forgot_password))
                     }
@@ -188,14 +181,11 @@ internal fun AuthScreen(
                         modifier = Modifier.width(IntrinsicSize.Max).weight(1f),
                         contentAlignment = Alignment.CenterEnd,
                     ) {
-                        TextButton(
+                        FormTextButton(
                             onClick = onRegister,
-                            enabled = state.canEdit,
-                            modifier = Modifier
-                                .offset(x = buttonEndPadding)
-                                .defaultMinSize(minWidth = 48.dp)
-                                .testTag("auth_register"),
-                            contentPadding = buttonContentPadding,
+                            enabled = state.canEdit && isActive,
+                            edge = FormButtonEdge.END,
+                            modifier = Modifier.testTag("auth_register"),
                         ) {
                             Text(stringResource(R.string.auth_register))
                         }
@@ -203,10 +193,10 @@ internal fun AuthScreen(
                 }
             } else if (state.step == AuthStep.TOTP_HELP) {
                 Spacer(Modifier.height(AccountFlowDefaults.FeedbackSpacing))
-                TextButton(
+                FormTextButton(
                     onClick = onRecoveryHelp,
-                    modifier = Modifier.offset(x = -buttonStartPadding).defaultMinSize(minWidth = 48.dp),
-                    contentPadding = buttonContentPadding,
+                    enabled = isActive,
+                    edge = FormButtonEdge.START,
                 ) {
                     Text(stringResource(R.string.auth_contact_support))
                 }

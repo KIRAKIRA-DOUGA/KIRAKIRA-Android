@@ -1,6 +1,7 @@
 package moe.kirakira.feature.search
 
 import androidx.annotation.StringRes
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -62,7 +63,6 @@ internal sealed interface SearchEvent {
     data object RetryTags : SearchEvent
     data object Refresh : SearchEvent
     data class SortChanged(val sort: SearchSort) : SearchEvent
-    data object ToggleDirection : SearchEvent
     data class LayoutChanged(val layout: VideoCardLayout) : SearchEvent
     data class Scrolled(val generation: Long, val index: Int, val offset: Int) : SearchEvent
 }
@@ -86,13 +86,9 @@ internal class SearchViewModel(repository: ContentRepository) : ContentViewModel
     }
 
     fun onEvent(event: SearchEvent) {
-        if (event is SearchEvent.Scrolled) {
-            if (event.generation == _state.value.generation) {
-                _state.value = _state.value.copy(scrollIndex = event.index, scrollOffset = event.offset)
-            }
-            return
-        }
-        if (!session.value.isReadyForContent || session.value.revision != revision) return
+        if (event !is SearchEvent.Scrolled &&
+            (!session.value.isReadyForContent || session.value.revision != revision)
+        ) return
         when (event) {
             is SearchEvent.KeywordChanged -> _state.value = _state.value.copy(keyword = event.value)
             SearchEvent.Submit -> {
@@ -135,10 +131,17 @@ internal class SearchViewModel(repository: ContentRepository) : ContentViewModel
             }
             SearchEvent.RetryTags -> lookupTags()
             SearchEvent.Refresh -> _state.value.submitted?.let { search(it) }
-            is SearchEvent.SortChanged -> _state.value = _state.value.copy(sort = event.sort, descending = true)
-            SearchEvent.ToggleDirection -> _state.value = _state.value.copy(descending = !_state.value.descending)
+            is SearchEvent.SortChanged -> {
+                val current = _state.value
+                _state.value = current.copy(
+                    sort = event.sort,
+                    descending = event.sort == SearchSort.DEFAULT || event.sort != current.sort || !current.descending,
+                )
+            }
             is SearchEvent.LayoutChanged -> _state.value = _state.value.copy(layout = event.layout)
-            is SearchEvent.Scrolled -> Unit
+            is SearchEvent.Scrolled -> if (event.generation == _state.value.generation) {
+                _state.value = _state.value.copy(scrollIndex = event.index, scrollOffset = event.offset)
+            }
         }
     }
 
@@ -205,7 +208,7 @@ internal class SearchViewModel(repository: ContentRepository) : ContentViewModel
         if (!_state.value.pickerOpen || query.isEmpty()) return
         _state.value = _state.value.copy(candidates = ContentState(loading = true))
         tagJob = launchTask {
-            if (debounce) delay(500)
+            if (debounce) delay(500.milliseconds)
             try {
                 val tags = repository.searchTags(query, expected)
                 if (expected == session.value.revision && version == tagVersion) {

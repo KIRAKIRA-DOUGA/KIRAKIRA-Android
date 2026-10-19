@@ -4,9 +4,7 @@
     <string name="security_sign_in">登录后管理账号安全</string>
     <string name="security_protected">已开启二步验证</string>
     <string name="security_unprotected">未开启二步验证</string>
-    <string name="security_account_section">登录与账号</string>
     <string name="security_two_factor_section">二步验证</string>
-    <string name="security_verification_method">验证方式</string>
     <string name="security_continue_binding">继续绑定</string>
     <string name="security_status_pending">二步验证状态待确认</string>
     <string name="security_check_status">检查状态</string>
@@ -92,12 +90,9 @@
     <string name="privacy_reset_title">重置隐私设置？</string>
     <string name="privacy_reset_message">生日、年龄、关注、粉丝和收藏将全部设为公开</string>
     <string name="privacy_discard">离开</string>
-    <string name="profile_basic">基本资料</string>
-    <string name="profile_personal">个人信息</string>
     <string name="profile_bio">简介</string>
     <string name="profile_birthday">生日</string>
     <string name="profile_gender">性别</string>
-    <string name="profile_labels">标签</string>
     <string name="profile_not_set">未设置</string>
     <string name="profile_male">男</string>
     <string name="profile_female">女</string>
@@ -121,7 +116,6 @@
     <string name="profile_image_failed">无法打开或裁剪这张图片，请尝试其他图片</string>
     <string name="profile_name_invalid">请输入 1–20 个支持的字符，分隔符不能位于首尾或连续出现</string>
     <string name="profile_bio_invalid">简介不能超过 200 个字符</string>
-    <string name="profile_character_count">%1$d / %2$d</string>
     <string name="character_count">%1$s / %2$d</string>
     <string name="nav_home">首页</string>
     <string name="nav_search">搜索</string>
@@ -144,9 +138,8 @@
     <string name="search_sort_duration">时长</string>
     <string name="search_sort_ascending">升序排列</string>
     <string name="search_sort_descending">降序排列</string>
-    <string name="search_selected">已选中</string>
     <plurals name="search_video_count">
-        <item quantity="other">%d 个视频</item>
+        <item quantity="other">%1$s 个视频</item>
     </plurals>
     <string name="me_following_count">关注</string>
     <string name="me_followers_count">粉丝</string>
@@ -257,27 +250,26 @@
     <string name="video_more">更多</string>
     <string name="video_action_unavailable">此功能待接入</string>
     <string name="video_action_count">%1$s，%2$d</string>
-    <string name="video_count">%1$d</string>
     <string name="animated_count">%1$s</string>
 
     <!-- Comment sorting and navigation -->
     <string name="video_comments_previous_page">跳转到上一页</string>
     <string name="video_comments_next_page">跳转到下一页</string>
-    <string name="video_comments_page_count">%1$d / %2$d</string>
+    <string name="video_comments_page_count">%1$s / %2$s</string>
     <string name="video_comments_page_description">第 %1$d 页，共 %2$d 页。跳转到页码</string>
     <string name="video_comments_jump_title">快速跳转</string>
     <string name="video_comments_page">页码</string>
-    <string name="video_comments_jump_range">请输入 1 至 %1$d 之间的整数</string>
+    <string name="video_comments_jump_range">请输入 1 至 %1$s 之间的整数</string>
     <string name="video_comments_jump">跳转</string>
     <string name="video_comments_cancel">取消</string>
     <string name="video_comment_floor">#%1$d</string>
     <string name="video_comment_reply">回复</string>
 
     <plurals name="video_comments_total">
-        <item quantity="other">%1$d 条评论</item>
+        <item quantity="other">%1$s 条评论</item>
     </plurals>
     <plurals name="video_danmaku_total">
-        <item quantity="other">%1$d 条弹幕</item>
+        <item quantity="other">%1$s 条弹幕</item>
     </plurals>
 
 
@@ -427,8 +419,8 @@
     <string name="profile_stats_load_failed">关注与粉丝数加载失败</string>
 
     <!-- Account settings management -->
-    <string name="management_people">用户管理</string>
-    <string name="management_content">内容规则</string>
+    <string name="management_people">用户</string>
+    <string name="management_content">内容</string>
     <string name="management_blocked_users">屏蔽用户</string>
     <string name="management_hidden_users">隐藏用户</string>
     <string name="management_tags">标签</string>
@@ -443,13 +435,12 @@
     <string name="management_added">已添加</string>
     <string name="management_removed">已解除</string>
     <string name="management_add">添加</string>
-    <string name="management_rule_count">规则 · %1$d</string>
+    <string name="management_rule_count">规则 · %1$s</string>
     <string name="management_no_rules">暂无规则</string>
     <string name="management_uid">UID %1$d</string>
     <string name="management_uid_label">UID</string>
     <string name="management_remove_named">解除 %1$s</string>
     <string name="management_load_more">加载更多</string>
-    <string name="management_character_count">%1$d / 30</string>
     <string name="management_lookup">查找用户</string>
     <string name="management_search_tags">搜索标签</string>
     <string name="management_confirm_add">确认添加</string>
@@ -518,7 +509,6 @@
     <string name="danmaku_section_display">显示</string>
     <string name="danmaku_section_types">弹幕类型</string>
 
-    <string name="about_section_more">更多</string>
     <string name="tag_title">标签</string>
     <string name="tag_related_videos">相关视频</string>
     <string name="tag_names">名称与别名</string>
@@ -530,7 +520,7 @@
     <string name="tag_original_name">原名</string>
     <string name="tag_other_language">其他语言</string>
     <plurals name="tag_video_count">
-        <item quantity="other">%1$d 个视频</item>
+        <item quantity="other">%1$s 个视频</item>
     </plurals>
     <string name="history_search">搜索历史记录</string>
     <string name="history_sign_in">登录后查看历史记录</string>

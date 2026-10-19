@@ -23,7 +23,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
@@ -51,7 +50,11 @@ import moe.kirakira.data.settings.RulePage
 import moe.kirakira.data.settings.RuleTag
 import moe.kirakira.feature.settings.SettingsSectionHeader
 import moe.kirakira.ui.components.AccountAvatar
+import moe.kirakira.ui.components.AnimatedCountLabel
+import moe.kirakira.ui.components.AnimatedNumberText
+import moe.kirakira.ui.components.CharacterCount
 import moe.kirakira.ui.components.ConnectedListGroup
+import moe.kirakira.ui.components.FilledTextField
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.ShadowFilledTonalButton
@@ -63,7 +66,9 @@ import moe.kirakira.ui.theme.KIRAKIRATheme
 internal fun BlockingOverviewPage(model: BlockingOverviewViewModel, onBack: () -> Unit, onLogin: () -> Unit, onCategory: (RuleCategory) -> Unit) {
     val state by model.counts.collectAsStateWithLifecycle()
     val session by model.session.collectAsStateWithLifecycle()
-    BlockingOverviewScreen(state, session.activeProfile != null && !session.isBusy, onBack, onLogin, model::refresh, onCategory)
+    androidx.compose.runtime.key(session.revision) {
+        BlockingOverviewScreen(state, session.activeProfile != null && !session.isBusy, onBack, onLogin, model::refresh, onCategory)
+    }
 }
 
 @Composable
@@ -114,8 +119,8 @@ internal fun BlockingOverviewScreen(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
                                     state.data?.get(category)?.let {
-                                        Text(
-                                            it.toString(),
+                                        AnimatedNumberText(
+                                            it,
                                             style = MaterialTheme.typography.titleMedium,
                                             color = MaterialTheme.colorScheme.primary,
                                         )
@@ -141,8 +146,10 @@ internal fun RuleManagementPage(model: RuleManagementViewModel, onBack: () -> Un
     val message by model.message.collectAsStateWithLifecycle()
     val session by model.session.collectAsStateWithLifecycle()
     val signedIn = session.activeProfile != null && !session.isBusy
-    RuleManagementScreen(model.category, state, signedIn, busy, message, onBack, onLogin, model::refresh,
-        model::more, model::openEditor, model::remove, model::dismissMessage)
+    androidx.compose.runtime.key(session.revision) {
+        RuleManagementScreen(model.category, state, signedIn, busy, message, onBack, onLogin, model::refresh,
+            model::more, model::openEditor, model::remove, model::dismissMessage)
+    }
     if (editor.open && signedIn) {
         RuleEditorSheet(model.category, editor, busy, model::input, model::submit, model::selectTag, model::closeEditor)
     }
@@ -187,10 +194,9 @@ internal fun RuleManagementScreen(
         val page = state.data
         if (page != null) {
             item {
-                SettingsSectionHeader(
-                    stringResource(R.string.management_rule_count, page.total),
-                    modifier = Modifier.padding(bottom = 8.dp),
-                )
+                SettingsSectionHeader(modifier = Modifier.padding(bottom = 8.dp)) {
+                    AnimatedCountLabel(page.total.toLong(), stringResource(R.string.management_rule_count))
+                }
             }
             if (page.entries.isEmpty()) item { ManagementEmpty(category.iconRes(), stringResource(R.string.management_no_rules)) }
             connectedItemsIndexed(
@@ -270,16 +276,16 @@ private fun RuleEditorSheet(
         ) {
             Icon(painterResource(category.iconRes()), contentDescription = null, modifier = Modifier.size(24.dp))
             Text(stringResource(category.titleRes()), style = MaterialTheme.typography.headlineSmall)
-            OutlinedTextField(
+            FilledTextField(
                 value = state.input, onValueChange = onInput, modifier = Modifier.fillMaxWidth(), enabled = !busy,
-                singleLine = category != RuleCategory.REGEX, shape = MaterialTheme.shapes.large,
+                singleLine = category != RuleCategory.REGEX,
                 label = { Text(stringResource(if (user) R.string.management_uid_label else category.titleRes())) },
                 keyboardOptions = KeyboardOptions(keyboardType = if (user) KeyboardType.Number else KeyboardType.Text),
-                isError = state.error != null,
+                errorMessage = state.error?.let { stringResource(it) },
                 supportingText = {
                     if (state.error != null) Text(stringResource(state.error))
                     else if (category == RuleCategory.KEYWORD || category == RuleCategory.REGEX) {
-                        Text(stringResource(R.string.management_character_count, state.input.trim().length))
+                        CharacterCount(count = state.input.trim().length, limit = 30)
                     }
                 },
             )

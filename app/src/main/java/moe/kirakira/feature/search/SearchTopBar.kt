@@ -1,22 +1,28 @@
 package moe.kirakira.feature.search
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SelectableDropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -27,13 +33,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
+import moe.kirakira.ui.components.ExpressiveMenuPopup
 import moe.kirakira.ui.components.video.VideoCardLayout
 
 @Composable
@@ -145,6 +152,14 @@ internal fun SearchTopBar(
 @Composable
 private fun SearchSortMenu(state: SearchUiState, onEvent: (SearchEvent) -> Unit) {
     var expanded by remember(state.generation, state.ready) { mutableStateOf(false) }
+    val itemColors = MenuDefaults.selectableItemColors(
+        containerColor = Color.Transparent,
+        disabledContainerColor = Color.Transparent,
+        selectedContainerColor = MaterialTheme.colorScheme.primary,
+        selectedTextColor = MaterialTheme.colorScheme.onPrimary,
+        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+        selectedTrailingContentColor = MaterialTheme.colorScheme.onPrimary,
+    )
     Box {
         SearchIconButton(
             label = stringResource(state.sort.label),
@@ -152,53 +167,45 @@ private fun SearchSortMenu(state: SearchUiState, onEvent: (SearchEvent) -> Unit)
             onClick = { expanded = true },
             enabled = state.ready,
         )
-        DropdownMenu(
+        ExpressiveMenuPopup(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            containerColor = MaterialTheme.colorScheme.surface,
         ) {
-            SearchSort.entries.forEach { sort ->
-                val isSelected = state.sort == sort
-                DropdownMenuItem(
-                    text = { Text(stringResource(sort.label)) },
-                    onClick = {
-                        expanded = false
-                        onEvent(SearchEvent.SortChanged(sort))
-                    },
-                    modifier = Modifier.semantics { selected = isSelected },
-                    enabled = state.ready,
-                    trailingIcon = if (!isSelected) null else {
-                        { Icon(painterResource(R.drawable.ic_symbol_check), stringResource(R.string.search_selected)) }
-                    },
-                )
-            }
-            listOf(true, false).forEach { descending ->
-                val directionEnabled = state.ready && state.sort != SearchSort.DEFAULT
-                val isSelected = state.sort != SearchSort.DEFAULT && state.descending == descending
-                DropdownMenuItem(
-                    text = {
-                        Text(stringResource(
-                            if (descending) R.string.search_sort_descending else R.string.search_sort_ascending,
-                        ))
-                    },
-                    onClick = {
-                        expanded = false
-                        if (state.descending != descending) onEvent(SearchEvent.ToggleDirection)
-                    },
-                    modifier = Modifier.semantics { selected = isSelected },
-                    enabled = directionEnabled,
-                    leadingIcon = {
-                        Icon(
-                            painterResource(
-                                if (descending) R.drawable.ic_symbol_arrow_downward else R.drawable.ic_symbol_arrow_upward,
-                            ),
-                            contentDescription = null,
-                        )
-                    },
-                    trailingIcon = if (!isSelected) null else {
-                        { Icon(painterResource(R.drawable.ic_symbol_check), stringResource(R.string.search_selected)) }
-                    },
-                )
+            val sorts = SearchSort.entries
+            DropdownMenuGroup(
+                shapes = MenuDefaults.groupShape(index = 0, count = 1),
+                modifier = Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()),
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentPadding = PaddingValues(vertical = 4.dp),
+            ) {
+                sorts.forEachIndexed { index, sort ->
+                    val isSelected = state.sort == sort
+                    SelectableDropdownMenuItem(
+                        selected = isSelected,
+                        text = { Text(stringResource(sort.label)) },
+                        onClick = { onEvent(SearchEvent.SortChanged(sort)) },
+                        shapes = MenuDefaults.itemShape(index = index, count = sorts.size),
+                        colors = itemColors,
+                        enabled = state.ready,
+                        trailingContent = if (sort == SearchSort.DEFAULT) null else {
+                            {
+                                val descending = !isSelected || state.descending
+                                val rotation = animateFloatAsState(
+                                    targetValue = if (descending) 0f else 180f,
+                                    animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+                                    label = "searchSortDirection",
+                                )
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_symbol_arrow_downward),
+                                    contentDescription = stringResource(
+                                        if (descending) R.string.search_sort_descending else R.string.search_sort_ascending,
+                                    ),
+                                    modifier = Modifier.graphicsLayer { rotationZ = rotation.value },
+                                )
+                            }
+                        },
+                    )
+                }
             }
         }
     }

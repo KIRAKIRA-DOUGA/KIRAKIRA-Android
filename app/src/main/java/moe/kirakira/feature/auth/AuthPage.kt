@@ -13,7 +13,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalAutofillManager
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -24,8 +23,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.first
-import moe.kirakira.BuildConfig
 import moe.kirakira.R
+import moe.kirakira.core.credentials.DisabledPasswordCredentialGateway
 import moe.kirakira.core.credentials.PasswordCredentialGateway
 import moe.kirakira.core.credentials.PasswordSaveResult
 import moe.kirakira.core.credentials.PasswordSelection
@@ -49,11 +48,10 @@ internal fun AuthPage(
     val viewModel = viewModel {
         AuthViewModel(
             createSavedStateHandle(), repository, initialEmail,
-            credentialsEnabled = credentialGateway != null || BuildConfig.SYSTEM_CREDENTIALS_ENABLED,
+            credentialsEnabled = gateway !== DisabledPasswordCredentialGateway,
         )
     }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val keyboard = LocalSoftwareKeyboardController.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val currentOnClose by rememberUpdatedState(onClose)
     val autofill = LocalAutofillManager.current
@@ -124,12 +122,6 @@ internal fun AuthPage(
             state = state,
             viewModel = viewModel,
             isActive = isActive,
-            onClose = {
-                autofill?.cancel()
-                viewModel.cancel()
-                keyboard?.hide()
-                currentOnClose()
-            },
             predictiveBackEnabled = predictiveBackEnabled,
             modifier = modifier,
         )

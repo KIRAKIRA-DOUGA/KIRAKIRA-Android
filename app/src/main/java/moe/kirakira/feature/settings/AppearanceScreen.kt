@@ -194,7 +194,7 @@ fun AppearanceScreen(
                         }
                     }
                     item(key = "animations", contentType = "settings_group") {
-                        SettingsSection(stringResource(R.string.settings_section_animations)) {
+                        SettingsSection(title = stringResource(R.string.settings_section_animations)) {
                             SettingsSwitchItem(
                                 title = stringResource(R.string.settings_predictive_back),
                                 checked = predictiveBackEnabled,

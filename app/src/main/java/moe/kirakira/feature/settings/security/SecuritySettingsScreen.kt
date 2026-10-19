@@ -1,5 +1,3 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
-
 package moe.kirakira.feature.settings.security
 
 import androidx.compose.foundation.layout.Arrangement
@@ -36,6 +34,7 @@ import moe.kirakira.ui.components.ContentUnavailableAction
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
+import moe.kirakira.ui.components.DestructiveTextButton
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.messageRes
 
@@ -160,7 +159,7 @@ internal fun SecuritySettingsScreen(
             containerColor = MaterialTheme.colorScheme.surface,
             title = { Text(stringResource(R.string.security_leave_codes_title)) },
             text = { Text(stringResource(R.string.security_leave_codes_message)) },
-            confirmButton = { TextButton(onClick = onFinishCodes) { Text(stringResource(R.string.privacy_discard)) } },
+            confirmButton = { DestructiveTextButton(onClick = onFinishCodes) { Text(stringResource(R.string.privacy_discard)) } },
             dismissButton = { TextButton(onClick = onCancelDiscard) { Text(stringResource(R.string.profile_keep_editing)) } },
         )
     }
@@ -170,7 +169,7 @@ internal fun SecuritySettingsScreen(
             containerColor = MaterialTheme.colorScheme.surface,
             title = { Text(stringResource(R.string.security_leave_changes_title)) },
             text = { Text(stringResource(R.string.profile_discard_message)) },
-            confirmButton = { TextButton(onClick = onDiscardCredentials) { Text(stringResource(R.string.privacy_discard)) } },
+            confirmButton = { DestructiveTextButton(onClick = onDiscardCredentials) { Text(stringResource(R.string.privacy_discard)) } },
             dismissButton = { TextButton(onClick = onCancelDiscardCredentials) { Text(stringResource(R.string.profile_keep_editing)) } },
         )
     }

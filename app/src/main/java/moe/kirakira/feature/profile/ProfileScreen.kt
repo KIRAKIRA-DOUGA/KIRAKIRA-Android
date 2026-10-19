@@ -34,6 +34,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -41,9 +42,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -74,6 +77,7 @@ import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
+import moe.kirakira.ui.components.LocalNumberAnimationIdentity
 import moe.kirakira.ui.components.PagerTabRow
 import moe.kirakira.ui.components.appTopAppBarColors
 import moe.kirakira.ui.components.frostedBarBackground
@@ -81,6 +85,7 @@ import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.components.video.VideoCardLayout
 import moe.kirakira.ui.components.video.VideoCardRow
 import moe.kirakira.ui.content.ContentState
+import moe.kirakira.ui.theme.BarShadowElevation
 import moe.kirakira.ui.theme.ThemeColorDefaults
 import moe.kirakira.ui.theme.barSurfaceLayer
 
@@ -138,6 +143,7 @@ internal fun ProfileScreen(
     }
 
     val hazeState = rememberHazeState()
+    val pinnedHazeState = rememberHazeState()
     Box(
         modifier
             .fillMaxSize()
@@ -146,10 +152,12 @@ internal fun ProfileScreen(
         ProfileHeaderBackground(
             listState = profileListState,
             coverHeight = coverHeight,
+            tabsPinned = tabsPinned,
+            hazeState = pinnedHazeState,
             modifier = Modifier
                 .matchParentSize()
                 .then(
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Modifier.hazeSource(hazeState) else Modifier,
+                    if (!tabsPinned && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Modifier.hazeSource(hazeState) else Modifier,
                 ),
         )
         Scaffold(
@@ -158,11 +166,6 @@ internal fun ProfileScreen(
             contentColor = MaterialTheme.colorScheme.onSurface,
             topBar = {
                 Box {
-                    if (tabsPinned) {
-                        Box(Modifier
-                            .matchParentSize()
-                            .frostedBarBackground(hazeState = hazeState))
-                    }
                     TopAppBar(
                         title = {
                             if (tabsPinned) {
@@ -225,7 +228,6 @@ internal fun ProfileScreen(
                     modifier = Modifier
                         .widthIn(max = 640.dp)
                         .fillMaxSize(),
-                    indicatorTopPadding = innerPadding.calculateTopPadding(),
                 ) {
                     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                         // The pager fills the area below the toolbar and tabs, so the outer
@@ -236,22 +238,31 @@ internal fun ProfileScreen(
                         LazyColumn(
                             state = profileListState,
                             contentPadding = PaddingValues(top = innerPadding.calculateTopPadding()),
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .drawWithContent {
+                                    // Once pinned, the scrolled profile must not cover the shared toolbar surface.
+                                    clipRect(top = if (tabsPinned) innerPadding.calculateTopPadding().toPx() else 0f) {
+                                        this@drawWithContent.drawContent()
+                                    }
+                                },
                         ) {
                             item(key = "profile_header") {
-                                ProfileHeader(
-                                    state = state,
-                                    bioExpanded = bioExpanded,
-                                    onBioExpandedChange = onBioExpandedChange,
-                                    onFollowingChange = onFollowingChange,
-                                    onEditProfile = onEditProfile,
-                                    onOpenFollowList = onOpenFollowList,
-                                    onOpenAvatar = onOpenAvatar,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    coverRemainderHeight = (coverHeight - innerPadding.calculateTopPadding()).coerceAtLeast(
-                                        0.dp,
-                                    ),
-                                )
+                                CompositionLocalProvider(LocalNumberAnimationIdentity provides state.profile.uid) {
+                                    ProfileHeader(
+                                        state = state,
+                                        bioExpanded = bioExpanded,
+                                        onBioExpandedChange = onBioExpandedChange,
+                                        onFollowingChange = onFollowingChange,
+                                        onEditProfile = onEditProfile,
+                                        onOpenFollowList = onOpenFollowList,
+                                        onOpenAvatar = onOpenAvatar,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        coverRemainderHeight = (coverHeight - innerPadding.calculateTopPadding()).coerceAtLeast(
+                                            0.dp,
+                                        ),
+                                    )
+                                }
                             }
                             if (profileError != null) {
                                 item(key = "profile_error") {
@@ -289,7 +300,7 @@ internal fun ProfileScreen(
                                         .fillMaxWidth()
                                         .zIndex(1f)
                                         .onSizeChanged { tabRowHeight = it.height },
-                                    containerColor = background,
+                                    containerColor = Color.Transparent,
                                 )
                             }
                             item(key = "profile_pages") {
@@ -298,7 +309,12 @@ internal fun ProfileScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(pagerHeight)
-                                        .nestedScroll(headerScrollConnection),
+                                        .nestedScroll(headerScrollConnection)
+                                        .then(
+                                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                                Modifier.hazeSource(pinnedHazeState)
+                                            } else Modifier,
+                                        ),
                                     key = { ProfileTab.entries[it].name },
                                 ) { page ->
                                     val tab = ProfileTab.entries[page]
@@ -376,6 +392,7 @@ internal fun ProfileScreen(
             }
         }
     }
+
 }
 
 @Composable
@@ -402,16 +419,25 @@ private fun ProfileTopBarIconButton(
 private fun ProfileHeaderBackground(
     listState: LazyListState,
     coverHeight: Dp,
+    tabsPinned: Boolean,
+    hazeState: HazeState,
     modifier: Modifier = Modifier,
 ) {
     val background = ThemeColorDefaults.pageBackgroundColor().copy(alpha = 1f)
     Layout(
         modifier = modifier,
         content = {
-            Box(Modifier
-                .barSurfaceLayer()
-                .background(background)) {
-                ProfileCover(listState, coverHeight)
+            Box(
+                if (tabsPinned) {
+                    Modifier.frostedBarBackground(
+                        hazeState = hazeState,
+                        shadowElevation = BarShadowElevation,
+                    )
+                } else {
+                    Modifier.barSurfaceLayer().background(background)
+                },
+            ) {
+                if (!tabsPinned) ProfileCover(listState, coverHeight)
             }
         },
     ) { measurables, constraints ->

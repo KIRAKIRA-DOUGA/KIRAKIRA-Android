@@ -41,6 +41,7 @@ import kotlinx.coroutines.flow.first
 import moe.kirakira.R
 import moe.kirakira.data.content.Reaction
 import moe.kirakira.data.content.VideoComment
+import moe.kirakira.ui.components.AnimatedCountLabel
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.content.ContentState
@@ -256,7 +257,8 @@ internal fun VideoCommentsPage(
 
 @Composable
 private fun CommentCountHeader(count: Int, toolbarSize: IntSize, modifier: Modifier = Modifier) {
-    val label = pluralStringResource(R.plurals.video_comments_total, count, count)
+    val template = pluralStringResource(R.plurals.video_comments_total, count)
+    val label = template.format(count.toString())
     val style = MaterialTheme.typography.bodyMedium
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
@@ -267,8 +269,9 @@ private fun CommentCountHeader(count: Int, toolbarSize: IntSize, modifier: Modif
     BoxWithConstraints(modifier.fillMaxWidth().padding(bottom = 8.dp)) {
         // Measure the localized label so narrow layouts and large fonts stack without overlap.
         val inline = toolbarSize.width > 0 && labelWidth + toolbarWidth + 24.dp <= maxWidth
-        Text(
-            text = label,
+        AnimatedCountLabel(
+            count = count.toLong(),
+            template = template,
             modifier = if (inline) {
                 Modifier
                     .fillMaxWidth()

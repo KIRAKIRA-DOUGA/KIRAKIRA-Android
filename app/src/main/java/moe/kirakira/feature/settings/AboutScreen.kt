@@ -70,7 +70,7 @@ fun AboutScreen(
         backButtonModifier = Modifier.testTag("about_back"),
     ) {
         AboutHeader(packageInfo.versionName, PackageInfoCompat.getLongVersionCode(packageInfo))
-        SettingsSection(title = stringResource(R.string.about_section_more)) {
+        SettingsSection {
             SettingsNavigationItem(
                 title = stringResource(R.string.about_github),
                 icon = R.drawable.ic_logo_github,

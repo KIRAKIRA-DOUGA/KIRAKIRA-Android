@@ -51,7 +51,7 @@ internal fun AccountFlowFeedback(
 
 /** Returns no supporting slot once the exit finishes, preserving the field's idle height. */
 @Composable
-internal fun accountFlowSupportingError(message: String?): (@Composable () -> Unit)? {
+internal fun textFieldSupportingError(message: String?): (@Composable () -> Unit)? {
     val feedback = rememberFeedbackTransition(message)
     if (!feedback.visibility.currentState && !feedback.visibility.targetState) return null
     return {

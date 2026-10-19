@@ -16,7 +16,6 @@ import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -35,10 +34,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
+import moe.kirakira.ui.components.AnimatedCountLabel
+import moe.kirakira.ui.components.AnimatedPageCount
+import moe.kirakira.ui.components.FilledTextField
 import moe.kirakira.ui.theme.BarShadowElevation
 
 @Composable
@@ -50,7 +51,8 @@ internal fun CommentToolbar(
     onOpenJump: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val pageLabel = stringResource(R.string.video_comments_page_count, currentPage, totalPages)
+    val pageTemplate = stringResource(R.string.video_comments_page_count)
+    val pageLabel = pageTemplate.format(currentPage.toString(), totalPages.toString())
     val pageDescription = stringResource(R.string.video_comments_page_description, currentPage, totalPages)
     val pageTextStyle = MaterialTheme.typography.labelLarge
     val pageButtonPadding = ButtonDefaults.TextButtonContentPadding
@@ -88,12 +90,11 @@ internal fun CommentToolbar(
             modifier = Modifier.weight(1f, fill = false).semantics { contentDescription = pageDescription },
             contentPadding = pageButtonPadding,
         ) {
-            Text(
-                text = pageLabel,
+            AnimatedPageCount(
+                currentPage = currentPage,
+                totalPages = totalPages,
+                template = pageTemplate,
                 style = pageTextStyle,
-                softWrap = false,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
         }
         IconButton(onClick = { onPage(currentPage + 1) }, enabled = enabled && currentPage < totalPages) {
@@ -127,14 +128,16 @@ internal fun CommentJumpDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                OutlinedTextField(
+                FilledTextField(
                     value = input,
                     onValueChange = { input = it },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text(stringResource(R.string.video_comments_page)) },
                     singleLine = true,
                     isError = input.isNotEmpty() && (target == null || target !in 1..totalPages),
-                    supportingText = { Text(stringResource(R.string.video_comments_jump_range, totalPages)) },
+                    supportingText = {
+                        AnimatedCountLabel(totalPages.toLong(), stringResource(R.string.video_comments_jump_range))
+                    },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Go),
                     keyboardActions = KeyboardActions(onGo = { jump() }),
                 )

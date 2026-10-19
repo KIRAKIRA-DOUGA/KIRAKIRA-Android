@@ -22,12 +22,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.ButtonDefaults as Material2ButtonDefaults
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -35,6 +35,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSliderState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -46,6 +47,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -191,11 +193,24 @@ internal fun SettingsSectionHeader(title: String, modifier: Modifier = Modifier)
     SectionHeader(title = title, modifier = modifier.padding(horizontal = SettingsDefaults.HorizontalPadding))
 }
 
-/** Titled group of connected rows. */
+/** Keeps the section's spacing, heading semantics, color and typography for dynamic titles. */
+@Composable
+internal fun SettingsSectionHeader(
+    modifier: Modifier = Modifier,
+    titleContent: @Composable () -> Unit,
+) {
+    Box(modifier.padding(horizontal = SettingsDefaults.HorizontalPadding).semantics { heading() }) {
+        CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.primary) {
+            ProvideTextStyle(MaterialTheme.typography.labelMedium, content = titleContent)
+        }
+    }
+}
+
+/** Group of connected rows with an optional title. */
 @Composable
 internal fun SettingsSection(
-    title: String?,
     modifier: Modifier = Modifier,
+    title: String? = null,
     contentModifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -463,7 +478,7 @@ private fun PrimaryButtonContent(@DrawableRes icon: Int?, label: String, busy: B
     val height = ButtonDefaults.MediumContainerHeight
     val iconSize = ButtonDefaults.iconSizeFor(height)
     if (busy) IndeterminateCircularProgressIndicator(
-        modifier = Modifier.size(Material2ButtonDefaults.IconSize),
+        modifier = Modifier.size(iconSize),
         strokeWidth = 2.dp,
     )
     else if (icon != null) Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(iconSize))
@@ -496,13 +511,6 @@ internal fun SettingsPrimaryButton(
         PrimaryButtonContent(icon, label, busy)
     }
 }
-
-/** Destructive variant colors for settings primary actions. */
-@Composable
-internal fun settingsDestructiveButtonColors(): ButtonColors = ButtonDefaults.buttonColors(
-    containerColor = MaterialTheme.colorScheme.error,
-    contentColor = MaterialTheme.colorScheme.onError,
-)
 
 /**
  * Full-width form action placed in [SettingsScaffold]'s bottom bar. Scaffold measures its height for
@@ -547,7 +555,7 @@ internal fun SettingsActionBar(
                 if (busy) {
                     IndeterminateCircularProgressIndicator(
                         modifier = Modifier
-                            .size(Material2ButtonDefaults.IconSize)
+                            .size(ButtonDefaults.iconSizeFor(height))
                             .clearAndSetSemantics {},
                         color = LocalContentColor.current,
                         strokeWidth = 2.dp,

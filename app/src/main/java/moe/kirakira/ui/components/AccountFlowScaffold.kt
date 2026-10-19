@@ -1,6 +1,7 @@
 package moe.kirakira.ui.components
 
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,6 +34,9 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -55,7 +59,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import moe.kirakira.R
-import androidx.compose.material.ButtonDefaults as Material2ButtonDefaults
+import moe.kirakira.ui.theme.BarShadowElevation
 
 internal object AccountFlowDefaults {
     val MaxContentWidth = 480.dp
@@ -73,7 +77,7 @@ internal fun accountFlowCodeTextStyle(): TextStyle = MaterialTheme.typography.ti
     letterSpacing = 1.sp,
 )
 
-/** Shared account-flow host. IME avoidance includes the Snackbar and consumes the inset once. */
+/** Owns form scrolling and toolbar shadow. IME avoidance includes the Snackbar and consumes the inset once. */
 @Composable
 internal fun AccountFlowScaffold(
     @DrawableRes icon: Int,
@@ -83,13 +87,16 @@ internal fun AccountFlowScaffold(
     backButtonModifier: Modifier = Modifier,
     snackbarHost: @Composable () -> Unit = {},
     bottomBar: @Composable () -> Unit = {},
-    content: @Composable (PaddingValues) -> Unit,
+    content: @Composable (PaddingValues, ScrollState) -> Unit,
 ) {
+    val scrollState = rememberScrollState()
+    val isScrolled by remember(scrollState) { derivedStateOf { scrollState.value > 0 } }
     FrostedScaffold(
         modifier = modifier
             .fillMaxSize()
             .imePadding(),
         containerColor = MaterialTheme.colorScheme.surface,
+        topBarShadowElevation = if (isScrolled) BarShadowElevation else 0.dp,
         topBar = {
             CenterAlignedTopAppBar(
                 colors = appTopAppBarColors(),
@@ -115,7 +122,7 @@ internal fun AccountFlowScaffold(
         },
         snackbarHost = snackbarHost,
         bottomBar = bottomBar,
-        content = content,
+        content = { padding -> content(padding, scrollState) },
     )
 }
 
@@ -144,6 +151,7 @@ internal fun AccountFlowActionBar(
 @Composable
 internal fun AccountFlowColumn(
     padding: PaddingValues,
+    scrollState: ScrollState,
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -163,7 +171,7 @@ internal fun AccountFlowColumn(
                 .padding(horizontal = AccountFlowDefaults.ContentPadding)
                 .widthIn(max = AccountFlowDefaults.MaxContentWidth)
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .padding(
                     top = padding.calculateTopPadding() + AccountFlowDefaults.ContentPadding,
                     bottom = padding.calculateBottomPadding() + AccountFlowDefaults.ContentPadding,
@@ -290,16 +298,6 @@ internal fun AccountFlowSection(
 }
 
 @Composable
-internal fun AccountFlowFieldErrorIcon(modifier: Modifier = Modifier) {
-    Icon(
-        painter = painterResource(R.drawable.ic_symbol_error_filled),
-        contentDescription = null,
-        tint = MaterialTheme.colorScheme.error,
-        modifier = modifier.size(24.dp),
-    )
-}
-
-@Composable
 internal fun AccountFlowError(message: String, modifier: Modifier = Modifier) {
     Text(
         text = message,
@@ -354,7 +352,7 @@ internal fun AccountFlowSubmitButton(
             if (busy) {
                 IndeterminateCircularProgressIndicator(
                     modifier = Modifier
-                        .size(Material2ButtonDefaults.IconSize)
+                        .size(ButtonDefaults.iconSizeFor(height))
                         .clearAndSetSemantics { },
                     strokeWidth = 2.dp,
                 )

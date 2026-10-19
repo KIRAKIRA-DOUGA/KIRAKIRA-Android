@@ -1,5 +1,3 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
-
 package moe.kirakira.feature.settings.security
 
 import androidx.compose.foundation.layout.Arrangement
@@ -21,12 +19,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import moe.kirakira.R
 import moe.kirakira.data.auth.SecondFactor
-import moe.kirakira.feature.settings.settingsDestructiveButtonColors
 import moe.kirakira.ui.components.AccountFlowActionBar
 import moe.kirakira.ui.components.AccountFlowColumn
 import moe.kirakira.ui.components.AccountFlowDefaults
@@ -41,6 +37,7 @@ import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
+import moe.kirakira.ui.components.DestructiveActionDefaults
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.messageRes
 
@@ -89,7 +86,7 @@ internal fun SecurityFlowScreen(
                 }
             }
         },
-    ) { padding ->
+    ) { padding, scrollState ->
         when {
             sessionBusy || (state.loading && state.status == null && !state.statusPending) -> Box(
                 modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding),
@@ -113,7 +110,7 @@ internal fun SecurityFlowScreen(
             )
             else -> {
                 val content: @Composable () -> Unit = {
-                    AccountFlowColumn(padding) {
+                    AccountFlowColumn(padding, scrollState = scrollState) {
                         SecurityFlow(
                             state = state,
                             step = step,
@@ -312,7 +309,7 @@ private fun SecuritySubmitButton(
         enabled = state.canSubmit,
         busy = state.busy,
         modifier = modifier,
-        colors = if (destructive) settingsDestructiveButtonColors() else ButtonDefaults.buttonColors(),
+        colors = if (destructive) DestructiveActionDefaults.buttonColors() else ButtonDefaults.buttonColors(),
         actionDescription = when {
             state.completionPending -> stringResource(R.string.profile_finish_save)
             step == SecurityStep.SECRETS -> stringResource(R.string.security_done)

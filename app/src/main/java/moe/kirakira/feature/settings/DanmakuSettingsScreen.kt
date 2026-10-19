@@ -1,5 +1,7 @@
 package moe.kirakira.feature.settings
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -16,14 +18,25 @@ internal fun DanmakuSettingsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val value = settings ?: DanmakuSettings()
-    val ready = settings != null
     SettingsPage(
         title = stringResource(R.string.settings_danmaku),
         onBack = onBack,
         shadingIcon = R.drawable.ic_custom_danmaku,
         modifier = modifier,
     ) {
+        DanmakuSettingsContent(settings, onChange)
+    }
+}
+
+@Composable
+internal fun DanmakuSettingsContent(
+    settings: DanmakuSettings?,
+    onChange: (DanmakuSettings) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val value = settings ?: DanmakuSettings()
+    val ready = settings != null
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(SettingsDefaults.SectionSpacing)) {
         ConnectedListGroup {
             SettingsMasterSwitchItem(
                 title = stringResource(R.string.danmaku_display),
@@ -33,7 +46,7 @@ internal fun DanmakuSettingsScreen(
                 enabled = ready,
             )
         }
-        SettingsSection(stringResource(R.string.danmaku_section_display)) {
+        SettingsSection(title = stringResource(R.string.danmaku_section_display)) {
             SettingsSliderItem(
                 title = stringResource(R.string.danmaku_opacity),
                 value = value.opacityPercent, range = 10..100, step = 5,
@@ -63,7 +76,7 @@ internal fun DanmakuSettingsScreen(
                 index = 3, count = 4, icon = R.drawable.ic_symbol_speed, enabled = ready,
             )
         }
-        SettingsSection(stringResource(R.string.danmaku_section_types)) {
+        SettingsSection(title = stringResource(R.string.danmaku_section_types)) {
             SettingsSwitchItem(
                 stringResource(R.string.danmaku_style_rtl), value.showRtl, { onChange(value.copy(showRtl = it)) },
                 0, 4, icon = R.drawable.ic_symbol_west, enabled = ready,

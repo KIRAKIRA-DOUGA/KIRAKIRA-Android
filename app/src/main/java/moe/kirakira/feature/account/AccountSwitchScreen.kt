@@ -1,6 +1,19 @@
 package moe.kirakira.feature.account
 
 import android.content.res.Configuration
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.updateTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,10 +54,12 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpOffset
@@ -82,6 +97,19 @@ internal fun AccountSwitchScreen(
     val layoutDirection = LocalLayoutDirection.current
     var swipedAccountId by remember { mutableStateOf<String?>(null) }
     val scrollState = rememberScrollState()
+    val motion = MaterialTheme.motionScheme
+    val addContainerColor by animateColorAsState(
+        targetValue = if (editing) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+            else MaterialTheme.colorScheme.surfaceContainerHigh,
+        animationSpec = motion.fastEffectsSpec(),
+        label = "accountAddContainer",
+    )
+    val addContentColor by animateColorAsState(
+        targetValue = if (editing) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+            else MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = motion.fastEffectsSpec(),
+        label = "accountAddContent",
+    )
     LaunchedEffect(editing, scrollState.isScrollInProgress) {
         if (editing || scrollState.isScrollInProgress) swipedAccountId = null
     }
@@ -116,7 +144,25 @@ internal fun AccountSwitchScreen(
                                 },
                                 modifier = Modifier.testTag("account_edit"),
                             ) {
-                                Text(stringResource(if (editing) R.string.account_done else R.string.account_edit))
+                                AnimatedContent(
+                                    targetState = editing,
+                                    transitionSpec = {
+                                        (fadeIn(motion.fastEffectsSpec()) + slideInVertically(
+                                            motion.fastSpatialSpec(),
+                                        ) { it / 3 }).togetherWith(
+                                            fadeOut(motion.fastEffectsSpec()) + slideOutVertically(
+                                                motion.fastSpatialSpec(),
+                                            ) { -it / 3 },
+                                        ).using(SizeTransform(clip = false))
+                                    },
+                                    label = "accountEditLabel",
+                                ) { showDone ->
+                                    Text(
+                                        stringResource(if (showDone) R.string.account_done else R.string.account_edit),
+                                        modifier = if (showDone != editing) Modifier.clearAndSetSemantics { }
+                                            else Modifier,
+                                    )
+                                }
                             }
                         }
                     },
@@ -176,7 +222,8 @@ internal fun AccountSwitchScreen(
                                     modifier = rowModifier,
                                 )
                             }
-                            if (!editing && account.id != GUEST_ACCOUNT_ID) {
+                            // Keep the row composed across edit changes so its transitions can finish.
+                            if (account.id != GUEST_ACCOUNT_ID) {
                                 SwipeToRemoveAccount(
                                     accountId = account.id,
                                     removeLabel = stringResource(R.string.account_remove_description, account.name),
@@ -185,6 +232,7 @@ internal fun AccountSwitchScreen(
                                     onClose = { swipedAccountId = null },
                                     onSelect = onSelect,
                                     onRemove = onRemove,
+                                    enabled = !editing && !busy,
                                     content = content,
                                 )
                             } else {
@@ -208,10 +256,8 @@ internal fun AccountSwitchScreen(
                         leadingContent = {
                             Surface(
                                 shape = CircleShape,
-                                color = if (editing) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-                                else MaterialTheme.colorScheme.secondaryContainer,
-                                contentColor = if (editing) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                else MaterialTheme.colorScheme.onSecondaryContainer,
+                                color = addContainerColor,
+                                contentColor = addContentColor,
                             ) {
                                 Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
                                     Icon(painterResource(R.drawable.ic_symbol_add), contentDescription = null)
@@ -241,6 +287,8 @@ private fun AccountRow(
     modifier: Modifier = Modifier,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+    val motion = MaterialTheme.motionScheme
+    val editTransition = updateTransition(targetState = editing, label = "accountRowEditing")
     val currentAccount = stringResource(R.string.account_current)
     val switchingAccount = stringResource(R.string.account_switching)
     val rowModifier = modifier.fillMaxWidth().testTag("account_${account.id}").semantics(mergeDescendants = true) {
@@ -258,57 +306,98 @@ private fun AccountRow(
         operationType == SessionOperationType.REMOVE -> stringResource(R.string.account_removing)
         account.id == GUEST_ACCOUNT_ID -> null
         editing && isSelected -> currentAccount
+        account.needsLogin -> stringResource(R.string.account_needs_login)
         else -> account.handle
     }
-    val supporting: (@Composable () -> Unit)? = supportingText?.let { subtitle ->
+    val subtitleTransition = updateTransition(targetState = supportingText, label = "accountRowSubtitle")
+    val supporting: (@Composable () -> Unit)? = if (
+        subtitleTransition.currentState != null || subtitleTransition.targetState != null
+    ) {
         {
-            Text(
-                text = subtitle,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = if (operationType == SessionOperationType.REMOVE || editing && isSelected) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
+            subtitleTransition.AnimatedContent(
+                transitionSpec = {
+                    (fadeIn(motion.fastEffectsSpec()) + slideInVertically(motion.fastSpatialSpec()) { it / 3 })
+                        .togetherWith(
+                            fadeOut(motion.fastEffectsSpec()) +
+                                slideOutVertically(motion.fastSpatialSpec()) { -it / 3 },
+                        ).using(SizeTransform { _, _ -> motion.fastSpatialSpec() })
                 },
-                modifier = if (operationType == SessionOperationType.REMOVE) {
-                    Modifier.testTag("account_status_${account.id}")
-                } else {
-                    Modifier
-                },
-            )
+            ) { subtitle ->
+                if (subtitle != null) {
+                    val isUsername = subtitle == account.handle
+                    Text(
+                        text = subtitle,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        fontFamily = if (isUsername) FontFamily.Monospace else FontFamily.Default,
+                        color = if (isUsername || subtitle == stringResource(R.string.account_needs_login)) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
+                        modifier = when {
+                            subtitle != supportingText -> Modifier.clearAndSetSemantics { }
+                            operationType == SessionOperationType.REMOVE ->
+                                Modifier.testTag("account_status_${account.id}")
+                            else -> Modifier
+                        },
+                    )
+                }
+            }
         }
-    }
+    } else null
     val trailing: @Composable () -> Unit = {
         // Selection, progress and editing share a centered slot, including the non-removable guest.
         Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-            when {
-                operationType != null -> {
-                    IndeterminateCircularProgressIndicator(
-                        modifier = Modifier.size(24.dp).testTag("account_loading_${account.id}"),
-                        strokeWidth = 2.dp,
-                    )
-                }
-                !editing -> {
-                    ShadowRadioButton(
-                        selected = isSelected,
-                        onClick = null,
-                        enabled = enabled,
-                        interactionSource = interactionSource,
-                    )
-                }
-                account.id != GUEST_ACCOUNT_ID -> {
-                    IconButton(
-                        onClick = onRemove,
-                        enabled = enabled,
-                        modifier = Modifier.testTag("account_remove_${account.id}"),
+            if (operationType != null) {
+                IndeterminateCircularProgressIndicator(
+                    modifier = Modifier.size(24.dp).testTag("account_loading_${account.id}"),
+                    strokeWidth = 2.dp,
+                )
+            } else {
+                editTransition.AnimatedContent(
+                    transitionSpec = {
+                        val direction = if (targetState) 1 else -1
+                        (fadeIn(motion.fastEffectsSpec()) + scaleIn(
+                            animationSpec = motion.defaultSpatialSpec(),
+                            initialScale = 0.72f,
+                        ) + slideInHorizontally(motion.defaultSpatialSpec()) { direction * it / 4 })
+                            .togetherWith(
+                                fadeOut(motion.fastEffectsSpec()) + scaleOut(
+                                    animationSpec = motion.fastSpatialSpec(),
+                                    targetScale = 0.72f,
+                                ) + slideOutHorizontally(motion.fastSpatialSpec()) { -direction * it / 4 },
+                            ).using(SizeTransform(clip = false))
+                    },
+                    contentAlignment = Alignment.Center,
+                ) { showRemove ->
+                    Box(
+                        modifier = Modifier.size(48.dp).then(
+                            if (showRemove != editing) Modifier.clearAndSetSemantics { } else Modifier,
+                        ),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        Icon(
-                            painterResource(R.drawable.ic_symbol_delete),
-                            contentDescription = stringResource(R.string.account_remove_description, account.name),
-                            tint = if (enabled) MaterialTheme.colorScheme.error
-                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-                        )
+                        if (!showRemove) {
+                            ShadowRadioButton(
+                                selected = isSelected,
+                                onClick = null,
+                                enabled = enabled,
+                                interactionSource = interactionSource,
+                            )
+                        } else if (account.id != GUEST_ACCOUNT_ID) {
+                            IconButton(
+                                onClick = onRemove,
+                                enabled = enabled && editing,
+                                modifier = Modifier.testTag("account_remove_${account.id}"),
+                            ) {
+                                Icon(
+                                    painterResource(R.drawable.ic_symbol_delete),
+                                    contentDescription = stringResource(R.string.account_remove_description, account.name),
+                                    tint = if (enabled) MaterialTheme.colorScheme.error
+                                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                                )
+                            }
+                        }
                     }
                 }
             }

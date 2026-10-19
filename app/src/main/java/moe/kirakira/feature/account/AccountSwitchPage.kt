@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import moe.kirakira.R
 import moe.kirakira.data.auth.SessionState
+import moe.kirakira.ui.components.DestructiveTextButton
 
 @Composable
 internal fun AccountSwitchPage(
@@ -35,9 +36,9 @@ internal fun AccountSwitchPage(
             AccountItem(
                 id = account.profile.uuid,
                 name = account.profile.displayName,
-                handle = if (account.needsLogin) stringResource(R.string.account_needs_login)
-                    else account.profile.email,
+                handle = account.profile.username.takeIf { it.isNotBlank() }?.let { "@$it" },
                 avatar = account.profile.avatar,
+                needsLogin = account.needsLogin,
             )
         }
 
@@ -67,7 +68,7 @@ internal fun AccountSwitchPage(
             title = { Text(stringResource(R.string.account_remove_title)) },
             text = { Text(stringResource(R.string.account_remove_message, pendingAccount.name)) },
             confirmButton = {
-                TextButton(
+                DestructiveTextButton(
                     onClick = {
                         onRemoveAccount(pendingAccount.id)
                         pendingRemovalId = null

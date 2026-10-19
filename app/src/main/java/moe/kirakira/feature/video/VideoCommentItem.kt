@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import moe.kirakira.R
 import moe.kirakira.data.content.VideoComment
 import moe.kirakira.ui.components.AccountAvatar
+import moe.kirakira.ui.components.AnimatedCountLabel
 import moe.kirakira.ui.components.video.dateText
 
 @Composable
@@ -129,8 +130,9 @@ internal fun VideoCommentItem(
                     ) {
                         Icon(painterResource(R.drawable.ic_symbol_arrow_upward), stringResource(R.string.video_like))
                     }
-                    Text(
-                        stringResource(R.string.video_count, comment.score),
+                    AnimatedCountLabel(
+                        count = comment.score,
+                        template = stringResource(R.string.animated_count),
                         style = MaterialTheme.typography.labelLarge,
                     )
                     IconToggleButton(

@@ -80,6 +80,7 @@ internal fun FrostedScaffold(
     contentColor: Color = contentColorFor(containerColor),
     contentWindowInsets: WindowInsets = ScaffoldDefaults.contentWindowInsets,
     hazeState: HazeState = rememberHazeState(),
+    topBarShadowElevation: Dp = BarShadowElevation,
     content: @Composable (PaddingValues) -> Unit,
 ) {
     CompositionLocalProvider(LocalAppBarHazeState provides hazeState) {
@@ -88,7 +89,7 @@ internal fun FrostedScaffold(
             topBar = {
                 Box {
                     Box(
-                        Modifier.matchParentSize().frostedBarBackground(shadowElevation = BarShadowElevation),
+                        Modifier.matchParentSize().frostedBarBackground(shadowElevation = topBarShadowElevation),
                     )
                     topBar()
                 }

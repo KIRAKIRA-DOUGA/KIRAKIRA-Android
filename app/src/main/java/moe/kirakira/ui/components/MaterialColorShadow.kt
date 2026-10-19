@@ -23,7 +23,7 @@ internal fun Modifier.materialColorShadow(
         radius = (3f * level.coerceIn(0f, 2f) + 2f * upperLevels).dp.toPx()
         spread = (level.coerceIn(0f, 4f) + 2f * (level - 4f).coerceIn(0f, 1f)).dp.toPx()
         color = shadowColor
-        alpha = (if (neutral) 0.15f else 0.25f) * containerColor.alpha * opacityScale
+        alpha = (if (neutral) 0.075f else 0.25f) * containerColor.alpha * opacityScale
         offset = Offset(0f, (level.coerceIn(0f, 2f) + 2f * upperLevels).dp.toPx())
     }.dropShadow(shape) {
         val level = materialShadowLevel(elevation())
@@ -32,7 +32,7 @@ internal fun Modifier.materialColorShadow(
         radius = (2f * firstLevel + (level - 2f).coerceIn(0f, 1f) + lastLevel).dp.toPx()
         spread = 0f
         color = shadowColor
-        alpha = (if (neutral) 0.3f else 0.5f) * containerColor.alpha * opacityScale
+        alpha = (if (neutral) 0.15f else 0.5f) * containerColor.alpha * opacityScale
         offset = Offset(0f, (firstLevel + (level - 3f).coerceIn(0f, 1f) + 2f * lastLevel).dp.toPx())
     }
 }

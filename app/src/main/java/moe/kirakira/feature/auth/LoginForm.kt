@@ -1,18 +1,12 @@
 package moe.kirakira.feature.auth
 
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.focus.FocusDirection
@@ -26,15 +20,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.unit.dp
 import moe.kirakira.R
 import moe.kirakira.ui.components.AccountFlowDefaults
-import moe.kirakira.ui.components.AccountFlowFieldErrorIcon
-import moe.kirakira.ui.components.AnimatedSlashIcon
-import moe.kirakira.ui.components.SlashIconType
-import moe.kirakira.ui.components.accountFlowSupportingError
+import moe.kirakira.ui.components.FilledTextField
+import moe.kirakira.ui.components.PasswordTextField
 
 @Composable
 internal fun LoginForm(
@@ -47,28 +36,25 @@ internal fun LoginForm(
     onPasswordVisibilityChange: () -> Unit,
     onSubmit: () -> Unit,
     modifier: Modifier = Modifier,
+    isActive: Boolean = true,
 ) {
     val focusManager = LocalFocusManager.current
     val emailError = state.fieldErrors[AuthField.EMAIL]
         ?: R.string.auth_email_invalid.takeIf { state.emailInvalid }
     val passwordError = state.fieldErrors[AuthField.PASSWORD]
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(AccountFlowDefaults.FieldSpacing)) {
-        OutlinedTextField(
+        FilledTextField(
             value = state.email,
             onValueChange = onEmailChange,
             modifier = Modifier
                 .fillMaxWidth()
-                .animateContentSize(MaterialTheme.motionScheme.fastSpatialSpec())
                 .focusRequester(emailFocusRequester)
                 .testTag("auth_email")
                 .semantics { contentType = ContentType.EmailAddress + ContentType.Username },
-            enabled = state.canEdit,
+            enabled = state.canEdit && isActive,
             label = { Text(stringResource(R.string.auth_email)) },
             singleLine = true,
-            shape = MaterialTheme.shapes.large,
-            isError = emailError != null,
-            supportingText = accountFlowSupportingError(emailError?.let { stringResource(it) }),
-            trailingIcon = if (emailError != null) { { AccountFlowFieldErrorIcon() } } else null,
+            errorMessage = emailError?.let { stringResource(it) },
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.None,
                 autoCorrectEnabled = false,
@@ -77,12 +63,13 @@ internal fun LoginForm(
             ),
             keyboardActions = KeyboardActions(onNext = { passwordFocusRequester.requestFocus() }),
         )
-        OutlinedTextField(
+        PasswordTextField(
             value = state.password,
+            passwordVisible = passwordVisible,
+            onPasswordVisibilityChange = onPasswordVisibilityChange,
             onValueChange = onPasswordChange,
             modifier = Modifier
                 .fillMaxWidth()
-                .animateContentSize(MaterialTheme.motionScheme.fastSpatialSpec())
                 .focusRequester(passwordFocusRequester)
                 .testTag("auth_password")
                 .semantics {
@@ -92,32 +79,9 @@ internal fun LoginForm(
                         ContentType.Password
                     }
                 },
-            enabled = state.canEdit,
+            enabled = state.canEdit && isActive,
             label = { Text(stringResource(R.string.auth_password)) },
-            singleLine = true,
-            shape = MaterialTheme.shapes.large,
-            isError = passwordError != null,
-            supportingText = accountFlowSupportingError(passwordError?.let { stringResource(it) }),
-            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-            trailingIcon = {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (passwordError != null) {
-                        AccountFlowFieldErrorIcon()
-                    }
-                    IconButton(onClick = onPasswordVisibilityChange, enabled = state.canEdit) {
-                        AnimatedSlashIcon(
-                            type = SlashIconType.VISIBILITY,
-                            slashed = passwordVisible,
-                            description = stringResource(
-                                if (passwordVisible) R.string.auth_hide_password else R.string.auth_show_password,
-                            ),
-                        )
-                    }
-                }
-            },
+            errorMessage = passwordError?.let { stringResource(it) },
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.None,
                 autoCorrectEnabled = false,

@@ -5,6 +5,7 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -28,6 +29,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -42,6 +44,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -53,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
@@ -82,10 +86,12 @@ import moe.kirakira.data.content.Reaction
 import moe.kirakira.data.content.VideoComment
 import moe.kirakira.data.content.VideoDetail
 import moe.kirakira.ui.components.AccountAvatar
+import moe.kirakira.ui.components.AnimatedCountLabel
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.ExpandableText
 import moe.kirakira.ui.components.FollowButton
+import moe.kirakira.ui.components.LocalNumberAnimationIdentity
 import moe.kirakira.ui.components.PagerTabRow
 import moe.kirakira.ui.components.frostedBarBackground
 import moe.kirakira.ui.components.rememberTabChangeHandler
@@ -151,6 +157,9 @@ internal fun VideoScreen(
     )
     val bottomPadding = contentPadding.calculateBottomPadding()
     val pager = rememberPagerState(pageCount = { VideoTab.entries.size })
+    val kaomojiPanelOpen = commentComposer.panelOpen || danmakuComposer.panelOpen
+    val panelNestedScrollConnection = remember { object : NestedScrollConnection {} }
+    val pageNestedScrollConnection = PagerDefaults.pageNestedScrollConnection(pager, Orientation.Horizontal)
     val changeTab = rememberTabChangeHandler(pager)
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -199,6 +208,13 @@ internal fun VideoScreen(
                 modifier = Modifier.fillMaxSize().then(
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Modifier.hazeSource(hazeState) else Modifier,
                 ),
+                // Leave boundary deltas to the child's overscroll instead of consuming them here.
+                userScrollEnabled = !kaomojiPanelOpen,
+                pageNestedScrollConnection = if (kaomojiPanelOpen) {
+                    panelNestedScrollConnection
+                } else {
+                    pageNestedScrollConnection
+                },
             ) { page ->
                 // Child flings can mark the pager as scrolling without changing the active tab.
                 val composerActive = isActive && pager.currentPage == page
@@ -293,23 +309,35 @@ internal fun VideoScreen(
                                             }
                                         }
                                     }
-                                    item("actions") { VideoActions(detail, state.busy, onVote, onUnavailable) }
+                                    item("actions") {
+                                        CompositionLocalProvider(
+                                            LocalNumberAnimationIdentity provides Pair(state.sessionRevision, detail.summary.id),
+                                        ) {
+                                            VideoActions(detail, state.busy, onVote, onUnavailable)
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
-                    VideoTab.COMMENTS -> VideoCommentsPage(
-                        state.comments, state.posted, state.commentDraft, state.busy,
-                        detail != null && !detail.blockedByOther, onCommentDraft, onSendComment, onCommentsPage,
-                        onCommentVote, onOpenProfile, onUnavailable, onCommentsPageRefresh,
-                        onCommentsRetry, onCommentsAdjacent, onCommentLocationConsumed,
-                        rememberLazyListState(), contentPadding,
-                        topPadding = tabPadding,
-                        onLogin = onLogin.takeUnless { state.signedIn },
-                        composerState = commentComposer,
-                        composerActive = composerActive,
-                        recentKaomoji = recentKaomoji, onKaomojiInserted = onKaomojiInserted,
-                    )
+                    VideoTab.COMMENTS -> CompositionLocalProvider(
+                        LocalNumberAnimationIdentity provides Triple(
+                            state.sessionRevision, detail?.summary?.id, state.comments.pages.isNotEmpty(),
+                        ),
+                    ) {
+                        VideoCommentsPage(
+                            state.comments, state.posted, state.commentDraft, state.busy,
+                            detail != null && !detail.blockedByOther, onCommentDraft, onSendComment, onCommentsPage,
+                            onCommentVote, onOpenProfile, onUnavailable, onCommentsPageRefresh,
+                            onCommentsRetry, onCommentsAdjacent, onCommentLocationConsumed,
+                            rememberLazyListState(), contentPadding,
+                            topPadding = tabPadding,
+                            onLogin = onLogin.takeUnless { state.signedIn },
+                            composerState = commentComposer,
+                            composerActive = composerActive,
+                            recentKaomoji = recentKaomoji, onKaomojiInserted = onKaomojiInserted,
+                        )
+                    }
                     VideoTab.DANMAKU -> FloatingComposerLayout(
                         contentPadding = contentPadding,
                         topPadding = tabPadding,
@@ -342,7 +370,13 @@ internal fun VideoScreen(
                                     contentPadding = PaddingValues(8.dp, tabPadding + 8.dp, 8.dp, listBottomPadding)) {
                                     item("count") {
                                         Column(Modifier.onSizeChanged { headerHeight = it.height }) {
-                                            VideoListCount(R.plurals.video_danmaku_total, state.danmaku.data?.size ?: 0)
+                                            CompositionLocalProvider(
+                                                LocalNumberAnimationIdentity provides Triple(
+                                                    state.sessionRevision, detail?.summary?.id, state.danmaku.data != null,
+                                                ),
+                                            ) {
+                                                VideoListCount(R.plurals.video_danmaku_total, state.danmaku.data?.size ?: 0)
+                                            }
                                         }
                                     }
                                     item("status") {
@@ -369,6 +403,7 @@ internal fun VideoScreen(
             }
         }
     }
+
 }
 
 @Composable
@@ -524,6 +559,6 @@ private fun ReactionAction(
         modifier = Modifier.semantics { contentDescription = description },
         icon = { Icon(painterResource(icon), null) },
     ) {
-        Text(count?.let { stringResource(R.string.video_count, it) } ?: "—")
+        if (count == null) Text("—") else AnimatedCountLabel(count, stringResource(R.string.animated_count))
     }
 }

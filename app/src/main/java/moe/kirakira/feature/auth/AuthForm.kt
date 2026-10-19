@@ -1,22 +1,15 @@
 package moe.kirakira.feature.auth
 
 import androidx.annotation.StringRes
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,7 +20,6 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentType
@@ -35,17 +27,16 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.unit.dp
 import moe.kirakira.R
 import moe.kirakira.ui.components.AccountFlowDefaults
-import moe.kirakira.ui.components.AccountFlowFieldErrorIcon
 import moe.kirakira.ui.components.AccountFlowSection
+import moe.kirakira.ui.components.FilledTextField
+import moe.kirakira.ui.components.FormButtonEdge
+import moe.kirakira.ui.components.FormTextButton
 import moe.kirakira.ui.components.OtpInputField
 import moe.kirakira.ui.components.OtpInputType
+import moe.kirakira.ui.components.PasswordTextField
 import moe.kirakira.ui.components.accountFlowCodeTextStyle
-import moe.kirakira.ui.components.accountFlowSupportingError
 
 @Composable
 internal fun AuthForm(
@@ -60,10 +51,8 @@ internal fun AuthForm(
     onSubmit: () -> Unit,
     onResend: () -> Unit,
     modifier: Modifier = Modifier,
+    isActive: Boolean = true,
 ) {
-    val buttonContentPadding = ButtonDefaults.TextButtonContentPadding
-    val buttonEndPadding = buttonContentPadding.calculateEndPadding(LocalLayoutDirection.current)
-    val buttonStartPadding = buttonContentPadding.calculateStartPadding(LocalLayoutDirection.current)
     Column(modifier, verticalArrangement = Arrangement.spacedBy(AccountFlowDefaults.FieldSpacing)) {
         when (state.step) {
             AuthStep.LOGIN, AuthStep.REGISTER_CREDENTIALS -> {
@@ -76,13 +65,14 @@ internal fun AuthForm(
                     onPasswordChange = onPasswordChange,
                     onPasswordVisibilityChange = onPasswordVisibilityChange,
                     onSubmit = onSubmit,
+                    isActive = isActive,
                 )
                 if (state.step == AuthStep.REGISTER_CREDENTIALS) {
                     AuthTextField(
                         value = state.confirmPassword,
                         onValueChange = { onFieldChange(AuthField.CONFIRM_PASSWORD, it) },
                         label = R.string.auth_confirm_password,
-                        enabled = state.canEdit,
+                        enabled = state.canEdit && isActive,
                         modifier = Modifier.focusRequester(focusRequesters.getValue(AuthField.CONFIRM_PASSWORD)),
                         errorRes = state.fieldErrors[AuthField.CONFIRM_PASSWORD],
                         keyboardType = KeyboardType.Password,
@@ -92,7 +82,7 @@ internal fun AuthForm(
                         value = state.passwordHint,
                         onValueChange = { onFieldChange(AuthField.PASSWORD_HINT, it) },
                         label = R.string.auth_password_hint,
-                        enabled = state.canEdit,
+                        enabled = state.canEdit && isActive,
                         modifier = Modifier.focusRequester(focusRequesters.getValue(AuthField.PASSWORD_HINT)),
                         errorRes = state.fieldErrors[AuthField.PASSWORD_HINT],
                         onSubmit = onSubmit,
@@ -104,7 +94,7 @@ internal fun AuthForm(
                     value = state.invitation,
                     onValueChange = { onFieldChange(AuthField.INVITATION, it) },
                     label = R.string.auth_invitation,
-                    enabled = state.canEdit,
+                    enabled = state.canEdit && isActive,
                     modifier = Modifier.focusRequester(focusRequesters.getValue(AuthField.INVITATION)),
                     errorRes = state.fieldErrors[AuthField.INVITATION],
                     onSubmit = onSubmit,
@@ -115,7 +105,7 @@ internal fun AuthForm(
                     value = state.username,
                     onValueChange = { onFieldChange(AuthField.USERNAME, it) },
                     label = R.string.auth_username,
-                    enabled = state.canEdit,
+                    enabled = state.canEdit && isActive,
                     modifier = Modifier.focusRequester(focusRequesters.getValue(AuthField.USERNAME))
                         .semantics { contentType = ContentType.NewUsername },
                     errorRes = state.fieldErrors[AuthField.USERNAME],
@@ -124,7 +114,7 @@ internal fun AuthForm(
                     value = state.nickname,
                     onValueChange = { onFieldChange(AuthField.NICKNAME, it) },
                     label = R.string.auth_nickname,
-                    enabled = state.canEdit,
+                    enabled = state.canEdit && isActive,
                     modifier = Modifier.focusRequester(focusRequesters.getValue(AuthField.NICKNAME)),
                     errorRes = state.fieldErrors[AuthField.NICKNAME],
                     onSubmit = onSubmit,
@@ -135,7 +125,7 @@ internal fun AuthForm(
                     value = state.email,
                     onValueChange = onEmailChange,
                     label = R.string.auth_email,
-                    enabled = state.canEdit,
+                    enabled = state.canEdit && isActive,
                     modifier = Modifier.focusRequester(emailFocusRequester).semantics {
                         contentType = ContentType.EmailAddress
                     },
@@ -155,7 +145,7 @@ internal fun AuthForm(
                                 value = state.password,
                                 onValueChange = onPasswordChange,
                                 label = R.string.auth_new_password,
-                                enabled = state.canEdit,
+                                enabled = state.canEdit && isActive,
                                 modifier = Modifier.focusRequester(focusRequesters.getValue(AuthField.PASSWORD)),
                                 errorRes = state.fieldErrors[AuthField.PASSWORD],
                                 keyboardType = KeyboardType.Password,
@@ -165,7 +155,7 @@ internal fun AuthForm(
                                 value = state.confirmPassword,
                                 onValueChange = { onFieldChange(AuthField.CONFIRM_PASSWORD, it) },
                                 label = R.string.auth_confirm_password,
-                                enabled = state.canEdit,
+                                enabled = state.canEdit && isActive,
                                 modifier = Modifier.focusRequester(focusRequesters.getValue(AuthField.CONFIRM_PASSWORD)),
                                 errorRes = state.fieldErrors[AuthField.CONFIRM_PASSWORD],
                                 keyboardType = KeyboardType.Password,
@@ -187,13 +177,10 @@ internal fun AuthForm(
                         },
                         actionContent = if (state.step != AuthStep.LOGIN_TOTP) {
                             {
-                                TextButton(
+                                FormTextButton(
                                     onClick = onResend,
-                                    enabled = state.canEdit && state.resendSeconds == 0,
-                                    modifier = Modifier
-                                        .offset(x = buttonEndPadding)
-                                        .defaultMinSize(minWidth = 48.dp),
-                                    contentPadding = buttonContentPadding,
+                                    enabled = state.canEdit && isActive && state.resendSeconds == 0,
+                                    edge = FormButtonEdge.END,
                                 ) {
                                     Text(
                                         if (state.resendSeconds > 0) {
@@ -213,7 +200,7 @@ internal fun AuthForm(
                                 value = state.code,
                                 onValueChange = { onFieldChange(AuthField.CODE, it) },
                                 label = R.string.security_recovery_code,
-                                enabled = state.canEdit,
+                                enabled = state.canEdit && isActive,
                                 modifier = Modifier.focusRequester(focusRequesters.getValue(AuthField.CODE)),
                                 textStyle = accountFlowCodeTextStyle(),
                                 keyboardType = KeyboardType.Ascii,
@@ -230,7 +217,7 @@ internal fun AuthForm(
                                 value = state.code,
                                 onValueChange = { onFieldChange(AuthField.CODE, it) },
                                 label = stringResource(codeLabel),
-                                enabled = state.canEdit,
+                                enabled = state.canEdit && isActive,
                                 modifier = Modifier
                                     .focusRequester(focusRequesters.getValue(AuthField.CODE))
                                     .testTag("auth_field_$codeLabel"),
@@ -252,15 +239,14 @@ internal fun AuthForm(
                             )
                         }
                         if (state.step == AuthStep.LOGIN_TOTP) {
-                            TextButton(
+                            FormTextButton(
                                 onClick = {
                                     focusManager.clearFocus()
                                     recoveryInput = !useRecoveryInput
                                     onFieldChange(AuthField.CODE, "")
                                 },
-                                enabled = state.canEdit,
-                                modifier = Modifier.offset(x = -buttonStartPadding).defaultMinSize(minWidth = 48.dp),
-                                contentPadding = buttonContentPadding,
+                                enabled = state.canEdit && isActive,
+                                edge = FormButtonEdge.START,
                             ) {
                                 Text(
                                     stringResource(
@@ -293,31 +279,50 @@ private fun AuthTextField(
     onNext: (() -> Unit)? = null,
 ) {
     val focus = LocalFocusManager.current
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = modifier
-            .fillMaxWidth()
-            .animateContentSize(MaterialTheme.motionScheme.fastSpatialSpec())
-            .testTag("auth_field_$label")
-            .then(if (secret) Modifier.semantics { contentType = ContentType.NewPassword } else Modifier),
-        label = { Text(stringResource(label)) },
-        textStyle = textStyle,
-        shape = MaterialTheme.shapes.large,
-        enabled = enabled,
-        singleLine = true,
-        isError = errorRes != null,
-        supportingText = accountFlowSupportingError(errorRes?.let { stringResource(it) }),
-        trailingIcon = if (errorRes != null) { { AccountFlowFieldErrorIcon() } } else null,
-        visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
-        keyboardOptions = KeyboardOptions(
-            autoCorrectEnabled = false,
-            keyboardType = keyboardType,
-            imeAction = if (onSubmit != null) ImeAction.Done else ImeAction.Next,
-        ),
-        keyboardActions = KeyboardActions(
-            onNext = { if (onNext != null) onNext() else focus.moveFocus(FocusDirection.Next) },
-            onDone = { onSubmit?.invoke() },
-        ),
+    val fieldModifier = modifier
+        .fillMaxWidth()
+        .testTag("auth_field_$label")
+    val error = errorRes?.let { stringResource(it) }
+    val options = KeyboardOptions(
+        autoCorrectEnabled = false,
+        keyboardType = keyboardType,
+        imeAction = if (onSubmit != null) ImeAction.Done else ImeAction.Next,
     )
+    val actions = KeyboardActions(
+        onNext = {
+            if (enabled) {
+                if (onNext != null) onNext() else focus.moveFocus(FocusDirection.Next)
+            }
+        },
+        onDone = { if (enabled) onSubmit?.invoke() },
+    )
+    if (secret) {
+        var visible by remember { mutableStateOf(false) }
+        LaunchedEffect(enabled) { visible = false }
+        PasswordTextField(
+            value = value,
+            onValueChange = onValueChange,
+            passwordVisible = visible,
+            onPasswordVisibilityChange = { visible = !visible },
+            modifier = fieldModifier.semantics { contentType = ContentType.NewPassword },
+            enabled = enabled,
+            errorMessage = error,
+            keyboardOptions = options,
+            keyboardActions = actions,
+            label = { Text(stringResource(label)) },
+        )
+    } else {
+        FilledTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = fieldModifier,
+            label = { Text(stringResource(label)) },
+            textStyle = textStyle,
+            enabled = enabled,
+            singleLine = true,
+            errorMessage = error,
+            keyboardOptions = options,
+            keyboardActions = actions,
+        )
+    }
 }

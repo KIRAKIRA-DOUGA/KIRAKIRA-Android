@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.distinctUntilChanged
 import moe.kirakira.R
+import moe.kirakira.ui.components.AnimatedCountLabel
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.FrostedScaffold
@@ -183,12 +184,20 @@ private fun SelectedSearchTags(state: SearchUiState, onEvent: (SearchEvent) -> U
 
 @Composable
 private fun SearchResultCount(state: SearchUiState) {
-    Text(
-        text = state.videos.data?.let { pluralStringResource(R.plurals.search_video_count, it.size, it.size) }.orEmpty(),
-        modifier = Modifier.fillMaxWidth(),
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
+    val count = state.videos.data?.size
+    if (count == null) {
+        Text("", modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.labelLarge)
+    } else {
+        androidx.compose.runtime.key(state.generation) {
+            AnimatedCountLabel(
+                count = count.toLong(),
+                template = pluralStringResource(R.plurals.search_video_count, count),
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
 }
 
 @Composable

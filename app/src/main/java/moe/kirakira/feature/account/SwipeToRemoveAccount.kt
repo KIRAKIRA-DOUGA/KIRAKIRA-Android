@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -48,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.filter
 import moe.kirakira.R
+import moe.kirakira.ui.components.DestructiveActionDefaults
 import moe.kirakira.ui.components.ShadowButton
 
 private enum class AccountSwipeValue { CLOSED, REVEALED, REMOVE }
@@ -63,11 +63,13 @@ internal fun SwipeToRemoveAccount(
     onSelect: () -> Unit,
     onRemove: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     content: @Composable (Modifier, () -> Unit) -> Unit,
 ) {
     val state = remember { AnchoredDraggableState(AccountSwipeValue.CLOSED) }
     val interactionSource = remember { MutableInteractionSource() }
     val dragging by interactionSource.collectIsDraggedAsState()
+    val latestEnabled by rememberUpdatedState(enabled)
     val latestOnRemove by rememberUpdatedState(onRemove)
     val latestOnSwipeStarted by rememberUpdatedState(onSwipeStarted)
     var rowWidth by remember { mutableIntStateOf(0) }
@@ -79,7 +81,7 @@ internal fun SwipeToRemoveAccount(
         animationSpec = motionSpec,
     )
     val closeLabel = stringResource(R.string.account_close_swipe)
-    val revealed = active && state.settledValue == AccountSwipeValue.REVEALED && !dragging
+    val revealed = enabled && active && state.settledValue == AccountSwipeValue.REVEALED && !dragging
 
     LaunchedEffect(rowWidth, buttonWidth, gap) {
         if (rowWidth > 0 && buttonWidth > 0) {
@@ -97,11 +99,11 @@ internal fun SwipeToRemoveAccount(
             )
         }
     }
-    LaunchedEffect(dragging) {
-        if (dragging) latestOnSwipeStarted()
+    LaunchedEffect(dragging, enabled) {
+        if (dragging && enabled) latestOnSwipeStarted()
     }
-    LaunchedEffect(active) {
-        if (!active && state.offset.isFinite() && state.offset != 0f) {
+    LaunchedEffect(active, enabled) {
+        if ((!active || !enabled) && state.offset.isFinite() && state.offset != 0f) {
             state.animateTo(AccountSwipeValue.CLOSED, motionSpec)
         }
     }
@@ -111,7 +113,7 @@ internal fun SwipeToRemoveAccount(
             .collect {
                 // Keep the account present behind the dialog, including when the user cancels it.
                 state.snapTo(AccountSwipeValue.CLOSED)
-                latestOnRemove()
+                if (latestEnabled) latestOnRemove()
             }
     }
 
@@ -123,6 +125,7 @@ internal fun SwipeToRemoveAccount(
             .anchoredDraggable(
                 state = state,
                 orientation = Orientation.Horizontal,
+                enabled = enabled,
                 interactionSource = interactionSource,
                 flingBehavior = flingBehavior,
             ),
@@ -146,12 +149,7 @@ internal fun SwipeToRemoveAccount(
                     .onSizeChanged { buttonWidth = it.width }
                     .testTag("account_swipe_remove_$accountId"),
                 shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError,
-                    disabledContainerColor = MaterialTheme.colorScheme.error,
-                    disabledContentColor = MaterialTheme.colorScheme.onError,
-                ),
+                colors = DestructiveActionDefaults.buttonColors(),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             ) {
                 Column(
@@ -168,7 +166,7 @@ internal fun SwipeToRemoveAccount(
                 .offset { IntOffset((state.offset.takeIf { it.isFinite() } ?: 0f).roundToInt(), 0) }
                 .semantics {
                     customActions = buildList {
-                        add(CustomAccessibilityAction(removeLabel) { onRemove(); true })
+                        if (enabled) add(CustomAccessibilityAction(removeLabel) { onRemove(); true })
                         if (revealed) add(CustomAccessibilityAction(closeLabel) { onClose(); true })
                     }
                 },

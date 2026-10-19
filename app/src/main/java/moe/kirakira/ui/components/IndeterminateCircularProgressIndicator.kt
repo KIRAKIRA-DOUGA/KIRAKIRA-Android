@@ -1,3 +1,6 @@
+// Material 2 supplies the required progress animation; theme colors still come from Material 3.
+@file:Suppress("UsingMaterialAndMaterial3Libraries")
+
 package moe.kirakira.ui.components
 
 import androidx.compose.material.CircularProgressIndicator

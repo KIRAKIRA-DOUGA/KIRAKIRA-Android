@@ -56,7 +56,6 @@ import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.ShadingIcon
 import moe.kirakira.ui.components.appTopAppBarColors
 import moe.kirakira.ui.theme.KIRAKIRATheme
-import moe.kirakira.ui.theme.ThemeColorDefaults
 
 internal sealed interface LicensesUiState {
     data object Loading : LicensesUiState
@@ -107,7 +106,7 @@ internal fun LicensesContent(
         modifier = modifier
             .fillMaxSize()
             .testTag("licenses_screen"),
-        containerColor = ThemeColorDefaults.settingsBackgroundColor(),
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             Box {
                 ShadingIcon(
@@ -165,7 +164,7 @@ internal fun LicensesContent(
                         viewLicense = stringResource(R.string.licenses_view_license),
                     ),
                     colors = LibraryDefaults.libraryColors(
-                        libraryBackgroundColor = MaterialTheme.colorScheme.surfaceContainer,
+                        libraryBackgroundColor = MaterialTheme.colorScheme.surface,
                         dialogBackgroundColor = MaterialTheme.colorScheme.surface,
                     ),
                     variantColors = licensesVariantColors(),

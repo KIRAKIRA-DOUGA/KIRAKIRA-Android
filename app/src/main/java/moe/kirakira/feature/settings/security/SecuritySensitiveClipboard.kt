@@ -15,6 +15,8 @@ internal class SensitiveClipboard(context: Context) {
             putBoolean("android.content.extra.IS_SENSITIVE", true)
             putString("moe.kirakira.security.owner", owner)
         }
+        // The current SDK exposes primaryClip as read-only to Kotlin; keep its Java setter.
+        @Suppress("UsePropertyAccessSyntax")
         manager.setPrimaryClip(clip)
         true
     }.getOrDefault(false)
@@ -22,7 +24,10 @@ internal class SensitiveClipboard(context: Context) {
         runCatching {
             if (manager.primaryClipDescription?.extras?.getString("moe.kirakira.security.owner") == owner) {
                 if (android.os.Build.VERSION.SDK_INT >= 28) manager.clearPrimaryClip()
-                else manager.setPrimaryClip(ClipData.newPlainText("", ""))
+                else {
+                    @Suppress("UsePropertyAccessSyntax")
+                    manager.setPrimaryClip(ClipData.newPlainText("", ""))
+                }
             }
         }
     }

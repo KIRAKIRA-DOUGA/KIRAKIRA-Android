@@ -36,7 +36,6 @@ internal fun AuthNavigation(
     state: AuthUiState,
     viewModel: AuthViewModel,
     isActive: Boolean,
-    onClose: () -> Unit,
     modifier: Modifier = Modifier,
     predictiveBackEnabled: Boolean = false,
 ) {
@@ -85,7 +84,6 @@ internal fun AuthNavigation(
                             viewModel = viewModel,
                             isActive = isActive,
                             onBack = { back(route.step) },
-                            onClose = onClose,
                         )
                     }
                 }
@@ -101,7 +99,6 @@ private fun AuthStepPage(
     viewModel: AuthViewModel,
     isActive: Boolean,
     onBack: () -> Unit,
-    onClose: () -> Unit,
 ) {
     val currentStep = state.step == step && isActive
     // An outgoing entry must retain its own form during transitions, never render the next step.
@@ -142,6 +139,7 @@ private fun AuthStepPage(
 
     AuthScreen(
         state = displayedState,
+        isActive = currentStep,
         passwordVisible = passwordVisible && currentStep,
         snackbarHostState = snackbarHostState,
         emailFocusRequester = emailFocusRequester,
@@ -157,7 +155,6 @@ private fun AuthStepPage(
             }
         },
         onRegister = { whenCurrent { autofill?.cancel(); viewModel.requestRegistration() } },
-        onClose = { whenCurrent(onClose) },
         onBack = { whenCurrent(onBack) },
         onFieldChange = { field, value -> whenCurrent { viewModel.updateField(field, value) } },
         onForgotPassword = { whenCurrent { autofill?.cancel(); viewModel.requestPasswordReset() } },

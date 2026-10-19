@@ -84,6 +84,7 @@ import moe.kirakira.ui.components.TopAppBarSearchButton
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.components.video.VideoArtwork
+import moe.kirakira.ui.components.video.dateText
 import moe.kirakira.ui.components.video.durationText
 import moe.kirakira.ui.content.ContentState
 import moe.kirakira.ui.theme.KIRAKIRATheme
@@ -306,8 +307,7 @@ private fun HistoryRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val locale = LocalConfiguration.current.locales[0]
-    val time = DateFormat.getTimeInstance(DateFormat.SHORT, locale).format(Date(entry.updatedAt))
+    val time = dateText(entry.updatedAt)
     // Keeping artwork in the content slot lets the text use the full width with large fonts.
     ListItem(
         modifier = modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick),
@@ -337,7 +337,7 @@ private fun HistoryRow(
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        HistoryMetadata(R.drawable.ic_symbol_history, time, stringResource(R.string.history_watched_at, time))
+                        HistoryMetadata(R.drawable.ic_symbol_calendar_today, time, stringResource(R.string.history_watched_at, time))
                         entry.positionMs?.let { position ->
                             val progress = if (entry.video.durationMs != null) stringResource(
                                 R.string.history_position_duration, durationText(position), durationText(entry.video.durationMs),

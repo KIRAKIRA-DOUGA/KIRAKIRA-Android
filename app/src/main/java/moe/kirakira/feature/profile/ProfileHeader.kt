@@ -40,6 +40,7 @@ import moe.kirakira.R
 import moe.kirakira.core.image.deliveryImageUrl
 import moe.kirakira.data.content.FollowListKind
 import moe.kirakira.ui.components.AccountAvatar
+import moe.kirakira.ui.components.AnimatedCountLabel
 import moe.kirakira.ui.components.ExpandableText
 import moe.kirakira.ui.components.FollowButton
 import moe.kirakira.ui.components.ShadowButton
@@ -208,10 +209,10 @@ private fun ProfileStat(count: Int, label: String, onClick: () -> Unit) {
         colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface),
         contentPadding = PaddingValues(0.dp),
     ) {
-        Text(
-            text = stringResource(R.string.video_count, count),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
+        AnimatedCountLabel(
+            count = count.toLong(),
+            template = stringResource(R.string.animated_count),
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
         )
         Spacer(Modifier.width(4.dp))
         Text(
