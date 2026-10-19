@@ -8,7 +8,7 @@ import androidx.compose.ui.res.colorResource
 
 @Composable
 @ReadOnlyComposable
-internal fun wallpaperAccentColor(): Color? =
+internal fun systemAccentColor(): Color? =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         colorResource(android.R.color.system_accent1_500)
     } else {

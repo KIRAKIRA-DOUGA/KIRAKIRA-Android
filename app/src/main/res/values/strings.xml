@@ -164,8 +164,8 @@
     <string name="settings_switch_account">Switch account</string>
     <string name="settings_log_out">Log out</string>
     <string name="theme_system">Follow system</string>
-    <string name="theme_light">Light theme</string>
-    <string name="theme_dark">Dark theme</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
     <string name="about_version">%1$s (%2$d)</string>
     <string name="about_github" translatable="false">GitHub</string>
     <string name="about_for_android" translatable="false">for Android</string>
@@ -215,7 +215,7 @@
     <string name="theme_character_syaro">桐間紗路</string>
     <string name="theme_character_maya">条河麻耶</string>
     <string name="theme_character_megu">奈津恵</string>
-    <string name="theme_color_wallpaper">Wallpaper color</string>
+    <string name="theme_color_system_accent">System</string>
     <string name="theme_color_custom">Custom</string>
     <string name="theme_color_hex">HEX color</string>
     <string name="theme_color_hex_error">Enter six hexadecimal digits (0–9, A–F)</string>

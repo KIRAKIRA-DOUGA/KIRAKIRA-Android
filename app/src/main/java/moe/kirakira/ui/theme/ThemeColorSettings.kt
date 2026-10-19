@@ -1,7 +1,7 @@
 package moe.kirakira.ui.theme
 
 import androidx.compose.ui.graphics.toArgb
-import java.util.Locale
+import moe.kirakira.core.color.formatRgbColor
 
 data class ThemeColorSettings(
     val useSystemColors: Boolean = false,
@@ -9,7 +9,7 @@ data class ThemeColorSettings(
     val customColorArgb: Int = KIRAKIRAPink.toArgb(),
     val useCustomColor: Boolean = false,
 ) {
-    fun selectWallpaperColor(): ThemeColorSettings = copy(useSystemColors = true)
+    fun selectSystemAccentColor(): ThemeColorSettings = copy(useSystemColors = true)
 
     fun selectPreset(preset: ThemePresetColor): ThemeColorSettings = copy(
         useSystemColors = false,
@@ -25,10 +25,4 @@ data class ThemeColorSettings(
     )
 }
 
-fun formatThemeColor(argb: Int): String = String.format(Locale.ROOT, "#%06X", argb and 0xFFFFFF)
-
-fun parseThemeColor(value: String): Int? {
-    val hex = value.trim().removePrefix("#")
-    if (hex.length != 6 || hex.any { it !in '0'..'9' && it !in 'a'..'f' && it !in 'A'..'F' }) return null
-    return hex.toIntOrNull(16)?.or(0xFF000000.toInt())
-}
+fun formatThemeColor(argb: Int): String = formatRgbColor(argb)

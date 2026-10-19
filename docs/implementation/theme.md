@@ -21,19 +21,19 @@
 
 ### 成功语义色
 
-主题层的 [ThemeSemanticColors](../../app/src/main/java/moe/kirakira/ui/theme/ThemeSemanticColors.kt) 提供不可变的 `success` 与 `onSuccess`，通过 `MaterialTheme.semanticColors` 读取，供成功／完成状态复用，不占用 Material 3 的既有颜色角色。`KIRAKIRATheme` 根据自身 `darkTheme` 参数通过 `CompositionLocal` 提供配色：浅色固定使用 `#008577`，深色使用 `#00594F`，配套前景均为白色，不引用个性色预设，不受强调色或壁纸取色影响。
+主题层的 [ThemeSemanticColors](../../app/src/main/java/moe/kirakira/ui/theme/ThemeSemanticColors.kt) 提供不可变的成功色 `success/onSuccess` 与警告色 `warning/onWarning`，通过 `MaterialTheme.semanticColors` 读取，供成功／完成及警告状态复用，不占用 Material 3 的既有颜色角色。`KIRAKIRATheme` 根据自身 `darkTheme` 参数通过 `CompositionLocal` 提供配色：浅色固定使用 `#008577`，深色使用 `#00594F`，`onSuccess` 默认值为白色，主题生成时直接使用该默认值，不引用个性色预设，不受强调色或系统强调色影响。警告色浅色使用 `#FFC107/#3E2E00`，深色使用 `#5D4300/#FFE082`，同样不随强调色变化。
 
-安全页顶部卡片在已开启二步验证时使用 `success/onSuccess`，未开启时使用 `surfaceContainerHigh/onSurfaceVariant`；保护状态同时由文案及盾牌／警示图标表达。邀请码顶部卡片使用 `primary` 与 `onPrimary` 实色配对，默认呈品牌粉色并随主题强调色变化。两者沿用关于页的大圆角与实色视觉语言，图标底座使用低透明度前景色；邀请码生成按钮在浅深主题的可用状态均采用白色容器与 `primary` 文字、图标，直接使用官方 `Button` 并设置 `elevation = null`，所有交互状态均无阴影，保留官方 Expressive 尺寸和按压形变，禁用配色沿用统计块的低透明度前景色。加载指示器使用卡片前景色。
+安全页顶部卡片在已开启二步验证时使用 `success/onSuccess`，确认未开启时使用 `warning/onWarning`，待核对时使用 `surfaceContainerLow/onSurface`；保护状态同时由文案及盾牌／警示图标表达。邀请码顶部卡片使用 `primary` 与 `onPrimary` 实色配对，默认呈品牌粉色并随主题强调色变化。两者沿用关于页的大圆角与实色视觉语言，图标底座使用低透明度前景色；邀请码生成按钮在浅深主题的可用状态均采用白色容器与 `primary` 文字、图标，直接使用官方 `Button` 并设置 `elevation = null`，所有交互状态均无阴影，保留官方 Expressive 尺寸和按压形变，禁用配色沿用统计块的低透明度前景色。加载指示器使用卡片前景色。
 
 ### 配色生成
 
 所有主题颜色固定使用经典强调色，默认原色为 `KIRAKIRAPink`（`#F06E8E`）。[MaterialKolor](https://github.com/jordond/MaterialKolor) 的纯函数 `dynamicColorScheme` 仅用于生成 `Monochrome / SPEC_2021` 灰阶基础，HCT 工具用于生成强调色的容器、反色与固定色角色。该库维护 Google Material Color Utilities 的 Kotlin 移植与 Compose 适配，许可证为 MIT，底层 Material Color Utilities 为 Apache-2.0。
 
-`KIRAKIRATheme`、预设／壁纸色板与自定义选色器统一使用 `rememberSeedColorScheme(seedColor, darkTheme)`。主题与设置不再接收、保存配色算法，经典方案沿用 `MaterialExpressiveTheme` 的形状、排版和动效。
+`KIRAKIRATheme` 使用 `rememberSeedColorScheme(seedColor, darkTheme)` 将预设、系统强调色或自定义颜色转换为主题配色。主题与设置不再接收、保存配色算法，经典方案沿用 `MaterialExpressiveTheme` 的形状、排版和动效。
 
 浅色与深色灰阶基础各在进程内惰性生成一次，完整配色按不透明 ARGB 与明暗模式存入容量为 32 的 `LruCache`。多个预览和重复进入页面复用结果，算法与颜色角色保持一致；缓存只持有颜色值和 `ColorScheme`，不持有 Activity、不写入存储，进程退出后释放。
 
-[WallpaperAccentColor](../../app/src/main/java/moe/kirakira/ui/theme/WallpaperAccentColor.kt) 通过 Compose `colorResource` 读取 Android 12+ 的公开资源 `android.R.color.system_accent1_500`，应用主题与壁纸色板共用此入口。资源读取跟随 Compose 的系统资源配置更新，不缓存壁纸色快照；应用明暗模式不改变取色阶。`KIRAKIRATheme` 保留的 `dynamicColor` 参数仅选择壁纸强调色来源，默认关闭；低版本返回空值，主题回退到保存的手动原色。
+[SystemAccentColor](../../app/src/main/java/moe/kirakira/ui/theme/SystemAccentColor.kt) 通过 Compose `colorResource` 读取 Android 12+ 的公开资源 `android.R.color.system_accent1_500`，应用主题与系统强调色选项共用此入口；颜色由系统配色设置提供，不限定为壁纸取色。资源读取跟随 Compose 的系统资源配置更新，不缓存系统强调色快照；应用明暗模式不改变取色阶。`KIRAKIRATheme` 保留的 `dynamicColor` 参数仅选择系统强调色来源，默认关闭；低版本返回空值，主题回退到保存的手动原色。
 
 [ClassicAccentColorScheme](../../app/src/main/java/moe/kirakira/ui/theme/ClassicAccentColorScheme.kt) 从灰阶角色构建经典强调色，并将 `secondaryContainer` 和 `onSecondaryContainer` 映射到同色主色容器与配套前景。默认 Slider、RangeSlider 的未经过轨道自动采用强调色调，活动圆点采用同一容器色；使用次要容器的导航指示器同样着色，不添加组件专用配色接口。
 
@@ -41,7 +41,7 @@
 
 `MainBottomBar` 将选中图标与文字映射到 `primary`，覆盖整个按钮的选中胶囊映射到 `primaryContainer`。主题统一通过 `LocalTonalElevationEnabled` 关闭色调高度叠加，`surfaceTint` 与 `surface` 同色，避免直接计算高度色时重新染色。原色保留、`onPrimary` 对比度阈值、组件配色接口与视觉取舍统一见[主题配色约束](../../CONTRIBUTING.md#主题配色约束)。
 
-设置主页、各设置子页与开源组件页通过 `ThemeColorDefaults.settingsBackgroundColor()` 使用 `MaterialTheme.colorScheme.surfaceContainer` 页面背景，普通 `SegmentedListItem` 保留官方默认的 `surface` 容器颜色和内容内边距，分组统一为无间隙、无分隔线的连接式样式，选中和功能总开关状态沿用官方配色。页面背景不再跟随顶栏颜色，避免经典强调色下页面与列表同为 `surface` 而融为一体；经典方案顶栏继续使用浅色纯白／深色深灰的 `surface`。头像裁剪工具保留原有 `surface` 背景。
+设置主页与各设置子页通过 `ThemeColorDefaults.settingsBackgroundColor()` 使用 `MaterialTheme.colorScheme.surfaceContainer` 页面背景，普通 `SegmentedListItem` 保留官方默认的 `surface` 容器颜色和内容内边距，分组统一为无间隙、无分隔线的连接式样式，选中和功能总开关状态沿用官方配色。页面背景不再跟随顶栏颜色，避免经典强调色下页面与列表同为 `surface` 而融为一体；经典方案顶栏继续使用浅色纯白／深色深灰的 `surface`。开源组件页的页面与条目背景统一使用 `surface`，浅色为纯白，深色跟随主题。头像裁剪工具保留原有 `surface` 背景。
 
 浅色方案在主题生成层将普通页面的 `background` 与 `surface` 设为纯白，分组列表页面使用的 `surfaceContainer` 保留 `#F5F5F5`，使白色 `SegmentedListItem` 与页面背景保持层次。深色方案保留原有灰阶角色；所有颜色来源共用这些规则。页面直接引用语义颜色，不再通过配色模式判断切换样式。
 
@@ -55,25 +55,31 @@
 
 ### 选色与持久保存
 
-[自定义选色对话框](../../app/src/main/java/moe/kirakira/feature/settings/CustomColorDialog.kt)使用 [colorpicker-compose](https://github.com/skydoves/colorpicker-compose)（Apache-2.0）的 HSV 色盘与亮度滑条，封装在 Material 3 `AlertDialog` 中，补充亮度无障碍调节与 HEX 输入。它只增加 Compose 选色绘制与手势代码，不引入 View 互操作，许可证由 AboutLibraries 收集。
+[自定义选色对话框](../../app/src/main/java/moe/kirakira/feature/settings/CustomColorDialog.kt)使用 [colorpicker-compose](https://github.com/skydoves/colorpicker-compose)（Apache-2.0）的 HSV 色盘与亮度滑条，封装在 Material 3 `AlertDialog` 中，补充亮度无障碍调节与 HEX／RGB／OKLCH 输入。它只增加 Compose 选色绘制与手势代码，不引入 View 互操作，许可证由 AboutLibraries 收集。
 
-`ThemeColorSettings` 保存 `useSystemColors`、`seedColorArgb`、`customColorArgb` 与 `useCustomColor`，分别持久化为 `theme_system_colors`、`theme_seed_color`、`theme_custom_color` 与 `theme_use_custom_color`。默认关闭壁纸取色与自定义选择，两份原色均为项目粉色，不保存配色算法。读取时仅将非自定义的旧蓝／紫／绿／琥珀／珊瑚预设原色映射至智乃蓝／理世紫／千夜绿／纱路黄／小惠红，并只写回变更后的 `theme_seed_color`；品牌粉色不变。壁纸来源和独立自定义色值保持原样，自定义状态为真时不迁移，即使色值等于旧预设。
+主题色对话框和弹幕颜色面板共用 [ColorEditorControls](../../app/src/main/java/moe/kirakira/ui/components/ColorEditorControls.kt)。`ColorEditorState` 保存不透明 ARGB 草稿、格式和原始输入，重建后恢复草稿，控制器只留在组合内。输入区与预览通过插槽传入，容器和确认／取消操作仍由调用方负责；主题色确认返回 ARGB，弹幕确认时才去掉 alpha 转为 RGB。弹幕入口保留 HEX 界面；主题入口使用 `CustomColorInput` 菜单切换 HEX、RGB、OKLCH，在输入框前导位置显示唯一的 40dp 原色色块。切换格式转换上一次有效颜色，不改变实际颜色；重复选择当前格式不重置草稿。色盘和滑条更新当前格式的输入，有效输入同步控制器，无效或未完成输入保留上一次有效颜色并禁用应用。格式只属于可恢复的对话框草稿，不增加持久化设置。
 
-色板始终显示，七种 Cerasus 预设之后依次为受支持的壁纸颜色与自定义入口。颜色依次为 `#F06E8E`、`#4581E1`、`#B044B0`、`#46A12F`、`#F98D00`、`#199BB6`、`#DD1818`。选择壁纸仅更新来源标记，保留手动色值和自定义选择状态；色板以当前生效来源互斥标记选中项。自定义色值与当前手动色值独立存储，避免自定义颜色恰好等于预设时错误标记选中项。草稿确认与取消的约束见[贡献指南](../../CONTRIBUTING.md#主题配色约束)。
+格式化与解析位于 `core/color`，接受首尾空白。HEX 使用六位十六进制；RGB 使用 0–255 整数，接受空格或逗号分隔及可选的 `rgb(...)` 包装；OKLCH 接受三个分量及可选的 `oklch(...)` 包装，L 为 0–1 或百分比、C 为 0–0.4、H 为有限度数并归一化至 0–360。Oklab 转换采用[原作者的公开公式](https://bottosson.github.io/posts/oklab/)，OKLCH 显示六位小数，底层仍保存不透明的 8 位 sRGB。超出色域时固定亮度和色相，通过二分降低彩度至 sRGB 色域内，保留原始输入并提示调整，色块和最终确认使用实际映射颜色；此处采用固定色相的彩度压缩，不是 CSS 完整色域映射算法。
 
-设置主页用单一 `LazyColumn` 按“我”“常规”与账户操作分组懒加载，每组继续复用 `ConnectedListGroup` 的整体阴影与连接形状，保留分组间距和滚动状态。外观页复用 `SettingsScaffold` 的毛玻璃顶栏、640dp 内容上限与滚动内 Insets，同样使用单一 `LazyColumn`，按标题、明暗卡片行、个性色卡片行及动画分组组织带稳定 key 和 contentType 的条目。页面私有的 `AppearanceColorOption` 区分 `ThemePresetColor` 预设、带原色的壁纸选项与自定义入口，避免通过字符串分派不同颜色来源；壁纸原色更新时重新生成选项，保留稳定 key。
+`ThemeColorSettings` 保存 `useSystemColors`、`seedColorArgb`、`customColorArgb` 与 `useCustomColor`，分别持久化为 `theme_system_colors`、`theme_seed_color`、`theme_custom_color` 与 `theme_use_custom_color`。默认关闭系统强调色与自定义选择，两份原色均为项目粉色，不保存配色算法。读取时仅将非自定义的旧蓝／紫／绿／琥珀／珊瑚预设原色映射至智乃蓝／理世紫／千夜绿／纱路黄／小惠红，并只写回变更后的 `theme_seed_color`；品牌粉色不变。系统强调色来源和独立自定义色值保持原样，自定义状态为真时不迁移，即使色值等于旧预设。
+
+色板始终显示，七种 Cerasus 预设之后依次为受支持的系统强调色与自定义入口。颜色依次为 `#F06E8E`、`#4581E1`、`#B044B0`、`#46A12F`、`#F98D00`、`#199BB6`、`#DD1818`。选择系统强调色仅更新来源标记，保留手动色值和自定义选择状态；色板以当前生效来源互斥标记选中项。自定义色值与当前手动色值独立存储，避免自定义颜色恰好等于预设时错误标记选中项。草稿确认与取消的约束见[贡献指南](../../CONTRIBUTING.md#主题配色约束)。
+
+设置主页用单一 `LazyColumn` 按“我”“常规”与账户操作分组懒加载，每组继续复用 `ConnectedListGroup` 的整体阴影与连接形状，保留分组间距和滚动状态。外观页复用 `SettingsScaffold` 的毛玻璃顶栏、640dp 内容上限与滚动内 Insets，同样使用单一 `LazyColumn`，按标题、明暗卡片行、个性色卡片行及动画分组组织带稳定 key 和 contentType 的条目。页面私有的 `AppearanceColorOption` 区分 `ThemePresetColor` 预设、带原色的系统强调色选项与自定义入口，避免通过字符串分派不同颜色来源；系统强调色更新时重新生成选项，保留稳定 key。
 
 页面容器仅通过一次 `BoxWithConstraints` 取得可用宽度；明暗／个性色卡片最小宽度为 100dp／156dp，间距 12dp，最小宽度乘以至少为 1 的字体缩放因子后计算列数。`ThemeCardRow` 保留同一行按最长文字内容等高、末行空格占位的排列。分组直接排列卡片，不额外包裹连接列表或背景卡片；自定义颜色对话框由列表外的页面状态管理。
 
-`ThemeSelectionCard` 使用官方可点击 `Card` 管理涟漪、焦点与交互，使用主题 large 形状与 1dp 静止阴影。明暗模式使用 `compact` 布局，选中时整张卡片使用 `primary/onPrimary`，未选中使用 `surface/onSurface`；预览图标通过 `LocalContentColor` 同步继承动画颜色，未选中为 `primary`，选中为 `onPrimary`。角色、壁纸与自定义卡片的预览区保持 `surface` 底色及原始图片／原色图标，仅下方文字区在选中时使用 `primary` 背景，标题和副标题同步使用 `onPrimary`；未选中文字区使用 `surface/onSurface`，副标题使用 `onSurfaceVariant`。
+明暗模式使用 `ThemeModeCard`，图标卡片下方独立显示居中的文字标签，标签始终使用 `onSurface`，与卡片间距为 8dp。选中卡片使用 `primary/onPrimary`，未选中使用 `surface/onSurfaceVariant`，图标与其他设置图标采用相同的中性内容色。只有图标卡片使用官方可点击 `Card` 处理点击、圆角水波纹、焦点与单选语义；卡片外的标签不响应点击或绘制水波纹。外层 Column 不裁剪卡片阴影。
 
-1.5dp 描边在透明与完整 `primary` 之间渐变，背景、标题、图标与色标中的勾选沿用主题 Expressive effects 动效。根节点覆盖为单选角色与选中状态，合并主题／角色名称或 HEX 色值，子预览与标签清除独立语义。明暗卡片的图标区域固定高 64dp，标题区顶部留白为 4dp，使图标与文字间距不随卡片宽度增大；跟随系统／浅色／深色分别居中显示 40dp 的 `brightness_auto`／`light_mode`／`dark_mode`；标题使用 `labelLarge` 居中排列并允许换行。`ThemeViewModel` 初始值、缺失或无效偏好的回退均为 `ThemeMode.SYSTEM`，有效的 `theme_mode` 偏好按已保存值恢复。
+角色、系统强调色与自定义卡片继续使用 `ThemeSelectionCard` 的官方可点击 `Card` 管理涟漪、焦点与交互。预览区保持 `surface` 底色及原始图片／原色图标，仅下方文字区在选中时使用 `primary` 背景，标题和副标题同步使用 `onPrimary`；未选中文字区使用 `surface/onSurface`，副标题使用 `onSurfaceVariant`。
+
+两类卡片均使用主题 large 形状，原生阴影的静止／按压／悬停或聚焦高度为 1dp／8dp／4dp，按压优先；选中状态只控制配色与勾选标记，不决定交互高度。两类卡片均配置官方 `CardDefaults.cardElevation` 的各状态高度，保留官方过渡。卡片不绘制描边，背景、图标与个性色标签和勾选沿用主题 Expressive effects 动效。卡片提供单选角色与选中状态，合并主题／角色名称或 HEX 色值，子预览与标签清除独立语义。明暗卡片的图标区域固定高 64dp，使图标与文字间距不随卡片宽度增大；跟随系统／浅色／深色分别居中显示 32dp 的 `hdr_auto`／`light_mode`／`dark_mode`；标题使用 `labelLarge` 居中排列并允许换行。`ThemeViewModel` 初始值、缺失或无效偏好的回退均为 `ThemeMode.SYSTEM`，有效的 `theme_mode` 偏好按已保存值恢复。
 
 七张角色卡片的图片区域固定为 1:1，继续按 `BiasAlignment(0f, -0.84f)` 靠上裁切。文字区保留 24dp 原色色标、`titleSmall` 主题名与 `bodySmall` 日文角色名；选中时在色标内显示 24dp 的 Rounded `check`，前景使用 `onPrimary`，不在图片上叠加标记或为尾部勾选预留宽度。色标与图标共享固定的 24dp 槽位，垂直居中且不随选中状态改变尺寸。文字区通过 Column weight 填满行等高后的剩余空间，保持底边对齐；标题允许换行和增高，选中变化仅影响绘制。角色图片通过 Coil `AsyncImage` 按卡片约束在后台解码并复用内存缓存；首次加载透出卡片原有底色，禁用额外 crossfade，图片出现不改变布局。角色图片离线打包，来源与转换方式见 [Cerasus 个性色资源](../../third_party/cerasus-palettes/README.md)。
 
-壁纸与自定义颜色在七张角色卡片之后共用个性色网格，`ThemeColorSourceCard` 复用 `ThemeSelectionCard` 的方形预览区、文字区与选中样式；预览区居中显示 48dp 的 `wallpaper`／`edit`，按系统强调色／已保存的自定义色着色，文字区保留名称、HEX 色值与原色色标。系统取色不可用时不生成壁纸选项。点击自定义只打开现有对话框，确认才调用 `selectCustomColor`，取消不改变选择。自定义对话框仍复用 `ThemePaletteSwatch` 三色预览。主题状态继续使用 `lifecycle-runtime-compose` 进行生命周期感知收集；页面 Preview 定义覆盖中英文、浅深色、320dp／640dp 宽度及 2 倍字体。
+系统强调色与自定义颜色在七张角色卡片之后共用个性色网格，`ThemeColorSourceCard` 复用 `ThemeSelectionCard` 的方形预览区、文字区与选中样式；预览区居中显示 48dp 的 `android`／`edit`，按系统强调色／已保存的自定义色着色，文字区保留名称、HEX 色值与原色色标。系统取色不可用时不生成系统强调色选项。点击自定义只打开现有对话框，确认才调用 `selectCustomColor`，取消不改变选择。自定义对话框合并原色色块与可编辑色值，不生成三色配色预览或单独重复显示 HEX。主题状态继续使用 `lifecycle-runtime-compose` 进行生命周期感知收集；页面 Preview 定义覆盖中英文、浅深色、320dp／640dp 宽度及 2 倍字体。
 
-未选中的主题与个性色卡片不绘制描边，仅保留卡片阴影；描边只用于选中项的强调色反馈，避免灰色轮廓干扰阴影。
+明暗模式、主题与个性色卡片在所有选中状态下均不绘制描边，通过强调色配色与适用的勾选标记反馈选择，保留卡片阴影。
 
 MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引入 View 组件库；两项配色依赖的实际 APK 增量需通过同构建配置比较，不以依赖包大小代替。
 
@@ -81,7 +87,7 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 
 ### 栏面阴影
 
-[ThemeShadows](../../app/src/main/java/moe/kirakira/ui/theme/ThemeShadows.kt) 的 `barSurfaceLayer(shape, alpha, shadowElevation)` 统一承载栏面形状、透明度与原生投影，使用官方 `graphicsLayer`，阴影高度通过 `BarShadowElevation` 固定为 4dp。默认矩形、alpha 为 1，胶囊底栏传入与背景一致的圆角形状；阴影配色和强度由平台光照模型决定，不手动映射模糊、扩张或双层不透明度。图层仅按形状裁剪内容，保持默认 `CompositingStrategy.Auto`，不使用阴影蒙版、差集裁剪或阴影版本特判。
+[ThemeShadows](../../app/src/main/java/moe/kirakira/ui/theme/ThemeShadows.kt) 的 `barSurfaceLayer(shape, alpha, shadowElevation)` 统一承载栏面形状、透明度与原生投影，使用官方 `graphicsLayer`，默认阴影高度通过 `BarShadowElevation` 固定为 4dp；认证与账号安全流程的 `AccountFlowScaffold` 顶栏通过共享正文滚动状态在顶部使用 0dp、滚离顶部后使用 4dp。默认矩形、alpha 为 1，胶囊底栏传入与背景一致的圆角形状；阴影配色和强度由平台光照模型决定，不手动映射模糊、扩张或双层不透明度。图层仅按形状裁剪内容，保持默认 `CompositingStrategy.Auto`，不使用阴影蒙版、差集裁剪或阴影版本特判。
 
 原生 [Outline.alpha](https://developer.android.com/reference/android/graphics/Outline#setAlpha(float)) 描述轮廓内内容的不透明程度，[Android 11 绘制实现](https://android.googlesource.com/platform/frameworks/base/+/android-11.0.0_r1/libs/hwui/pipeline/skia/ReorderBarrierDrawables.cpp#208) 据此选择透明遮挡面的阴影路径。仅降低背景颜色的 alpha、却让承载阴影的图层维持 alpha 为 1，会使半透明栏面透出按不透明遮挡面优化后的阴影内缘。
 
@@ -89,11 +95,15 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 
 普通顶栏和胶囊底栏通过独立的背景子节点承载透明度、形状与阴影，文字、图标、选中背景和指示器作为独立前景绘制，不随背景变淡。背景使用 `matchParentSize()` 跟随实际栏高且不参与测量，胶囊前景继续由透明 `Surface` 保留内容裁剪与触摸语义。视频页的共享背景涵盖播放器占位区域与 Tab，下沿跟随播放器高度与实测 Tab 高度之和，Tab 上缘不单独投影；实际播放器保持独立绘制。资料页的原生图层承载封面、资料区与 Tab 共用的不透明顶部背景，下沿跟随 Tab 实测位置，避免独立 Tab 的上缘投影落到同一表面的资料区；资料顶栏毛玻璃背景的 `shadowElevation` 保持默认 0dp。尺寸、折叠程度与字体缩放由原有布局决定，不增加额外留白、空投影图层或持久化状态。
 
-浅色与深色模式共用固定的栏面阴影高度，实际投影由平台光照与图层透明度决定。连接列表继续使用固定 1dp 平台 elevation 投影，由普通容器 `shadow` 或懒列表宿主 `GraphicsLayer.shadowElevation` 承载；评论／弹幕输入框使用 `Surface.shadowElevation` 的固定 4dp 原生高度，发送按钮使用同一 4dp 高度，其彩色与中性色路径见[按钮动态阴影](#按钮动态阴影)。刷新阴影仅由官方 `IndicatorBox` 容器承载，跟随容器位移与显示状态，不在外层重复投影。连接列表继续延伸并裁剪分段投影轮廓，账号侧滑组继续通过 `clipContent` 控制内容裁剪。
+浅色与深色模式共用相同的栏面阴影高度规则，实际投影由平台光照与图层透明度决定。连接列表继续使用固定 1dp 平台 elevation 投影，由普通容器 `shadow` 或懒列表宿主 `GraphicsLayer.shadowElevation` 承载；评论／弹幕输入框使用 `Surface.shadowElevation` 的固定 4dp 原生高度，发送按钮使用同一 4dp 高度，其彩色与中性色路径见[按钮动态阴影](#按钮动态阴影)。刷新阴影仅由官方 `IndicatorBox` 容器承载，跟随容器位移与显示状态，不在外层重复投影。连接列表继续延伸并裁剪分段投影轮廓，账号侧滑组继续通过 `clipContent` 控制内容裁剪。
 
-栏面图层 Modifier 为普通函数，调用处仅使用固定高度；主题、ViewModel 和导航不保存或传递阴影状态，外观页没有关闭入口，也不读取旧阴影偏好。大标题展开或折叠、Tab 切换及吸顶不改变阴影高度；经典强调色仍关闭色调高度叠加。
+栏面图层 Modifier 为普通函数，普通调用处使用固定高度，认证与账号安全流程由 `AccountFlowScaffold` 持有正文滚动状态，并向 `FrostedScaffold.topBarShadowElevation` 传入滚动对应的高度；主题、ViewModel 和导航不保存或传递阴影状态，外观页没有关闭入口，也不读取旧阴影偏好。大标题展开或折叠、Tab 切换及吸顶不改变阴影高度；经典强调色仍关闭色调高度叠加。
+
+普通表单输入的默认配色集中在 `FilledTextFieldDefaults`，密码呈现集中在 `PasswordTextField`；危险实心与文字按钮的配色集中在 `DestructiveActions`。各页面只提供状态与操作语义，接入见[账号流程布局](components.md#账号流程布局)和[危险操作](components.md#危险操作)。
 
 ### 按钮动态阴影
+
+通用选择按钮复用 [ShadowToggleButton](../../app/src/main/java/moe/kirakira/ui/components/ShadowToggleButton.kt)，内部保留官方 `ToggleButton`，按选中状态读取 `colors.containerColor` 或 `colors.checkedContainerColor`，并通过共享 `buttonShadow` 绘制投影。选中与按压形变使用主题 `fastSpatialSpec` 插值，表面和阴影共用当前轮廓，官方 elevation 设为 `null`；可用时沿用普通实心按钮的交互高度和强度，禁用时立即移除阴影。尺寸、图标、形状和颜色由调用方配置，接入见[选择按钮阴影](components.md#选择按钮阴影)。
 
 个人主页与视频页复用 [FollowButton](../../app/src/main/java/moe/kirakira/ui/components/FollowButton.kt)，内部使用官方 `ToggleButton` 与官方尺寸配套 API。未关注状态显式使用 `primary/onPrimary`，接入共享 `buttonShadow` 的双层投影；已关注状态使用灰色 `surfaceContainerHigh/onSurfaceVariant`，不接入投影，官方 elevation 同时设为 `null`。禁用时保留官方禁用配色与语义，不绘制阴影。选中状态与按压状态通过公开 `Interpolatable` API 及主题 `fastSpatialSpec` 插值，所得轮廓同时传给表面和投影，官方组件的三种形状设为同一当前轮廓以避免二次动画；关注布尔值、提交条件与回调继续由原页面拥有。
 
@@ -120,7 +130,7 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 | 4     | 8dp  | 6／10／4 | 2／3／0 |
 | 5     | 12dp | 8／12／6 | 4／4／0 |
 
-保留项目现有交互高度：2dp、4dp 及动画中间值在相邻官方高度间线性插值，环境层包含官方扩张值，主层不扩张。彩色投影取实际容器色，按钮与 FAB 的环境层／主层不透明度统一固定为 25%／50%，这是相对官方强度的显式例外；静止、悬停、聚焦和按压仅改变范围，不再改变不透明度。RGB 最大与最小通道差不大于 0.02 的中性色使用黑色投影及官方 15%／30%。两类均乘以容器透明度；主题切换与自定义颜色变化实时更新，不统一套用主色，也不绘制额外发光效果。
+保留项目现有交互高度：2dp、4dp 及动画中间值在相邻官方高度间线性插值，环境层包含官方扩张值，主层不扩张。彩色投影取实际容器色，按钮与 FAB 的环境层／主层不透明度统一固定为 25%／50%，这是相对官方强度的显式例外；静止、悬停、聚焦和按压仅改变范围，不再改变不透明度。RGB 最大与最小通道差不大于 0.02 的中性色使用黑色投影，环境层／主层不透明度固定为 7.5%／15%，作为项目强度例外，减轻白色／灰色按钮及连接缝隙的黑灰感。两类均乘以容器透明度；主题切换与自定义颜色变化实时更新，不统一套用主色，也不绘制额外发光效果。
 
 `ContentComposer` 的输入框 `Surface` 与发送按钮 `FilledIconButton` 共用固定 4dp 阴影高度。输入框通过 `Surface.shadowElevation` 绘制原生阴影；禁用发送按钮及中性色容器的可用发送按钮通过 `Modifier.shadow` 绘制原生阴影，使用平台默认配色与光照强度，并设置 `clip = false` 保留组件自身的内容裁剪。彩色容器的可用发送按钮通过 `materialColorShadow` 绘制双层投影，阴影取实际容器色。静止、按压、悬停、聚焦及禁用不改变高度。官方禁用容器色与主题 `surface` 合成，禁用图标色再与该容器色合成，得到不透明灰色配色，滚动内容不会透出。发送条件、官方禁用语义、尺寸与点击反馈保持原有逻辑。每个表面只使用一种阴影路径，保留形状轮廓与内容裁剪，不叠加原生和双层投影。
 
@@ -128,7 +138,7 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 
 [ShadowRadioButton](../../app/src/main/java/moe/kirakira/ui/components/ShadowRadioButton.kt) 保留官方 `RadioButton`，参数与官方组件一致，默认配色来自 `RadioButtonDefaults.colors()`；仅选中且可用时显示投影。静止／悬停或聚焦／按压采用 1dp／2dp／4dp，按压优先于悬停与聚焦；按下 120ms、恢复或取消 180ms，系统动画设置由 Compose 处理，禁用时立即移除投影。取消选中时同样移除投影，不改变官方圆点和颜色动画。
 
-单选框与按钮共用 `materialColorShadow` 的 Material 官方双层几何参数及高度插值。1dp 的环境层「垂直偏移／模糊／扩张」为 1／3／1dp，主层为 1／2／0dp；2dp 与 4dp 在相邻官方高度之间插值。阴影取 `colors.selectedColor`，单选框传入固定 `opacityScale = 0.5f`，将双层强度降为按钮的一半：彩色环境层／主层为 12.5%／25%；RGB 通道差不大于 0.02 的中性色使用黑色及 7.5%／15%，均乘以选中颜色透明度，主题与自定义颜色变化实时更新。按钮沿用默认 `opacityScale = 1f`，单选框减淡不改变按钮阴影或控件自身颜色。
+单选框与按钮共用 `materialColorShadow` 的 Material 官方双层几何参数及高度插值。1dp 的环境层「垂直偏移／模糊／扩张」为 1／3／1dp，主层为 1／2／0dp；2dp 与 4dp 在相邻官方高度之间插值。阴影取 `colors.selectedColor`，单选框传入固定 `opacityScale = 0.5f`，将双层强度降为按钮的一半：彩色环境层／主层为 12.5%／25%；RGB 通道差不大于 0.02 的中性色使用黑色及 3.75%／7.5%，均乘以选中颜色透明度，主题与自定义颜色变化实时更新。按钮沿用默认 `opacityScale = 1f`，单选框减淡不改变按钮阴影或控件自身颜色。
 
 投影背景层使用 `matchParentSize`，不参与控件尺寸测量；居中 20dp 的圆形轮廓对应当前官方内部 `RadioButtonTokens.IconSize`，该 token 未公开，因此在封装内记录尺寸来源。仅对阴影层使用圆形差集裁剪，防止投影染色空心单选框内部；官方组件的布局、最小触摸目标、涟漪与绘制不被裁剪，也不添加背景填充或平台 elevation。更新 Material 3 时需核对该内部图标尺寸。
 

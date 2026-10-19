@@ -10,6 +10,8 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
+private const val MIN_WHITE_ON_ACCENT_CONTRAST = 2.5
+
 /** 在主题层生成全部颜色角色，组件直接继承原色及其配套前景。 */
 internal fun classicAccentColorScheme(seed: Color, darkTheme: Boolean, neutral: ColorScheme): ColorScheme {
     val primary = Color(seed.toArgb() or 0xFF000000.toInt())
@@ -20,7 +22,7 @@ internal fun classicAccentColorScheme(seed: Color, darkTheme: Boolean, neutral: 
     val pageBackground = if (darkTheme) neutral.surfaceContainer else Color(0xFFF5F5F5)
     return neutral.copy(
         primary = primary,
-        onPrimary = preferredWhiteOnAccent(primary, minimumContrast = 2.5),
+        onPrimary = preferredWhiteOnAccent(primary),
         primaryContainer = container,
         onPrimaryContainer = readableAccent(
             accentTone(primary, if (darkTheme) 90.0 else 10.0), container,
@@ -68,8 +70,8 @@ private fun contrastingBlackOrWhite(background: Color): Color =
     if (contrastRatio(Color.Black, background) >= contrastRatio(Color.White, background)) Color.Black else Color.White
 
 /** Prefer white for on-accent content once it meets the theme's chosen contrast target. */
-private fun preferredWhiteOnAccent(background: Color, minimumContrast: Double): Color =
-    if (contrastRatio(Color.White, background) >= minimumContrast) Color.White else Color.Black
+private fun preferredWhiteOnAccent(background: Color): Color =
+    if (contrastRatio(Color.White, background) >= MIN_WHITE_ON_ACCENT_CONTRAST) Color.White else Color.Black
 
 private fun contrastRatio(first: Color, second: Color): Double {
     val firstLuminance = first.luminance().toDouble()

@@ -162,8 +162,8 @@
     <string name="settings_switch_account">切换账号</string>
     <string name="settings_log_out">登出</string>
     <string name="theme_system">跟随系统</string>
-    <string name="theme_light">浅色主题</string>
-    <string name="theme_dark">深色主题</string>
+    <string name="theme_light">浅色</string>
+    <string name="theme_dark">深色</string>
     <string name="about_version">%1$s (%2$d)</string>
     <string name="about_licenses">开源组件</string>
     <string name="about_privacy_policy">隐私政策</string>
@@ -210,7 +210,7 @@
     <string name="theme_character_syaro">桐間紗路</string>
     <string name="theme_character_maya">条河麻耶</string>
     <string name="theme_character_megu">奈津恵</string>
-    <string name="theme_color_wallpaper">壁纸颜色</string>
+    <string name="theme_color_system_accent">系统</string>
     <string name="theme_color_custom">自定义</string>
     <string name="theme_color_hex">HEX 色值</string>
     <string name="theme_color_hex_error">请输入六位十六进制字符（0–9、A–F）</string>

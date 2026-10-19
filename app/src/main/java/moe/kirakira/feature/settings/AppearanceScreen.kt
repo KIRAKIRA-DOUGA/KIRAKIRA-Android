@@ -9,12 +9,10 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,7 +26,6 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
@@ -39,7 +36,7 @@ import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorSettings
 import moe.kirakira.ui.theme.ThemeMode
 import moe.kirakira.ui.theme.ThemePresetColor
-import moe.kirakira.ui.theme.wallpaperAccentColor
+import moe.kirakira.ui.theme.systemAccentColor
 
 private sealed interface AppearanceColorOption {
     val key: String
@@ -48,8 +45,8 @@ private sealed interface AppearanceColorOption {
         override val key = preset.name
     }
 
-    data class Wallpaper(val color: Color) : AppearanceColorOption {
-        override val key = "wallpaper"
+    data class SystemAccent(val color: Color) : AppearanceColorOption {
+        override val key = "system_accent"
     }
 
     data object Custom : AppearanceColorOption {
@@ -72,13 +69,13 @@ fun AppearanceScreen(
     val listState = rememberLazyListState()
     val direction = LocalLayoutDirection.current
     val fontScale = LocalDensity.current.fontScale
-    val wallpaperColor = wallpaperAccentColor()
-    val usesSystemColors = themeColors.useSystemColors && wallpaperColor != null
+    val systemColor = systemAccentColor()
+    val usesSystemColors = themeColors.useSystemColors && systemColor != null
     val modes = remember { listOf(ThemeMode.SYSTEM, ThemeMode.LIGHT, ThemeMode.DARK) }
-    val colorOptions = remember(wallpaperColor) {
+    val colorOptions = remember(systemColor) {
         buildList {
             ThemePresetColor.entries.forEach { add(AppearanceColorOption.Preset(it)) }
-            wallpaperColor?.let { add(AppearanceColorOption.Wallpaper(it)) }
+            systemColor?.let { add(AppearanceColorOption.SystemAccent(it)) }
             add(AppearanceColorOption.Custom)
         }
     }
@@ -132,19 +129,13 @@ fun AppearanceScreen(
                                 bottom = if (index == modeRows.lastIndex) SettingsDefaults.SectionSpacing else 12.dp,
                             ),
                         ) { mode, cardModifier ->
-                            ThemeSelectionCard(
+                            ThemeModeCard(
                                 title = stringResource(mode.titleRes),
+                                icon = mode.iconRes(),
                                 selected = themeMode == mode,
                                 onClick = { onThemeModeChange(mode) },
-                                compact = true,
                                 modifier = cardModifier,
-                            ) {
-                                Icon(
-                                    painter = painterResource(mode.iconRes()),
-                                    contentDescription = null,
-                                    modifier = Modifier.align(Alignment.Center).size(40.dp),
-                                )
-                            }
+                            )
                         }
                     }
                     item(key = "colors_header", contentType = "header") {
@@ -174,12 +165,12 @@ fun AppearanceScreen(
                                     onClick = { onThemeColorsChange(themeColors.selectPreset(option.preset)) },
                                     modifier = cardModifier,
                                 )
-                                is AppearanceColorOption.Wallpaper -> ThemeColorSourceCard(
-                                    title = stringResource(R.string.theme_color_wallpaper),
+                                is AppearanceColorOption.SystemAccent -> ThemeColorSourceCard(
+                                    title = stringResource(R.string.theme_color_system_accent),
                                     color = option.color,
                                     selected = usesSystemColors,
-                                    onClick = { onThemeColorsChange(themeColors.selectWallpaperColor()) },
-                                    icon = R.drawable.ic_symbol_wallpaper,
+                                    onClick = { onThemeColorsChange(themeColors.selectSystemAccentColor()) },
+                                    icon = R.drawable.ic_symbol_android,
                                     modifier = cardModifier,
                                 )
                                 AppearanceColorOption.Custom -> ThemeColorSourceCard(
@@ -224,7 +215,7 @@ fun AppearanceScreen(
 private fun ThemeMode.iconRes(): Int = when (this) {
     ThemeMode.LIGHT -> R.drawable.ic_symbol_light_mode
     ThemeMode.DARK -> R.drawable.ic_symbol_dark_mode
-    ThemeMode.SYSTEM -> R.drawable.ic_symbol_brightness_auto
+    ThemeMode.SYSTEM -> R.drawable.ic_symbol_hdr_auto
 }
 
 private fun themeCardColumns(width: Dp, minWidth: Dp, fontScale: Float, count: Int): Int =

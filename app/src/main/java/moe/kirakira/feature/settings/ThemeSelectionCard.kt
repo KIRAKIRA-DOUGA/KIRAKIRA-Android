@@ -1,7 +1,6 @@
 package moe.kirakira.feature.settings
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -39,7 +38,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
 
@@ -81,17 +79,10 @@ internal fun ThemeSelectionCard(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     seedColor: Color? = null,
-    compact: Boolean = false,
     preview: @Composable BoxScope.() -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val interactionSource = remember { MutableInteractionSource() }
-    val filledSelection = compact && selected
-    val container = animateColorAsState(
-        if (filledSelection) scheme.primary else scheme.surface,
-        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
-        label = "themeCardContainer",
-    ).value
     val labelContainer = animateColorAsState(
         if (selected) scheme.primary else scheme.surface,
         animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
@@ -102,20 +93,10 @@ internal fun ThemeSelectionCard(
         animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
         label = "themeCardContent",
     ).value
-    val previewContentColor = animateColorAsState(
-        if (filledSelection) scheme.onPrimary else scheme.primary,
-        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
-        label = "themeCardPreviewContent",
-    ).value
     val supportingColor = animateColorAsState(
         if (selected) scheme.onPrimary else scheme.onSurfaceVariant,
         animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
         label = "themeCardSupporting",
-    ).value
-    val border = animateColorAsState(
-        scheme.primary.copy(alpha = if (selected) 1f else 0f),
-        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
-        label = "themeCardBorder",
     ).value
     val checkColor = animateColorAsState(
         scheme.onPrimary.copy(alpha = if (selected) 1f else 0f),
@@ -133,17 +114,21 @@ internal fun ThemeSelectionCard(
             },
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
-            containerColor = container,
+            containerColor = scheme.surface,
             contentColor = contentColor,
         ),
-        border = BorderStroke(1.5.dp, border),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 1.dp,
+            pressedElevation = 8.dp,
+            focusedElevation = 4.dp,
+            hoveredElevation = 4.dp,
+        ),
     ) {
-        CompositionLocalProvider(LocalContentColor provides previewContentColor) {
+        CompositionLocalProvider(LocalContentColor provides scheme.primary) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .then(if (compact) Modifier.height(64.dp) else Modifier.aspectRatio(1f))
+                    .aspectRatio(1f)
                     .clearAndSetSemantics {},
                 content = preview,
             )
@@ -153,47 +138,36 @@ internal fun ThemeSelectionCard(
             .fillMaxWidth()
             .weight(1f)
             .background(labelContainer)
-            .padding(start = 12.dp, top = if (compact) 0.dp else 12.dp, end = 12.dp, bottom = 12.dp)
+            .padding(12.dp)
             .clearAndSetSemantics {}
-        if (compact) {
-            Box(modifier = labelModifier, contentAlignment = Alignment.Center) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelLarge,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        } else {
-            Row(
-                modifier = labelModifier,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (seedColor != null) {
-                    Box(
-                        modifier = Modifier
-                            .size(24.dp)
-                            .background(seedColor, CircleShape),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_symbol_check),
-                            contentDescription = null,
-                            tint = checkColor,
-                            modifier = Modifier.size(24.dp),
-                        )
-                    }
+        Row(
+            modifier = labelModifier,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (seedColor != null) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(seedColor, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_symbol_check),
+                        contentDescription = null,
+                        tint = checkColor,
+                        modifier = Modifier.size(24.dp),
+                    )
                 }
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(text = title, style = MaterialTheme.typography.titleSmall)
-                    if (subtitle != null) {
-                        Text(
-                            text = subtitle,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = supportingColor,
-                        )
-                    }
+            }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(text = title, style = MaterialTheme.typography.titleSmall)
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = supportingColor,
+                    )
                 }
             }
         }

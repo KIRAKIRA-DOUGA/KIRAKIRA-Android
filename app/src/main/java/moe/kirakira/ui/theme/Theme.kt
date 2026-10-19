@@ -11,10 +11,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import com.materialkolor.PaletteStyle
-import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.dynamicColorScheme
+import com.materialkolor.dynamiccolor.ColorSpec
 
-/** Uses classic accent colors; [dynamicColor] selects the wallpaper accent on Android 12+. */
+/** Uses classic accent colors; [dynamicColor] selects the system accent on Android 12+. */
 @Composable
 fun KIRAKIRATheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -22,7 +22,7 @@ fun KIRAKIRATheme(
     seedColor: Color = KIRAKIRAPink,
     content: @Composable () -> Unit,
 ) {
-    val accentColor = if (dynamicColor) wallpaperAccentColor() ?: seedColor else seedColor
+    val accentColor = if (dynamicColor) systemAccentColor() ?: seedColor else seedColor
     val colorScheme = rememberSeedColorScheme(seedColor = accentColor, darkTheme = darkTheme)
     val semanticColors = remember(darkTheme) { themeSemanticColors(darkTheme) }
 
