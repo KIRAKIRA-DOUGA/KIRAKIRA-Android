@@ -11,7 +11,7 @@
 - [ScriptedApi](../app/src/authTestShared/java/moe/kirakira/testing/ScriptedApi.kt) 直接实现 OkHttp `Call.Factory`，在内存中返回测试指定的响应或失败，**不建立 Socket、不进行 DNS 查询**。只接受 `auth.example.invalid`，未预设的请求立即失败，没有真实网络回退路径。
 - 测试不读取 `BuildConfig.API_BASE_URL`，不运行应用或 `SessionViewModel` 的生产初始化，不读取本机真实账号、密码或 token。邮箱和 token 均为固定的虚构数据。
 - [MemorySessionStore](../app/src/authTestShared/java/moe/kirakira/testing/AuthFixtures.kt) 实现 `SessionPersistence`，只使用内存。可模拟读取失败、写入失败及暂停写入，不访问 Android Keystore 或真实账号库。
-- `SessionCipherTest` 直接调用标准 JCA AES-GCM，密钥每个用例临时生成；既验证篡改拒绝，也验证已有 v1 文件格式兼容。Android Keystore 与磁盘行为另由下述无网络权限的隔离设备包验证。
+- `SessionCipherTest` 直接调用标准 JCA AES-GCM，密钥每个用例临时生成；既验证篡改拒绝，也验证已有 v1 文件格式兼容。这些断言针对旧加密格式，不能证明新私有 JSON 文件存储或迁移行为已经验证；旧的统一错误分类断言也需在用户要求专项测试时核对。
 - 协程调度器与单调时钟可注入，验证请求取消、并发写入和验证码冷却，无须真实等待或连接设备。生产仍使用原来的 Android 时钟和后台调度器。
 - ViewModel 测试注入固定邮箱校验函数，隔离 Android `Patterns`；生产继续使用 Android 邮箱格式校验。状态恢复用例重建 `SavedStateHandle` 和 ViewModel，不等同于设备上杀进程再恢复。
 
@@ -45,6 +45,8 @@
 结果记录须注明执行日期、代码版本、命令、环境、失败或跳过项及验证限制；没有执行的项目不能标记通过。历史结果见[验证记录](validation/auth-2026-09-29.md#首轮存储加固)。
 
 ## Keystore 专项设备测试
+
+以下用例及历史结果针对旧的加密账号库。当前生产账号库已改为私有 JSON 文件，并仅在迁移时读取旧密钥；原用例仍假设 `sessions.v1.enc`、密钥生成及加密写入，尚未同步到新存储流程。本次未修改或运行测试，不能将这些用例及旧结果作为新存储或迁移的验证证据；仅在用户要求专项测试时更新并执行。
 
 [SessionStoreInstrumentedTest](../app/src/cryptoCheckAndroidTest/java/moe/kirakira/data/auth/SessionStoreInstrumentedTest.kt) 使用真实 Android Keystore 和 `AtomicFile`，不替换加密提供者。`cryptoCheck` 构建有独立包名 `moe.kirakira.cryptocheck`，其 Manifest 移除 INTERNET、外部存储权限和主 Activity，关闭备份，并将 API 根地址固定为 `https://auth.example.invalid/`；测试 APK 同样没有网络权限。测试开头再次检查包名与权限，防止误操作普通应用。
 

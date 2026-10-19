@@ -1,8 +1,5 @@
 package moe.kirakira.data.settings
 
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -75,28 +72,17 @@ internal class AccountSettingsRepository(private val api: ApiClient, private val
             val uncertain = when (error.failure) {
                 ApiFailure.NETWORK, ApiFailure.TIMEOUT, ApiFailure.SERVER, ApiFailure.INVALID_RESPONSE -> true
                 ApiFailure.REJECTED, ApiFailure.SESSION_EXPIRED, ApiFailure.RATE_LIMITED,
-                ApiFailure.DAILY_LIMIT, ApiFailure.STORAGE -> false
+                ApiFailure.DAILY_LIMIT, ApiFailure.STORAGE, ApiFailure.STORAGE_FULL,
+                ApiFailure.STORAGE_DATA -> false
             }
             if (updateAccepted || uncertain) PrivacySaveResult.Unconfirmed(error.failure) else throw error
         }
     }
 
-    private suspend fun <T> request(revision: Long, block: suspend (String) -> T): T {
-        val snapshot = auth.requestSession()
-        if (snapshot.revision != revision) throw CancellationException("Account changed")
-        val account = snapshot.account ?: throw ApiException(ApiFailure.SESSION_EXPIRED)
-        val result = try {
-            block(account.cookie())
-        } catch (error: Exception) {
-            currentCoroutineContext().ensureActive()
-            if (!auth.isCurrent(snapshot)) throw CancellationException("Account changed")
-            if (error is ApiException && error.failure == ApiFailure.SESSION_EXPIRED) auth.expireRequestSession(snapshot)
-            throw error
+    private suspend fun <T> request(revision: Long, block: suspend (String) -> T): T =
+        auth.withRequestSession(revision) { snapshot ->
+            block(snapshot.requiredAccount().cookie())
         }
-        currentCoroutineContext().ensureActive()
-        if (!auth.isCurrent(snapshot)) throw CancellationException("Account changed")
-        return result
-    }
 
     suspend fun rules(category: RuleCategory, page: Int, revision: Long, pageSize: Int = 20): RulePage =
         request(revision) { cookie ->

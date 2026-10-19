@@ -3,6 +3,11 @@ package moe.kirakira.data.auth
 import android.os.SystemClock
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.ceil
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.DurationUnit
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -16,6 +21,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import moe.kirakira.core.network.ApiException
 import moe.kirakira.core.network.ApiFailure
+
+private val VERIFICATION_CODE_COOLDOWN = 60.seconds
 
 /** Identity of one in-memory authentication flow; never persisted or sent to the backend. */
 internal class AuthFlowOwner
@@ -44,6 +51,7 @@ internal class AuthRepository(
         try {
             stored = store.read()
             publish()
+            _session.update { it.copy(notice = store.migrationNotice) }
         } catch (error: ApiException) {
             _session.value = SessionState(isLoading = false, error = error.failure)
         }
@@ -58,6 +66,29 @@ internal class AuthRepository(
     }
 
     internal fun isCurrent(request: RequestSession): Boolean = request.revision == _session.value.revision
+
+    /** Runs an ordinary request against one identity; the block must not publish a new session revision. */
+    internal suspend fun <T> withRequestSession(
+        revision: Long,
+        signedIn: Boolean = true,
+        block: suspend (RequestSession) -> T,
+    ): T {
+        currentCoroutineContext().ensureActive()
+        val snapshot = requestSession()
+        if (snapshot.revision != revision) throw kotlinx.coroutines.CancellationException("Account changed")
+        if (signedIn && snapshot.account == null) throw ApiException(ApiFailure.SESSION_EXPIRED)
+        val result = try {
+            block(snapshot)
+        } catch (error: Exception) {
+            currentCoroutineContext().ensureActive()
+            if (!isCurrent(snapshot)) throw kotlinx.coroutines.CancellationException("Account changed")
+            if (error is ApiException && error.failure == ApiFailure.SESSION_EXPIRED) expireRequestSession(snapshot)
+            throw error
+        }
+        currentCoroutineContext().ensureActive()
+        if (!isCurrent(snapshot)) throw kotlinx.coroutines.CancellationException("Account changed")
+        return result
+    }
 
     internal suspend fun fetchProfile(request: RequestSession): AccountProfile {
         val account = request.account ?: throw ApiException(ApiFailure.SESSION_EXPIRED)
@@ -96,7 +127,9 @@ internal class AuthRepository(
         reportError(ApiFailure.SESSION_EXPIRED, uuid)
     }
 
-    internal class RequestSession(val revision: Long, val account: StoredAccount?)
+    internal class RequestSession(val revision: Long, val account: StoredAccount?) {
+        fun requiredAccount(): StoredAccount = account ?: throw ApiException(ApiFailure.SESSION_EXPIRED)
+    }
 
     suspend fun secondFactor(email: String): SecondFactor = api.secondFactor(email)
     suspend fun checkUsername(username: String): Boolean = api.checkUsername(username)
@@ -104,8 +137,9 @@ internal class AuthRepository(
     suspend fun checkInvitation(code: String): Boolean = api.checkInvitation(code)
 
     fun resendSeconds(email: String): Int {
-        val remaining = (codeDeadlines[email.lowercase()] ?: 0L) - elapsedRealtime()
-        return ((remaining.coerceAtLeast(0) + 999) / 1_000).toInt()
+        val remaining = ((codeDeadlines[email.lowercase()] ?: 0L) - elapsedRealtime())
+            .milliseconds.coerceAtLeast(Duration.ZERO)
+        return ceil(remaining.toDouble(DurationUnit.SECONDS)).toInt()
     }
 
     suspend fun sendCode(email: String, purpose: VerificationPurpose, language: String) =
@@ -116,10 +150,10 @@ internal class AuthRepository(
         if (resendSeconds(email) > 0) throw ApiException(ApiFailure.RATE_LIMITED)
         try {
             send()
-            codeDeadlines[email.lowercase()] = elapsedRealtime() + 60_000
+            codeDeadlines[email.lowercase()] = elapsedRealtime() + VERIFICATION_CODE_COOLDOWN.inWholeMilliseconds
         } catch (error: ApiException) {
             if (error.failure == ApiFailure.RATE_LIMITED) {
-                codeDeadlines[email.lowercase()] = elapsedRealtime() + 60_000
+                codeDeadlines[email.lowercase()] = elapsedRealtime() + VERIFICATION_CODE_COOLDOWN.inWholeMilliseconds
             }
             throw error
         }
@@ -280,6 +314,8 @@ internal class AuthRepository(
 
     fun reportError(failure: ApiFailure?, uuid: String? = null) =
         _session.update { it.copy(error = failure, failedAccountUuid = uuid) }
+
+    fun dismissNotice() = _session.update { it.copy(notice = null) }
 
     fun setOperation(operation: SessionOperation?) = _session.update { it.copy(operation = operation) }
 

@@ -15,4 +15,6 @@ internal fun ApiFailure.messageRes(): Int = when (this) {
     ApiFailure.RATE_LIMITED -> R.string.auth_cooling_down
     ApiFailure.DAILY_LIMIT -> R.string.auth_daily_limit
     ApiFailure.STORAGE -> R.string.account_storage_error
+    ApiFailure.STORAGE_FULL -> R.string.account_storage_full
+    ApiFailure.STORAGE_DATA -> R.string.account_storage_data_error
 }

@@ -55,6 +55,7 @@ internal fun AppNavHost(
     onDismissSessionError: () -> Unit,
     onSelectAccount: (String?) -> Unit,
     onRemoveAccount: (String) -> Unit,
+    onDismissSessionNotice: () -> Unit,
     modifier: Modifier = Modifier,
     onVideoPageActiveChange: (Boolean) -> Unit = {},
     onImageViewerActiveChange: (Boolean) -> Unit = {},
@@ -127,6 +128,7 @@ internal fun AppNavHost(
         onLogin = { email ->
             if (backStack.lastOrNull() !is AuthRoute) backStack.add(AuthRoute(email))
         },
+        onDismissNotice = onDismissSessionNotice,
     )
 
     // Keep the host opaque under translated pages and the predictive back preview.

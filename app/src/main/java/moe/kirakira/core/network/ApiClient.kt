@@ -2,9 +2,9 @@ package moe.kirakira.core.network
 
 import java.io.IOException
 import java.io.InterruptedIOException
-import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -20,8 +20,9 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 
-internal enum class ApiFailure {
-    NETWORK, TIMEOUT, SERVER, INVALID_RESPONSE, REJECTED, SESSION_EXPIRED, RATE_LIMITED, DAILY_LIMIT, STORAGE,
+internal enum class ApiFailure(val isStorageFailure: Boolean = false) {
+    NETWORK, TIMEOUT, SERVER, INVALID_RESPONSE, REJECTED, SESSION_EXPIRED, RATE_LIMITED, DAILY_LIMIT,
+    STORAGE(true), STORAGE_FULL(true), STORAGE_DATA(true),
 }
 
 /** Sanitized failures never contain URLs, request bodies, credentials, or backend messages. */
@@ -116,10 +117,10 @@ internal class ApiClient(
 }
 
 private fun defaultApiClient(): OkHttpClient = OkHttpClient.Builder()
-    .connectTimeout(15, TimeUnit.SECONDS)
-    .readTimeout(20, TimeUnit.SECONDS)
-    .writeTimeout(20, TimeUnit.SECONDS)
-    .callTimeout(30, TimeUnit.SECONDS)
+    .connectTimeout(15.seconds)
+    .readTimeout(20.seconds)
+    .writeTimeout(20.seconds)
+    .callTimeout(30.seconds)
     .followRedirects(false)
     .followSslRedirects(false)
     // Auth mutations and verification messages must never be replayed automatically.

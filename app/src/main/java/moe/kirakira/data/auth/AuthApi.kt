@@ -18,11 +18,11 @@ internal class AuthApi(private val client: ApiClient) {
     suspend fun secondFactor(email: String): SecondFactor {
         val result = client.get<CheckDto>("user/checkUserHave2FAByEmail", mapOf("email" to email))
         result.requireSuccess()
-        return when {
-            result.have2FA == false -> SecondFactor.NONE
-            result.have2FA == true && result.type == "email" -> SecondFactor.EMAIL
-            result.have2FA == true && result.type == "totp" -> SecondFactor.TOTP
-            else -> throw ApiException(ApiFailure.INVALID_RESPONSE)
+        return when (result.have2FA) {
+            false -> SecondFactor.NONE
+            true if result.type == "email" -> SecondFactor.EMAIL
+            true if result.type == "totp" -> SecondFactor.TOTP
+            true, null -> throw ApiException(ApiFailure.INVALID_RESPONSE)
         }
     }
 

@@ -27,6 +27,7 @@ internal data class SavedAccount(val profile: AccountProfile, val needsLogin: Bo
 
 internal enum class SessionOperationType { INITIALIZE, SWITCH, REMOVE, RESET }
 internal data class SessionOperation(val type: SessionOperationType, val targetUuid: String? = null)
+internal enum class SessionNotice { LEGACY_SIGN_IN_REQUIRED }
 
 internal data class SessionState(
     val accounts: List<SavedAccount> = emptyList(),
@@ -36,6 +37,7 @@ internal data class SessionState(
     val error: ApiFailure? = null,
     val failedAccountUuid: String? = null,
     val revision: Long = 0,
+    val notice: SessionNotice? = null,
 ) {
     val isBusy: Boolean get() = operation != null
     val activeProfile: AccountProfile? get() = accounts.find { it.profile.uuid == activeUuid }?.profile

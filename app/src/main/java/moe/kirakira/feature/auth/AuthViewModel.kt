@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import java.text.Normalizer
 import java.util.UUID
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -125,7 +126,7 @@ internal class AuthViewModel(
         viewModelScope.launch {
             while (true) {
                 _uiState.update { it.copy(resendSeconds = repository.resendSeconds(it.email.trim())) }
-                delay(1_000)
+                delay(1.seconds)
             }
         }
     }

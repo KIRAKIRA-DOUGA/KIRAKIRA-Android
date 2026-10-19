@@ -330,7 +330,10 @@
     <string name="api_invalid_response">服务器响应格式异常，请稍后重试</string>
     <string name="api_rejected">请求未通过，请检查信息后重试</string>
     <string name="account_session_expired">登录会话已失效，请重新登录</string>
-    <string name="account_storage_error">无法安全读取或保存账号，请检查存储空间后重试。新会话尚未启用。</string>
+    <string name="account_storage_error">无法读取或保存本机账号，请重试。若持续失败，请检查存储空间及应用数据访问是否正常。</string>
+    <string name="account_storage_full">存储空间不足，无法完成本机账号数据操作。请释放空间后重试。</string>
+    <string name="account_storage_data_error">本机账号数据格式异常或已损坏，无法读取，请重试。若仍失败，可清除本机账号数据后重新登录。</string>
+    <string name="account_migration_sign_in_required">原有登录信息无法恢复，请重新登录</string>
     <string name="account_session_unverified">无法验证此账号，请重试或重新登录。已保留本机账号信息。</string>
     <string name="account_session_problem">账号状态提示</string>
     <string name="account_connection_error_title">暂时无法连接服务器</string>

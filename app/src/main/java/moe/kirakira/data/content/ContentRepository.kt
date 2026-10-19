@@ -1,8 +1,5 @@
 package moe.kirakira.data.content
 
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.add
@@ -19,20 +16,12 @@ import moe.kirakira.data.auth.AuthRepository
 internal class ContentRepository(private val api: ApiClient, private val auth: AuthRepository) {
     val session = auth.session
 
-    private suspend fun <T> request(revision: Long, signedIn: Boolean = false, block: suspend (String?, String?) -> T): T {
-        val snapshot = auth.requestSession()
-        if (snapshot.revision != revision) throw CancellationException("Account changed")
-        if (signedIn && snapshot.account == null) throw ApiException(ApiFailure.SESSION_EXPIRED)
-        val result = try {
-            block(snapshot.account?.cookie(), snapshot.account?.homeCookie())
-        } catch (error: ApiException) {
-            if (!auth.isCurrent(snapshot)) throw CancellationException("Account changed")
-            if (error.failure == ApiFailure.SESSION_EXPIRED) auth.expireRequestSession(snapshot)
-            throw error
-        }
-        currentCoroutineContext().ensureActive()
-        if (!auth.isCurrent(snapshot)) throw CancellationException("Account changed")
-        return result
+    private suspend fun <T> request(
+        revision: Long,
+        signedIn: Boolean = false,
+        block: suspend (String?, String?) -> T,
+    ): T = auth.withRequestSession(revision, signedIn) { snapshot ->
+        block(snapshot.account?.cookie(), snapshot.account?.homeCookie())
     }
 
     suspend fun home(revision: Long): List<VideoSummary> = request(revision) { _, homeCookie ->
@@ -148,11 +137,7 @@ internal class ContentRepository(private val api: ApiClient, private val auth: A
 
     suspend fun vote(id: Int, previous: Reaction, target: Reaction, revision: Long) = request(revision, true) { cookie, _ ->
         // Rosales makes opposite votes exclusive. Read the detail again after success (or uncertain failure).
-        val direction = if ((if (target == Reaction.NONE) previous else target) == Reaction.LIKE) "upvote" else "downvote"
-        val body = buildJsonObject { put("videoId", id) }.toString()
-        val result = if (target == Reaction.NONE) api.delete<ResultDto>("video/$direction/cancel", body, cookie)
-        else api.post<ResultDto>("video/$direction", body, cookie)
-        result.check()
+        submitVote("video", previous, target, buildJsonObject { put("videoId", id) }.toString(), cookie)
     }
 
     suspend fun comments(id: Int, page: Int, revision: Long): CommentPage = request(revision) { cookie, _ ->
@@ -165,10 +150,15 @@ internal class ContentRepository(private val api: ApiClient, private val auth: A
     }
 
     suspend fun commentVote(id: Int, comment: VideoComment, target: Reaction, revision: Long) = request(revision, true) { cookie, _ ->
-        val direction = if ((if (target == Reaction.NONE) comment.reaction else target) == Reaction.LIKE) "upvote" else "downvote"
         val body = buildJsonObject { put("videoId", id); put("id", comment.id) }.toString()
-        val result = if (target == Reaction.NONE) api.delete<ResultDto>("video/comment/$direction/cancel", body, cookie)
-        else api.post<ResultDto>("video/comment/$direction", body, cookie)
+        submitVote("video/comment", comment.reaction, target, body, cookie)
+    }
+
+    private suspend fun submitVote(path: String, previous: Reaction, target: Reaction, body: String, cookie: String?) {
+        val reaction = if (target == Reaction.NONE) previous else target
+        val direction = if (reaction == Reaction.LIKE) "upvote" else "downvote"
+        val result = if (target == Reaction.NONE) api.delete<ResultDto>("$path/$direction/cancel", body, cookie)
+        else api.post<ResultDto>("$path/$direction", body, cookie)
         result.check()
     }
 

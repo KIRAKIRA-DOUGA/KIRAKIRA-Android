@@ -3,9 +3,9 @@ package moe.kirakira.data.profile
 import java.io.File
 import java.io.IOException
 import java.io.InterruptedIOException
-import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -163,9 +163,9 @@ internal class ProfileRepository(private val api: ApiClient, private val auth: A
     }
 
     private companion object {
-        val uploadClient = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS).writeTimeout(30, TimeUnit.SECONDS)
-            .callTimeout(60, TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false)
+        val uploadClient = OkHttpClient.Builder().connectTimeout(15.seconds)
+            .readTimeout(30.seconds).writeTimeout(30.seconds)
+            .callTimeout(60.seconds).followRedirects(false).followSslRedirects(false)
             .retryOnConnectionFailure(false).build()
     }
 }

@@ -337,7 +337,10 @@
     <string name="api_invalid_response">The server returned an unexpected response. Please try again later.</string>
     <string name="api_rejected">The request was not accepted. Check your details and try again.</string>
     <string name="account_session_expired">This session has expired. Please sign in again.</string>
-    <string name="account_storage_error">Could not read or save accounts securely. Free up storage and retry. No new session has been activated.</string>
+    <string name="account_storage_error">Could not read or save accounts on this device. Retry. If the problem persists, check available storage and access to app data.</string>
+    <string name="account_storage_full">There is not enough storage to complete this account data operation. Free up space and retry.</string>
+    <string name="account_storage_data_error">Could not read account data on this device because its format is invalid or it is damaged. Retry. If this still fails, clear saved accounts and sign in again.</string>
+    <string name="account_migration_sign_in_required">Your previous sign-in information could not be restored. Please sign in again.</string>
     <string name="account_session_unverified">Could not verify this account. Retry or sign in again. Saved account details have been kept.</string>
     <string name="account_session_problem">Account needs attention</string>
     <string name="account_connection_error_title">Couldn’t connect to the server</string>

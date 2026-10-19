@@ -15,18 +15,42 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
 import moe.kirakira.core.network.ApiFailure
+import moe.kirakira.data.auth.SessionNotice
 import moe.kirakira.data.auth.SessionState
+import moe.kirakira.ui.components.DestructiveTextButton
 import moe.kirakira.ui.components.messageRes
 
 @Composable
 internal fun SessionFeedback(
     state: SessionState,
     onDismissError: () -> Unit,
+    onDismissNotice: () -> Unit,
     onRetry: () -> Unit,
     onResetLocalAccounts: () -> Unit,
     onLogin: (String) -> Unit,
 ) {
-    val error = state.error ?: return
+    val error = state.error
+    if (error == null) {
+        when (state.notice) {
+            SessionNotice.LEGACY_SIGN_IN_REQUIRED -> AlertDialog(
+                onDismissRequest = onDismissNotice,
+                containerColor = MaterialTheme.colorScheme.surface,
+                title = { Text(stringResource(R.string.account_needs_login)) },
+                text = { Text(stringResource(R.string.account_migration_sign_in_required)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        onDismissNotice()
+                        onLogin("")
+                    }) { Text(stringResource(R.string.auth_sign_in)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = onDismissNotice) { Text(stringResource(R.string.account_continue)) }
+                },
+            )
+            null -> Unit
+        }
+        return
+    }
     val isConnectionFailure = error == ApiFailure.NETWORK || error == ApiFailure.TIMEOUT
     var confirmingReset by remember(error) { mutableStateOf(false) }
     if (confirmingReset) {
@@ -36,7 +60,7 @@ internal fun SessionFeedback(
             title = { Text(stringResource(R.string.account_reset_local)) },
             text = { Text(stringResource(R.string.account_reset_local_message)) },
             confirmButton = {
-                TextButton(onClick = {
+                DestructiveTextButton(onClick = {
                     confirmingReset = false
                     onDismissError()
                     onResetLocalAccounts()
@@ -59,7 +83,8 @@ internal fun SessionFeedback(
                 ApiFailure.TIMEOUT -> R.string.account_connection_timeout_title
                 ApiFailure.SERVER, ApiFailure.INVALID_RESPONSE, ApiFailure.REJECTED,
                 ApiFailure.SESSION_EXPIRED, ApiFailure.RATE_LIMITED, ApiFailure.DAILY_LIMIT,
-                ApiFailure.STORAGE -> R.string.account_session_problem
+                ApiFailure.STORAGE, ApiFailure.STORAGE_FULL,
+                ApiFailure.STORAGE_DATA -> R.string.account_session_problem
             }
             Text(stringResource(title))
         },
@@ -80,8 +105,8 @@ internal fun SessionFeedback(
         },
         confirmButton = {
             Column {
-                if (error == ApiFailure.STORAGE) {
-                    TextButton(onClick = { confirmingReset = true }) { Text(stringResource(R.string.account_reset_local)) }
+                if (error.isStorageFailure) {
+                    DestructiveTextButton(onClick = { confirmingReset = true }) { Text(stringResource(R.string.account_reset_local)) }
                 }
                 TextButton(onClick = {
                     onDismissError()

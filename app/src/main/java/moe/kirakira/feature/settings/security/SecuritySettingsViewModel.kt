@@ -3,6 +3,7 @@ package moe.kirakira.feature.settings.security
 import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -52,7 +53,7 @@ internal class SecuritySettingsViewModel(private val repository: SecurityReposit
                 val currentCooldown = repository.resendSeconds(session.value.activeProfile?.email.orEmpty())
                 val newCooldown = repository.resendSeconds(_state.value.form[SecurityField.EMAIL].trim())
                 _state.update { it.copy(currentCooldown = currentCooldown, newCooldown = newCooldown) }
-                delay(1_000)
+                delay(1.seconds)
             }
         }
     }
@@ -593,7 +594,8 @@ internal class SecuritySettingsViewModel(private val repository: SecurityReposit
 
 private fun ApiFailure.isUncertainMutation(): Boolean = when (this) {
     ApiFailure.NETWORK, ApiFailure.TIMEOUT, ApiFailure.SERVER, ApiFailure.INVALID_RESPONSE -> true
-    ApiFailure.REJECTED, ApiFailure.SESSION_EXPIRED, ApiFailure.RATE_LIMITED, ApiFailure.DAILY_LIMIT, ApiFailure.STORAGE -> false
+    ApiFailure.REJECTED, ApiFailure.SESSION_EXPIRED, ApiFailure.RATE_LIMITED, ApiFailure.DAILY_LIMIT,
+    ApiFailure.STORAGE, ApiFailure.STORAGE_FULL, ApiFailure.STORAGE_DATA -> false
 }
 
 private fun sixDigits(value: String): Boolean = value.matches(Regex("[0-9]{6}"))

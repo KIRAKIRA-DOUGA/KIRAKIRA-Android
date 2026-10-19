@@ -5,8 +5,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -174,19 +172,7 @@ internal class HistoryRepository(
 
     private suspend fun <T> request(revision: Long, block: suspend (StoredAccount) -> T): T {
         requireRevision(revision)
-        val snapshot = auth.requestSession()
-        if (snapshot.revision != revision) throw CancellationException("Account changed")
-        val account = snapshot.account ?: throw ApiException(ApiFailure.SESSION_EXPIRED)
-        val result = try {
-            block(account)
-        } catch (error: ApiException) {
-            if (!auth.isCurrent(snapshot)) throw CancellationException("Account changed")
-            if (error.failure == ApiFailure.SESSION_EXPIRED) auth.expireRequestSession(snapshot)
-            throw error
-        }
-        currentCoroutineContext().ensureActive()
-        if (!auth.isCurrent(snapshot)) throw CancellationException("Account changed")
-        return result
+        return auth.withRequestSession(revision) { snapshot -> block(snapshot.requiredAccount()) }
     }
 }
 

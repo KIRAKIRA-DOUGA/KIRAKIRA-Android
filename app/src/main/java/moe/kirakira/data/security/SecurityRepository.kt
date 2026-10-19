@@ -2,8 +2,6 @@ package moe.kirakira.data.security
 
 import androidx.core.net.toUri
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.JsonElement
@@ -15,7 +13,6 @@ import moe.kirakira.core.network.ApiException
 import moe.kirakira.core.network.ApiFailure
 import moe.kirakira.data.auth.AuthRepository
 import moe.kirakira.data.auth.SecondFactor
-import moe.kirakira.data.auth.StoredAccount
 
 internal data class SecurityStatus(val factor: SecondFactor, val totpCreationDateTime: Long? = null)
 
@@ -44,19 +41,19 @@ internal class SecurityRepository(private val api: ApiClient, private val auth: 
     fun resendSeconds(email: String): Int = auth.resendSeconds(email)
     fun discard() { pending = null; publishedRevision = null }
 
-    suspend fun status(revision: Long): SecurityStatus = request(revision) { snapshot ->
+    suspend fun status(revision: Long): SecurityStatus = auth.withRequestSession(revision) { snapshot ->
         val dto = api.get<StatusDto>("user/checkUserHave2FAByUUID", cookie = snapshot.requiredAccount().cookie())
         if (!dto.success) rejected()
-        when {
-            dto.have2FA == false && dto.type == null -> SecurityStatus(SecondFactor.NONE)
-            dto.have2FA == true && dto.type == "email" -> SecurityStatus(SecondFactor.EMAIL)
-            dto.have2FA == true && dto.type == "totp" -> SecurityStatus(SecondFactor.TOTP, dto.totpCreationDateTime)
-            else -> invalid()
+        when (dto.have2FA) {
+            false if dto.type == null -> SecurityStatus(SecondFactor.NONE)
+            true if dto.type == "email" -> SecurityStatus(SecondFactor.EMAIL)
+            true if dto.type == "totp" -> SecurityStatus(SecondFactor.TOTP, dto.totpCreationDateTime)
+            false, true, null -> invalid()
         }
     }
 
     suspend fun sendCode(revision: Long, purpose: SecurityEmailPurpose, language: String, newEmail: String?, factor: SecondFactor) =
-        request(revision) { snapshot ->
+        auth.withRequestSession(revision) { snapshot ->
             val account = snapshot.requiredAccount()
             val email = newEmail ?: account.profile.email
             auth.withVerificationCooldown(email) {
@@ -75,7 +72,7 @@ internal class SecurityRepository(private val api: ApiClient, private val auth: 
         }
 
     suspend fun changeEmail(revision: Long, email: String, password: String, currentCode: String, newCode: String) {
-        request(revision) { snapshot ->
+        auth.withRequestSession(revision) { snapshot ->
             val account = snapshot.requiredAccount()
             val hash = auth.hashPassword(password)
             checkCurrent(snapshot)
@@ -93,7 +90,7 @@ internal class SecurityRepository(private val api: ApiClient, private val auth: 
     }
 
     suspend fun changePassword(revision: Long, old: String, new: String, code: String) {
-        request(revision) { snapshot ->
+        auth.withRequestSession(revision) { snapshot ->
             val oldHash = auth.hashPassword(old)
             val newHash = auth.hashPassword(new)
             checkCurrent(snapshot)
@@ -126,13 +123,13 @@ internal class SecurityRepository(private val api: ApiClient, private val auth: 
         }
     }
 
-    suspend fun enableEmail(revision: Long) = request(revision) { snapshot ->
+    suspend fun enableEmail(revision: Long) = auth.withRequestSession(revision) { snapshot ->
         val result = api.post<MutationDto>("user/createEmailAuthenticator", "{}", snapshot.requiredAccount().cookie())
         result.requireSuccess()
         if (result.isExists) rejected()
     }
 
-    suspend fun disable(revision: Long, factor: SecondFactor, password: String, code: String) = request(revision) { snapshot ->
+    suspend fun disable(revision: Long, factor: SecondFactor, password: String, code: String) = auth.withRequestSession(revision) { snapshot ->
         val hash = auth.hashPassword(password)
         checkCurrent(snapshot)
         val body = buildJsonObject {
@@ -144,7 +141,7 @@ internal class SecurityRepository(private val api: ApiClient, private val auth: 
             body, snapshot.requiredAccount().cookie()).requireSuccess()
     }
 
-    suspend fun beginTotp(revision: Long): TotpSetup = request(revision) { snapshot ->
+    suspend fun beginTotp(revision: Long): TotpSetup = auth.withRequestSession(revision) { snapshot ->
         val dto = api.post<SetupDto>("user/createTotpAuthenticator", "{}", snapshot.requiredAccount().cookie())
         if (!dto.success || dto.isExists) rejected()
         val value = dto.result?.otpAuth ?: invalid()
@@ -154,7 +151,7 @@ internal class SecurityRepository(private val api: ApiClient, private val auth: 
         TotpSetup(value, secret)
     }
 
-    suspend fun confirmTotp(revision: Long, setup: TotpSetup, code: String): TotpConfirmation = request(revision) { snapshot ->
+    suspend fun confirmTotp(revision: Long, setup: TotpSetup, code: String): TotpConfirmation = auth.withRequestSession(revision) { snapshot ->
         val body = buildJsonObject { put("clientOtp", code); put("otpAuth", setup.uri) }.toString()
         val dto = api.post<ConfirmDto>("user/confirmUserTotpAuthenticator", body, snapshot.requiredAccount().cookie())
         if (!dto.success) rejected()
@@ -180,23 +177,6 @@ internal class SecurityRepository(private val api: ApiClient, private val auth: 
         if (!auth.isCurrent(snapshot)) throw CancellationException("Account changed")
     }
 
-    private suspend fun <T> request(revision: Long, block: suspend (AuthRepository.RequestSession) -> T): T {
-        val snapshot = auth.requestSession()
-        if (snapshot.revision != revision) throw CancellationException("Account changed")
-        if (snapshot.account == null) throw ApiException(ApiFailure.SESSION_EXPIRED)
-        try {
-            val result = block(snapshot)
-            currentCoroutineContext().ensureActive()
-            checkCurrent(snapshot)
-            return result
-        } catch (error: Exception) {
-            currentCoroutineContext().ensureActive()
-            checkCurrent(snapshot)
-            if (error is ApiException && error.failure == ApiFailure.SESSION_EXPIRED) auth.expireRequestSession(snapshot)
-            throw error
-        }
-    }
-
     private class Completion(val snapshot: AuthRepository.RequestSession, val email: String? = null)
 }
 
@@ -219,5 +199,3 @@ internal class SecurityRepository(private val api: ApiClient, private val auth: 
 @Serializable private class SecretResult(val backupCode: List<String>? = null, val recoveryCode: String? = null)
 private fun rejected(): Nothing = throw ApiException(ApiFailure.REJECTED)
 private fun invalid(): Nothing = throw ApiException(ApiFailure.INVALID_RESPONSE)
-private fun AuthRepository.RequestSession.requiredAccount(): StoredAccount =
-    account ?: throw ApiException(ApiFailure.SESSION_EXPIRED)

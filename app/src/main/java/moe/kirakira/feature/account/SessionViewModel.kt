@@ -50,6 +50,10 @@ internal class SessionViewModel(
         repository.reportError(null)
     }
 
+    fun dismissNotice() {
+        repository.dismissNotice()
+    }
+
     fun retry() = runOperation(retryTarget, retryOperation ?: {
         repository.initialize()
         state.value.activeUuid?.let { uuid ->

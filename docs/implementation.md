@@ -13,7 +13,7 @@
 | [播放、图片与弹幕](implementation/media.md) | 播放会话、全屏与小窗、续播、图片查看和弹幕输入渲染 |
 | [主题与投影](implementation/theme.md) | 语义配色、颜色偏好、弹层背景与投影参数 |
 | [共享组件接入](implementation/components.md) | 内容状态、连接列表、刷新、顶栏与账号流程布局 |
-| [认证与会话](implementation/auth.md) | 认证状态、系统凭据、接口契约、错误处理与加密会话 |
+| [认证与会话](implementation/auth.md) | 认证状态、系统凭据、接口契约、错误处理与本机会话存储 |
 | [账号设置](implementation/account-settings.md) | 资料编辑、安全与二步验证、隐私、屏蔽规则及邀请码 |
 
 ## 章节索引
