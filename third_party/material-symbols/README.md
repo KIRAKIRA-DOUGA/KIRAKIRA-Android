@@ -2,7 +2,7 @@
 
 本目录保存 Google Material Symbols 的 [Apache 2.0 许可证](LICENSE)。图标来自 [Google 官方仓库](https://github.com/google/material-design-icons/tree/master/symbols/android)。
 
-- 样式：Material Symbols Rounded，24dp，wght 400，GRAD 0；默认 FILL 0，底栏首页与“我”的选中形态、播放器播放／暂停及账号流程字段错误图标使用 FILL 1。
+- 样式：Material Symbols Rounded，24dp，wght 400，GRAD 0；默认 FILL 0，底栏首页与“我”的选中形态、播放器播放／暂停、快进／快退、音量及账号流程字段错误图标使用 FILL 1。
 - 上游路径：`symbols/android/<name>/materialsymbolsrounded/<name>_24px.xml`。
 - 本地路径：`app/src/main/res/drawable/ic_symbol_<name>.xml`。
 - 修改：移除 XML theme tint（由 Compose `Icon` 提供主题颜色）、调整缩进并增加来源注释；保留原始路径数据及上游 `autoMirrored` 设置（例如 `chevron_right`、`label`）。
@@ -56,13 +56,13 @@
 
 ## 播放器控制图标
 
-倍速码表 `feature/player/PlaybackSpeedGauge.kt` 为应用自绘组件：指针按用户提供的设计参考采用细尖、圆底的渐窄轮廓，以缓存的闭合路径绘制小圆角尖端和一体半圆底部，不叠加独立圆轴；外围参考 Material 3 Slider 的轨道、断口和轨道内圆点，大刻度为细圆头径向短杆，每段弧线中心均衡放置一个小圆点，复用 Slider 的圆点尺寸，与下方 Slider 共享官方默认的主题主色、次要容器色。弧段为填充环形路径，断口平整且有小圆角，不使用第三方轮廓，也不属于官方图标变体。零刻度位于 150°，避免与 0.25× 之间形成孤立圆点；指针按表盘半径缩放，并限制底部半宽以适应窄屏和大字体。播放器速度入口仍使用未修改路径的 [`speed_24px.xml`](https://github.com/google/material-design-icons/blob/master/symbols/android/speed/materialsymbolsrounded/speed_24px.xml)，即 `ic_symbol_speed.xml`。
+倍速码表 `feature/player/PlaybackSpeedGauge.kt` 为应用自绘组件：指针按用户提供的设计参考采用细尖、圆底的渐窄轮廓，以缓存的闭合路径绘制小圆角尖端和一体半圆底部，不叠加独立圆轴；外围参考 Material 3 Slider 的轨道、断口和轨道内圆点，大刻度为细圆头径向短杆，每段弧线中心均衡放置一个小圆点，复用 Slider 的圆点尺寸，与下方 Slider 共享官方默认的主题主色、次要容器色。弧段为填充环形路径，断口平整且有小圆角，不使用第三方轮廓，也不属于官方图标变体。零刻度位于 150°，避免与 0.25× 之间形成孤立圆点；指针按表盘半径缩放，并限制底部半宽以适应窄屏和大字体。播放器速度入口与普通设置列表均使用官方 FILL 0 的 [`speed_24px.xml`](https://github.com/google/material-design-icons/blob/master/symbols/android/speed/materialsymbolsrounded/speed_24px.xml)，即 `ic_symbol_speed.xml`。入口由 `PlaybackSpeedIcon` 缓存官方指针轮廓；表盘采用同风格的圆角描边与固定平底，沿轮廓按指针角度截取 50° 缺口，指针和缺口读取同一动画角度，暂停零位时缺口沿平底移动。表盘外形固定，指针按原尺寸的 85% 绘制以避让底边，并围绕原始轴心旋转，与弹层码表共用倍率映射、暂停归零及 300ms emphasized 动画；动态表盘及中间角度为应用定义的绘制与路径变换，沿用 Apache 2.0 许可。
 
-以下图标来自上述官方 Rounded、24dp、wght 400 路径；播放／暂停采用 FILL 1，其余采用 FILL 0，保留原始路径数据并移除 tint，由主题着色：
+以下图标来自上述官方 Rounded、24dp、wght 400 路径；播放／暂停采用 FILL 1，其余采用 FILL 0（全屏图标两种 FILL 的路径相同），保留原始路径数据并移除 tint，由主题着色：
 
 - [`fullscreen`](https://github.com/google/material-design-icons/blob/master/symbols/android/fullscreen/materialsymbolsrounded/fullscreen_24px.xml)
 - [`fullscreen_exit`](https://github.com/google/material-design-icons/blob/master/symbols/android/fullscreen_exit/materialsymbolsrounded/fullscreen_exit_24px.xml)
-- [`speed`](https://github.com/google/material-design-icons/blob/master/symbols/android/speed/materialsymbolsrounded/speed_24px.xml)：播放器倍速入口。
+- [`speed`](https://github.com/google/material-design-icons/blob/master/symbols/android/speed/materialsymbolsrounded/speed_24px.xml)：播放器倍速入口，FILL 0。
 - [`picture_in_picture_alt`](https://github.com/google/material-design-icons/blob/master/symbols/android/picture_in_picture_alt/materialsymbolsrounded/picture_in_picture_alt_24px.xml)
 
 `AnimatedPlaybackIcon.kt` 基于上述播放／暂停 FILL 1 路径制作形变：播放三角形沿 y=480 拆成两个同向闭合轮廓，直线转换为等价二次曲线；暂停双竖条重新选择起点并拆分直边，使每个轮廓具有十六段二次曲线。端点保持官方外轮廓，形变中间态为自定义插值。两个方向都对目标控制点反向旋转 90°，再随动画顺时针旋转 90°；采用主题的 Material 3 Expressive `fastSpatialSpec` 弹簧，形变与旋转稍微超过目标后回弹；中断时从当前可见控制点重新插值，保持连续。未新增第三方图标或依赖，沿用 Apache 2.0 许可。
@@ -106,6 +106,13 @@
 
 均使用官方 Rounded、24dp、wght 400、GRAD 0、FILL 0，保留路径数据，移除 theme tint。日期、标签、保存及删除操作复用已有图标。
 
+## 隐私设置图标
+
+- [`cake`](https://github.com/google/material-design-icons/blob/master/symbols/android/cake/materialsymbolsrounded/cake_24px.xml)：生日。
+- [`group`](https://github.com/google/material-design-icons/blob/master/symbols/android/group/materialsymbolsrounded/group_24px.xml)：粉丝。
+
+均使用官方 Rounded、24dp、wght 400、GRAD 0、FILL 0，保留原始路径，移除 theme tint 并增加来源注释。年龄、关注与收藏分别复用现有 `calendar_today`、`person_add` 与 `star` 图标。
+
 ## 发送栏图标
 
 - [`send`](https://github.com/google/material-design-icons/blob/master/symbols/android/send/materialsymbolsrounded/send_24px.xml)：评论与弹幕发送，保留上游 RTL 自动镜像。
@@ -119,14 +126,14 @@
 
 ## 设置子页面图标
 
-设置子页面图标、按钮与外观卡片使用以下官方 Rounded、24dp、wght 400、GRAD 0、FILL 0 路径；仅移除 theme tint、整理 XML 缩进并增加来源注释。外观卡片的明暗模式图标显示为 40dp，壁纸与自定义图标显示为 48dp，自定义选项复用上述 `edit` 资源。`east`、`west` 上游未设 `autoMirrored`，表示弹幕的绝对方向，RTL 下不镜像。
+设置子页面图标、按钮与外观卡片使用以下官方 Rounded、24dp、wght 400、GRAD 0、FILL 0 路径；仅移除 theme tint、整理 XML 缩进并增加来源注释。外观卡片的明暗模式图标显示为 40dp，系统强调色与自定义图标显示为 48dp，自定义选项复用上述 `edit` 资源。`east`、`west` 上游未设 `autoMirrored`，表示弹幕的绝对方向，RTL 下不镜像。
 
 | 图标 | 用途 |
 | --- | --- |
 | [`light_mode`](https://github.com/google/material-design-icons/blob/master/symbols/android/light_mode/materialsymbolsrounded/light_mode_24px.xml) | 外观：浅色 |
 | [`dark_mode`](https://github.com/google/material-design-icons/blob/master/symbols/android/dark_mode/materialsymbolsrounded/dark_mode_24px.xml) | 外观：深色 |
-| [`brightness_auto`](https://github.com/google/material-design-icons/blob/master/symbols/android/brightness_auto/materialsymbolsrounded/brightness_auto_24px.xml) | 外观：跟随系统 |
-| [`wallpaper`](https://github.com/google/material-design-icons/blob/master/symbols/android/wallpaper/materialsymbolsrounded/wallpaper_24px.xml) | 外观：壁纸颜色 |
+| [`hdr_auto`](https://github.com/google/material-design-icons/blob/master/symbols/android/hdr_auto/materialsymbolsrounded/hdr_auto_24px.xml) | 外观：跟随系统 |
+| [`android`](https://github.com/google/material-design-icons/blob/master/symbols/android/android/materialsymbolsrounded/android_24px.xml) | 外观：系统强调色 |
 | [`pip`](https://github.com/google/material-design-icons/blob/master/symbols/android/pip/materialsymbolsrounded/pip_24px.xml) | 播放：应用外／应用内小窗 |
 | [`autoplay`](https://github.com/google/material-design-icons/blob/master/symbols/android/autoplay/materialsymbolsrounded/autoplay_24px.xml) | 播放：自动播放 |
 | [`opacity`](https://github.com/google/material-design-icons/blob/master/symbols/android/opacity/materialsymbolsrounded/opacity_24px.xml) | 弹幕：不透明度 |
@@ -143,3 +150,18 @@
 ## 下拉刷新箭头
 
 下拉刷新基于现有官方 Rounded `chevron_right` 的中心线绘制圆弧末端的开放式箭头：原始 960 单位画布中的中心线为 `(376,296) → (560,480) → (376,664)`。资源本身保留原始 pathData；指示器使用中心线路径，与圆弧共用固定 2.5dp 的描边及圆角端点、圆角连接，解决填充图标缩放后箭头比圆弧细的问题。绘制时按手势缩放路径长度、沿圆弧切线旋转并应用主题强调色，不引入旧版 Material Icons 或实心三角箭头；指示器局部固定 LTR，保持顺时针刷新方向。圆弧与拉动计算见 [Android 刷新指示器说明](../android-refresh/README.md)。
+
+播放器手势反馈使用以下官方 Rounded、24dp、wght 400、GRAD 0、FILL 1 图标，移除 theme tint、增加来源注释，保留路径和上游 `autoMirrored` 设置：
+
+- [`fast_forward`](https://github.com/google/material-design-icons/blob/master/symbols/android/fast_forward/materialsymbolsrounded/fast_forward_fill1_24px.xml)：横向快进及右侧双击反馈。
+- [`fast_rewind`](https://github.com/google/material-design-icons/blob/master/symbols/android/fast_rewind/materialsymbolsrounded/fast_rewind_fill1_24px.xml)：横向快退及左侧双击反馈。
+- [`volume_up`](https://github.com/google/material-design-icons/blob/master/symbols/android/volume_up/materialsymbolsrounded/volume_up_fill1_24px.xml)：右半区音量滑动反馈。
+
+音量 HUD 的零／低音量端点参考同源官方 Rounded 图标，几何由 `volume_up` 轮廓变换生成，不再保留未使用的独立 drawable：
+
+- [`volume_mute`](https://github.com/google/material-design-icons/blob/master/symbols/android/volume_mute/materialsymbolsrounded/volume_mute_fill1_24px.xml)：0 音量的无声波扬声器，不使用带斜线的 `volume_off`。
+- [`volume_down`](https://github.com/google/material-design-icons/blob/master/symbols/android/volume_down/materialsymbolsrounded/volume_down_fill1_24px.xml)：1%–50% 的低音量；更高音量沿用 `volume_up`。
+
+`feature/player/VolumeIconMorph.kt` 的音量形变读取上述官方 `volume_up` 路径，缓存扬声器及两条声波轮廓，通过扬声器水平位移和声波轮廓缩放连接零／低／高音量；扬声器保持实心，静止端点对应 `volume_mute`、`volume_down`、`volume_up` 的几何，不使用带斜线的静音图标。中间帧为应用定义的路径变换，保留原有许可，支持 RTL 镜像。
+
+双击跳转反馈复用现有官方 Material Symbols Rounded `fast_forward`／`fast_rewind` 资源，解析并缓存资源中两个箭头的原始轮廓，以错开时序的短距离独立位移、共享位移、轻微缩放和透明度脉冲提供动效；快速连点合并待播装饰脉冲，当前动画自然收尾后续接，不改动图标轮廓，没有新增图标资源或许可来源。

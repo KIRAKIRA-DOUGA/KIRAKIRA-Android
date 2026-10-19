@@ -81,11 +81,11 @@ Android Studio 的 Build Variants 可选择 `performance`，再以 Run 启动；
 
 也可在用户级 Gradle 属性配置 `kirakira.apiBaseUrl`；不要提交个人环境文件。地址经 HTTPS／host／无凭据／无 query 与 fragment 校验后生成 `BuildConfig.API_BASE_URL`，支持路径前缀，尾部斜杠自动补齐。模拟器访问开发机应使用设备可达、证书可信的 HTTPS 地址，不能把设备的 localhost 当作开发机，也不能关闭证书校验。
 
-增加的 `INTERNET` 是普通权限，不弹运行时请求。Manifest 禁用明文流量；OkHttp API 客户端禁止重定向、自动连接重试、响应缓存和请求日志，Coil 头像请求使用独立客户端。OkHttp 用于 API 超时、取消、TLS 与 URL 编码，`coil-network-okhttp` 为已有 Coil 添加远程头像支持；复用现有 serialization，无新 DI／数据库框架。Media3 用于真实视频播放，按同一固定版本声明，不升级现有 Compose BOM。播放器使用无账号会话的独立媒体客户端。体积增量未测量，许可证由 AboutLibraries 收集。
+增加的 `INTERNET` 与播放器媒体音量使用的 `MODIFY_AUDIO_SETTINGS` 均为普通权限，不弹运行时请求。Manifest 禁用明文流量；OkHttp API 客户端禁止重定向、自动连接重试、响应缓存和请求日志，Coil 头像请求使用独立客户端。OkHttp 用于 API 超时、取消、TLS 与 URL 编码，`coil-network-okhttp` 为已有 Coil 添加远程头像支持；复用现有 serialization，无新 DI／数据库框架。Media3 用于真实视频播放，按同一固定版本声明，不升级现有 Compose BOM。播放器使用无账号会话的独立媒体客户端。体积增量未测量，许可证由 AboutLibraries 收集。
 
 非生产 API 根地址构建的 `SYSTEM_CREDENTIALS_ENABLED=false`，禁用真实系统密码提供者；仅完整的默认生产根地址启用。
 
-账号库保存在不参与备份的 `noBackupFilesDir/sessions.v1.enc`，密码和验证码不持久保存。会话与完整 API 根地址绑定；切换构建环境时不加载另一后端的账号，首次保存新环境会话会替换本机旧环境账号库。可选的 userDataBootstrapHint 同样加密保存，仅首页过滤请求使用。图片分发默认固定生产 Cloudflare 地址，覆盖 API 地址不会自动切换图片环境。协议与已知服务端限制见[API 与会话](implementation/auth.md#api-与会话)。
+账号库以 JSON 保存在不参与备份的 `noBackupFilesDir/sessions.json`，正常读写不依赖 Keystore。只有新库主文件及备份都不存在时才尝试迁移旧 `sessions.v1.enc`，首次写入遗留的临时文件清理后可重试；恢复失败保留旧文件，成功写入空新库后提示重新登录。密码和验证码不持久保存。会话与完整 API 根地址绑定；迁移保留原后端的账号数据，切换构建环境时不加载另一后端的账号，首次保存新环境会话才会替换本机旧环境账号库。可选的 userDataBootstrapHint 同样保存在私有账号文件中，仅首页过滤请求使用。图片分发默认固定生产 Cloudflare 地址，覆盖 API 地址不会自动切换图片环境。协议与已知服务端限制见[API 与会话](implementation/auth.md#api-与会话)。
 
 ## 环境排障
 

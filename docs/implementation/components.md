@@ -9,13 +9,16 @@
 - [连接列表分组](#连接列表分组)
 - [下拉刷新](#下拉刷新)
 - [共享组件接入](#共享组件接入)
+  - [选择按钮阴影](#选择按钮阴影)
   - [顶部导航按钮定位](#顶部导航按钮定位)
   - [可复用 UI 参数示例](#可复用-ui-参数示例)
+  - [Modifier 工厂示例](#modifier-工厂示例)
   - [毛玻璃应用栏](#毛玻璃应用栏)
   - [黑底毛玻璃按钮](#黑底毛玻璃按钮)
   - [顶栏淡色图标底纹](#顶栏淡色图标底纹)
   - [可选的可折叠大标题栏](#可选的可折叠大标题栏)
   - [可复用的顶栏搜索](#可复用的顶栏搜索)
+- [数字动画与字数计数](#数字动画与字数计数)
 - [图标划线过渡](#图标划线过渡)
 - [账号流程布局](#账号流程布局)
 
@@ -36,11 +39,11 @@
 
 共享 [IndeterminateCircularProgressIndicator](../../app/src/main/java/moe/kirakira/ui/components/IndeterminateCircularProgressIndicator.kt) 封装官方 Material 2 `CircularProgressIndicator` 的不确定进度重载，使用其原生旋转与圆弧伸缩动画；只将端点固定为 `StrokeCap.Round`，轨道为透明，不自行复制动画或切换全局主题。默认颜色来自 Material 3 `MaterialTheme.colorScheme.primary`，媒体区域可传入白色，原有语义与修饰符继续由调用方提供。
 
-普通加载与播放器中央缓冲使用官方默认 40dp 直径、4dp 线宽；文字按钮加载使用 Material 2 `ButtonDefaults.IconSize` 与 2dp 线宽，保留正常图标的 Expressive 尺寸和按钮容器；图标按钮、账号行与小窗按钮使用 24dp、2dp 线宽；刷新内部采用 Material 2 原始比例 20dp、2.5dp 线宽。按钮触摸目标、文字占位及账号行的 48dp 固定槽位不随加载改变。Material 2 依赖使用现有 Compose BOM 管理，其他界面仍复用 `KIRAKIRATheme`。
+普通加载与播放器中央缓冲使用官方默认 40dp 直径、4dp 线宽；文字按钮加载使用 Material 3 `ButtonDefaults.iconSizeFor(height)` 与 2dp 线宽，`height` 与按钮规格一致，默认小按钮使用 `ButtonDefaults.MinHeight`，使加载器与正常图标尺寸一致并保留按钮容器；图标按钮、账号行与小窗按钮使用 24dp、2dp 线宽；刷新内部采用 Material 2 原始比例 20dp、2.5dp 线宽。按钮触摸目标、文字占位及账号行的 48dp 固定槽位不随加载改变。Material 2 依赖使用现有 Compose BOM 管理，其他界面仍复用 `KIRAKIRATheme`。
 
 ## 连接列表分组
 
-[ConnectedListGroup](../../app/src/main/java/moe/kirakira/ui/components/ConnectedListGroup.kt) 提供满宽、零行间距的普通分组布局和固定 1dp 整组阴影，不额外绘制背景或添加内边距，默认不裁剪内容；`SettingsSection` 保留标题间距并在内部复用它，独立条目在调用处显式包裹单项分组。共享 `connectedListItemShapes(index, count)` 以零圆角 `RoundedCornerShape` 为基础，通过官方 `ListItemDefaults.segmentedShapes` 获取首项顶部、末项底部及单项的主题圆角，中间连接边为直角；选中、按压、聚焦、悬停与拖动形状均沿用基础形状，保留官方颜色反馈与无障碍语义。菜单、设置、账号、标签及播放器面板共用此入口。阴影属于容器或列表宿主，条目不再通过组合局部上下文跳过投影，也不绘制和拼接行级阴影。账号侧滑组继续通过 `clipContent` 按整体外轮廓裁剪，外侧阴影及删除按钮的横向间距保持不变。
+[ConnectedListGroup](../../app/src/main/java/moe/kirakira/ui/components/ConnectedListGroup.kt) 提供满宽、零行间距的普通分组布局和固定 1dp 整组阴影，不额外绘制背景或添加内边距，默认不裁剪内容；`SettingsSection` 在内部复用它，`title` 默认为 `null`，省略时直接写 `SettingsSection { … }`，不显示标题或预留标题间距；组间留白和列表项语义保持不变，独立条目在调用处显式包裹单项分组。共享 `connectedListItemShapes(index, count)` 以零圆角 `RoundedCornerShape` 为基础，通过官方 `ListItemDefaults.segmentedShapes` 获取首项顶部、末项底部及单项的主题圆角，中间连接边为直角；选中、按压、聚焦、悬停与拖动形状均沿用基础形状，保留官方颜色反馈与无障碍语义。菜单、设置、账号、标签及播放器面板共用此入口。阴影属于容器或列表宿主，条目不再通过组合局部上下文跳过投影，也不绘制和拼接行级阴影。账号侧滑组继续通过 `clipContent` 按整体外轮廓裁剪，外侧阴影及删除按钮的横向间距保持不变。
 
 [ConnectedLazyColumn](../../app/src/main/java/moe/kirakira/ui/components/ConnectedLazyColumn.kt) 在官方 `LazyColumn` 外提供分组声明及统一投影，接收 `LazyListState`、`modifier`、`contentPadding` 和内容 DSL，固定零行间距与正向垂直布局。
 
@@ -50,7 +53,9 @@ DSL 的普通 `item`、`items` 与 `connectedItemsIndexed(groupKey, items, key, 
 
 边缘拉伸使用每个 `ConnectedLazyColumn` 独立创建的官方 `rememberOverscrollEffect()`。Modifier 顺序固定为调用方 modifier → `clipToBounds()` → `overscroll(effect)` → 整组阴影绘制节点，让投影和内容一同参与系统 overscroll；内部 `LazyColumn` 接收同一效果的 `withoutVisualEffect()` 包装，仅负责传递滚动及 fling 事件，避免重复附加效果节点或内容拉伸后露出未同步变形的投影。系统效果为空时，外层及内部均使用空效果，遵循系统配置；下拉刷新指示器仍由外部刷新宿主独立承载。
 
-标签名称按语言注册分组；标签搜索、屏蔽规则和邀请码列表各注册数据分组，继续逐项懒加载并保留分页。屏蔽管理入口只有固定的 2 项、3 项菜单，各以一个普通 `ConnectedListGroup` 放入管理宿主的一个条目。标题、筛选、空状态和分页按钮使用普通条目，仅在分组边界及独立状态区域设置间距。
+标签名称按语言注册分组；标签搜索、屏蔽规则和邀请码列表各注册数据分组，继续逐项懒加载并保留分页。屏蔽管理入口只有固定的 2 项、3 项页面内菜单，各以一个普通 `ConnectedListGroup` 放入管理宿主的一个条目。标题、筛选、空状态和分页按钮使用普通条目，仅在分组边界及独立状态区域设置间距。
+
+临时弹出的下拉菜单使用共享 `ExpressiveMenuPopup` 宿主，按选项组包裹官方 `DropdownMenuGroup`，组间通过 `MenuDefaults.GroupSpacing` 留白；条目使用 `SelectableDropdownMenuItem` 和 `MenuDefaults.itemShape(index, count)` 表达当前选择。组形状使用 `MenuDefaults.groupShape(index, count)`，标准容器颜色显式采用主题 `surface` 时逐组设置；条目的未选中及禁用容器设为透明，选中项使用主题 `primary/onPrimary`。分组上下内边距设为 4dp，与选择项默认的 4dp 左右外缩进一致。需要滚动时，将有界高度与纵向滚动 modifier 设在 `DropdownMenuGroup` 内部内容上，不设在 Popup 根内容上，避免滚动裁切分组投影及引入多余外边距；宿主保留默认锚点位置及可聚焦 Popup 的外部点击和返回关闭行为。宿主使用官方 `Popup`、`MenuDefaults.rememberDropdownMenuPopupPositionProvider(MenuAnchorPosition.Below)` 和可聚焦菜单属性，按主题 `fastSpatialSpec`／`fastEffectsSpec` 同步缩放（0.8→1）与透明度（0→1），退出动画完成后移除 Popup。当前 Material 3 的 `DropdownMenuPopup` 内部动画图层未提供 outsets 参数，因此由共享宿主管理这一层，分组和选择项继续复用官方组件。遵循 [Google 图层外扩说明](https://developer.android.com/develop/ui/compose/graphics/draw/modifiers#layer-outsets)，动画 `graphicsLayer` 设置 `LayerOutsets(24.dp)`、`clip = false`，保留默认合成策略；只扩展离屏缓冲区，不改变测量、锚点和外部点击边界，也不在页面添加透明 padding 或第二层动画图层。搜索排序与资料性别菜单均使用单组；搜索排序将方向切换合并到字段条目中，尾部显示可翻转的方向箭头，点击后保持展开。尾部图标和业务回调由调用页提供。
 
 ```kotlin
 ConnectedLazyColumn(state = listState, contentPadding = PaddingValues(16.dp)) {
@@ -76,6 +81,12 @@ ConnectedLazyColumn(state = listState, contentPadding = PaddingValues(16.dp)) {
 
 ## 共享组件接入
 
+### 选择按钮阴影
+
+[`ShadowToggleButton`](../../app/src/main/java/moe/kirakira/ui/components/ShadowToggleButton.kt) 封装官方 `ToggleButton`，适用于独立或连接式选择按钮。调用方提供 `checked`、`onCheckedChange`、根节点 `modifier`，并可传入官方 `buttonSize`、`shapes`、`colors`、`border`、`contentPadding` 和 `interactionSource`；可选 `icon` 与末尾 `content` 插槽保留官方图标尺寸、间距及文字排版。组件不持有业务选择状态，连接形状和单选语义仍由调用方配置。
+
+选中与按压轮廓同时用于表面和投影，原生 elevation 设为 `null`，避免重复阴影。投影复用共享 `buttonShadow`，颜色取当前选中状态的实际容器色，禁用时立即移除；高度和强度遵循[按钮动态阴影](theme.md#按钮动态阴影)。隐私页顶部“全部设为”组复用此组件。
+
 ### 顶部导航按钮定位
 
 设置、资料、视频与图片查看器的导航按钮统一放在官方 Material 3 顶栏的 `navigationIcon` 中，使用默认定位与系统 Insets，不额外添加按钮位置边距。设置使用 `LargeFlexibleTopAppBar`，其余三个页面使用透明 `TopAppBar`；设置保留普通返回箭头，资料和视频保留带底色返回箭头，图片查看器保留深色圆形关闭按钮。
@@ -99,17 +110,30 @@ fun FavoriteButton(
 }
 ```
 
+### Modifier 工厂示例
+
+自定义 Modifier 的声明与链保留规则见[组件、状态与副作用](../../CONTRIBUTING.md#组件状态与副作用)。例如只在可用时添加语义的工厂：
+
+```kotlin
+internal fun Modifier.contentDescriptionWhenEnabled(enabled: Boolean, description: String): Modifier {
+    if (!enabled) return this
+    return semantics { contentDescription = description }
+}
+```
+
+调用 `Modifier.padding(16.dp).contentDescriptionWhenEnabled(enabled, description)` 时，两条分支都保留已有 padding。播放器手势入口使用 `Modifier.playerGestures(...)`，在接收者上追加 `pointerInput`，手势状态和事件处理保持在原有实现中。
+
 ### 毛玻璃应用栏
 
 [`FrostedScaffold`](../../app/src/main/java/moe/kirakira/ui/components/FrostedScaffold.kt) 为普通页面创建独立的 `HazeState`，用 `hazeSource` 采样内容、单独绘制顶部背景，再绘制透明的官方顶栏。文字和图标不参与模糊。背景形状、alpha 和原生阴影由 `ThemeShadows.barSurfaceLayer` 在背景子节点上统一管理，避免重复投影或降低前景透明度。胶囊底栏同样分离背景与前景，背景通过 `frostedBarBackground(shape, shadowElevation = BarShadowElevation)` 使用外层主页面采样状态，内部各 Tab 的顶部栏使用独立状态。
 
-`frostedBarBackground` 的可选 `hazeState` 参数允许自定义布局显式复用相同背景样式，默认仍读取当前页面的采样状态；`shadowElevation` 默认 0dp，普通顶栏、视频页顶部共享背景和胶囊底栏显式传入固定的 `BarShadowElevation`，资料顶栏保留默认值。
+`frostedBarBackground` 的可选 `hazeState` 参数允许自定义布局显式复用相同背景样式，默认仍读取当前页面的采样状态；`shadowElevation` 默认 0dp，普通顶栏、视频页顶部共享背景和胶囊底栏默认显式传入固定的 `BarShadowElevation`，资料顶栏保留默认值。`FrostedScaffold.topBarShadowElevation` 供 `AccountFlowScaffold` 统一按正文滚动位置调整认证与账号安全流程的顶栏高度。
 
 - 背景使用 `HazeInput.Sources` 采样，源消失时使用 `ClearWhenUnavailable`，不继续保留上一页面画面。普通栏面不使用原生 backdrop；无阴影黑底按钮的接入见[黑底毛玻璃按钮](#黑底毛玻璃按钮)。已在 Android 17 模拟器（`CP41.260828.004.A7`，SkiaGL）上复现 `RenderNode.setBackdropRenderEffect()` 与半透明父层、elevation 同时使用时的灰框和内部矩形异常。对照父层 alpha 为 1、0.5、0.2：普通 elevation 及 Haze Sources 正常，Haze Backdrop 异常，强制 Offscreen 仍异常；移除 Compose/Haze、仅使用 Android View 和 RenderNode 也能复现，而移除 backdrop 恢复正常。证据定位到系统原生 backdrop 的合成路径，尚未定位内部实现的具体错误，也未验证所有设备。版本以 `gradle/libs.versions.toml` 为准，不引入玻璃折射模块。
 - Android 12+ 使用主题 `surface` 作为缺失源像素的底色，叠加同色 80% 不透明度遮罩、20dp 模糊与零噪点，背景图层 alpha 为 1。Android 8.1–11 绘制不透明主题 `surface`，在同一背景图层上设置 alpha 为 0.9 和原生 elevation，不挂载采样节点；各版本共用[栏面阴影](theme.md#栏面阴影)的机制，不额外增加阴影版本判断。背景透明度不作用于整个栏或前景。
 - 共享背景沿用 Haze 默认采样配置，保留实时更新、模糊半径与遮罩。模糊样式按主题 surface 色缓存，采样输入按页面状态缓存，现有采样层级保持不变。
 - 滚动列表的顶部与底部安全区域放入 `contentPadding`，滚动 Column 则在 `verticalScroll` 后添加，初始避开栏面、滚动时内容可进入栏后。`ContentPullToRefresh.indicatorTopPadding` 仅移动覆盖式指示器，不移动滚动视口。历史页的搜索输入通过共享组件覆盖顶栏，不占用列表条目。
-- 本人及作者资料页使用铺满屏幕的外层列表，将顶部栏避让放入内容内边距，通过扣除顶部栏及 Tab 高度的 Pager 保留栏下吸顶与嵌套分页滚动；包含滚动封面的顶部共享背景单独采样并与内容共享该页状态，同时统一承载封面、资料区与 Tab 的原生投影。顶栏仅在 Tab 吸顶后复用毛玻璃背景，不单独绘制阴影。非滚动表单保留安全布局。头像裁剪页同样接入本组件，由宿主提供顶部背景与固定阴影；裁剪引擎与底部操作栏保持原布局。视频画面、播放控件及系统栏不接入本组件。
+- 本人及作者资料页使用铺满屏幕的外层列表，将顶部栏避让放入内容内边距，通过扣除顶部栏及 Tab 高度的 Pager 保留栏下吸顶与嵌套分页滚动；包含滚动封面的顶部共享背景单独采样并与内容共享该页状态，同时统一承载封面、资料区与 Tab 的原生投影。Tab 吸顶后，顶部共享背景切换为一整块毛玻璃表面，覆盖 TopBar 与透明 Tab，仅采样 Pager 内容；顶栏和 Tab 不单独绘制背景或阴影。非滚动表单保留安全布局。头像裁剪页同样接入本组件，由宿主提供顶部背景与固定阴影；裁剪引擎与底部操作栏保持原布局。视频画面、播放控件及系统栏不接入本组件。
 
 - 视频页为 Tab 栏创建独立 `HazeState`，仅在 Android 12+ 将下方 `HorizontalPager` 接入 `hazeSource`，播放器不参与采样。播放器占位区域与 Tab 共用顶部背景，通过 `frostedBarBackground(hazeState = …, shadowElevation = BarShadowElevation)` 沿整体下沿投影；播放器区域的背景黑底位于同一图层，实际播放器仍独立绘制。官方 `PrimaryTabRow` 容器透明，文字与指示器保持清晰。简介、评论、弹幕列表将实测栏高加入顶部 `contentPadding`，初始避开栏面，滚动时从栏后经过；空状态高度同步扣除栏高。刷新指示器通过 `indicatorTopPadding` 避让，评论分页工具栏固定在栏下，游客登录提示并入评论头部条目以保持分页索引；`FloatingComposerLayout.topPadding` 扣除输入面板可用高度，底部安全区域与输入区留白保持原逻辑。全屏与画中画继续由既有播放器布局和详情显隐处理。
 
@@ -253,7 +277,9 @@ SearchableTopAppBar(
 
 ## 账号流程布局
 
-`AuthScreen` 与账号安全操作页共用 [AccountFlowScaffold](../../app/src/main/java/moe/kirakira/ui/components/AccountFlowScaffold.kt)：`FrostedScaffold` 提供 `surface` 背景和独立毛玻璃采样，`CenterAlignedTopAppBar` 的标题槽居中显示主题色流程图标；登录 Logo 为 40dp，其余图标为 32dp，不使用底板。非登录步骤的返回使用官方平面 `IconButton` 和默认 AppBar 槽位定位，所有步骤均无关闭按钮。`AuthScreen.onClose` 参数保留调用兼容性，认证完成仍通过 `AuthPage` 的回调退出。
+`AuthScreen` 与账号安全操作页共用 [AccountFlowScaffold](../../app/src/main/java/moe/kirakira/ui/components/AccountFlowScaffold.kt)：`FrostedScaffold` 提供 `surface` 背景和独立毛玻璃采样，`CenterAlignedTopAppBar` 的标题槽居中显示主题色流程图标；登录 Logo 为 40dp，其余图标为 32dp，不使用底板。非登录步骤的返回使用官方平面 `IconButton` 和默认 AppBar 槽位定位，所有步骤均无关闭按钮。`AuthScreen.onClose` 仅保留默认空实现兼容现有离线 UI 检查调用，生产导航不再传递，认证完成仍通过 `AuthPage` 的回调退出。
+
+`AccountFlowScaffold` 在组合内持有 `rememberScrollState()`，通过正文插槽传出内边距和滚动状态；`AuthScreen` 与账号安全操作页将这份状态传给 `AccountFlowColumn` 必填的 `scrollState` 参数。宿主以 `derivedStateOf` 判断是否滚离顶部，统一让顶栏在顶部为 0dp、滚离顶部后为 `BarShadowElevation`、回到顶部去掉阴影。页面不再单独配置顶栏阴影，底部主操作栏继续使用固定阴影。
 
 `AccountFlowColumn` 提供最大 480dp 内容宽度、24dp 页面留白和完整滚动视口；`AccountFlowHeader` 使用半粗 `headlineLarge` 与可选说明／进度插槽。标题下方间隔 12dp，`AccountFlowProgress` 横排本地化的紧凑步骤文字（如“2 / 2”）和 4dp 进度条，整组提供完整步骤描述与进度语义。页头到表单及独立分组之间为 32dp，字段间距为 24dp。认证页按步骤启用既有本地化说明资源；安全流程按步骤、当前验证方式及同步状态选择说明，常规页以一到两句引导表达待完成操作，状态核对和本机同步分支只显示现有状态说明。
 
@@ -263,14 +289,38 @@ SearchableTopAppBar(
 
 `AccountFlowSection` 只负责无底板的标题、上下文和表单布局，接受可空 `title`、可选 `supportingContent`、`actionContent` 及正文插槽，不持有业务状态。有标题时上下文在标题下方，相隔 4dp；标题为空时上下文直接进入页头行，邮箱保留普通文字语义，不标记为标题。页头使用 `FlowRow`，操作插槽由末端对齐的加权 `Box` 承载，并通过 `width(IntrinsicSize.Max)` 按完整操作内容的固有宽度决定换行，避免把长按钮挤进剩余宽度；发送按钮在空间不足时换行，换行后仍靠内容末端对齐，长邮箱允许完整换行。分组页头与字段相隔 16dp，没有标题、上下文或操作时不组合页头及关联间距。认证与当前邮箱核验直接显示邮箱，不重复“账号”或邮箱标签；新邮箱与身份验证保留任务标题。邮箱确认页以 32dp 间距分开身份验证与新邮箱验证，输入框继续使用各自标签。登录辅助入口也使用可换行布局；认证表单通过 `onResend` 回调把发送操作放在验证码旁。发送操作前移后，密码到验证码、当前邮箱验证码到新邮箱验证码的 IME“下一项”通过显式焦点目标连接，普通按钮仍可通过硬件键盘访问。页面只在存在通知或错误时插入反馈区域及 12dp 间距；操作引导保留在页头，不重复添加账号或邮箱分组标签。
 
-账号流程靠边文字按钮沿用 [ExpandableText](../../app/src/main/java/moe/kirakira/ui/components/ExpandableText.kt) 的对齐方式：显式保留 `ButtonDefaults.TextButtonContentPadding`，按当前布局方向读取 start／end 内边距；忘记密码和联系支持向 start 偏移对应内边距，注册和发送验证码向 end 偏移对应内边距，使可见文字与标题及输入框边缘对齐。按钮沿用相同的 48dp 最小宽度，避免短标签因额外居中留白而错位，保留官方最小触摸目标、涟漪及禁用语义。登录注册入口与表单之间使用 `AccountFlowDefaults.FieldSpacing` 的 24dp 留白，并使用按固有宽度换行的末端对齐容器；偏移只作用于按钮，正文宽度与页面留白保持原值。
+账号流程靠边文字按钮统一使用 [FormTextButton](../../app/src/main/java/moe/kirakira/ui/components/FormTextButton.kt)，按 `FormButtonEdge.START/END` 选择对齐边，组件沿用 [ExpandableText](../../app/src/main/java/moe/kirakira/ui/components/ExpandableText.kt) 的对齐方式：显式保留 `ButtonDefaults.TextButtonContentPadding`，按当前布局方向读取 start／end 内边距；忘记密码和联系支持向 start 偏移对应内边距，注册和发送验证码向 end 偏移对应内边距，使可见文字与标题及输入框边缘对齐。按钮沿用相同的 48dp 最小宽度，避免短标签因额外居中留白而错位，保留官方最小触摸目标、涟漪及禁用语义。登录注册入口与表单之间使用 `AccountFlowDefaults.FieldSpacing` 的 24dp 留白，并使用按固有宽度换行的末端对齐容器；偏移只作用于按钮，正文宽度与页面留白保持原值。
 
-字段错误态复用内部 `AccountFlowFieldErrorIcon(modifier)`，绘制 24dp 官方 Material Symbols Rounded `error` 的 FILL 1 资源并使用主题 `error` 色，原有空心资源继续保留。普通字段通过 `trailingIcon` 显示；带显隐按钮的密码框在同一行显示错误图标与原按钮，间隔 8dp，保留按钮的点击与键盘语义。图标的 `contentDescription` 为 `null`，无独立点击、背景或阴影，错误说明仍由输入框 supporting text 提供，沿用官方间距并避免重复播报。登录／注册密码及重置密码的新密码字段均绑定现有 `fieldErrors[AuthField.PASSWORD]`；安全表单继续使用 `fieldErrors[SecurityField]`。正常状态不生成错误图标或错误说明占位，不改变校验、焦点与显隐状态的所有权。现有预览提供单字段、多字段及密码显示时的错误态，并配置中英文、浅深主题、320dp 窄屏和两倍字体；这些配置不代表已完成设备或截图验证。
+普通表单输入框统一使用 [FilledTextField](../../app/src/main/java/moe/kirakira/ui/components/FilledTextField.kt)，内部复用 `BasicTextField` 与官方 `TextFieldDefaults.DecorationBox`、`Container`，默认通过共享的 `FilledTextFieldDefaults.colors()` 将聚焦、未聚焦、禁用及错误状态背景设为主题 `surfaceContainerLow`，未聚焦底线使用主题 `outlineVariant`，文字、焦点与错误指示线保留官方默认配色。聚焦与未聚焦底线均为 2dp，参考 Cerasus `TextBox` 的 2px 底线，底线由官方容器绘制，位置不受 supporting text 高度影响；普通输入统一默认使用主题 large 圆角，调用处不重复指定。认证、资料、屏蔽规则、颜色编辑器和评论跳页均继承这些默认值；六格验证码复用相同的背景配色，不绘制底线。搜索栏和评论／弹幕编辑器继续保留各自已有的容器配色、指示线设置与阴影。传入 `errorMessage` 时，组件默认提供错误图标、supporting text 的短过渡和具体错误语义；只有 `isError` 时回退到项目自己的中英文 `text_field_invalid_input` 字符串，不引用 Compose 私有资源。自定义辅助内容（如简介字数）仍由插槽提供，整体高度变化由组件统一动画。
 
-[AccountFlowFeedback](../../app/src/main/java/moe/kirakira/ui/components/AccountFlowFeedback.kt) 在组合内保留非敏感提示文字，供退出动画完成前绘制；`Transition<Boolean>` 仅管理显示状态，业务错误仍由页面传入。页面级提示使用淡入淡出与纵向展开／收缩，关联留白放在内容插槽中一同过渡。`accountFlowSupportingError` 在字段错误退出完成后返回空插槽，输入框通过 `animateContentSize` 平滑调整整体高度，恢复官方正常高度；退出中的提示清除语义，保留当前字段校验及焦点逻辑。所有过渡使用主题 `motionScheme`，遵循系统动画缩放。`accountFlowCodeTextStyle` 为认证与安全验证码以及代码展示提供统一等宽样式，参数遵循[账号表单规范](../../CONTRIBUTING.md#账号表单与保存)。
+[PasswordTextField](../../app/src/main/java/moe/kirakira/ui/components/PasswordTextField.kt) 在 `FilledTextField` 上统一密码遮蔽、显隐按钮和错误图标排列。登录、注册密码及确认密码、重置密码和账号安全表单均复用该组件；调用方保留现有自动填充语义、IME 动作与焦点目标，并持有仅存内存的显隐状态。提交禁用或页面失活时遮蔽密码，注册确认密码和重置密码不再缺少显隐入口。
 
-[OtpInputField](../../app/src/main/java/moe/kirakira/ui/components/OtpInputField.kt) 使用一个 `BasicTextField` 处理六格输入，代码由流程持有，组合内仅用普通 `remember` 保留选择位置；完整编辑器保留布局范围和语义，视觉格使用官方 `OutlinedTextFieldDefaults.Container`，只在当前格连接编辑器的聚焦交互源。六格字符在共享等宽样式上采用主题 `headlineSmall` 的字号与行高，保留 Medium 字重和 1sp 字距；格子仅限制最小高度，字体放大时随文字高度增长。点击已填格选中对应字符，空格定位到已有代码末端；粘贴、退格、全选替换与 IME 操作由同一编辑器处理。六格内容不重复提供语义，整个输入组作为一个编辑目标；错误图标和提示位于组级区域。数字输入与字母数字备用码分别使用数字及 ASCII 键盘，过滤规则对应后端字符集，六位输入不自动提交。认证页额外提供完整恢复码输入，粘贴完整恢复码时切换显示，未将敏感材料放入可保存状态。
+字段错误态复用内部 `TextFieldErrorIcon(modifier)`，绘制 24dp 官方 Material Symbols Rounded `error` 的 FILL 1 资源并使用主题 `error` 色，原有空心资源继续保留。普通字段通过 `trailingIcon` 显示；带显隐按钮的密码框在同一行显示错误图标与原按钮，间隔 8dp，保留按钮的点击与键盘语义。图标的 `contentDescription` 为 `null`，无独立点击、背景或阴影，错误说明仍由输入框 supporting text 提供，沿用官方间距并避免重复播报。登录／注册密码及重置密码的新密码字段均绑定现有 `fieldErrors[AuthField.PASSWORD]`；安全表单继续使用 `fieldErrors[SecurityField]`。正常状态不生成错误图标或错误说明占位，不改变校验、焦点与显隐状态的所有权。现有预览提供单字段、多字段及密码显示时的错误态，并配置中英文、浅深主题、320dp 窄屏和两倍字体；这些配置不代表已完成设备或截图验证。
+
+[AccountFlowFeedback](../../app/src/main/java/moe/kirakira/ui/components/AccountFlowFeedback.kt) 在组合内保留非敏感提示文字，供退出动画完成前绘制；`Transition<Boolean>` 仅管理显示状态，业务错误仍由页面传入。页面级提示使用淡入淡出与纵向展开／收缩，关联留白放在内容插槽中一同过渡。`textFieldSupportingError` 在字段错误退出完成后返回空插槽，输入框通过 `animateContentSize` 平滑调整整体高度，恢复官方正常高度；退出中的提示清除语义，保留当前字段校验及焦点逻辑。所有过渡使用主题 `motionScheme`，遵循系统动画缩放。`accountFlowCodeTextStyle` 为认证与安全验证码以及代码展示提供统一等宽样式，参数遵循[账号表单规范](../../CONTRIBUTING.md#账号表单与保存)。
+
+[OtpInputField](../../app/src/main/java/moe/kirakira/ui/components/OtpInputField.kt) 使用一个 `BasicTextField` 处理六格输入，代码由流程持有，组合内用普通 `remember` 保留选择位置与焦点状态；完整编辑器保留布局范围和语义，视觉格使用官方 filled `TextFieldDefaults.Container`，背景同样使用 `surfaceContainerLow`，聚焦与未聚焦指示线高度均设为 0dp，不绘制底线，只在当前格连接编辑器的聚焦交互源。编辑器聚焦且可用时，当前格显示 2dp 圆角竖光标，颜色使用主题 `primary`，错误时使用 `error`；空格居中，已有字符时放在对应插入位置旁，光标高度随字符字号缩放。光标每 500ms 切换显隐，输入、删除或改变选择位置时重新亮起，失焦或禁用时移除；闪烁透明度只在绘制阶段读取。每格按当前字符创建独立的 `AnimatedVisibility` 入场节点，输入或替换字符时从下往上滑入并淡入；旧字符在删除或替换时立即移除，不执行退场动画，避免与空格中央的光标重叠。删除会移除入场节点，快速重新输入相同字符也重新播放入场动画。空文字占位保留空格的文字高度；位移与透明度分别使用主题快速空间与效果动效，不对容器尺寸添加动画。六格字符在共享等宽样式上采用主题 `headlineSmall` 的字号与行高，保留 Medium 字重和 1sp 字距；格子仅限制最小高度，字体放大时随文字高度增长。点击已填格选中对应字符，空格定位到已有代码末端；粘贴、退格、全选替换与 IME 操作由同一编辑器处理。六格内容不重复提供语义，整个输入组作为一个编辑目标；错误图标和提示位于组级区域。数字输入与字母数字备用码分别使用数字及 ASCII 键盘，过滤规则对应后端字符集，六位输入不自动提交。认证页额外提供完整恢复码输入，粘贴完整恢复码时切换显示，未将敏感材料放入可保存状态。
 
 `AuthFilledCodePreview` 与 `SecurityFilledCodePreview` 提供独立的“验证码已填写”预览，涵盖邮箱验证码、字母数字备用码和认证页的长恢复码；安全页另展示邮箱与 TOTP 两种修改邮箱核验、邮箱与 TOTP 两种修改密码核验，以及绑定验证器的确认输入。填写值仅为预览专用虚构材料，密码保持为空；预览配置包含中英文、浅深主题和窄屏大字体，不代表已完成设备视觉检查。
 
 TOTP 页面把二维码与打开验证器操作放在同一区域，密钥与复制操作相邻，验证输入独立分组。密钥和恢复码沿用原有专用容器，复制按钮在容器外绘制以保留其阴影；备用码按当前等宽字形的实际测量宽度，在两列和一列之间选择，恢复码按四字符分组换行。窄屏和大字体仅调整内容换行与列数，配色、阴影、底栏和流程状态不变。
+
+## 危险操作
+
+[DestructiveActions](../../app/src/main/java/moe/kirakira/ui/components/DestructiveActions.kt) 提供全 App 共用的危险操作样式。`DestructiveActionDefaults.buttonColors()` 为实心按钮提供主题 `error/onError`，安全流程停用按钮和账号滑动移除均复用；`DestructiveTextButton` 封装官方平面 `TextButton`，使用主题 `error` 前景。登出、移除账号、清除本机账号、舍弃资料／安全流程草稿以及隐私重置的确认按钮共用文字样式，取消和普通重试沿用默认样式；禁用颜色保留 Material 默认值。菜单项继续通过 `SegmentedMenuItem.destructive` 使用同一主题错误色。页面只传入危险语义、状态和事件，不分别定义危险颜色。
+
+## 数字动画与字数计数
+
+`AnimatedNumberText` 封装 NumberFlow 的逐位滚动、主题 `fastSpatialSpec` 和 `animateContentSize`，数位增减时平滑过渡数字区域宽度。接收数值、格式函数、根 Modifier、文字样式与颜色，默认继承所在组件的排版和前景色；只负责数字，固定单位或上限放在外部。无障碍语义读取完整目标数字，不逐字符朗读。来源、许可与固定提交见 [NumberFlow](../../third_party/number-flow/README.md)。
+
+`CharacterCount` 组合动态当前字数与静态的斜杠、上限，使用中英文共享格式资源，并将整项合并为完整计数语义。资料简介与关键词／正则屏蔽规则输入复用该组件，保留各自原有的长度计算、上限、错误优先级及校验逻辑。播放器的 `PlaybackSpeedText` 同样复用 `AnimatedNumberText`，乘号保持在数字动画区域外。动画遵循系统时长设置；初次显示直接采用当前值。
+
+`AnimatedNumberText` 提供 Double、Long、Int 重载；互动与统计整数走 NumberFlow 的 Long 接口，不转浮点数，负号在动画数字区域外静态显示，不对 Long.MIN_VALUE 求绝对值。`AnimatedCountLabel` 从中英文资源的 `%1$s` 占位符拆分静态前后文，`AnimatedPageCount` 对 `%1$s`、`%2$s` 两个数字分别动画；复数资源由实际数量选择。两者将整个标签合并为完整目标文字语义；已有按钮角色、描述及标题语义由外层保留。受限宽度下按完整文本实测宽度退回普通文字布局，标签保留换行，页码工具栏保留单行省略，避免数字或单位越过工具栏边界。
+
+接入范围为视频赞踩、评论净评分、资料关注／粉丝数、邀请码未使用／总数／已使用数、屏蔽规则总览及管理页总数、评论／弹幕总数、评论页码与跳页上限、搜索及标签已加载结果数。`SettingsSectionHeader` 保留 String 入口，并增加标题内容插槽，复用原有内边距、字号、主色和 heading 语义。收藏没有真实计数，保留占位；倒计时、设置读数、播放时间、日期、ID、凭据及固定刻度不接入。
+
+数字仅随现有状态更新；初次显示、未知值转为已知值时直接显示当前值，未知占位沿用原逻辑。视频通过 `LocalNumberAnimationIdentity` 按会话／内容标识重置数字内部组合，邀请码按会话修订 key 隔离，资料按 UID 隔离，账号规则页面按会话修订隔离，搜索按 generation 隔离，标签沿用路由与会话身份。刷新同一对象保留数字组件，不增加乐观计数或额外请求。
+
+### 头像占位配色
+
+`PlaceholderAvatar` 参考 Cerasus 无头像状态的灰色背景与中性图标，复用主题现有的 `surfaceContainerHigh/onSurfaceVariant`，随浅深主题切换，不受强调色影响。`AccountAvatar` 共用该占位，覆盖未登录入口、切换账号页的游客及无头像账号；切换账号页的“添加账号”圆形图标使用同一组颜色，编辑状态保留原有禁用配色。
