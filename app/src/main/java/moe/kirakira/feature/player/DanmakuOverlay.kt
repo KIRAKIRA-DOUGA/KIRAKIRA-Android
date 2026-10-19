@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import kotlin.math.ceil
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
@@ -143,9 +144,9 @@ internal fun DanmakuOverlay(
                     val next = timeline.nextStartAfter(position)
                     if (next == null) wake.receive()
                     else {
-                        val delayMs = ceil((next - position) / player.playbackParameters.speed.toDouble())
-                            .coerceIn(1.0, 60_000.0).toLong()
-                        withTimeoutOrNull(delayMs) { wake.receive() }
+                        val timeout = ceil((next - position) / player.playbackParameters.speed.toDouble())
+                            .coerceIn(1.0, 60_000.0).toLong().milliseconds
+                        withTimeoutOrNull(timeout) { wake.receive() }
                     }
                 }
             }

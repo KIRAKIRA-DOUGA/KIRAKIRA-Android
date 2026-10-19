@@ -3,7 +3,7 @@
   "name": "KIRAKIRA-Cerasus icons, kaomoji and player animation",
   "artifactVersion": "dd5b8cdcabaac4d03ad190f6b7037bfab494c72b",
   "website": "https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Cerasus/tree/dd5b8cdcabaac4d03ad190f6b7037bfab494c72b",
-  "description": "Danmaku, danmaku-off and kaomoji icons converted from SVG to Android VectorDrawable with original paths preserved and theme tint; five-category kaomoji catalog ported to Kotlin with original text and ordering; LogoCover geometry and PlayerVideoSplash fade ported to Compose for initial player loading.",
+  "description": "Danmaku, danmaku-off and kaomoji icons converted from SVG to Android VectorDrawable with original paths preserved and theme tint; five-category kaomoji catalog ported to Kotlin with original text and ordering.",
   "licenses": [
     "kirakira-cerasus-agpl-3.0"
   ]

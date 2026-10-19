@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
@@ -54,6 +55,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,8 +64,15 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -71,20 +81,24 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.media3.common.Player
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.delay
 import moe.kirakira.R
 import moe.kirakira.data.content.DanmakuEntry
 import moe.kirakira.data.settings.DanmakuSettings
+import moe.kirakira.data.settings.PlaybackSettings
 import moe.kirakira.ui.components.AnimatedSlashIcon
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
@@ -134,23 +148,25 @@ internal fun VideoPlayer(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
     active: Boolean = true,
+    onReadVolume: () -> Float? = { null },
+    onVolume: (Float) -> Float? = { null },
     onQuality: (Int?) -> Unit = {},
     onSpeed: (Float) -> Unit = {},
     onContinuousSpeed: (Boolean) -> Unit = {},
     onPreservesPitch: (Boolean) -> Unit = {},
     danmaku: List<DanmakuEntry> = emptyList(),
+    playbackSettings: PlaybackSettings? = null,
     danmakuSettings: DanmakuSettings? = null,
     danmakuContentKey: Any = Unit,
     onDanmakuEnabled: (Boolean) -> Unit = {},
+    onOutsideAppMiniPlayerChange: (Boolean) -> Unit = {},
+    onInAppMiniPlayerChange: (Boolean) -> Unit = {},
+    onAutoplayChange: (Boolean) -> Unit = {},
+    onDanmakuSettingsChange: (DanmakuSettings) -> Unit = {},
 ) {
     var artworkLoading by remember(image) { mutableStateOf(!image.isNullOrBlank()) }
     val waitingForArtwork = player == null && (state.artworkPending || artworkLoading)
-    val initialLoadingAlpha by rememberPlayerInitialLoadingAlpha(
-        visible = state.initialLoading,
-        immediatelyHidden = state.failed || player == null || !active || pictureInPicture,
-    )
-    val showingInitialLoading =
-        initialLoadingAlpha > 0f && player != null && active && !pictureInPicture && !state.failed
+    val showingInitialLoading = state.initialLoading && player != null && !state.failed
     val playbackIconMotion = rememberPlaybackIconMotion(
         playing = state.showPauseIcon,
     )
@@ -174,7 +190,7 @@ internal fun VideoPlayer(
         }
     }
     val touchExploration = rememberTouchExplorationEnabled()
-    val keepVisible =
+    val keepVisibleBase =
         settingsPanel != null || state.buffering || waitingForArtwork || showingInitialLoading || state.failed ||
             dragging || pressing || dragged != null || touchExploration
 
@@ -182,8 +198,49 @@ internal fun VideoPlayer(
         controlsVisible = true; interaction++
     }
 
+    val gestureScope = rememberCoroutineScope()
+    val latestPosition by rememberUpdatedState { player?.currentPosition?.coerceAtLeast(0) ?: state.positionMs }
+    val latestDuration by rememberUpdatedState(state.durationMs.coerceAtLeast(0))
+    val latestSeek by rememberUpdatedState(onSeek)
+    val latestToggle by rememberUpdatedState(onToggle)
+    val latestReadVolume by rememberUpdatedState(onReadVolume)
+    val latestVolume by rememberUpdatedState(onVolume)
+    val latestSingleTap by rememberUpdatedState {
+        if (keepVisibleBase) interact() else {
+            controlsVisible = !controlsVisible
+            interaction++
+        }
+    }
+    val latestInteractionFinished by rememberUpdatedState { interaction++ }
+    val configuration = LocalConfiguration.current
+    var playerSize by remember { mutableStateOf(IntSize.Zero) }
+    val gestureIdentity = Triple(danmakuContentKey, fullscreen, configuration to playerSize)
+    val gestures = remember(player, gestureIdentity) {
+        PlayerGestureState(
+            scope = gestureScope,
+            position = { latestPosition() },
+            duration = { latestDuration },
+            seek = { latestSeek(it) },
+            readVolume = { latestReadVolume() },
+            changeVolume = { latestVolume(it) },
+            singleTap = { latestSingleTap() },
+            togglePlayback = { latestToggle() },
+            interactionFinished = { latestInteractionFinished() },
+        )
+    }
+    val gestureEnabled = player != null && active && !pictureInPicture && !state.failed &&
+        !state.initialLoading && !showingInitialLoading && settingsPanel == null && !touchExploration
+    val gestureSeekable = state.durationMs > 0 && player?.isCurrentMediaItemSeekable == true
+    DisposableEffect(gestures, gestureEnabled, gestureSeekable) {
+        onDispose { gestures.reset() }
+    }
+    val seekingByGesture = gestures.previewPositionMs != null
+    val keepVisible = keepVisibleBase || gestures.dragging
+    val gestureModifier = Modifier.playerGestures(gestures, gestureEnabled, gestureSeekable, gestureIdentity)
+
     fun controlAction(action: () -> Unit) {
         if (controlsVisible) {
+            gestures.reset()
             interact()
             action()
         }
@@ -194,10 +251,10 @@ internal fun VideoPlayer(
     LaunchedEffect(controlsVisible) {
         if (!controlsVisible && controlsHaveFocus) focusManager.clearFocus(force = true)
     }
-    LaunchedEffect(keepVisible, interaction, controlsVisible, fullscreen, pictureInPicture) {
-        if (keepVisible) controlsVisible = true
-        else if (controlsVisible && !pictureInPicture) {
-            delay(3_000)
+    LaunchedEffect(keepVisible, seekingByGesture, interaction, controlsVisible, fullscreen, pictureInPicture) {
+        if (keepVisibleBase || seekingByGesture) controlsVisible = true
+        else if (!gestures.dragging && controlsVisible && !pictureInPicture) {
+            delay(3.seconds)
             controlsVisible = false
         }
     }
@@ -208,36 +265,52 @@ internal fun VideoPlayer(
     if (active && !pictureInPicture && !state.failed) {
         settingsPanel?.let { panel ->
             PlayerSettingsSheet(
-                panel, state,
+                panel = panel,
+                state = state,
                 onDismiss = { settingsPanel = null; interact() },
                 onQuality = onQuality,
                 onSpeed = onSpeed,
                 onContinuousSpeed = onContinuousSpeed,
                 onPreservesPitch = onPreservesPitch,
+                playbackSettings = playbackSettings,
+                danmakuSettings = danmakuSettings,
+                onOutsideAppMiniPlayerChange = onOutsideAppMiniPlayerChange,
+                onInAppMiniPlayerChange = onInAppMiniPlayerChange,
+                onAutoplayChange = onAutoplayChange,
+                onDanmakuSettingsChange = onDanmakuSettingsChange,
             )
         }
     }
     val controlsLabel =
         stringResource(if (controlsVisible) R.string.player_hide_controls else R.string.player_show_controls)
-    // The parent receives unconsumed taps even when the controls' scroll viewport wins hit testing.
-    val screenInteraction = if (pictureInPicture) Modifier else Modifier
-        .semantics { contentDescription = controlsLabel }
-        .clickable(
-            interactionSource = remember { MutableInteractionSource() },
-            indication = null,
-            onClickLabel = controlsLabel,
-        ) {
-            if (keepVisible) interact() else {
-                controlsVisible = !controlsVisible; interaction++
-            }
-        }
+    // Children consume their own controls first; the background handles remaining input.
+    val tapInteraction = if (gestureEnabled) gestureModifier.semantics {
+        contentDescription = controlsLabel
+        onClick(label = controlsLabel) { latestSingleTap(); true }
+    }.onKeyEvent { event ->
+        val activate = event.key == Key.Enter || event.key == Key.NumPadEnter || event.key == Key.DirectionCenter
+        if (activate) {
+            if (event.type == KeyEventType.KeyUp) latestSingleTap()
+            true
+        } else false
+    }.focusable() else Modifier.clickable(
+        interactionSource = remember { MutableInteractionSource() },
+        indication = null,
+        onClickLabel = controlsLabel,
+    ) { latestSingleTap() }
+    val screenInteraction = if (pictureInPicture || !active) Modifier else tapInteraction
     Box(
         modifier
             .background(Color.Black)
+            .onSizeChanged { playerSize = it }
             .then(screenInteraction),
     ) {
         if (player != null) {
-            PlayerContentFrame(player = player, modifier = Modifier.fillMaxSize())
+            PlayerContentFrame(player = player, modifier = Modifier.fillMaxSize()) {
+                if (!pictureInPicture && !state.failed) {
+                    VideoArtwork(image = image, modifier = Modifier.fillMaxSize())
+                }
+            }
         } else {
             VideoArtwork(
                 image = image,
@@ -248,25 +321,24 @@ internal fun VideoPlayer(
         if (player != null && active && !pictureInPicture && !state.failed && danmakuSettings?.enabled == true) {
             DanmakuOverlay(player, danmaku, danmakuSettings, danmakuContentKey)
         }
-        if (showingInitialLoading) {
-            PlayerInitialLoadingOverlay(
-                alpha = { initialLoadingAlpha },
-                showBranding = true,
-                fullscreen = fullscreen,
+        if (gestureEnabled) {
+            PlayerGestureOverlay(
+                gestures,
+                Modifier
+                    .fillMaxSize()
+                    .then(if (fullscreen) Modifier.windowInsetsPadding(WindowInsets.safeDrawing) else Modifier)
+                    .zIndex(2f),
             )
         }
         if (!pictureInPicture) {
-            // Keep the reveal target above exiting controls so a tap cannot reach them.
-            if (!controlsVisible) {
+            // Keep the shield through a drag when revealing controls, preserving the pointer owner.
+            if ((!controlsVisible || gestures.dragging) && active) {
                 Box(
                     Modifier
                         .fillMaxSize()
                         .zIndex(1f)
-                        .clearAndSetSemantics { }
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                        ) { interact() },
+                        .then(if (gestureEnabled) gestureModifier else tapInteraction)
+                        .clearAndSetSemantics { },
                 )
             }
             CompositionLocalProvider(
@@ -339,6 +411,7 @@ internal fun VideoPlayer(
                                             state = state,
                                             enabled = active,
                                             onOpen = { panel -> controlAction { settingsPanel = panel } },
+                                            settingsOpen = settingsPanel == PlayerSettingsPanel.GENERAL,
                                         )
                                     }
                                 },
@@ -384,17 +457,18 @@ internal fun VideoPlayer(
                             )
                             val slider = rememberSliderState()
                             val bufferSlider = rememberSliderState()
+                            val displayedPositionMs = dragged?.let { (it * state.durationMs).toLong() }
+                                ?: gestures.previewPositionMs
+                                ?: state.positionMs
                             SideEffect {
                                 bufferSlider.value =
                                     (state.bufferedPositionMs.toFloat() / state.durationMs.coerceAtLeast(1)).coerceIn(
                                         0f,
                                         1f,
                                     )
-                                slider.value = dragged
-                                    ?: (state.positionMs.toFloat() / state.durationMs.coerceAtLeast(1)).coerceIn(0f, 1f)
+                                slider.value =
+                                    (displayedPositionMs.toFloat() / state.durationMs.coerceAtLeast(1)).coerceIn(0f, 1f)
                             }
-                            val displayedPositionMs = dragged?.let { (it * state.durationMs).toLong() }
-                                ?: state.positionMs
                             val displayedTime = if (showRemainingTime && state.durationMs > 0) {
                                 "-${durationText((state.durationMs - displayedPositionMs).coerceAtLeast(0))}"
                             } else {
@@ -439,7 +513,7 @@ internal fun VideoPlayer(
                                         modifier = Modifier
                                             .heightIn(min = 48.dp)
                                             .padding(end = 4.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
                                         verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
                                         itemVerticalAlignment = Alignment.CenterVertically,
                                     ) {
@@ -621,12 +695,13 @@ private fun PlayerControlsLayout(
         if (layoutDirection == LayoutDirection.Ltr) horizontalOffset else -horizontalOffset,
         (insets.getBottom(density) - insets.getTop(density)) / 2,
     ) else IntOffset.Zero
+    val controlsScroll = rememberScrollState()
     BoxWithConstraints(modifier) {
         val viewportHeight = with(density) { maxHeight.roundToPx() }
         SubcomposeLayout(
             Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(controlsScroll, enabled = controlsScroll.maxValue > 0),
         ) { constraints ->
             val width = constraints.maxWidth
             val loose = Constraints(maxWidth = width)

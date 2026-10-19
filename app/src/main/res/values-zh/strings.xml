@@ -492,7 +492,7 @@
     <string name="player_quality_description">画质：%1$s</string>
     <string name="player_speed_description">播放速度：%1$s</string>
     <string name="player_actual_speed_description">实际播放速度：%1$s</string>
-    <string name="player_continuous_speed">连续调速</string>
+    <string name="player_continuous_speed">无级调速</string>
     <string name="player_preserves_pitch">保持音调</string>
     <string name="player_quality_bitrate">%1$d Kbps</string>
 
@@ -529,4 +529,10 @@
     <string name="history_watched_at">上次观看于 %1$s</string>
     <string name="history_position_duration">%1$s / %2$s</string>
     <string name="history_playback_position">播放进度：%1$s</string>
+    <string name="player_gesture_volume">音量 %1$d%%</string>
+    <string name="player_gesture_forward">+%1$ds</string>
+    <string name="player_gesture_rewind">-%1$ds</string>
+    <string name="player_gesture_volume_value">%1$d%%</string>
+    <string name="player_settings">播放器设置</string>
+    <string name="player_settings_playback">播放器</string>
 </resources>

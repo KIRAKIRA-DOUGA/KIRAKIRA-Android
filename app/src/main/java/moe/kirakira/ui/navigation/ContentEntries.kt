@@ -34,6 +34,10 @@ internal fun registerContentEntries(
     kaomojiModel: KaomojiViewModel?,
     onDanmakuEnabled: (Boolean) -> Unit,
     onQualityPreference: (Int?) -> Unit,
+    onOutsideAppMiniPlayerChange: (Boolean) -> Unit,
+    onInAppMiniPlayerChange: (Boolean) -> Unit,
+    onAutoplayChange: (Boolean) -> Unit,
+    onDanmakuSettingsChange: (DanmakuSettings) -> Unit,
 ) {
     val contentRepository = dependencies?.content
     val historyRepository = dependencies?.history
@@ -45,11 +49,15 @@ internal fun registerContentEntries(
                 } else {
                     VideoPage(
                         playback = playback,
+                        kaomojiModel = kaomojiModel,
                         onPlayerBounds = playback::updateBounds,
                         danmakuSettings = danmakuSettings,
                         onDanmakuEnabled = onDanmakuEnabled,
+                        onOutsideAppMiniPlayerChange = onOutsideAppMiniPlayerChange,
+                        onInAppMiniPlayerChange = onInAppMiniPlayerChange,
+                        onAutoplayChange = onAutoplayChange,
+                        onDanmakuSettingsChange = onDanmakuSettingsChange,
                         onQualityPreference = onQualityPreference,
-                        kaomojiModel = kaomojiModel,
                         playbackSettings = playbackSettings,
                         videoId = route.videoId,
                         repository = contentRepository,

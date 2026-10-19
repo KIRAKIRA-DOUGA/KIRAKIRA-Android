@@ -160,6 +160,10 @@ internal fun AppNavHost(
                     this, navigation, dependencies, accountState, playback, playbackSettings, danmakuSettings, kaomojiModel,
                     onDanmakuEnabled = { danmakuSettingsModel?.setEnabled(it) },
                     onQualityPreference = { playbackSettingsModel?.setQuality(it) },
+                    onOutsideAppMiniPlayerChange = { playbackSettingsModel?.setOutsideAppMiniPlayer(it) },
+                    onInAppMiniPlayerChange = { playbackSettingsModel?.setInAppMiniPlayer(it) },
+                    onAutoplayChange = { playbackSettingsModel?.setAutoplay(it) },
+                    onDanmakuSettingsChange = { danmakuSettingsModel?.update(it) },
                 )
                 registerImageViewerEntries(this, navigation, imageMetadata, imageExports)
                 registerSettingsEntries(

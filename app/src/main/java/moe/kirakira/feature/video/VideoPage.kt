@@ -64,6 +64,7 @@ import moe.kirakira.data.content.ContentRepository
 import moe.kirakira.data.history.HistoryRepository
 import moe.kirakira.data.settings.DanmakuSettings
 import moe.kirakira.data.settings.PlaybackSettings
+import moe.kirakira.feature.player.MediaVolumeController
 import moe.kirakira.feature.player.PlaybackViewModel
 import moe.kirakira.feature.player.PlayerUiState
 import moe.kirakira.feature.player.VideoPlayer
@@ -83,8 +84,8 @@ internal fun VideoPage(
     playback: PlaybackViewModel,
     videoId: Int,
     repository: ContentRepository,
-    onBack: () -> Unit,
     kaomojiModel: KaomojiViewModel,
+    onBack: () -> Unit,
     onOpenProfile: (Long) -> Unit,
     onLogin: () -> Unit,
     onOpenTag: (Long) -> Unit,
@@ -94,11 +95,16 @@ internal fun VideoPage(
     onQualityPreference: (Int?) -> Unit = {},
     danmakuSettings: DanmakuSettings? = null,
     onDanmakuEnabled: (Boolean) -> Unit = {},
+    onOutsideAppMiniPlayerChange: (Boolean) -> Unit = {},
+    onInAppMiniPlayerChange: (Boolean) -> Unit = {},
+    onAutoplayChange: (Boolean) -> Unit = {},
+    onDanmakuSettingsChange: (DanmakuSettings) -> Unit = {},
     onPlayerBounds: (Rect) -> Unit = {},
 ) {
     val model = viewModel { VideoViewModel(videoId, repository, historyRepository) }
     val recentKaomoji by kaomojiModel.recent.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val mediaVolume = remember(context) { MediaVolumeController(context) }
     val resources by rememberUpdatedState(LocalResources.current)
     val detail by model.detail.collectAsStateWithLifecycle()
     val resume by model.resume.collectAsStateWithLifecycle()
@@ -145,7 +151,7 @@ internal fun VideoPage(
         if (!isActive || playback.videoId != videoId) return@LaunchedEffect
         if (value != null) {
             playback.setContent(value.summary.title, value.parts,
-                resume.positionMs, resume.ready)
+                resume.positionMs, resume.ready, artwork = value.summary.image)
             if (resume.ready && lifecycleState == Lifecycle.State.RESUMED && playbackSettings != null) {
                 playback.maybeAutoplay(playbackSettings.autoplay)
             }
@@ -273,7 +279,12 @@ internal fun VideoPage(
                     ) {
                         VideoPlayer(
                             danmaku = danmaku.data.orEmpty(),
+                            playbackSettings = playbackSettings,
                             danmakuSettings = danmakuSettings,
+                            onOutsideAppMiniPlayerChange = onOutsideAppMiniPlayerChange,
+                            onInAppMiniPlayerChange = onInAppMiniPlayerChange,
+                            onAutoplayChange = onAutoplayChange,
+                            onDanmakuSettingsChange = onDanmakuSettingsChange,
                             danmakuContentKey = Triple(videoId, playback.selectedPart, session.revision),
                             onDanmakuEnabled = onDanmakuEnabled,
                             active = isActive,
@@ -310,6 +321,8 @@ internal fun VideoPage(
                             onToggle = playback::toggle,
                             onRetry = playback::play,
                             onSeek = playback::seek,
+                            onReadVolume = mediaVolume::read,
+                            onVolume = mediaVolume::set,
                             onBack = {
                                 if (isActive && !pip) {
                                     if (fullscreenActive) requestFullscreen(false)

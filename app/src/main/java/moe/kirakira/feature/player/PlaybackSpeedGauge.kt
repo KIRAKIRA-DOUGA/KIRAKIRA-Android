@@ -1,8 +1,10 @@
 package moe.kirakira.feature.player
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,10 +14,13 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -24,10 +29,19 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -39,6 +53,7 @@ import kotlin.math.cos
 import kotlin.math.log2
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.tan
 import moe.kirakira.R
@@ -49,24 +64,44 @@ private const val ZERO_ANGLE = 150f
 private const val MAX_ANGLE = 360f
 private val gaugeSpeeds = listOf(0f, 0.25f, 0.5f, 1f, 2f, 4f)
 
+/** Shared by the control icon and expanded gauge, including the paused/buffering zero position. */
+@Composable
+internal fun rememberPlaybackSpeedAngle(
+    speed: Float,
+    playing: Boolean,
+    immediate: Boolean = false,
+): State<Float> = animateFloatAsState(
+    targetValue = gaugeAngle(if (playing) speed else 0f),
+    animationSpec = if (immediate) snap() else tween(durationMillis = 300, easing = rememberEmphasizedEasing()),
+    label = "PlaybackSpeedAngle",
+)
+
 @Composable
 internal fun PlaybackSpeedGauge(
     speed: Float,
     playing: Boolean,
+    continuousSpeed: Boolean,
+    onSpeed: (Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val actualSpeed = if (playing) speed else 0f
-    val easing = rememberEmphasizedEasing()
-    val angle by animateFloatAsState(
-        targetValue = gaugeAngle(actualSpeed),
-        animationSpec = tween(durationMillis = 300, easing = easing),
-        label = "PlaybackSpeedGaugeAngle",
-    )
-    val description = stringResource(R.string.player_actual_speed_description, speedLabel(actualSpeed))
+    var dragging by remember { mutableStateOf(false) }
+    val angle by rememberPlaybackSpeedAngle(speed, playing || dragging, immediate = dragging)
+    val latestOnSpeed by rememberUpdatedState(onSpeed)
+    val description = stringResource(R.string.player_speed)
     val colorScheme = MaterialTheme.colorScheme
     val primary = colorScheme.primary
     val sliderColors = SliderDefaults.colors()
     val readoutLabel = speedLabel(speed)
+    val adjustProgress: (Float) -> Boolean = { target ->
+        val requested = 2f.pow(target.coerceIn(-2f, 2f))
+        val next = if (continuousSpeed) requested else {
+            if (requested > speed) playbackSpeeds.firstOrNull { it > speed } ?: speed
+            else if (requested < speed) playbackSpeeds.lastOrNull { it < speed } ?: speed
+            else speed
+        }
+        if (next != speed) onSpeed(next)
+        next != speed
+    }
     val readoutStyle = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Medium)
     val labelColor = colorScheme.onSurfaceVariant
     val labelStyle = MaterialTheme.typography.labelMedium.copy(color = labelColor)
@@ -127,7 +162,38 @@ internal fun PlaybackSpeedGauge(
         )
         val height = max(chartHeight, readoutTop + readoutHeight + gap / 2)
         Box(Modifier.fillMaxWidth().height(with(density) { height.toDp() })) {
-            Canvas(Modifier.fillMaxSize().semantics { contentDescription = description }) {
+            Canvas(
+                Modifier.fillMaxSize()
+                    .playbackSpeedDrag(
+                        center = center,
+                        radius = radius,
+                        onDraggingChange = { dragging = it },
+                        onSpeed = { latestOnSpeed(it) },
+                    )
+                    .semantics {
+                        contentDescription = description
+                        stateDescription = readoutLabel
+                        progressBarRangeInfo = ProgressBarRangeInfo(log2(speed), -2f..2f)
+                        setProgress(action = adjustProgress)
+                    }
+                    .onKeyEvent { event ->
+                        if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                        val target = when (event.key) {
+                            Key.DirectionRight, Key.DirectionUp -> log2(speed) + 0.1f
+                            Key.DirectionLeft, Key.DirectionDown -> log2(speed) - 0.1f
+                            Key.MoveHome -> -2f
+                            Key.MoveEnd -> 2f
+                            else -> return@onKeyEvent false
+                        }
+                        if (event.key == Key.MoveHome || event.key == Key.MoveEnd) {
+                            onSpeed(2f.pow(target))
+                        } else {
+                            adjustProgress(target)
+                        }
+                        true
+                    }
+                    .focusable(),
+            ) {
                 val displayedAngle = angle.coerceIn(ZERO_ANGLE, MAX_ANGLE)
                 val majorWidth = 2.dp.toPx()
                 val clearance = majorWidth / 2 + 3.dp.toPx()
@@ -208,8 +274,8 @@ internal fun PlaybackSpeedGauge(
                     drawPath(needlePath, primary)
                 }
             }
-            Text(
-                readoutLabel,
+            PlaybackSpeedText(
+                speed = speed,
                 style = readoutStyle,
                 color = colorScheme.onSurface,
                 modifier = Modifier.align(Alignment.TopCenter).offset(y = with(density) { readoutTop.toDp() }),
@@ -275,7 +341,7 @@ private fun gaugePoint(center: Offset, radius: Float, angle: Float): Offset {
 @Composable
 private fun PlaybackSpeedGaugePreview() {
     KIRAKIRATheme {
-        PlaybackSpeedGauge(speed = 1f, playing = true)
+        PlaybackSpeedGauge(speed = 1f, playing = true, continuousSpeed = false, onSpeed = {})
     }
 }
 
@@ -283,6 +349,6 @@ private fun PlaybackSpeedGaugePreview() {
 @Composable
 private fun PausedPlaybackSpeedGaugePreview() {
     KIRAKIRATheme {
-        PlaybackSpeedGauge(speed = 1f, playing = false)
+        PlaybackSpeedGauge(speed = 1f, playing = false, continuousSpeed = false, onSpeed = {})
     }
 }

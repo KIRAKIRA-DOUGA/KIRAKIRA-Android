@@ -65,11 +65,13 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.delay
 import moe.kirakira.MainActivity
 import moe.kirakira.R
 import moe.kirakira.data.settings.PlaybackSettings
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.video.VideoArtwork
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 
@@ -87,10 +89,6 @@ internal fun PlaybackHost(
     val activity = remember(context) { context.playerActivity() }
     val view = LocalView.current
     val pip = activity?.pictureInPicture == true
-    val initialLoadingAlpha by rememberPlayerInitialLoadingAlpha(
-        visible = playback.initialLoading,
-        immediatelyHidden = playback.failed || playback.player == null || !playback.miniPlayer || pip || imageViewerActive,
-    )
     var horizontal by rememberSaveable { mutableFloatStateOf(1f) }
     var vertical by rememberSaveable { mutableFloatStateOf(1f) }
     LaunchedEffect(settings?.autoQuality, settings?.preferredVideoHeight) {
@@ -166,7 +164,7 @@ internal fun PlaybackHost(
         val closePressed by closeInteraction.collectIsPressedAsState()
         val holdingControls = dragging || restorePressed || togglePressed || closePressed
         val touchExploration = rememberTouchExplorationEnabled()
-        val keepVisible = playback.buffering || playback.initialLoading || initialLoadingAlpha > 0f || touchExploration
+        val keepVisible = playback.buffering || playback.initialLoading || touchExploration
         val focusManager = LocalFocusManager.current
         var controlsHaveFocus by remember { mutableStateOf(false) }
 
@@ -196,7 +194,7 @@ internal fun PlaybackHost(
         LaunchedEffect(keepVisible, holdingControls, interaction, controlsVisible) {
             if (keepVisible) controlsVisible = true
             else if (controlsVisible && !holdingControls) {
-                delay(3_000)
+                delay(3.seconds)
                 hideControls()
             }
         }
@@ -254,9 +252,8 @@ internal fun PlaybackHost(
                         if (keepVisible || !controlsVisible) interact() else hideControls()
                     },
             ) {
-                PlayerContentFrame(player, Modifier.fillMaxSize())
-                if (initialLoadingAlpha > 0f) {
-                    PlayerInitialLoadingOverlay(alpha = { initialLoadingAlpha })
+                PlayerContentFrame(player, Modifier.fillMaxSize()) {
+                    VideoArtwork(image = playback.artwork, modifier = Modifier.fillMaxSize())
                 }
                 if (!controlsVisible) {
                     // Intercept taps while controls fade out so revealing them cannot trigger an action.

@@ -20,6 +20,12 @@
 
 ## 视频数据与播放器
 
+播放器右上角在倍速入口右侧提供齿轮设置按钮，打开带“播放器／弹幕”页签的底部面板，每次打开默认选中播放器。齿轮根据通用设置面板的开合状态旋转，动画值仅在图层读取。页签复用 `PagerTabRow`、`rememberTabChangeHandler` 与 `HorizontalPager`，沿用项目的横向切换和弹性指示器。标题与页签固定，各页内容独立滚动，本次打开期间保留各页滚动位置。面板不主动暂停播放，打开时阻止控制栏自动隐藏，关闭后重新计时。
+
+画质、倍速和通用设置由 `PlayerSettingsSheet` 统一创建底部面板，按 `PlayerSettingsPanel` 的明确分支展示内容。通用设置的 `PlayerPreferencesContent` 仅接收状态与回调，使用 `BoxWithConstraints` 获取扣除拖动柄后实际可用的内容高度，使用其 90%，不再设置固定 dp 上限，也不随所选页签或内容长度改变。高度限制仅作用于内部内容 Column，外层保留完整窗口约束，供官方组件计算底部锚点。横向 Pager 保留默认边界回弹、共享 Tab 动画与默认页面缓存策略，各页纵向滚动的默认边界效果继续保留。PagerState 由弹层持有并传给内容组件；监听横向 DragInteraction 与滚动状态，从手动拖动开始至惯性结束临时关闭外层 sheetGesturesEnabled，避免当前 Material 3 的面板 onPostFling 把子 Pager 已消费的横向速度再次返回。仅滚动状态不会启动该隔离，保持普通纵向滚动与面板拖动；点击 Tab 的程序动画仍使用共享处理。
+
+设置内容与应用设置页共用 `PlaybackSettingsContent`、`DanmakuSettingsContent`，通过导航宿主传递现有设置 ViewModel 的状态和回调，立即生效并保存到同一设备级存储。画质与倍速保留独立入口和原有内容。
+
 视频画面的控制层局部提供 `LocalRippleConfiguration`，统一使用白色水波纹并保留官方透明度与动效，包含进度条和媒体错误页重试按钮；弹出的清晰度与倍速设置面板继续跟随应用主题，进度条本身保留主题色。弹幕 Switch 开启时使用白色轨道、黑色滑块与白色图标，关闭时使用透明轨道、白色描边及滑块与黑色图标；禁用状态显式使用半透明配色，不随浅深色主题变化，保留官方尺寸、状态语义和划线过渡。
 
 `PlaybackSettings` 模型与 `PlaybackSettingsStore` 位于 `data/settings/`；`PlaybackSettingsViewModel` 通过该存储封装异步读取 `kirakira_settings` 的 `playback_in_app_mini_player`、`playback_outside_app_mini_player`（均默认 true）与 `playback_autoplay`（默认 false），使用 SharedPreferences apply 异步落盘。不迁移旧画中画开关。应用级状态经导航传入视频页与播放设置页，不绑定账号。
@@ -32,20 +38,20 @@ Slider 使用官方 `SliderDefaults.Thumb`（16dp 等宽高，保留默认按压
 
 `VideoRoute(videoId)` 和 `ProfileRoute(uid)` 使用真实 ID，旧无 ID 的演示路由与已移除的加载动画演示页路由在恢复时移除；旧路由类型仅保留用于反序列化兼容。状态变更通过 SessionState.revision 取消旧账号工作；请求前取得账号快照、返回时再次核对 revision，旧响应不覆盖新页面。启动时内容加载等待本地会话恢复及 `INITIALIZE` 账号校验结束（含失败），期间手动刷新也不提前请求，避免本地恢复和校验完成两次发布 revision 导致列表清空重载、加载指示器闪回；正常账号切换仍取消并清空旧账号内容。明确 401 只清除发起请求账号的凭据，其他业务拒绝不会自动清空会话。
 
-| 接口                                                              | 用途                             |
-|-----------------------------------------------------------------|--------------------------------|
-| GET `video/home`                                                | 首页；无分页参数，目前服务端限制 100 条         |
-| GET `video?videoId=`                                            | 详情、分 P、作者、赞踩；登录读取可能由后端更新播放量和历史 |
-| GET `history/filter`；POST `history/merge`                        | 账号视频历史与首 P 整数秒进度同步 |
-| GET `video/user?uid=`                                           | 作者作品                           |
-| GET `user/info?uid=`、`feed/stats?targetUid=`                    | 作者资料和统计                        |
-| GET `feed/following/list` / `feed/follower/list`                | 关注／粉丝列表；`targetUid`、`page`、`pageSize=50` |
-| POST `feed/following` / `feed/unfollowing`                      | 关注／取消关注                        |
-| POST `video/upvote` / `video/downvote`；DELETE 对应路径加 `/cancel`   | 视频赞踩及撤销                        |
-| GET `video/comment?videoId=&page=&pageSize=20`                  | 按楼层升序分页评论                      |
-| POST `video/comment/emit`                                       | 发布一级评论                         |
-| POST `video/comment/upvote` / `downvote`；DELETE 对应路径加 `/cancel` | 评论赞踩及撤销                        |
-| GET `video/danmaku?videoId=`；POST `video/danmaku/emit`          | 公共弹幕列表和发布                      |
+| 接口                                                                  | 用途                                                       |
+|-----------------------------------------------------------------------|------------------------------------------------------------|
+| GET `video/home`                                                      | 首页；无分页参数，目前服务端限制 100 条                    |
+| GET `video?videoId=`                                                  | 详情、分 P、作者、赞踩；登录读取可能由后端更新播放量和历史 |
+| GET `history/filter`；POST `history/merge`                            | 账号视频历史与首 P 整数秒进度同步                          |
+| GET `video/user?uid=`                                                 | 作者作品                                                   |
+| GET `user/info?uid=`、`feed/stats?targetUid=`                         | 作者资料和统计                                             |
+| GET `feed/following/list` / `feed/follower/list`                      | 关注／粉丝列表；`targetUid`、`page`、`pageSize=50`         |
+| POST `feed/following` / `feed/unfollowing`                            | 关注／取消关注                                             |
+| POST `video/upvote` / `video/downvote`；DELETE 对应路径加 `/cancel`   | 视频赞踩及撤销                                             |
+| GET `video/comment?videoId=&page=&pageSize=20`                        | 按楼层升序分页评论                                         |
+| POST `video/comment/emit`                                             | 发布一级评论                                               |
+| POST `video/comment/upvote` / `downvote`；DELETE 对应路径加 `/cancel` | 评论赞踩及撤销                                             |
+| GET `video/danmaku?videoId=`；POST `video/danmaku/emit`               | 公共弹幕列表和发布                                         |
 
 `userDataBootstrapHint` 从登录或 `/user/self` 获取，仅放入加密 StoredAccount 的可选字段，旧 v1 账号库兼容；仅首页过滤请求发送 `uid`、`uuid` 和 `user-data-bootstrap-hint`，缺失时按游客读取。普通鉴权使用账号 token 快照，媒体与图片传输独立且无 Cookie。评论数量字段在空结果时可能省略，游客视频详情可能缺失赞踩计数，UI 显示未知而不是编造零。API 响应继续保留 1 MiB 上限；过大或非法响应显示错误，不无限读取。评论发布少于 20,000 字符；弹幕颜色使用服务端实际要求的不带井号的 `FFFFFF`，默认 `medium`、`rtl`、`enableRainbow=false`，时间单位为秒。
 
@@ -59,37 +65,52 @@ Slider 使用官方 `SliderDefaults.Thumb`（16dp 等宽高，保留默认按压
 
 ### 播放器控制与设置
 
-覆盖层遮罩在上下边缘分别渐隐，中部透明；控件默认使用白色，已播放轨道及非 1× 的倍速入口沿用主题强调色。返回与全屏入口使用官方 FilledIconButton；图标容器与画质／倍速按钮均使用 60% 不透明度黑色，禁用时为 30%，不添加阴影。`PlayerSettingsButtons` 使用半透明黑色背景的官方 TextButton 与同一小号尺寸对应的形状、内边距、文字及图标 API，外围按钮统一为官方小号 40dp 容器高度，图标统一使用 IconButtonDefaults.smallIconSize 的 24dp 尺寸，与标准 TopBar 一致；触摸目标继续由官方组件保证。
+播放器控制栏自动隐藏、手势判定窗口、反馈停留、历史采样的最小进度差与恢复读取超时使用 `kotlin.time.Duration`；系统手势配置在输入边界转换。Media3 播放位置、弹幕时间线与 Compose 动画参数继续使用各自 API 的毫秒类型，弹幕空白区等待在协程超时调用前转换为 `Duration`。媒体、API、图片下载及头像上传的 OkHttp 超时直接使用 `Duration` 重载。
 
-倍速入口在 1× 时使用圆形 FilledIconButton，不显示数值；非 1× 时使用与画质等高的图标文字按钮并改为主题 primary。AnimatedContent 以实际显示的倍率字符串（1× 对应空串）为目标，所有倍率变化都触发内容淡入／淡出和容器尺寸过渡，尺寸使用主题 fastSpatialSpec 弹簧，颜色与透明度使用 fastEffectsSpec；因此 1.5× 到 2× 等非默认倍率间也有动画，退出内容保留原倍率，不闪出 1×。首次显示直接采用当前状态，遵循系统动画时长设置。
+`PlayerGestures.kt` 的 `PlayerGestureState` 仅在组合内保存拖动预览、待判定单击和双击累计目标；`Modifier.playerGestures` 在系统触摸阈值之后锁定方向，尊重子控件的事件消费，左右边缘 24dp 内开始的拖动不接管。背景与隐藏控制栏上方的拦截层共用状态，使隐藏期间仍可双击或拖动；横向拖动显示控制栏，拦截层保持至拖动结束以保留指针所有者；音量拖动不强制改变控制栏显隐，结束后重置三秒计时。控制布局仅在内容溢出时启用纵向滚动，防止普通尺寸下拦截音量滑动。
 
-顶部使用透明官方 TopAppBar，将返回放在 navigationIcon、画质与倍速放在 actions，复用默认栏高、内容边距和垂直对齐；actions 内部通过 FlowRow 换行，底部时间沿用主题 labelMedium 字体。私有 `PlayerControlsLayout` 使用 SubcomposeLayout 先测量顶部、时间、弹幕／全屏操作与 36dp 高度进度布局区，将 64dp 播放容器定位到视频画面的几何中心，图标与缓冲指示器均为 48dp；全屏时补偿不对称 safeDrawing Insets 对布局中心的偏移。根据实测控件矩形检查居中按钮是否重叠，仅在发生重叠或越界时将播放／缓冲控件以 48dp 容器排入底部操作区。
+横向目标以开始拖动时的位置和累计位移计算，完整画面宽度对应 `min(durationMs, 90_000)`，预览期间不调用播放器，`previewPositionMs` 同时驱动底部进度 Slider 与时间文字，取消后清空预览并恢复实际进度，正常松手才经现有 `onSeek` 提交一次；左右各三分之一区域双击分别跳转 −5／+5 秒，后续同侧点击使用累计目标，避免进度轮询滞后，目标始终限制在有效时长内。双击反馈记录归一化点击位置及单调递增的动画序号，独立的 `PlayerDoubleTapOverlay` 在对应侧绘制弧形区域、点击扩散波纹及带明暗脉冲和位移动画的官方 Material Symbols `fast_forward`／`fast_rewind` 图标，复用现有资源；双击不再显示中央拖动预览卡。初始双击仍遵循系统时间阈值，连续跳转模式在 800ms 反馈窗口内接受同侧后续点击，更新累计秒数（双击和拖动反馈均使用 `+Ns`／`-Ns` 格式）并重新触发官方 Material 3 `ripple`。水波纹通过独立 `MutableInteractionSource` 的 Press／Release 交互从点击位置触发，保持 80ms 后释放，取消时发送 Cancel；`indication` 无点击处理，外层弧形 Shape 负责裁剪，不再手绘扩散圆。`DoubleTapArrows` 缓存官方资源的两个原始箭头轮廓，按由内向外错开 55ms，每个箭头以 120ms 提亮／推进、220ms
+缓动归位，一拍共 395ms；共享位移最多 3dp，单箭头附加位移最多 2dp，缩放最多 4%，白色不透明度在 64%–100% 之间平滑变化，保留箭头间距。`DoubleTapArrowMotion` 由组合生命周期内单个协程消费合并容量为一的装饰脉冲：当前一拍完成后续接最新待播一拍，不重置动画值，也不积压全部点击；业务跳转、秒数及原生 Ripple 仍逐次立即响应。标准动画时长下，两拍衔接约 790ms，与已有 800ms 反馈保持窗口配合；实际动画仍遵循系统时长缩放。方向改变时重建动效状态，离开组合时取消消费者及其子动画；动画值仅在 Canvas 绘制时读取，最后一次操作后沿用反馈淡出，遵循系统动画设置；覆盖层裁剪于播放器内且不接收指针输入。中间区域及不可跳转媒体使用相同的单／双击判定，单击延迟到双击窗口结束后显隐控制栏，双击经 `onToggle` 切换播放／暂停并取消待执行单击；中间区域连续点击按两次一组处理。拖动取消、多指介入、尺寸或配置变化、媒体切换、页面失活及画中画清理临时状态，播放与暂停状态保持不变。首次加载、失败、设置面板和触摸探索禁用新增手势，未知时长及不可跳转媒体禁用进度手势；键盘确认及无障碍显隐动作保留。
 
-底部按实测宽度换行，极短窗口允许整个控件布局纵向滚动，避免控件互相覆盖。顶部位置由官方 TopAppBar 管理，底部采用进度在上、操作在下的两行布局：36dp 进度布局区紧接 48dp 最小高度的操作行，不叠加 TopBar 行高的额外留白；操作行距播放器安全视口底边保留 4dp 留白；4dp 轨道与 16dp 手柄在各自内容插槽中同步向下偏移 8dp，使可见内容靠近操作行，36dp 进度布局区与下方操作行的测量及点击区域仍按顺序排列，不通过重叠布局缩短间距。中央按钮碰撞检查使用包含该视觉偏移的进度轨道／16dp 手柄实际可见高度，以及底部各操作的实测矩形；全屏操作尾部为 4dp，保持与顶栏最右侧图标按钮同列，组内间隔为 8dp。
+`VideoPage` 持有 `MediaVolumeController`，通过 `onReadVolume` 与 `onVolume` 回调给播放器提供 0–1 的媒体音量读写，`VideoPlayer` 不直接访问平台音量服务。适配器仅操作 `AudioManager.STREAM_MUSIC`，按系统最小／最大档位映射，API 27 最小档位为 0；Manifest 声明普通权限 `MODIFY_AUDIO_SETTINGS`，不请求运行时权限。纵向位移按画面高度映射完整音量范围并乘以 1.5，提高滑动灵敏度。滑动不弹系统音量面板，不绕过固定音量或设备策略，反馈使用系统实际读回值，结束后保留音量。进度反馈采用官方 Rounded FILL 1 快进／快退图标、白色时间／变化量及半透明黑底；音量 HUD 靠右侧并避让全屏安全 Insets，使用官方 Material 3 `VerticalSlider` 与百分比，采用 40dp 粗轨道、48×4dp 横向细滑块、6dp 轨道间隔和顶部轨道内音量图标，不额外包裹表面色面板。Slider 禁用输入并使用正常主色和次要容器色，HUD 语义合并为音量读数，不提供可调节动作。音量图标采用官方 Rounded FILL 1 实心样式，音量为 0 时用无声波且无斜线的 `volume_mute`（不是 `volume_off`），1%–50% 用 `volume_down`，超过 50% 用 `volume_up`。`VolumeIconMorph` 从官方 `volume_up` 资源解析并缓存扬声器、内声波与外声波路径，零／低／高音量分别映射形变级别
+0／1／2：扬声器水平位移，声波轮廓从锚点展开或收拢，端点对应这三枚官方图标的几何，仅保留 `volume_up` drawable 作为路径来源。级别通过主题 `fastSpatialSpec` 连续动画，动画值只在绘制阶段读取，遵循系统动画设置。两类反馈均无阴影；结束后停留 800ms，再按主题效果动效淡出，不保存到 SavedState 或磁盘。
+
+覆盖层遮罩在上下边缘分别渐隐，中部透明；控件默认使用白色，已播放轨道及非 1× 的倍速入口沿用主题强调色。返回与全屏入口使用官方 FilledIconButton；图标容器与画质／倍速按钮均使用 60% 不透明度黑色，禁用时为 30%，不添加阴影。`PlayerSettingsButtons` 使用半透明黑色背景的官方 TextButton 与同一小号尺寸对应的形状、内边距、文字及图标 API，外围按钮统一为官方小号 40dp 容器高度，图标统一使用 IconButtonDefaults.smallIconSize 的 24dp 尺寸，与标准 TopBar 一致。右上角三个按钮采用原生工具栏的相邻排列，不额外叠加水平间距；图标按钮保留默认容器与最小交互布局，不用显式尺寸挤压布局。画质和非默认倍速文字按钮的外侧留白按 LocalMinimumInteractiveComponentSize 与官方小号图标容器宽度差的一半计算，匹配圆形图标按钮的原生留白。默认 48dp 交互布局和 40dp 图标容器下，各可见背景之间约为 8dp；半透明独立背景、官方内边距与系统最小触摸目标扩展继续保留。
+
+倍速入口图标使用官方 Rounded FILL 0，`PlaybackSpeedIcon` 缓存官方指针路径，使用圆角描边绘制外形固定的表盘，并沿表盘轮廓截取以指针方向为中心的 50° 缺口；指针和缺口读取同一动画角度，缺口在零位时沿平底移动；入口与弹层码表共用 `rememberPlaybackSpeedAngle`，播放时按倍率转动，暂停或缓冲时回到 150° 零位，均使用 300ms emphasized 动画。动画状态置于按钮形态切换外，避免经过 1× 时重置，动画值仅在绘制阶段读取。在 1× 时使用圆形 FilledIconButton，不显示数值；非 1× 时使用与画质等高的图标文字按钮并改为主题 primary。外层 AnimatedContent 以数值倍率为目标，以是否为非默认倍率作为 contentKey，仅在图标与文字按钮之间切换时淡入／淡出和过渡容器尺寸；退出内容使用自身倍率，不闪出 1×。控制栏倍率与码表设定读数使用 PlaybackSpeedText，内部仅数值通过共享 AnimatedNumberText 接入 NumberFlow，乘号作为独立的静态 Text 放在动画组件外；共享组件通过 animateContentSize 与主题 fastSpatialSpec 平滑过渡数字区域整体宽度，使增删小数位时按钮宽度与乘号位置连续变化。滑杆刻度及快捷项保持普通 Text。非默认倍率间保留同一组件，让发生变化的数值字符逐位滚动，使用主题
+fastSpatialSpec，颜色与透明度使用 fastEffectsSpec。格式沿用本地化倍率资源，去除小数尾零；组件清除逐字符语义，以完整目标倍率提供单个文字语义。首次显示直接采用当前状态，遵循系统动画时长设置。依赖来源与维护说明见 [NumberFlow](../../third_party/number-flow/README.md)。
+
+顶部使用透明官方 TopAppBar，将返回放在 navigationIcon、画质、倍速与齿轮设置依次放在 actions，复用默认栏高、内容边距和垂直对齐；actions 内部通过 FlowRow 换行，底部时间沿用主题 labelMedium 字体。私有 `PlayerControlsLayout` 使用 SubcomposeLayout 先测量顶部、时间、弹幕／全屏操作与 36dp 高度进度布局区，将 64dp 播放容器定位到视频画面的几何中心，图标与缓冲指示器均为 48dp；全屏时补偿不对称 safeDrawing Insets 对布局中心的偏移。根据实测控件矩形检查居中按钮是否重叠，仅在发生重叠或越界时将播放／缓冲控件以 48dp 容器排入底部操作区。
+
+底部按实测宽度换行，极短窗口允许整个控件布局纵向滚动，避免控件互相覆盖。顶部位置由官方 TopAppBar 管理，底部采用进度在上、操作在下的两行布局：36dp 进度布局区紧接 48dp 最小高度的操作行，不叠加 TopBar 行高的额外留白；操作行距播放器安全视口底边保留 4dp 留白；4dp 轨道与 16dp 手柄在各自内容插槽中同步向下偏移 8dp，使可见内容靠近操作行，36dp 进度布局区与下方操作行的测量及点击区域仍按顺序排列，不通过重叠布局缩短间距。中央按钮碰撞检查使用包含该视觉偏移的进度轨道／16dp 手柄实际可见高度，以及底部各操作的实测矩形；全屏操作尾部为 4dp，保持与顶栏最右侧图标按钮同列。弹幕使用官方 Switch，全屏使用默认尺寸的 FilledIconButton；两者布局间隔为 4dp，加上图标按钮原生交互布局的留白，默认可见间距约为 8dp，与右上角操作组协调，保留原生触摸区域和垂直居中。
 
 时间起点为 16dp，进度条扣除官方手柄半径后设置外边距，使轨道端点与 16dp 内容边界对齐；弹幕 Switch 保留官方尺寸和状态动效，轨道在开关两种状态下均为 60% 不透明度黑色并带半透明白色描边，开启时使用白色滑块与黑色图标，关闭时滑块降低不透明度并保留划线提示，禁用状态同步降低对比度。全屏由控件层避让 safeDrawing Insets，顶栏的 windowInsets 为零以免重复避让，遮罩仍覆盖整个画面。播放形变状态、弹幕划线状态和进度拖动状态保留在自适应布局之外，重排不重播动效或清空拖动预览；错误态单独预留顶部返回与全屏工具栏，继续使用统一 MEDIA 错误组件。
 
 播放／暂停图标使用 `AnimatedPlaybackIcon` 的路径形变，两种切换均顺时针旋转 90°，采用主题的 Material 3 Expressive `fastSpatialSpec` 弹簧，与划线图标共用动效曲线，不做透明度切换。路径插值与旋转保留超过 1 的弹簧进度，使形变和旋转略微超过目标后回弹。目标路径反向补偿 90°，结束后仍为正向 Material Symbols Rounded 图标，并归一化内部坐标。连续切换从当前可见轮廓继续向最新状态顺时针形变，不排队或倒放。动画状态保留在加载与控制层显隐分支之外，首次显示直接采用当前播放状态，恢复控制层不重播；使用 Compose 动画时钟遵循系统动画时长设置。绘制缓存复用，两种尺寸模式共用组件，颜色及无障碍描述继承原按钮。
 
- 图标及操作描述由 `showPauseIcon` 驱动：Media3 `playWhenReady` 为真且未结束、未报错时显示暂停图标，缓冲不会使其切换为播放图标；暂停、播放结束和释放后显示播放图标。`playing` 继续表达 `isPlaying`，用于原有控制层及画中画行为。图标随目标状态变化播放动画，不再使用点击计数或加载结束补播逻辑；Material 2 圆角圆形加载器仍用于缓冲展示，其间图标动画状态在外层继续更新。
+图标及操作描述由 `showPauseIcon` 驱动：Media3 `playWhenReady` 为真且未结束、未报错时显示暂停图标，缓冲不会使其切换为播放图标；暂停、播放结束和释放后显示播放图标。`playing` 继续表达 `isPlaying`，用于原有控制层及画中画行为。图标随目标状态变化播放动画，不再使用点击计数或加载结束补播逻辑；Material 2 圆角圆形加载器仍用于缓冲展示，其间图标动画状态在外层继续更新。
 
 画质选项由 `PlaybackViewModel` 在 `EVENT_TRACKS_CHANGED` 中读取 `currentTracks`，仅包含解码支持且高度有效的视频轨道，同高度去重并降序排列；同高度候选优先当前视频组，再按码率选择。画质领域选项同时携带该候选轨道的高度与有效码率，确保显示码率与手动选择一致；UI 将 bit/s 除以 1000 并四舍五入，以 Kbps 显示在行尾，缺失或非正数时不显示。手动模式通过 `TrackSelectionOverride` 覆盖视频轨道，自动模式仅清理视频覆盖，不改音轨和播放位置。每次准备新媒体重新匹配首选高度；未匹配到时显示自动而不改持久偏好。实际清晰度从 `videoFormat` 获取，并随进度轮询更新，避免将自适应组的多个选中轨道误认为当前画质；释放时清空轨道状态。
 
-`PlaybackSettings` 增加 `autoQuality` 和 `preferredVideoHeight`，由既有应用级设置存储保存为 `playback_auto_quality` 与 `playback_video_height`，默认自动且没有首选高度；UI 通过导航宿主回调更新。倍率、连续调速、保持音调由导航宿主 `PlaybackViewModel` 管理，以非敏感标量存入 SavedState；重建播放器时应用 `PlaybackParameters(speed, pitch)`，保持音调时 pitch 为 1，否则为 speed。无级值限制在 0.25–4 并保留两位小数，有级模式吸附既定倍率。
+`PlaybackSettings` 增加 `autoQuality` 和 `preferredVideoHeight`，由既有应用级设置存储保存为 `playback_auto_quality` 与 `playback_video_height`，默认自动且没有首选高度；UI 通过导航宿主回调更新。倍率、无级调速、保持音调由导航宿主 `PlaybackViewModel` 管理，以非敏感标量存入 SavedState；重建播放器时应用 `PlaybackParameters(speed, pitch)`，保持音调时 pitch 为 1，否则为 speed。无级值限制在 0.25–4 并保留两位小数，有级模式吸附既定倍率。
 
-`PlayerSettingsSheet` 使用官方 `ModalBottomSheet`，宽度上限 640dp，只允许展开和隐藏状态；内容滚动并承载底部安全内边距。画质单选及倍速开关使用官方分段列表；「连续调速」与「保持音调」沿用设置页普通开关规则，以 onClick 重载切换状态并提供 Switch 角色与 toggleableState 语义，尾部 Switch 不独立处理点击，整行背景和圆角不随选中状态变化。倍速滑杆以 log2 映射 -2–2，默认 1× 位于中心，并为无障碍有级调整提供相邻倍率操作。面板局部状态参与控制栏显隐计时，关闭后重新计时；全屏、画中画、失去活动状态或播放错误时关闭，不持久化面板打开状态。
+`PlayerSettingsSheet` 使用官方 `ModalBottomSheet`，宽度上限 640dp，只允许展开和隐藏状态；内容滚动并承载底部安全内边距。画质单选及倍速开关使用官方分段列表；「无级调速」与「保持音调」沿用设置页普通开关规则，以 onClick 重载切换状态并提供 Switch 角色与 toggleableState 语义，尾部 Switch 不独立处理点击，整行背景和圆角不随选中状态变化。倍速滑杆以 log2 映射 -2–2，默认 1× 位于中心，并为无障碍有级调整提供相邻倍率操作。面板局部状态参与控制栏显隐计时，关闭后重新计时；全屏、画中画、失去活动状态或播放错误时关闭，不持久化面板打开状态。
 
-`PlaybackSpeedGauge(speed, playing, modifier)` 使用 Compose Canvas 绘制刻度与指针、Text 显示倍率读数，只消费现有 `PlayerUiState`，不持有播放器或修改业务状态。`playing` 来自 Media3 `isPlaying`，实际倍率为 `if (playing) speed else 0f`，不使用缓冲期间仍为真的 `showPauseIcon`。正倍率以 `180° + 180° × (log2(speed) + 2) / 4` 映射 0.25×–4×，1× 为 270°；零刻度单独设在 150°，为零刻度与 0.25× 之间保留足够弧长，不计算 `log2(0)`。
+`PlaybackSpeedGauge(speed, playing, continuousSpeed, onSpeed, modifier)` 使用 Compose Canvas 绘制刻度与指针、Text 显示倍率读数，只消费现有 `PlayerUiState`，不持有播放器或修改业务状态。`playing` 来自 Media3 `isPlaying`，静止时实际倍率为 `if (playing) speed else 0f`，沿弧线拖动时临时显示设定倍率，不使用缓冲期间仍为真的 `showPauseIcon`。正倍率以 `180° + 180° × (log2(speed) + 2) / 4` 映射 0.25×–4×，1× 为 270°；零刻度单独设在 150°，为零刻度与 0.25× 之间保留足够弧长，不计算 `log2(0)`。
 
-`animateFloatAsState` 使用 300ms 的 `tween`，复用共享 `rememberEmphasizedEasing()` 的 Material 3 emphasized 无回弹曲线，不使用弹簧；首次直接采用当前角度，快速切换从当前动画位置继续，绘制角度限制在 150°–360°，动效遵循系统动画设置。指针与大刻度复用 `primary`，码表和滑杆直接使用 `SliderDefaults.colors()` 默认颜色：活动轨道与非活动圆点为 `primary`，非活动轨道与活动圆点为 `secondaryContainer`；经典强调色在主题层生成带强调色调的次要容器；刻度文字为 `onSurfaceVariant`。
+码表通过 `Modifier.playbackSpeedDrag` 只接管距弧线最近点 24dp 内开始的单指按下／拖动，其他位置留给 Sheet 滚动；按下即调到对应倍率。触点以轴心 `atan2` 求角，累计最短角差以避免越过右端 360° 时跳到最小值，限制于 150°–360°，150°–180° 零位区映射为最低 0.25×；有效角度通过 `2^((angle - 270) / 45)` 还原倍率，经原有 `onSpeed` 交给 ViewModel 统一取两位小数或吸附分档。尺寸变化、取消、多指介入或离开组合结束拖动，保留已实时提交的倍率；回调通过 `rememberUpdatedState` 获取，倍率变化不重启手势。弧线不增加手柄；Canvas 提供 log2 倍率范围、`setProgress` 和焦点，方向键增减倍率，Home／End 选择两端值，无障碍分档增减沿用相邻预设规则。
 
-布局最大宽度 320dp，表盘几何以宽度／1.7 为基准高度，字体实测尺寸参与半径与标签位置计算；标签与弧线外缘留出 8dp 间隔，先保留 0、0.25、1、4 标签，仅在不重叠时显示 0.5、2。读数靠近轴心下方，以主题 `headlineLarge`、Medium 字重和 `onSurface` 显示；按 `0.25×`、`1.25×`、`3.99×` 等宽读数预留固定避让空间，避免倍率变化推动滑杆，暂停指针至少距读数 24dp，并根据固定字体高度增加布局高度，保持下方滑杆位置与读数不重叠。中英文码表无障碍描述报告实际倍率，Text 与滑杆表达设定倍率，不受指针插值或归零影响。
+`animateFloatAsState` 使用 300ms 的 `tween`，复用共享 `rememberEmphasizedEasing()` 的 Material 3 emphasized 无回弹曲线，不使用弹簧；首次直接采用当前角度，快速切换从当前动画位置继续，绘制角度限制在 150°–360°，动效遵循系统动画设置；码表拖动时切换为 `snap` 即时跟手，暂停时松手或取消后沿原动画归零，播放／暂停状态不变。指针与大刻度复用 `primary`，码表和滑杆直接使用 `SliderDefaults.colors()` 默认颜色：活动轨道与非活动圆点为 `primary`，非活动轨道与活动圆点为 `secondaryContainer`；经典强调色在主题层生成带强调色调的次要容器；刻度文字为 `onSurfaceVariant`。
+
+布局最大宽度 320dp，表盘几何以宽度／1.7 为基准高度，字体实测尺寸参与半径与标签位置计算；标签与弧线外缘留出 8dp 间隔，先保留 0、0.25、1、4 标签，仅在不重叠时显示 0.5、2。读数靠近轴心下方，以主题 `headlineLarge`、Medium 字重和 `onSurface` 显示；按 `0.25×`、`1.25×`、`3.99×` 等宽读数预留固定避让空间，避免倍率变化推动滑杆，暂停指针至少距读数 24dp，并根据固定字体高度增加布局高度，保持下方滑杆位置与读数不重叠。中英文码表可调节语义、Text 与滑杆均表达设定倍率，不受指针插值或归零影响。
 
 码表指针按用户提供的设计参考采用细尖、圆底的渐窄轮廓，以缓存的闭合路径绘制，中心端与尖端宽度比例为 5:1，轴心至尖端的长度为轨道中心半径的 68%；尖端保留小圆角，中心端为一体半圆，不叠加独立圆轴。中心端半宽限制在 4dp–8dp，避免窄屏或大字体下过细。外弧为 8dp 宽的填充环形路径，断口使用 2dp 圆角，避免分段形成独立胶囊。0、0.25、0.5、1、2、4 为大刻度，以 2dp 宽、12dp 长的圆头径向短杆绘制，统一使用主色。轨道按大刻度分段，根据刻度半宽和 3dp 间隔计算角度退让；路径圆角随短弧长度收缩，极短区间空间不足时省略弧段及圆点，避免重叠。
 
 每段弧线中心放置一个小圆点，不按不均匀的快捷倍率分布，尺寸复用 `SliderDefaults.TickSize`，活动圆点使用 `activeTickColor`，其余使用 `inactiveTickColor`。表盘半径扣除轨道半宽，为外缘和标签保留空间；文字仅显示倍率数字，单位由读数表达。设计理由见 [Material Symbols](../../third_party/material-symbols/README.md#播放器控制图标)。
 
-`AppNavHost` 持有共享 `PlaybackViewModel`，视频页、小窗与系统画中画使用同一 ExoPlayer／MediaSession。视频页只在活动且匹配当前视频时绑定 `PlayerContentFrame`；小窗位于导航内容上层，系统画中画从小窗进入时切换为全窗口视频。同一时刻仅一个画面绑定。导航完成后根据 `showPauseIcon`（含缓冲待播放）决定是否保留应用内小窗；预测性返回取消不修改模式，返回全屏先退出全屏。回到视频页重新读取详情时，同分 P 的媒体 URL 更新不打断当前播放。关闭小窗、账号修订变化和普通后台路径释放会话；旋转保留 ViewModel，进程恢复只读取非敏感标量并保持暂停，不保存 URL 或凭据。
+`PlaybackViewModel` 与 `ImageExportViewModel` 在构造时将传入 Context 转为 Application Context，避免随宿主作用域保留 Activity。
+
+`AppNavHost` 持有共享 `PlaybackViewModel`，视频页、小窗与系统画中画使用同一 ExoPlayer／MediaSession。视频页只在活动且匹配当前视频时绑定 `PlayerContentFrame`；小窗位于导航内容上层，系统画中画从小窗进入时切换为全窗口视频。同一时刻仅一个画面绑定。导航完成后根据 `showPauseIcon`（含缓冲待播放）决定是否保留应用内小窗；预测性返回取消不修改模式，返回全屏先退出全屏。回到视频页重新读取详情时，同分 P 的媒体 URL 更新不打断当前播放。分 P 重排按 ID 保留当前选择和进度；当前分 P 不再存在时释放播放器、回到首 P、清零进度与时长并取消自动播放，同时重置续播决策和历史采样基准。关闭小窗、账号修订变化和普通后台路径释放会话；旋转保留 ViewModel，进程恢复只读取非敏感标量并保持暂停，不保存 URL 或凭据。
 
 ### 全屏与系统栏
 
@@ -113,13 +134,11 @@ Compose [共享元素转场](https://developer.android.com/develop/ui/compose/an
 
 ### 播放器首次加载背景
 
-封面等待使用普通 Spinner：`VideoPage` 通过 `PlayerUiState.artworkPending` 表达首次详情尚未返回封面地址，`VideoArtwork` 通过可选 `onLoadingChange` 回调上报 Coil 的加载、成功和失败；播放器按图片地址持有局部加载状态。只有未创建媒体播放器时使用封面等待，在中央播放按钮内复用 40dp 白色 `IndeterminateCircularProgressIndicator`，保留原有黑色圆形容器与自适应位置；成功或失败后立即恢复播放图标，不绘制或淡出几何背景，无封面不保持加载状态。封面等待期间保持控件可见，按钮仍按媒体可用性启用，保留播放操作的无障碍描述。封面等待不写入分 P 就绪记录、不提前加载媒体；点击播放后的媒体首次加载继续使用几何背景。首页、历史等其他封面调用保留原样，已有详情刷新不再设置 `artworkPending`。
+封面等待使用普通 Spinner：`VideoPage` 通过 `PlayerUiState.artworkPending` 表达首次详情尚未返回封面地址，`VideoArtwork` 通过可选 `onLoadingChange` 回调上报 Coil 的加载、成功和失败；播放器按图片地址持有局部加载状态。只有未创建媒体播放器时使用封面等待，在中央播放按钮内复用 40dp 白色 `IndeterminateCircularProgressIndicator`；成功或失败后立即恢复播放图标，无封面不保持加载状态。封面等待期间保持控件可见，按钮仍按媒体可用性启用，保留播放操作的无障碍描述。封面等待不提前加载媒体，已有详情刷新不再设置 `artworkPending`。
 
-`PlaybackViewModel` 在内存中按分 P ID 保存首次就绪记录，`initialLoading` 经 `PlayerUiState` 传给页面；不进入 SavedState 或设置。仅准备未就绪的分 P 时开启，当前播放器首次进入 Media3 `STATE_READY` 即关闭，即使此时处于暂停状态也完成记录。内部重建播放器、切换分 P 和重试保留记录；切换视频、账号、关闭小窗及离页且未转入小窗时清空。首次失败不记录就绪，重试继续显示背景；已就绪媒体失败后重试只使用普通缓冲加载器。播放器赋给会话后再调用 `prepare`，监听器只接受当前实例的就绪和错误事件。
+`PlayerContentFrame` 将调用方提供的封面插槽交给 Media3 `ContentFrame.shutter`，由官方 `PresentationState` 在首帧渲染前覆盖视频表面，首帧出现后直接撤下，不添加淡出动画。视频表面始终参与组合，保证正常初始化与首帧事件。普通与全屏播放器复用当前详情封面；`PlaybackViewModel.artwork` 在内存保存当前视频封面地址，供应用内小窗复用，切换视频或清除会话时清空。系统画中画不显示封面，失败状态显示现有错误界面。已移除原有几何加载动画。
 
-`PlayerInitialLoadingOverlay` 在视频与弹幕之上、控制层之下绘制 Cerasus `LogoCover` 的几何动画，背景为主题 `surface`、图形为 `primary`，条带透明度为 30%。Compose 无限动画使用 96 秒公共周期，分别计算上游各图形的 6／8／12／16／32 秒线性条带运动、4 秒错峰加号翻转和三角形移动、2 秒交替闪烁及条纹缩放、4 秒交替圆环缩放、16 秒条纹圆旋转，保留 CSS 贝塞尔曲线与描边三角形的负延迟。交替动画的反向阶段反转缓动曲线，保持 CSS alternate 行为。几何参数按 dp 转换，窄小视口按较短边等比缩小，所有路径与裁剪轮廓复用缓存。宽度达到 640dp 时使用现有 KIRAKIRA 矢量品牌资源，右上角避让全屏系统栏；不引入播放器名称、YOZORA 图标或字体依赖。
-
-首次开启直接显示背景，首次就绪用 CSS 默认 ease 曲线在 500ms 内淡出，不延迟播放；错误、释放或离开当前宿主时立即撤下。首屏及退场期间保持控件可见，隐藏画质／倍速入口；首次就绪前禁用进度拖动，返回和全屏继续可用。小窗共享同一首次加载状态及几何背景，省略品牌资源，保持原有小尺寸加载器与操作；系统画中画不绘制首屏。动画使用 Compose 时钟遵循系统时长倍率，系统关闭动画时绘制固定几何帧并立即完成退场。来源与许可见 [Cerasus 资源说明](../../third_party/cerasus-icons/README.md#播放器首次加载动画)。
+`PlaybackViewModel` 仍在内存中按分 P ID 保存首次就绪记录，`initialLoading` 经 `PlayerUiState` 传给页面；不进入 SavedState 或设置。仅准备未就绪的分 P 时开启，当前播放器首次进入 Media3 `STATE_READY` 即关闭。该状态继续控制首次加载期间的圆形加载器、控件可见性、画质／倍速入口及进度手势；封面撤下时机独立由首帧事件决定。内部重建播放器、切换分 P 和重试保留记录；切换视频、账号、关闭小窗及离页且未转入小窗时清空。播放器赋给会话后再调用 `prepare`，监听器只接受当前实例的就绪和错误事件。
 
 ### 历史记录与续播
 
@@ -128,6 +147,8 @@ Compose [共享元素转场](https://developer.android.com/develop/ui/compose/an
 `AppDependenciesViewModel` 在 Activity 宿主作用域持有唯一的 `data/history/HistoryRepository`，使用宿主 `viewModelScope` 管理内存缓存、共享读取及串行进度队列；历史页的 `HistoryViewModel` 绑定 `HistoryRoute`，只持有搜索和刷新任务。仓库按会话 revision 清空缓存并取消旧账号读写，请求前后核对账号快照，明确 401 交由统一会话失效处理，游客不调用历史接口。DTO 留在数据层，领域记录使用 `HistoryEntry`：Rosales 的 `duration` 为秒、`lastUpdateDateTime` 为毫秒时间戳、`anchor` 为秒数字符串，在历史边界将时长与有效锚点转换为毫秒；负数、非有限或溢出锚点不参与展示与续播。
 
 历史读取不传 `videoTitle`，标题与作者过滤在本地完成；接口无分页或删除能力。首次视频详情与续播准备并发执行，不等待历史接口才请求详情。续播准备等待已排队的进度提交及 `loadIfNeeded`，总等待上限为 1500 毫秒；完成时由视频 ViewModel 发布一次续播位置快照，失败或超时按无云端位置处理，不使用迟到的查询结果跳转。自动播放等待该快照，手动播放不受历史等待限制。历史页刷新先等待当时的同步任务，避免从视频返回时读到尚未提交的锚点；刷新进行中新提交成功的记录合并到返回列表，后续刷新重新以云端列表为准，避免内存更新覆盖其他设备的新进度。
+
+`PlaybackResumeController` 持有待决策、已处理和等待实际时长校验三种续播状态，统一处理新会话、手动播放、跳转及结尾校验；`PlaybackViewModel` 负责应用返回的位置和播放器操作。`PlaybackHistoryRecorder` 持有采样计数和上次记录位置，保留每 10 个 500ms 样本检查 15 秒变化、flush 检查 1 秒变化的策略；ViewModel 只为首 P 且不等待时长校验的播放生成记录样本。
 
 `PlaybackViewModel.setContent` 在新播放会话仅在续播准备完成后应用一次首 P 位置；已有播放器、保存的分 P 和本地位置优先，手动播放、切换分 P 或跳转后不再应用迟到的续播位置，手动跳转同时取消待执行的云端时长校验。Media3 提供实际时长后再检查距离结尾的阈值。进度采样附着在共享播放器，而不是视频页面，覆盖小窗、全屏和系统画中画；生命周期进入后台时额外 flush。提交只保存 `uuid`、`category=video`、字符串视频 ID 与向下取整的秒数，不扩展 Apple 共用的锚点协议，因此其他 P 不覆盖首 P 秒数。
 
@@ -143,8 +164,7 @@ Compose [共享元素转场](https://developer.android.com/develop/ui/compose/an
 
 共享边界、页面显隐、背景与控件显隐共用 [EmphasizedEasing](../../app/src/main/java/moe/kirakira/ui/components/EmphasizedEasing.kt) 的 Material 3 emphasized 曲线及 420ms 时长；Tab 点击也复用该曲线。共享边界插值时，图片由圆形头像逐渐展开成直角视口：采用 `RemeasureToBounds` 让图片在变化的宽高比中重新排版，避免全屏图片压缩时露出平直内容边缘。静止时由图片层裁剪，匹配过渡时仅由共享覆盖层裁剪；覆盖层圆角根据当前共享边界逐帧计算，关闭及预测返回时跟随实际收缩进度。
 
-固定全屏的黑色背景由查看器页面绘制为不透明黑色，仅随 Navigation 3 页面转场淡入淡出，不再移入共享覆盖层或叠加自己的透明度动画。头像白色圆框留在资料页原位，不参与共享边界动画。返回时用 Telephoto 的当前内容几何反向补偿缩放，手势取消无需修改其内部缩放状态。来源不在组合中时仅淡入或淡出。用户关闭系统动画时，Compose
-时长缩放统一生效。
+固定全屏的黑色背景由查看器页面绘制为不透明黑色，仅随 Navigation 3 页面转场淡入淡出，不再移入共享覆盖层或叠加自己的透明度动画。头像白色圆框留在资料页原位，不参与共享边界动画。返回时用 Telephoto 的当前内容几何反向补偿缩放，手势取消无需修改其内部缩放状态。来源不在组合中时仅淡入或淡出。用户关闭系统动画时，Compose 时长缩放统一生效。
 
 [ViewerImage](../../app/src/main/java/moe/kirakira/feature/imageviewer/ViewerImage.kt) 是可序列化的图片描述，其来源模型 [ImageSource](../../app/src/main/java/moe/kirakira/data/image/ImageSource.kt) 支持 drawable 资源 ID、可读 `content://` URI 和公开 HTTPS 图片 URL，并保留迁移前的序列化类型名。描述接收默认 `null` 的可选 `thumbnail`；调用方负责保留 URI 读取授权。查看 UI 位于 `ui/components/image/`，接收受控的 `ZoomableImageSource`、加载状态、回调与可选共享元素修饰符；导出数据访问由 `data/image/` 负责，只接收来源与文件名。
 
@@ -168,7 +188,7 @@ Compose [共享元素转场](https://developer.android.com/develop/ui/compose/an
 
 缩放继续使用 [Telephoto](https://saket.github.io/telephoto/zoomableimage/) 的 `ZoomableImage`，图片请求由上述适配器控制。资源来源的导出仅支持能由 `BitmapFactory` 解码的位图 drawable，不支持 XML／vector drawable；资源仍以 `@DrawableRes` 标记，使用 `openRawResource()` 获取编码字节。保存和复制始终使用 `ViewerImage.source` 的原始字节和 MIME 类型，不导出缩略图或预览：Android 10+ 通过 `MediaStore.Images` 的 `IS_PENDING` 公开，Android 8–9 获得旧版写权限后写入公共 `Pictures/KIRAKIRA` 并扫描媒体。复制将原始字节写入专用缓存，通过 `FileProvider` 交给系统剪贴板，超过七天的复制缓存于下一次复制时清理。网络头像通过公开 HTTPS 来源接口加载和导出。
 
-[ImageExportRepository](../../app/src/main/java/moe/kirakira/data/image/ImageExportRepository.kt) 由宿主依赖容器注入独立、无认证的共享 OkHttp 客户端；远程下载在可取消回调内完成响应头与流读取，取消时关闭请求，外层始终清理临时文件。保留 HTTPS 重定向限制和 32 MiB 文件上限。宿主作用域的 [ImageExportViewModel](../../app/src/main/java/moe/kirakira/feature/imageviewer/ImageExportViewModel.kt) 按查看器实例记录保存／复制状态，同一实例操作期间禁用两个导出按钮，只将对应图标替换为固定 24dp 的白色转圈。关闭和缩放仍可使用，中央转圈仅用于图片加载。已开始的导出不随图片页出栈取消；导航宿主收集完成事件，以 Toast 提示成功或失败，包括 Android 13+ 的复制成功。权限拒绝继续使用带设置入口的 Snackbar。任务只在宿主生命周期内保留，不保证 Activity 结束或进程终止后完成。
+[ImageExportRepository](../../app/src/main/java/moe/kirakira/data/image/ImageExportRepository.kt) 由宿主依赖容器注入独立、无认证的共享 OkHttp 客户端；保存与复制入口及底层字节复制函数都显式限定在 IO 调度器，逐块复制时检查取消。远程下载在可取消回调内完成响应头与流读取，取消时关闭请求，外层始终清理临时文件。保留 HTTPS 重定向限制和 32 MiB 文件上限。宿主作用域的 [ImageExportViewModel](../../app/src/main/java/moe/kirakira/feature/imageviewer/ImageExportViewModel.kt) 按查看器实例记录保存／复制状态，同一实例操作期间禁用两个导出按钮，只将对应图标替换为固定 24dp 的白色转圈。关闭和缩放仍可使用，中央转圈仅用于图片加载。已开始的导出不随图片页出栈取消；导航宿主收集完成事件，以 Toast 提示成功或失败，包括 Android 13+ 的复制成功。权限拒绝继续使用带设置入口的 Snackbar。任务只在宿主生命周期内保留，不保证 Activity 结束或进程终止后完成。
 
 不同查看器实例的图片复制共用宿主 `Mutex`，按发起顺序执行缓存准备、剪贴板提交及成功反馈，避免慢速旧任务覆盖后一次复制。排队期间保留对应按钮的加载状态；失败或取消会释放锁，后续复制可继续，图片保存不受此锁限制。
 
@@ -234,4 +254,6 @@ Compose [共享元素转场](https://developer.android.com/develop/ui/compose/an
 
 高度过渡使用 `clip = false`，保留面板上沿及圆角外的原生投影；面板靠屏幕底部对齐，超出动画高度的内容向窗口底部延伸，由窗口边界约束，面板本身仍由 `Surface` 按形状裁剪。投影与面板共用淡入淡出过渡，输入框与发送按钮的阴影保留在其外。退出开始时清除面板无障碍语义并禁用分类切换与条目插入；快速反向切换由同一过渡接续，动效遵循系统动画设置。颜色和排版继承 `KIRAKIRATheme`。
 
-`KaomojiViewModel` 暴露应用级 `RecentKaomojiStore` 的 Flow。Store 在 IO 调度器上先读后串行处理插入事件，以独立 `kirakira_kaomoji.xml` 保存最多 24 项去重记录，只接受目录中存在的值；初始或损坏记录回退为空。最近记录不属于账号私有数据，不保存草稿，不加入备份白名单，也不请求网络。来源与许可见 [Cerasus 资源](../../third_party/cerasus-icons/README.md)。
+`AppDependenciesViewModel` 持有唯一的 `RecentKaomojiStore`，导航宿主级 `KaomojiViewModel` 暴露最近记录并在自己的 `viewModelScope` 内启动读取及选择写入，视频条目共享该模型。Store 不创建 scope、单例或事件队列，只提供挂起读写；挂起入口先取得 Mutex，再切换 IO 调度器读写，以串行化首次读取与后续写入并保留连续选择顺序。独立 `kirakira_kaomoji.xml` 保存最多 24 项去重记录，只接受目录中存在的值；初始或格式损坏记录回退为空。写入检查 commit 结果并通过只读 `persistenceFailed` 暴露失败，内存保留最新列表，后续选择重新写入完整列表；读取权限失败不发布已加载状态，下次调用可重试。最近记录不属于账号私有数据，不保存草稿，不加入备份白名单，也不请求网络。来源与许可见 [Cerasus 资源](../../third_party/cerasus-icons/README.md)。
+
+视频赞踩及评论净评分复用共享数字动画，未知的视频互动数保持破折号，收藏仍为占位。评论、弹幕总数与评论当前页／总页数、跳页上限复用本地化计数标签，只滚动数字。评论标题继续测量完整标签与工具栏宽度决定同排或上下排布，页码继续受工具栏宽度约束。计数变化来自原有操作确认与刷新，不改变业务状态或请求时序；组件约束见[数字动画与字数计数](components.md#数字动画与字数计数)。

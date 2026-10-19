@@ -25,9 +25,10 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import java.io.IOException
-import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 import kotlin.math.round
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -42,10 +43,12 @@ internal val playbackSpeeds = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f,
 /** Host-owned playback, paused on restoration; never stores URLs or credentials in SavedState. */
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 internal class PlaybackViewModel(
-    private val context: Context,
+    context: Context,
     private val savedState: SavedStateHandle,
-    private val history: HistoryRepository? = null,
+    history: HistoryRepository? = null,
 ) : ViewModel() {
+    private val applicationContext = context.applicationContext
+
     var videoId by mutableStateOf<Int?>(null)
         private set
     var miniPlayer by mutableStateOf(false)
@@ -59,9 +62,8 @@ internal class PlaybackViewModel(
     }
 
     private var sessionRevision: Long? = null
-    private var resumeHandled = true
-    private var cloudPositionToValidate: Long? = null
-    private var lastRecordedPosition = 0L
+    private val resume = PlaybackResumeController()
+    private val historyRecorder = PlaybackHistoryRecorder(history)
     private val initiallyReadyPartIds = mutableSetOf<Int>()
 
     fun syncSession(revision: Long): Boolean {
@@ -75,11 +77,11 @@ internal class PlaybackViewModel(
         if (videoId != id) {
             release()
             initiallyReadyPartIds.clear()
-            resumeHandled = savedState.get<Int>("video_id") == id
-            cloudPositionToValidate = null
+            resume.begin(restored = savedState.get<Int>("video_id") == id)
             bounds = null
             parts = emptyList()
             title = ""
+            artwork = null
             if (savedState.get<Int>("video_id") != id) {
                 selectedPart = 0
                 positionMs = 0L
@@ -95,7 +97,7 @@ internal class PlaybackViewModel(
                 autoplayHandled = false
             }
             failed = false
-            lastRecordedPosition = positionMs
+            historyRecorder.resetPosition(positionMs)
             videoId = id
             savedState["video_id"] = id
         }
@@ -128,6 +130,7 @@ internal class PlaybackViewModel(
         videoId = null
         pageVideoId = null
         parts = emptyList()
+        artwork = null
         savedState.remove<Int>("video_id")
     }
 
@@ -233,32 +236,61 @@ internal class PlaybackViewModel(
     fun cancelAutoplay() { autoplayHandled = true }
 
     private var parts = emptyList<VideoPart>()
+    var artwork by mutableStateOf<String?>(null)
+        private set
     private var title = ""
     private var mediaSession: MediaSession? = null
     private var progress: Job? = null
 
-    fun setContent(title: String, parts: List<VideoPart>, resumePosition: Long? = null, resumeReady: Boolean = true) {
-        // Refetching the same video can rotate media URLs; keep the current playback uninterrupted.
-        if (this.parts.isNotEmpty() && this.parts.getOrNull(selectedPart)?.id != parts.getOrNull(selectedPart)?.id) {
+    fun setContent(
+        title: String,
+        parts: List<VideoPart>,
+        resumePosition: Long? = null,
+        resumeReady: Boolean = true,
+        artwork: String? = null,
+    ) {
+        this.artwork = artwork
+        // Follow the part identity across reordering; refreshed URLs alone must not interrupt playback.
+        val previousPart = this.parts.getOrNull(selectedPart)
+        val matchingIndex = previousPart?.let { previous -> parts.indexOfFirst { it.id == previous.id } } ?: -1
+        val nextIndex = if (previousPart != null) {
+            matchingIndex.takeIf { it >= 0 } ?: 0
+        } else {
+            selectedPart.takeIf { it in parts.indices } ?: 0
+        }
+        val partRemoved = this.parts.isNotEmpty() && (previousPart == null || matchingIndex == -1)
+        val restoredPartMissing = this.parts.isEmpty() && parts.isNotEmpty() && selectedPart !in parts.indices
+        if (partRemoved || restoredPartMissing) {
             release()
+            resume.onSeek()
+            cancelAutoplay()
+            positionMs = 0L
+            durationMs = 0L
+            failed = false
+            historyRecorder.resetPosition(0L)
+            savedState["position"] = 0L
+        } else if (selectedPart != nextIndex) {
+            // Flush under the old index before its first-part history eligibility changes.
+            flushHistory()
+            historyRecorder.resetPosition(positionMs)
         }
         this.title = title
         this.parts = parts
-        if (selectedPart !in parts.indices) selectedPart = 0
-        if (!resumeHandled && resumeReady && parts.isNotEmpty()) {
-            resumeHandled = true
-            if (selectedPart == 0 && player == null && positionMs == 0L && resumePosition != null) {
-                positionMs = resumePosition
-                savedState["position"] = resumePosition
-                lastRecordedPosition = resumePosition
-                cloudPositionToValidate = resumePosition
+        selectedPart = nextIndex
+        savedState["part"] = selectedPart
+        if (resumeReady && parts.isNotEmpty()) {
+            val candidate = resumePosition.takeIf { selectedPart == 0 && player == null && positionMs == 0L }
+            resume.resolve(candidate)?.let { position ->
+                positionMs = position
+                savedState["position"] = position
+                historyRecorder.resetPosition(position)
             }
         }
     }
 
     fun play() {
         autoplayHandled = true
-        resumeHandled = true
+        resume.onPlay()
         val part = parts.getOrNull(selectedPart)
         if (part?.url == null) { failed = true; initialLoading = false; return }
         val current = player
@@ -271,7 +303,7 @@ internal class PlaybackViewModel(
         failed = false
         initialLoading = part.id !in initiallyReadyPartIds
         val resumePosition = positionMs
-        val next = ExoPlayer.Builder(context)
+        val next = ExoPlayer.Builder(applicationContext)
             .setMediaSourceFactory(DefaultMediaSourceFactory(OkHttpDataSource.Factory(publicMediaClient)))
             .build().apply playerSetup@ {
                 setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA)
@@ -292,13 +324,10 @@ internal class PlaybackViewModel(
                             initialLoading = false
                         }
                         durationMs = player.duration.takeIf { it != C.TIME_UNSET }?.coerceAtLeast(0) ?: 0
-                        cloudPositionToValidate?.takeIf { durationMs > 0 }?.let { position ->
-                            cloudPositionToValidate = null
-                            if (position >= durationMs - 10_000) {
-                                lastRecordedPosition = 0L
-                                savedState["position"] = 0L
-                                player.seekTo(0)
-                            }
+                        if (resume.shouldRestart(durationMs)) {
+                            historyRecorder.resetPosition(0L)
+                            savedState["position"] = 0L
+                            player.seekTo(0)
                         }
                         positionMs = player.currentPosition.coerceAtLeast(0)
                         bufferedPositionMs = player.bufferedPosition.coerceIn(0, durationMs)
@@ -320,21 +349,18 @@ internal class PlaybackViewModel(
             }
         player = next
         applySpeed()
-        mediaSession = MediaSession.Builder(context, next).setId("video-${hashCode()}").build()
+        mediaSession = MediaSession.Builder(applicationContext, next).setId("video-${hashCode()}").build()
         next.prepare()
         next.play()
+        historyRecorder.startSampling()
         progress = viewModelScope.launch {
-            var samples = 0
             while (true) {
                 actualVideoHeight = next.videoFormat?.height?.takeIf { it > 0 }
                 positionMs = next.currentPosition.coerceAtLeast(0)
                 bufferedPositionMs = next.bufferedPosition.coerceIn(0, durationMs)
                 savedState["position"] = positionMs
-                delay(500)
-                if (++samples >= 10) {
-                    samples = 0
-                    recordHistory(15_000)
-                }
+                delay(500.milliseconds)
+                historyRecorder.sample(historySample())
             }
         }
     }
@@ -348,8 +374,7 @@ internal class PlaybackViewModel(
         }
     }
     fun seek(position: Long) {
-        resumeHandled = true
-        cloudPositionToValidate = null
+        resume.onSeek()
         positionMs = position.coerceIn(0, durationMs.coerceAtLeast(0))
         player?.seekTo(positionMs)
         bufferedPositionMs = player?.bufferedPosition?.coerceIn(0, durationMs) ?: 0L
@@ -360,11 +385,10 @@ internal class PlaybackViewModel(
         if (index == selectedPart || index !in parts.indices) return
         val continuePlaying = player?.playWhenReady == true
         release()
-        resumeHandled = true
-        cloudPositionToValidate = null
+        resume.onSeek()
         selectedPart = index
         positionMs = 0
-        lastRecordedPosition = 0L
+        historyRecorder.resetPosition(0L)
         durationMs = 0
         failed = false
         savedState["part"] = index
@@ -372,18 +396,14 @@ internal class PlaybackViewModel(
         if (continuePlaying) play()
     }
     fun pause() { autoplayHandled = true; player?.pause(); flushHistory() }
-    fun flushHistory() = recordHistory(1_000)
+    fun flushHistory() = historyRecorder.flush(historySample())
 
-    private fun recordHistory(minimumChange: Long) {
-        val current = player ?: return
-        val id = videoId ?: return
-        val revision = sessionRevision ?: return
-        if (selectedPart != 0 || cloudPositionToValidate != null) return
-        val position = current.currentPosition.coerceAtLeast(0)
-        if (abs(position - lastRecordedPosition) < minimumChange) return
-        lastRecordedPosition = position
-        if (durationMs > 0) history?.rememberDuration(id, durationMs, revision)
-        history?.enqueue(id, position, revision)
+    private fun historySample(): PlaybackHistorySample? {
+        val current = player ?: return null
+        val id = videoId ?: return null
+        val revision = sessionRevision ?: return null
+        if (selectedPart != 0 || !resume.canRecordHistory) return null
+        return PlaybackHistorySample(id, revision, current.currentPosition.coerceAtLeast(0), durationMs)
     }
 
     fun release() {
@@ -412,7 +432,7 @@ internal class PlaybackViewModel(
 
 /** A separate public-media transport: no API cookie jar, headers or authentication interceptors. */
 private val publicMediaClient: OkHttpClient = OkHttpClient.Builder()
-    .connectTimeout(15, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS)
+    .connectTimeout(15.seconds).readTimeout(30.seconds)
     .followSslRedirects(false)
     .addNetworkInterceptor { chain ->
         val url = chain.request().url
