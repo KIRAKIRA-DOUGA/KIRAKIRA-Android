@@ -9,15 +9,20 @@ import androidx.compose.ui.graphics.Color
 @Immutable
 data class ThemeSemanticColors(
     val success: Color,
-    val onSuccess: Color,
+    val onSuccess: Color = Color.White,
+    val warning: Color,
+    val onWarning: Color,
 )
 
 internal fun themeSemanticColors(darkTheme: Boolean): ThemeSemanticColors = ThemeSemanticColors(
     success = if (darkTheme) Color(0xFF00594F) else Color(0xFF008577),
-    onSuccess = Color.White,
+    warning = if (darkTheme) Color(0xFF5D4300) else Color(0xFFFFC107),
+    onWarning = if (darkTheme) Color(0xFFFFE082) else Color(0xFF3E2E00),
 )
 
 internal val LocalThemeSemanticColors = staticCompositionLocalOf { themeSemanticColors(darkTheme = false) }
 
+// The receiver keeps the custom roles alongside MaterialTheme.colorScheme at call sites.
+@Suppress("UnusedReceiverParameter")
 val MaterialTheme.semanticColors: ThemeSemanticColors
     @Composable get() = LocalThemeSemanticColors.current

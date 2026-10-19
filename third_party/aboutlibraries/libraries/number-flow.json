@@ -1,0 +1,15 @@
+{
+  "uniqueId": "third-party:number-flow",
+  "name": "NumberFlow",
+  "artifactVersion": "f7550f50d8f2914267c02a8e34375f944f97753b",
+  "developers": [
+    {
+      "name": "Nadeem Iqbal"
+    }
+  ],
+  "website": "https://github.com/NadeemIqbal/number-flow",
+  "description": "Per-digit animated number ticker for Compose. Fixed upstream sources compiled in the app module; integration documented in third_party/number-flow.",
+  "licenses": [
+    "kirakira-number-flow-apache-2.0"
+  ]
+}

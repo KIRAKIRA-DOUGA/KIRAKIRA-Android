@@ -1,4 +1,5 @@
 <resources>
+    <string name="text_field_invalid_input">输入无效</string>
     <string name="security_codes_unavailable">验证器已启用，但未能读取恢复码。可以解绑后重新绑定以获取新的代码。</string>
     <string name="security_sign_in">登录后管理账号安全</string>
     <string name="security_protected">已开启二步验证</string>
@@ -121,6 +122,7 @@
     <string name="profile_name_invalid">请输入 1–20 个支持的字符，分隔符不能位于首尾或连续出现</string>
     <string name="profile_bio_invalid">简介不能超过 200 个字符</string>
     <string name="profile_character_count">%1$d / %2$d</string>
+    <string name="character_count">%1$s / %2$d</string>
     <string name="nav_home">首页</string>
     <string name="nav_search">搜索</string>
     <string name="nav_following">关注</string>
@@ -219,6 +221,12 @@
     <string name="theme_color_custom">自定义</string>
     <string name="theme_color_hex">HEX 色值</string>
     <string name="theme_color_hex_error">请输入六位十六进制字符（0–9、A–F）</string>
+    <string name="theme_color_format">色值格式：%1$s</string>
+    <string name="theme_color_rgb">RGB 色值</string>
+    <string name="theme_color_oklch">OKLCH 色值</string>
+    <string name="theme_color_rgb_error">请输入 0–255 的 R、G、B 整数，例如 rgb(240 110 142)</string>
+    <string name="theme_color_oklch_error" formatted="false">请输入 0–1 或 0–100% 的 L、0–0.4 的 C，以及以度为单位的 H，例如 oklch(70% 0.16 5)</string>
+    <string name="theme_color_gamut_mapped">已调整彩度以适配 sRGB，色块显示实际保存的颜色</string>
     <string name="theme_color_apply">应用</string>
     <string name="theme_color_cancel">取消</string>
     <string name="theme_color_picker_description">在色盘上选择颜色，再调整亮度，点按“应用”即可更改整个应用的配色</string>
@@ -250,6 +258,7 @@
     <string name="video_action_unavailable">此功能待接入</string>
     <string name="video_action_count">%1$s，%2$d</string>
     <string name="video_count">%1$d</string>
+    <string name="animated_count">%1$s</string>
 
     <!-- Comment sorting and navigation -->
     <string name="video_comments_previous_page">跳转到上一页</string>

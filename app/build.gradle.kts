@@ -85,6 +85,7 @@ android {
             }
         }
     }
+    sourceSets.getByName("main").kotlin.directories.add(rootProject.file("third_party/number-flow/src").path)
     sourceSets.getByName("test").kotlin.directories.add("src/authTestShared/java")
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
