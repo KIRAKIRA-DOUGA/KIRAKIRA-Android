@@ -84,6 +84,7 @@ internal fun VideoPage(
     videoId: Int,
     repository: ContentRepository,
     onBack: () -> Unit,
+    kaomojiModel: KaomojiViewModel,
     onOpenProfile: (Long) -> Unit,
     onLogin: () -> Unit,
     onOpenTag: (Long) -> Unit,
@@ -96,7 +97,6 @@ internal fun VideoPage(
     onPlayerBounds: (Rect) -> Unit = {},
 ) {
     val model = viewModel { VideoViewModel(videoId, repository, historyRepository) }
-    val kaomojiModel: KaomojiViewModel = viewModel()
     val recentKaomoji by kaomojiModel.recent.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val resources by rememberUpdatedState(LocalResources.current)
@@ -243,7 +243,7 @@ internal fun VideoPage(
                         { comment, reaction -> requireLogin { model.voteComment(comment, reaction) } },
                         model::comments, model::refreshComments, model::retryComments,
                         model::loadAdjacentComments, model::consumeCommentLocation, model::ensureTab,
-                        { model.commentDraft.value = it }, { model.danmakuDraft.value = it },
+                        model::updateCommentDraft, model::updateDanmakuDraft,
                         { requireLogin(model::sendComment) }, { requireLogin { model.sendDanmaku(playback.positionMs) } },
                         model::refreshDanmaku, onOpenProfile,
                         ::unavailable, { requireLogin {} }, inlineLayout.contentPadding,

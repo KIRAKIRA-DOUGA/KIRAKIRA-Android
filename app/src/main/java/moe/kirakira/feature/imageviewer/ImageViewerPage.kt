@@ -127,7 +127,7 @@ internal fun ImageViewerPage(
         }
         LaunchedEffect(loader, loader.requestSucceeded) {
             if (loader.requestSucceeded) {
-                val displayed = withTimeoutOrNull(VIEWER_FIRST_FRAME_TIMEOUT_MILLIS) {
+                val displayed = withTimeoutOrNull(VIEWER_FIRST_FRAME_TIMEOUT) {
                     snapshotFlow { imageState.isImageDisplayed }.first { it }
                 }
                 if (displayed == null) loader.usePreview(ViewerImageFallback.FIRST_FRAME_TIMEOUT)

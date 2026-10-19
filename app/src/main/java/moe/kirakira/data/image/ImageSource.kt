@@ -1,11 +1,12 @@
 package moe.kirakira.data.image
 
+import android.annotation.SuppressLint
 import android.content.Context
 import androidx.annotation.DrawableRes
 import androidx.core.net.toUri
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import moe.kirakira.core.image.publicMediaHttpUrl
 
 /** Local images or public HTTPS URLs. URI permissions remain the caller's responsibility. */
 @Serializable
@@ -28,16 +29,13 @@ sealed interface ImageSource {
     @SerialName("moe.kirakira.feature.imageviewer.ImageSource.RemoteUrl")
     data class RemoteUrl(val value: String) : ImageSource {
         init {
-            require(value.isPublicHttpsImageUrl()) { "Only public HTTPS images are supported" }
+            require(publicMediaHttpUrl(value) != null) { "Only public HTTPS images are supported" }
         }
     }
 }
 
-internal fun String.isPublicHttpsImageUrl(): Boolean {
-    val url = toHttpUrlOrNull()
-    return url != null && url.isHttps && url.username.isEmpty() && url.password.isEmpty()
-}
-
+// openRawResource also reads encoded bitmap drawables; ImageSource.Resource excludes XML/vector data.
+@SuppressLint("ResourceType")
 internal fun ImageSource.open(context: Context) = when (this) {
     is ImageSource.Resource -> context.resources.openRawResource(id)
     is ImageSource.ContentUri -> checkNotNull(context.contentResolver.openInputStream(value.toUri()))

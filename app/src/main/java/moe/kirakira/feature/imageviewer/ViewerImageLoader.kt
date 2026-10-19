@@ -27,6 +27,7 @@ import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.floor
 import kotlin.math.sqrt
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -42,8 +43,8 @@ import moe.kirakira.data.image.ImageSource
 internal enum class ViewerImagePhase { LOADING, PREPARING_TILES, READY, PREVIEW, FAILED }
 internal enum class ViewerImageFallback { SOURCE_UNAVAILABLE, CACHE_READ, DECODER, REQUEST_TIMEOUT, FIRST_FRAME_TIMEOUT }
 
-internal const val VIEWER_REQUEST_TIMEOUT_MILLIS = 45_000L
-internal const val VIEWER_FIRST_FRAME_TIMEOUT_MILLIS = 15_000L
+internal val VIEWER_REQUEST_TIMEOUT = 45.seconds
+internal val VIEWER_FIRST_FRAME_TIMEOUT = 15.seconds
 private const val MAX_PREVIEW_EDGE = 4096
 private const val MAX_PREVIEW_PIXELS = 4_000_000L
 
@@ -75,7 +76,7 @@ internal class ViewerImageLoader(
     suspend fun loadThumbnail(viewport: IntSize) {
         val thumbnail = image.thumbnail ?: image.source.takeIf { it is ImageSource.Resource } ?: return
         try {
-            val result = withTimeoutOrNull(VIEWER_REQUEST_TIMEOUT_MILLIS) {
+            val result = withTimeoutOrNull(VIEWER_REQUEST_TIMEOUT) {
                 imageLoader.execute(
                     ImageRequest.Builder(context)
                         .data(thumbnail.coilModel())
@@ -100,7 +101,7 @@ internal class ViewerImageLoader(
     suspend fun load(viewport: IntSize) {
         ImageViewerDiagnostics.loading(instanceId, attempt, phase)
         try {
-            val completed = withTimeoutOrNull(VIEWER_REQUEST_TIMEOUT_MILLIS) {
+            val completed = withTimeoutOrNull(VIEWER_REQUEST_TIMEOUT) {
                 val size = boundedPreviewSize(viewport)
                 var result = request(size) ?: return@withTimeoutOrNull false
                 acceptPreview(result)

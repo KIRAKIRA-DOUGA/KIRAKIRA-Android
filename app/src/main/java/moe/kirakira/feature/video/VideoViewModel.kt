@@ -1,5 +1,6 @@
 package moe.kirakira.feature.video
 
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -34,14 +35,16 @@ internal class VideoViewModel(
     val comments = commentList.state
     private val _danmaku = MutableStateFlow(ContentState<List<DanmakuEntry>>())
     val danmaku = _danmaku.asStateFlow()
-    val commentDraft = MutableStateFlow("")
+    private val _commentDraft = MutableStateFlow("")
+    val commentDraft = _commentDraft.asStateFlow()
     private val _danmakuStyle = MutableStateFlow(DanmakuStyle())
     val danmakuStyle = _danmakuStyle.asStateFlow()
     fun updateDanmakuStyle(style: DanmakuStyle) {
         if (!busy.value) _danmakuStyle.value = style
     }
 
-    val danmakuDraft = MutableStateFlow("")
+    private val _danmakuDraft = MutableStateFlow("")
+    val danmakuDraft = _danmakuDraft.asStateFlow()
     private val _posted = MutableStateFlow<VideoComment?>(null)
     val posted = _posted.asStateFlow()
     private var commentsRequested = false
@@ -54,8 +57,8 @@ internal class VideoViewModel(
             resumeTask = null
             commentList.reset()
             _danmaku.value = ContentState()
-            commentDraft.value = ""
-            danmakuDraft.value = ""
+            _commentDraft.value = ""
+            _danmakuDraft.value = ""
             _danmakuStyle.value = DanmakuStyle()
             _posted.value = null
             commentsRequested = false
@@ -81,7 +84,7 @@ internal class VideoViewModel(
         val expected = revision
         resumeTask = launchTask {
             val positionMs = try {
-                withTimeoutOrNull(1_500L) {
+                withTimeoutOrNull(1_500.milliseconds) {
                     history?.awaitPending(expected)
                     history?.loadIfNeeded(expected)
                     history?.resumePosition(videoId, expected)
@@ -127,13 +130,18 @@ internal class VideoViewModel(
         val author = _detail.value.data?.author ?: return
         val following = !author.following
         mutate { revision ->
-            repository.follow(author.uid, following, revision)
-            currentCoroutineContext().ensureActive()
-            if (revision != repository.session.value.revision) return@mutate
-            val current = _detail.value
-            val detail = current.data ?: return@mutate
-            if (detail.author.uid == author.uid) {
-                _detail.value = current.copy(data = detail.copy(author = detail.author.copy(following = following)))
+            try {
+                repository.follow(author.uid, following, revision)
+                currentCoroutineContext().ensureActive()
+                if (revision != repository.session.value.revision) return@mutate
+                val current = _detail.value
+                val detail = current.data ?: return@mutate
+                if (detail.author.uid == author.uid) {
+                    _detail.value = current.copy(data = detail.copy(author = detail.author.copy(following = following)))
+                }
+            } finally {
+                currentCoroutineContext().ensureActive()
+                refresh()
             }
         }
     }
@@ -145,12 +153,20 @@ internal class VideoViewModel(
             commentList.reloadComment(comment.id)
         }
     }
+    fun updateCommentDraft(text: String) {
+        if (!busy.value) _commentDraft.value = text
+    }
+
+    fun updateDanmakuDraft(text: String) {
+        if (!busy.value) _danmakuDraft.value = text
+    }
+
     fun sendComment() {
         val text = commentDraft.value.trim()
         if (text.isEmpty() || text.length >= 20000) return
         mutate { revision ->
             val comment = repository.postComment(videoId, text, revision)
-            commentDraft.value = ""
+            _commentDraft.value = ""
             _posted.value = comment
             commentList.posted()
         }
@@ -161,7 +177,7 @@ internal class VideoViewModel(
         val style = _danmakuStyle.value
         mutate { revision ->
             repository.postDanmaku(videoId, text, positionMs / 1000.0, revision, style)
-            danmakuDraft.value = ""
+            _danmakuDraft.value = ""
             refreshDanmaku()
         }
     }

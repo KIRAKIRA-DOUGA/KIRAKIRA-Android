@@ -16,8 +16,18 @@ import moe.kirakira.ui.content.ContentState
 internal data class CommentEntry(val comment: VideoComment, val page: Int)
 internal data class CommentLocation(val request: Long, val page: Int)
 
+/** Derived entries are rebuilt only when the page window changes. */
+internal class CommentPages(pages: Map<Int, CommentPage> = emptyMap()) {
+    val pages = pages.toMap()
+    val entries: List<CommentEntry> = this.pages.toSortedMap().flatMap { (page, data) ->
+        data.comments.map { CommentEntry(it, page) }
+    }.distinctBy { it.comment.id }
+    val firstPage = this.pages.keys.minOrNull() ?: 1
+    val lastPage = this.pages.keys.maxOrNull() ?: 1
+}
+
 internal data class CommentListState(
-    val pages: Map<Int, CommentPage> = emptyMap(),
+    val content: CommentPages = CommentPages(),
     val total: Int = 0,
     val loading: Boolean = false,
     val refreshing: Boolean = false,
@@ -29,13 +39,15 @@ internal data class CommentListState(
     val location: CommentLocation? = null,
     val updatingPages: Set<Int> = emptySet(),
 ) {
-    val entries: List<CommentEntry> = pages.toSortedMap().flatMap { (page, data) ->
-        data.comments.map { CommentEntry(it, page) }
-    }.distinctBy { it.comment.id }
-    val firstPage: Int get() = pages.keys.minOrNull() ?: 1
-    val lastPage: Int get() = pages.keys.maxOrNull() ?: 1
+    val pages: Map<Int, CommentPage> get() = content.pages
+    val entries: List<CommentEntry> get() = content.entries
+    val firstPage: Int get() = content.firstPage
+    val lastPage: Int get() = content.lastPage
     val totalPages: Int get() = ((total + 19) / 20).coerceAtLeast(1)
 }
+
+private enum class CommentOperation { JUMP, REFRESH, LAST, PREVIOUS, NEXT, UPDATE }
+private data class CommentRequest(val page: Int, val operation: CommentOperation)
 
 /** Owns a contiguous page window; a generation invalidates reads after navigation or refresh. */
 internal class CommentListLoader(
@@ -48,9 +60,7 @@ internal class CommentListLoader(
     private val requests = mutableMapOf<Int, Job>()
     private var generation = 0L
     private var locationId = 0L
-    private var failedPage = 1
-    private var failedUpdate = false
-    private var failedLast = false
+    private var failedRequest = CommentRequest(1, CommentOperation.JUMP)
     private var accountRevision = repository.session.value.revision
     private val ready: Boolean
         get() = repository.session.value.isReadyForContent && repository.session.value.revision == accountRevision
@@ -71,28 +81,42 @@ internal class CommentListLoader(
         )
     }
 
-    fun jump(page: Int, force: Boolean = false, refresh: Boolean = false, last: Boolean = false) {
+    fun jump(page: Int) {
         if (!ready) return
         val target = page.coerceAtLeast(1)
-        cancelRequests()
-        val current = mutableState.value
-        if (!force && current.pages[target]?.comments?.isNotEmpty() == true) {
-            mutableState.value = current.copy(error = null, location = CommentLocation(++locationId, target))
+        if (mutableState.value.pages[target]?.comments?.isNotEmpty() == true) {
+            cancelRequests()
+            mutableState.value = mutableState.value.copy(error = null, location = CommentLocation(++locationId, target))
             return
         }
-        failedPage = target
-        failedUpdate = false
-        failedLast = last
-        mutableState.value = current.copy(loading = true, refreshing = refresh, error = null, location = null)
-        read(target, replace = true, last = last)
+        replace(CommentRequest(target, CommentOperation.JUMP))
     }
 
-    fun refresh() = jump(1, force = true, refresh = true)
+    private fun replace(request: CommentRequest) {
+        if (!ready) return
+        cancelRequests()
+        failedRequest = request
+        mutableState.value = mutableState.value.copy(
+            loading = true, refreshing = request.operation == CommentOperation.REFRESH, error = null, location = null,
+        )
+        read(request)
+    }
+
+    fun refresh() = replace(CommentRequest(1, CommentOperation.REFRESH))
+
     fun retry() {
         if (!ready) return
-        if (failedUpdate && failedPage in mutableState.value.pages) {
-            if (failedPage !in requests) read(failedPage, update = true)
-        } else jump(failedPage, force = true, last = failedLast)
+        val request = failedRequest
+        when (request.operation) {
+            CommentOperation.UPDATE -> {
+                if (request.page in mutableState.value.pages) {
+                    if (request.page !in requests) read(request)
+                } else replace(request.copy(operation = CommentOperation.JUMP))
+            }
+            CommentOperation.REFRESH -> replace(request.copy(operation = CommentOperation.JUMP))
+            CommentOperation.JUMP, CommentOperation.LAST -> replace(request)
+            CommentOperation.PREVIOUS, CommentOperation.NEXT -> Unit // Retried through the corresponding edge.
+        }
     }
 
     fun consumeLocation(request: Long) {
@@ -113,7 +137,7 @@ internal class CommentListLoader(
         if (page in requests) return
         mutableState.value = if (before) current.copy(previous = ContentState(loading = true))
         else current.copy(next = ContentState(loading = true))
-        read(page, before = before)
+        read(CommentRequest(page, if (before) CommentOperation.PREVIOUS else CommentOperation.NEXT))
     }
 
     fun reloadComment(id: String) {
@@ -121,22 +145,23 @@ internal class CommentListLoader(
         val current = mutableState.value
         val page = current.entries.firstOrNull { it.comment.id == id }?.page ?: return
         if (current.loading || page in requests) return
-        read(page, update = true)
+        read(CommentRequest(page, CommentOperation.UPDATE))
     }
 
     fun posted() {
         val total = mutableState.value.total + 1
         mutableState.value = mutableState.value.copy(total = total)
-        jump(((total + 19) / 20).coerceAtLeast(1), force = true, last = true)
+        replace(CommentRequest(((total + 19) / 20).coerceAtLeast(1), CommentOperation.LAST))
     }
 
-    private fun read(
-        page: Int,
-        replace: Boolean = false,
-        before: Boolean = false,
-        update: Boolean = false,
-        last: Boolean = false,
-    ) {
+    private fun read(request: CommentRequest) {
+        val (page, operation) = request
+        val replace = when (operation) {
+            CommentOperation.JUMP, CommentOperation.REFRESH, CommentOperation.LAST -> true
+            CommentOperation.PREVIOUS, CommentOperation.NEXT, CommentOperation.UPDATE -> false
+        }
+        val before = operation == CommentOperation.PREVIOUS
+        val update = operation == CommentOperation.UPDATE
         val expectedGeneration = generation
         val revision = accountRevision
         if (update) {
@@ -148,7 +173,7 @@ internal class CommentListLoader(
             try {
                 var result = repository.comments(videoId, page, revision)
                 // Publishing can race other new comments; use a fresh count to find the last page.
-                if (last && result.page != result.pages) {
+                if (operation == CommentOperation.LAST && result.page != result.pages) {
                     result = repository.comments(videoId, result.pages, revision)
                 }
                 currentCoroutineContext().ensureActive()
@@ -156,7 +181,7 @@ internal class CommentListLoader(
                 val current = mutableState.value
                 val newPages = if (replace) mapOf(result.page to result) else current.pages + (page to result)
                 mutableState.value = current.copy(
-                    pages = newPages,
+                    content = CommentPages(newPages),
                     total = result.total,
                     loading = false,
                     refreshing = false,
@@ -182,8 +207,7 @@ internal class CommentListLoader(
                     else -> current.copy(next = ContentState(error = error.failure))
                 }
                 if (update) {
-                    failedPage = page
-                    failedUpdate = true
+                    failedRequest = request
                 }
             } finally {
                 if (generation == expectedGeneration) requests.remove(page)

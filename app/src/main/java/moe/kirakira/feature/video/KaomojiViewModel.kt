@@ -1,12 +1,19 @@
 package moe.kirakira.feature.video
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import moe.kirakira.data.kaomoji.RecentKaomojiStore
 
-internal class KaomojiViewModel(application: Application) : AndroidViewModel(application) {
-    private val store = RecentKaomojiStore.get(application)
+/** Shared by video entries; the navigation host owns initialization and pending selections. */
+internal class KaomojiViewModel(private val store: RecentKaomojiStore) : ViewModel() {
     val recent = store.recent
 
-    fun record(text: String) = store.record(text)
+    init {
+        viewModelScope.launch { store.load() }
+    }
+
+    fun record(text: String) {
+        viewModelScope.launch { store.record(text) }
+    }
 }

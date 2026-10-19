@@ -34,7 +34,8 @@ internal class PlaybackSettingsViewModel(application: Application) : AndroidView
     }
 
     private fun update(change: PlaybackSettings.() -> PlaybackSettings) {
-        val next = state.value?.change() ?: return
+        val current = state.value ?: return
+        val next = change(current)
         // apply updates the in-memory preferences synchronously and schedules disk I/O off main.
         store.write(next)
         state.value = next

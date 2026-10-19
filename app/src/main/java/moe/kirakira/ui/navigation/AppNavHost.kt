@@ -1,5 +1,6 @@
 package moe.kirakira.ui.navigation
 
+import android.annotation.SuppressLint
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -35,6 +36,7 @@ import moe.kirakira.feature.player.PlaybackViewModel
 import moe.kirakira.feature.search.SearchViewModel
 import moe.kirakira.feature.settings.DanmakuSettingsViewModel
 import moe.kirakira.feature.settings.PlaybackSettingsViewModel
+import moe.kirakira.feature.video.KaomojiViewModel
 import moe.kirakira.ui.components.rememberEmphasizedEasing
 import moe.kirakira.ui.theme.ThemeColorSettings
 import moe.kirakira.ui.theme.ThemeMode
@@ -100,9 +102,12 @@ internal fun AppNavHost(
     val contentRepository = dependencies?.content
     val authRepository = dependencies?.auth
     val historyRepository = dependencies?.history
+    // Only the IDE preview uses an empty handle; runtime creation uses the saved-state owner below.
+    @SuppressLint("VisibleForTests")
     val playback = if (LocalInspectionMode.current) {
         remember { PlaybackViewModel(context.applicationContext, SavedStateHandle()) }
     } else viewModel { PlaybackViewModel(context.applicationContext, createSavedStateHandle(), historyRepository) }
+    val kaomojiModel = dependencies?.let { viewModel { KaomojiViewModel(it.recentKaomoji) } }
     val homeViewModel = contentRepository?.let { viewModel { HomeViewModel(it) } }
     val searchViewModel = contentRepository?.let { viewModel { SearchViewModel(it) } }
     val videoPageActive = backStack.lastOrNull() is VideoRoute
@@ -168,7 +173,7 @@ internal fun AppNavHost(
             entryProvider = entryProvider {
                 registerMainEntries(this, navigation, accountState, homeViewModel, searchViewModel)
                 registerContentEntries(
-                    this, navigation, dependencies, accountState, playback, playbackSettings, danmakuSettings,
+                    this, navigation, dependencies, accountState, playback, playbackSettings, danmakuSettings, kaomojiModel,
                     onDanmakuEnabled = { danmakuSettingsModel?.setEnabled(it) },
                     onQualityPreference = { playbackSettingsModel?.setQuality(it) },
                 )

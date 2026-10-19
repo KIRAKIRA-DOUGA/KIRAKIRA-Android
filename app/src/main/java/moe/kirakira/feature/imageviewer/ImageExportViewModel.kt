@@ -20,9 +20,10 @@ internal enum class ImageExportOperation { SAVE, COPY }
 
 /** Host-owned exports survive removal of the viewer entry. */
 internal class ImageExportViewModel(
-    private val context: Context,
+    context: Context,
     private val repository: ImageExportRepository,
 ) : ViewModel() {
+    private val applicationContext = context.applicationContext
     private val mutableOperations = MutableStateFlow<Map<String, ImageExportOperation>>(emptyMap())
     val operations = mutableOperations.asStateFlow()
     private val messages = Channel<Int>(Channel.BUFFERED)
@@ -42,8 +43,10 @@ internal class ImageExportViewModel(
                     // The clipboard is shared across viewer instances; preserve request order.
                     copyMutex.withLock {
                         val uri = repository.copyUri(image.source, image.fileName)
-                        context.getSystemService(ClipboardManager::class.java).setPrimaryClip(
-                            ClipData.newUri(context.contentResolver, image.description, uri),
+                        // The current SDK exposes primaryClip as read-only to Kotlin; keep its Java setter.
+                        @Suppress("UsePropertyAccessSyntax")
+                        applicationContext.getSystemService(ClipboardManager::class.java).setPrimaryClip(
+                            ClipData.newUri(applicationContext.contentResolver, image.description, uri),
                         )
                         messages.send(R.string.image_copied)
                     }

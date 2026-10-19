@@ -1,56 +1,70 @@
 package moe.kirakira.data.kaomoji
 
+import android.annotation.SuppressLint
 import android.content.Context
-import androidx.core.content.edit
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import org.json.JSONException
 
 /** App-local preferences, deliberately outside the settings backup allowlist. */
-internal class RecentKaomojiStore private constructor(context: Context) {
+internal class RecentKaomojiStore(context: Context) {
+    private val applicationContext = context.applicationContext
     private val state = MutableStateFlow<List<String>>(emptyList())
     val recent = state.asStateFlow()
-    private val selections = Channel<String>(Channel.UNLIMITED)
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val _persistenceFailed = MutableStateFlow(false)
+    val persistenceFailed = _persistenceFailed.asStateFlow()
+    private val mutex = Mutex()
+    private val catalog = kaomojiCatalog.values.flatten().toSet()
+    private val preferences by lazy {
+        applicationContext.getSharedPreferences("kirakira_kaomoji", Context.MODE_PRIVATE)
+    }
+    private var loaded = false
 
-    init {
-        scope.launch {
-            val preferences = context.getSharedPreferences("kirakira_kaomoji", Context.MODE_PRIVATE)
-            val catalog = kaomojiCatalog.values.flatten().toSet()
-            state.value = try {
-                val saved = JSONArray(preferences.getString("recent", "[]"))
-                List(saved.length()) { saved.optString(it) }.filter { it in catalog }.distinct().take(24)
-            } catch (_: org.json.JSONException) {
-                emptyList()
-            } catch (_: ClassCastException) {
-                emptyList()
-            }
-            // One consumer serializes the initial read and every write, even across video pages.
-            for (text in selections) {
-                if (text !in catalog) continue
-                val next = (listOf(text) + state.value).distinct().take(24)
-                state.value = next
-                preferences.edit(commit = true) {
-                    putString("recent", JSONArray(next).toString())
-                }
-            }
+    suspend fun load(): Boolean = mutex.withLock {
+        withContext(Dispatchers.IO) { loadLocked() }
+    }
+
+    private fun loadLocked(): Boolean {
+        if (loaded) return true
+        val entries = try {
+            val saved = JSONArray(preferences.getString("recent", "[]"))
+            List(saved.length()) { saved.optString(it) }.filter { it in catalog }.distinct().take(24)
+        } catch (_: JSONException) {
+            emptyList()
+        } catch (_: ClassCastException) {
+            emptyList()
+        } catch (_: SecurityException) {
+            _persistenceFailed.value = true
+            return false
         }
+        state.value = entries
+        loaded = true
+        _persistenceFailed.value = false
+        return true
     }
 
-    fun record(text: String) {
-        selections.trySend(text)
-    }
-
-    companion object {
-        @Volatile private var instance: RecentKaomojiStore? = null
-
-        fun get(context: Context): RecentKaomojiStore = instance ?: synchronized(this) {
-            instance ?: RecentKaomojiStore(context.applicationContext).also { instance = it }
+    /** Serializes first read and writes; a later selection retries the complete in-memory list. */
+    suspend fun record(text: String): Boolean = mutex.withLock {
+        // Take the lock before dispatching so rapid UI selections retain their order.
+        withContext(Dispatchers.IO) {
+            if (text !in catalog) return@withContext true
+            if (!loadLocked()) return@withContext false
+            val next = (listOf(text) + state.value).distinct().take(24)
+            state.value = next
+            // Runs on IO; keep commit's result for failure feedback and retry. KTX edit returns no result.
+            @SuppressLint("ApplySharedPref", "UseKtx")
+            val saved = try {
+                preferences.edit().putString("recent", JSONArray(next).toString()).commit()
+            } catch (_: SecurityException) {
+                false
+            }
+            _persistenceFailed.value = !saved
+            saved
         }
     }
 }

@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import moe.kirakira.R
+import moe.kirakira.core.coroutines.AccountTasks
 import moe.kirakira.core.network.ApiException
 import moe.kirakira.data.content.ContentRepository
 import moe.kirakira.data.content.PublicProfile
@@ -36,12 +37,12 @@ internal data class SettingsLoad<T>(
 /** Jobs and drafts are owned by the currently published session revision. */
 internal abstract class SettingsViewModel(protected val repository: AccountSettingsRepository) : ViewModel() {
     val session = repository.session
-    protected val jobs = mutableSetOf<Job>()
+    private val tasks = AccountTasks(viewModelScope)
     protected var revision = session.value.revision
-    protected val _busy = MutableStateFlow(false)
-    val busy = _busy.asStateFlow()
-    protected val _message = MutableStateFlow<Int?>(null)
-    val message = _message.asStateFlow()
+    protected val busyState = MutableStateFlow(false)
+    val busy = busyState.asStateFlow()
+    protected val messageState = MutableStateFlow<Int?>(null)
+    val message = messageState.asStateFlow()
     protected val ready: Boolean
         get() = !session.value.isLoading && !session.value.isBusy && session.value.activeProfile != null
 
@@ -49,10 +50,9 @@ internal abstract class SettingsViewModel(protected val repository: AccountSetti
         viewModelScope.launch {
             session.map { Triple(it.revision, it.isLoading, it.isBusy) }.distinctUntilChanged().collect {
                 revision = session.value.revision
-                jobs.toList().forEach { it.cancel() }
-                jobs.clear()
-                _busy.value = false
-                _message.value = null
+                tasks.cancelCurrent()
+                busyState.value = false
+                messageState.value = null
                 reset()
                 if (ready) refresh()
             }
@@ -61,14 +61,11 @@ internal abstract class SettingsViewModel(protected val repository: AccountSetti
 
     protected fun task(block: suspend (Long) -> Unit): Job {
         val expected = revision
-        val job = viewModelScope.launch { block(expected) }
-        jobs += job
-        job.invokeOnCompletion { jobs.remove(job) }
-        return job
+        return tasks.launch { block(expected) }
     }
 
-    fun dismissMessage() { _message.value = null }
-    protected fun report(error: ApiException) { _message.value = error.failure.messageRes() }
+    fun dismissMessage() { messageState.value = null }
+    protected fun report(error: ApiException) { messageState.value = error.failure.messageRes() }
 }
 
 internal class BlockingOverviewViewModel(repository: AccountSettingsRepository) : SettingsViewModel(repository) {
@@ -125,7 +122,7 @@ internal class RuleManagementViewModel(
     fun more() = loadPage((_rules.value.data?.page ?: 0) + 1)
 
     private fun loadPage(page: Int) {
-        if (!ready || _busy.value || _rules.value.loading) return
+        if (!ready || busyState.value || _rules.value.loading) return
         read?.cancel()
         _rules.value = _rules.value.copy(loading = true, error = null, appending = page > 1)
         read = task { expected ->
@@ -139,14 +136,14 @@ internal class RuleManagementViewModel(
         }
     }
 
-    fun openEditor() { if (ready && !_busy.value) _editor.value = RuleEditor(open = true) }
-    fun closeEditor() { if (!_busy.value) _editor.value = RuleEditor() }
+    fun openEditor() { if (ready && !busyState.value) _editor.value = RuleEditor(open = true) }
+    fun closeEditor() { if (!busyState.value) _editor.value = RuleEditor() }
     fun input(value: String) {
-        if (!_busy.value) _editor.value = RuleEditor(open = true, input = value)
+        if (!busyState.value) _editor.value = RuleEditor(open = true, input = value)
     }
 
     fun submit() {
-        if (!ready || _busy.value) return
+        if (!ready || busyState.value) return
         val value = _editor.value.input.trim()
         when (category) {
             RuleCategory.BLOCK, RuleCategory.HIDE -> {
@@ -178,12 +175,12 @@ internal class RuleManagementViewModel(
     }
 
     private fun editorTask(block: suspend (Long) -> Unit) {
-        _busy.value = true
+        busyState.value = true
         _editor.value = _editor.value.copy(error = null)
         task { expected ->
             try { block(expected) }
             catch (error: ApiException) { _editor.value = _editor.value.copy(error = error.failure.messageRes()) }
-            finally { if (expected == revision) _busy.value = false }
+            finally { if (expected == revision) busyState.value = false }
         }
     }
 
@@ -197,10 +194,10 @@ internal class RuleManagementViewModel(
     }
 
     private fun change(value: String, remove: Boolean) {
-        if (!ready || _busy.value) return
+        if (!ready || busyState.value) return
         read?.cancel()
         _rules.value = _rules.value.copy(loading = false)
-        _busy.value = true
+        busyState.value = true
         _editor.value = _editor.value.copy(error = null)
         task { expected ->
             var changed = false
@@ -216,14 +213,14 @@ internal class RuleManagementViewModel(
                     }
                 }
                 _editor.value = RuleEditor()
-                _message.value = if (remove) R.string.management_removed else R.string.management_added
+                messageState.value = if (remove) R.string.management_removed else R.string.management_added
             } catch (_: UnsafeRuleException) {
                 _editor.value = _editor.value.copy(error = R.string.management_unsafe_regex)
             } catch (error: ApiException) {
                 if (remove) report(error) else _editor.value = _editor.value.copy(error = error.failure.messageRes())
             } finally {
                 if (expected == revision) {
-                    _busy.value = false
+                    busyState.value = false
                     if (changed) refresh()
                 }
             }
@@ -241,7 +238,7 @@ internal class InvitationsViewModel(repository: AccountSettingsRepository) : Set
     init { observe({ generated.clear(); _invitations.value = SettingsLoad() }, ::refresh) }
 
     fun refresh() {
-        if (!ready || _busy.value) return
+        if (!ready || busyState.value) return
         read?.cancel()
         _invitations.value = _invitations.value.copy(loading = true, error = null)
         read = task { expected ->
@@ -256,28 +253,28 @@ internal class InvitationsViewModel(repository: AccountSettingsRepository) : Set
     }
 
     fun create() {
-        if (!ready || _busy.value) return
+        if (!ready || busyState.value) return
         read?.cancel()
         _invitations.value = _invitations.value.copy(loading = false)
-        _busy.value = true
+        busyState.value = true
         task { expected ->
             var created = false
             try {
                 when (val result = repository.createInvitation(expected)) {
-                    InvitationCreation.CoolingDown -> _message.value = R.string.invitation_cooling_down
+                    InvitationCreation.CoolingDown -> messageState.value = R.string.invitation_cooling_down
                     is InvitationCreation.Created -> {
                         generated[result.invitation.code] = result.invitation
                         _invitations.value = SettingsLoad(
                             (_invitations.value.data.orEmpty() + result.invitation).distinctBy { it.code },
                         )
-                        _message.value = R.string.invitation_created
+                        messageState.value = R.string.invitation_created
                         created = true
                     }
                 }
             } catch (error: ApiException) { report(error) }
             finally {
                 if (expected == revision) {
-                    _busy.value = false
+                    busyState.value = false
                     if (created) refresh()
                 }
             }

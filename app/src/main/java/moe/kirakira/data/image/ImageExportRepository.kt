@@ -15,6 +15,7 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.UUID
+import kotlin.time.Duration.Companion.days
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -102,7 +103,7 @@ internal class ImageExportRepository(
         withSource(source) { open ->
             val directory = File(context.cacheDir, "copied_images")
             check(directory.isDirectory || directory.mkdirs())
-            val cutoff = System.currentTimeMillis() - 7 * 24 * 60 * 60 * 1000L
+            val cutoff = System.currentTimeMillis() - 7.days.inWholeMilliseconds
             directory.listFiles()?.filter { it.lastModified() < cutoff }?.forEach { it.delete() }
             val target = File(directory, metadata(fileName, open).name)
             var complete = false
@@ -187,7 +188,7 @@ internal class ImageExportRepository(
             })
     }
 
-    private suspend fun copy(input: InputStream, output: OutputStream) {
+    private suspend fun copy(input: InputStream, output: OutputStream): Unit = withContext(Dispatchers.IO) {
         val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
         while (true) {
             currentCoroutineContext().ensureActive()

@@ -11,9 +11,11 @@ import androidx.compose.ui.platform.LocalAccessibilityManager
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.delay
 
-private const val CONTROLS_IDLE_TIMEOUT_MILLIS = 3_000L
+private val CONTROLS_IDLE_TIMEOUT = 3.seconds
 
 /** Local viewing preference; touch/focus activity is deliberately not restored after recreation. */
 internal class ImageViewerControlsState(initiallyVisible: Boolean = true) {
@@ -62,10 +64,10 @@ internal fun rememberImageViewerControlsState(
             lifecycleState == Lifecycle.State.RESUMED
         ) {
             val timeout = accessibility?.calculateRecommendedTimeoutMillis(
-                originalTimeoutMillis = CONTROLS_IDLE_TIMEOUT_MILLIS,
+                originalTimeoutMillis = CONTROLS_IDLE_TIMEOUT.inWholeMilliseconds,
                 containsIcons = true,
                 containsControls = true,
-            ) ?: CONTROLS_IDLE_TIMEOUT_MILLIS
+            )?.milliseconds ?: CONTROLS_IDLE_TIMEOUT
             delay(timeout)
             state.hide()
         }

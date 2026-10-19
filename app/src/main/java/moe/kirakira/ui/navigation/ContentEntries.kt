@@ -20,6 +20,7 @@ import moe.kirakira.feature.player.PlaybackViewModel
 import moe.kirakira.feature.profile.ProfilePage
 import moe.kirakira.feature.tag.TagPage
 import moe.kirakira.feature.tag.TagViewModel
+import moe.kirakira.feature.video.KaomojiViewModel
 import moe.kirakira.feature.video.VideoPage
 
 internal fun registerContentEntries(
@@ -30,6 +31,7 @@ internal fun registerContentEntries(
     playback: PlaybackViewModel,
     playbackSettings: PlaybackSettings?,
     danmakuSettings: DanmakuSettings?,
+    kaomojiModel: KaomojiViewModel?,
     onDanmakuEnabled: (Boolean) -> Unit,
     onQualityPreference: (Int?) -> Unit,
 ) {
@@ -38,7 +40,7 @@ internal fun registerContentEntries(
     with(scope) {
         entry<VideoRoute> { route ->
             NavigationPage {
-                if (contentRepository == null || route.videoId <= 0) {
+                if (contentRepository == null || kaomojiModel == null || route.videoId <= 0) {
                     Text(stringResource(R.string.content_login_to_interact))
                 } else {
                     VideoPage(
@@ -47,6 +49,7 @@ internal fun registerContentEntries(
                         danmakuSettings = danmakuSettings,
                         onDanmakuEnabled = onDanmakuEnabled,
                         onQualityPreference = onQualityPreference,
+                        kaomojiModel = kaomojiModel,
                         playbackSettings = playbackSettings,
                         videoId = route.videoId,
                         repository = contentRepository,

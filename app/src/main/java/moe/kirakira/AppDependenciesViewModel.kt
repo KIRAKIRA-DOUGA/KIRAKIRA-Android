@@ -3,7 +3,7 @@ package moe.kirakira
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.seconds
 import moe.kirakira.core.credentials.passwordCredentialGateway
 import moe.kirakira.core.network.ApiClient
 import moe.kirakira.data.auth.AuthApi
@@ -11,6 +11,7 @@ import moe.kirakira.data.auth.AuthRepository
 import moe.kirakira.data.auth.SessionStore
 import moe.kirakira.data.content.ContentRepository
 import moe.kirakira.data.history.HistoryRepository
+import moe.kirakira.data.kaomoji.RecentKaomojiStore
 import moe.kirakira.data.image.ImageExportRepository
 import moe.kirakira.data.profile.ProfileRepository
 import moe.kirakira.data.security.SecurityRepository
@@ -27,12 +28,13 @@ internal class AppDependenciesViewModel(application: Application) : AndroidViewM
         BuildConfig.API_BASE_URL,
     )
     val content = ContentRepository(api, auth)
+    val recentKaomoji = RecentKaomojiStore(application)
     val settings = AccountSettingsRepository(api, auth)
     val history = HistoryRepository(api, auth, viewModelScope)
     private val imageClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(20, TimeUnit.SECONDS)
-        .callTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(15.seconds)
+        .readTimeout(20.seconds)
+        .callTimeout(30.seconds)
         .followRedirects(false)
         .followSslRedirects(false)
         .retryOnConnectionFailure(false)

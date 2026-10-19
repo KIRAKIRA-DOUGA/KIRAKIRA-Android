@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import moe.kirakira.core.coroutines.AccountTasks
 import moe.kirakira.core.network.ApiException
 import moe.kirakira.core.network.ApiFailure
 import moe.kirakira.data.auth.isReadyForContent
@@ -17,12 +18,12 @@ import moe.kirakira.data.content.ContentRepository
 /** In-flight reads, mutations and drafts belong to one published account revision. */
 internal abstract class ContentViewModel(protected val repository: ContentRepository) : ViewModel() {
     protected var revision = repository.session.value.revision
-    private val tasks = mutableSetOf<Job>()
+    private val tasks = AccountTasks(viewModelScope)
     private val reads = mutableMapOf<Any, Job>()
     private val _actionError = MutableStateFlow<ApiFailure?>(null)
     val actionError = _actionError.asStateFlow()
-    protected val _busy = MutableStateFlow(false)
-    val busy = _busy.asStateFlow()
+    protected val busyState = MutableStateFlow(false)
+    val busy = busyState.asStateFlow()
     val session get() = repository.session
 
     protected fun observeAccount(reset: () -> Unit, reload: () -> Unit) {
@@ -30,11 +31,10 @@ internal abstract class ContentViewModel(protected val repository: ContentReposi
             // Startup publishes the stored account before validating and publishing it again.
             // Wait for the final identity so a fast response is not cleared by that second revision.
             repository.session.filter { it.isReadyForContent }.map { it.revision }.distinctUntilChanged().collect {
-                tasks.toList().forEach { task -> task.cancel() }
-                tasks.clear()
+                tasks.cancelCurrent()
                 reads.clear()
                 revision = it
-                _busy.value = false
+                busyState.value = false
                 _actionError.value = null
                 reset()
                 reload()
@@ -62,9 +62,9 @@ internal abstract class ContentViewModel(protected val repository: ContentReposi
     }
 
     protected fun mutate(block: suspend (Long) -> Unit) {
-        if (_busy.value) return
+        if (busyState.value) return
         val expected = revision
-        _busy.value = true
+        busyState.value = true
         _actionError.value = null
         launchTask {
             try {
@@ -72,17 +72,12 @@ internal abstract class ContentViewModel(protected val repository: ContentReposi
             } catch (error: ApiException) {
                 if (expected == repository.session.value.revision) _actionError.value = error.failure
             } finally {
-                if (expected == revision) _busy.value = false
+                if (expected == revision) busyState.value = false
             }
         }
     }
 
     fun dismissActionError() { _actionError.value = null }
 
-    protected fun launchTask(block: suspend () -> Unit): Job {
-        val job = viewModelScope.launch { block() }
-        tasks += job
-        job.invokeOnCompletion { tasks.remove(job) }
-        return job
-    }
+    protected fun launchTask(block: suspend () -> Unit): Job = tasks.launch(block)
 }

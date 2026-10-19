@@ -2,6 +2,11 @@ package moe.kirakira.data.content
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.nullable
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonTransformingSerializer
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -252,6 +257,7 @@ private data class VideoDto(
     val videoCategory: String? = null,
     val videoTagList: List<TagDto> = emptyList(),
     val videoPart: List<PartDto> = emptyList(),
+    @Serializable(with = UploaderInfoSerializer::class)
     val uploaderInfo: ProfileDto? = null,
     val videoUpvoteCount: Long? = null,
     val videoDownvoteCount: Long? = null,
@@ -271,6 +277,14 @@ private data class VideoDto(
 
 @Serializable
 private data class PartDto(val id: Int, val videoPartTitle: String, val link: String)
+
+/** Rosales tag search returns false when the uploader lookup has no matching user. */
+private object UploaderInfoSerializer : JsonTransformingSerializer<ProfileDto?>(ProfileDto.serializer().nullable) {
+    override fun transformDeserialize(element: JsonElement): JsonElement = when (element) {
+        JsonPrimitive(false) -> JsonNull
+        else -> element
+    }
+}
 
 @Serializable
 private data class ProfileResponse(
