@@ -1,17 +1,11 @@
 package moe.kirakira.feature.main
 
 import android.content.res.Configuration
-import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -24,25 +18,17 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.ScaffoldDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -50,15 +36,12 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -80,26 +63,12 @@ import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.ShadingIcon
 import moe.kirakira.ui.components.appTopAppBarColors
-import moe.kirakira.ui.components.frostedBarBackground
 import moe.kirakira.ui.components.video.VideoCardLayout
 import moe.kirakira.ui.components.video.VideoCardRow
 import moe.kirakira.ui.content.ContentState
 import moe.kirakira.ui.navigation.rememberNavigationMotion
-import moe.kirakira.ui.theme.BarShadowElevation
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorDefaults
-
-private const val NavigationBarSelectedBackgroundAlpha = 0.08f
-
-private enum class AppDestination(
-    @param:StringRes val label: Int,
-    val icon: MainTabIcon,
-) {
-    HOME(R.string.nav_home, MainTabIcon.HOME),
-    SEARCH(R.string.nav_search, MainTabIcon.SEARCH),
-    FOLLOWING(R.string.nav_following, MainTabIcon.FOLLOWING),
-    ME(R.string.nav_me, MainTabIcon.ME),
-}
 
 @Composable
 internal fun MainScreen(
@@ -314,87 +283,6 @@ private fun HomeTopBar(onOpenMe: () -> Unit, avatar: String?) {
                 }
             },
         )
-    }
-}
-
-@Composable
-private fun MainBottomBar(
-    destination: AppDestination,
-    onDestinationChange: (AppDestination) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val shape = RoundedCornerShape(50)
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .windowInsetsPadding(NavigationBarDefaults.windowInsets)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        contentAlignment = Alignment.BottomCenter,
-    ) {
-        Box(
-            modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth(),
-        ) {
-            Box(
-                Modifier.matchParentSize().frostedBarBackground(
-                    shape = shape,
-                    shadowElevation = BarShadowElevation,
-                ),
-            )
-            Surface(
-                shape = shape,
-                color = Color.Transparent,
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(4.dp)
-                        .selectableGroup(),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    AppDestination.entries.forEach { item ->
-                        val selected = destination == item
-                        val containerColor by animateColorAsState(
-                            targetValue = if (selected) {
-                                MaterialTheme.colorScheme.primary.copy(alpha = NavigationBarSelectedBackgroundAlpha)
-                            } else {
-                                Color.Transparent
-                            },
-                            label = "Tab container color",
-                        )
-                        val contentColor by animateColorAsState(
-                            targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                            label = "Tab content color",
-                        )
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(shape)
-                                .background(containerColor)
-                                .selectable(
-                                    selected = selected,
-                                    role = Role.Tab,
-                                    onClick = { onDestinationChange(item) },
-                                )
-                                .heightIn(min = 64.dp)
-                                .padding(horizontal = 4.dp, vertical = 8.dp)
-                                .testTag("nav_${item.name.lowercase()}"),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
-                        ) {
-                            CompositionLocalProvider(LocalContentColor provides contentColor) {
-                                AnimatedTabIcon(icon = item.icon, selected = selected)
-                                Text(
-                                    text = stringResource(item.label),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 

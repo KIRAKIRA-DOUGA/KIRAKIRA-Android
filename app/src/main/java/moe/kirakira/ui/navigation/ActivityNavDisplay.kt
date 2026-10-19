@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -37,7 +36,6 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.IntSize
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.compose.rememberLifecycleOwner
@@ -52,9 +50,6 @@ import androidx.navigation3.scene.SceneStrategyScope
 import androidx.navigation3.scene.rememberSceneState
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import androidx.navigation3.ui.NavDisplay
-import androidx.navigationevent.NavigationEvent
-import androidx.navigationevent.NavigationEventHandler
-import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import moe.kirakira.ui.components.windowCornerRadius
@@ -81,13 +76,19 @@ internal fun <T : Any> ActivityNavDisplay(
         val interpolator = AnimationUtils.loadInterpolator(context, activityInterpolatorResource())
         PredictiveBackMotion(scope) { interpolator.getInterpolation(it) }
     }
+    val currentEntryProvider by rememberUpdatedState(entryProvider)
     val entries = rememberDecoratedNavEntries(
         backStack = backStack,
         entryDecorators = listOf(
             rememberSaveableStateHolderNavEntryDecorator(),
             rememberViewModelStoreNavEntryDecorator(),
         ),
-        entryProvider = entryProvider,
+        // Navigation 3 caches entries by back stack, so their content must read the latest provider.
+        entryProvider = { route ->
+            NavEntry(navEntry = currentEntryProvider(route)) { key ->
+                currentEntryProvider(key).Content()
+            }
+        },
     )
     val currentEntriesState = rememberUpdatedState(entries)
     val imageActive = entries.last().usesImageTransition
@@ -117,109 +118,30 @@ internal fun <T : Any> ActivityNavDisplay(
     val density = LocalDensity.current.density
     val view = LocalView.current
     val darkTheme = isSystemInDarkTheme()
-    val currentEntries by currentEntriesState
-    val currentOnBack by rememberUpdatedState(onBack)
-    val currentBackRequest by rememberUpdatedState(onBackRequested)
-    val currentCanNavigateBack by rememberUpdatedState(canNavigateBack)
-    val startGesture by rememberUpdatedState<(NavigationEvent) -> Unit> { event ->
-        val current = currentEntries.lastOrNull()
-        val previous = currentEntries.getOrNull(currentEntries.lastIndex - 1)
-        if (current != null && previous != null) {
-            motion.start(
-                closing = current.contentKey,
-                entering = previous.contentKey,
-                event = event,
-                size = size,
-                density = density,
-                cornerRadius = view.windowCornerRadius(),
-                darkTheme = darkTheme,
-            )
-        }
-    }
-    val handler = remember(motion, predictiveBackEnabled) {
-        object : NavigationEventHandler<SceneInfo<T>>(
-            initialInfo = SceneInfo(sceneState.currentScene),
-            isBackEnabled = false,
-        ) {
-            private var backStarted = false
-            private var backAllowed = true
-            private var backKey: Any? = null
-
-            override fun onBackStarted(event: NavigationEvent) {
-                backStarted = true
-                backAllowed = currentCanNavigateBack()
-                backKey = currentEntries.lastOrNull()?.contentKey
-                if (backAllowed && predictiveBackEnabled) startGesture(event)
+    ActivityBackHandler(
+        motion = motion,
+        sceneState = sceneState,
+        predictiveBackEnabled = predictiveBackEnabled,
+        enabled = entries.size > 1 && !imageActive,
+        onBackRequested = onBackRequested,
+        canNavigateBack = canNavigateBack,
+        onBack = onBack,
+        onStartGesture = { event ->
+            val current = entries.lastOrNull()
+            val previous = entries.getOrNull(entries.lastIndex - 1)
+            if (current != null && previous != null) {
+                motion.start(
+                    closing = current.contentKey,
+                    entering = previous.contentKey,
+                    event = event,
+                    size = size,
+                    density = density,
+                    cornerRadius = view.windowCornerRadius(),
+                    darkTheme = darkTheme,
+                )
             }
-
-            override fun onBackProgressed(event: NavigationEvent) {
-                if (backAllowed && predictiveBackEnabled) motion.progress(event)
-            }
-
-            override fun onBackCancelled() {
-                backStarted = false
-                backKey = null
-                if (predictiveBackEnabled) motion.cancel() else motion.reset()
-            }
-
-            override fun onBackCompleted() {
-                val wasStarted = backStarted
-                val startedKey = backKey
-                backStarted = false
-                backKey = null
-                if (wasStarted && currentEntries.lastOrNull()?.contentKey != startedKey) {
-                    motion.reset()
-                    return
-                }
-                if (!wasStarted || !predictiveBackEnabled) backAllowed = currentBackRequest()
-                if (!backAllowed) {
-                    motion.reset()
-                    if (wasStarted && predictiveBackEnabled) currentBackRequest()
-                    return
-                }
-                val key = currentEntries.lastOrNull()?.contentKey
-                if (!predictiveBackEnabled) {
-                    motion.reset()
-                    if (currentEntries.size > 1 && currentEntries.lastOrNull()?.contentKey == key) {
-                        currentOnBack()
-                    }
-                    return
-                }
-                motion.complete {
-                    // Ignore stale terminal events if another navigation already changed the stack.
-                    if (currentEntries.size > 1 && currentEntries.lastOrNull()?.contentKey == key) {
-                        currentOnBack()
-                    }
-                }
-            }
-        }
-    }
-    val dispatcher = checkNotNull(LocalNavigationEventDispatcherOwner.current).navigationEventDispatcher
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
-    val canGoBack = entries.size > 1 && !imageActive
-    val currentCanGoBack by rememberUpdatedState(canGoBack)
-    SideEffect {
-        motion.onTopChanged(entries.last().contentKey)
-        handler.setInfo(
-            currentInfo = SceneInfo(sceneState.currentScene),
-            backInfo = sceneState.previousScenes.asReversed().map { SceneInfo(it) },
-        )
-        handler.isBackEnabled = canGoBack && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
-    }
-    DisposableEffect(dispatcher, lifecycle, handler) {
-        dispatcher.addHandler(handler)
-        val observer = LifecycleEventObserver { _, _ ->
-            val started = lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
-            handler.isBackEnabled = currentCanGoBack && started
-            if (!started) motion.reset()
-        }
-        lifecycle.addObserver(observer)
-        onDispose {
-            lifecycle.removeObserver(observer)
-            handler.remove()
-            motion.reset()
-        }
-    }
+        },
+    )
     SharedTransitionLayout {
         val imageSizes = remember { ImageTransitionSizes() }
         CompositionLocalProvider(

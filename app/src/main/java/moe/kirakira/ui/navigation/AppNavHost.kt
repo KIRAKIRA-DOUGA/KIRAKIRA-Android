@@ -55,9 +55,9 @@ internal fun AppNavHost(
     onResetLocalAccounts: () -> Unit,
     onRetrySession: () -> Unit,
     onDismissSessionError: () -> Unit,
+    onDismissSessionNotice: () -> Unit,
     onSelectAccount: (String?) -> Unit,
     onRemoveAccount: (String) -> Unit,
-    onDismissSessionNotice: () -> Unit,
     modifier: Modifier = Modifier,
     onVideoPageActiveChange: (Boolean) -> Unit = {},
     onImageViewerActiveChange: (Boolean) -> Unit = {},
@@ -128,12 +128,13 @@ internal fun AppNavHost(
     SessionFeedback(
         state = accountState,
         onDismissError = onDismissSessionError,
+        onDismissNotice = onDismissSessionNotice,
         onRetry = onRetrySession,
         onResetLocalAccounts = onResetLocalAccounts,
         onLogin = { email ->
-            if (backStack.lastOrNull() !is AuthRoute) backStack.add(AuthRoute(email))
+            val source = backStack.lastOrNull()
+            if (source != null && source !is AuthRoute) navigation.openFrom(source, AuthRoute(email))
         },
-        onDismissNotice = onDismissSessionNotice,
     )
 
     // Keep the host opaque under translated pages and the predictive back preview.
@@ -141,31 +142,14 @@ internal fun AppNavHost(
         ActivityNavDisplay(
             backStack = backStack,
             predictiveBackEnabled = predictiveBackEnabled,
-            onBackRequested = {
-                when (backStack.lastOrNull()) {
-                    ProfileEditorRoute -> navigation.profileBackGuard?.requestBack() == true
-                    PrivacySettingsRoute -> navigation.privacyBackGuard?.requestBack() == true
-                    SecuritySettingsRoute -> {
-                        autofill?.cancel()
-                        navigation.securityBackGuard?.requestBack() == true
-                    }
-                    else -> true
-                }
-            },
-            canNavigateBack = {
-                when (backStack.lastOrNull()) {
-                    ProfileEditorRoute -> navigation.profileBackGuard?.canNavigateBack == true
-                    PrivacySettingsRoute -> navigation.privacyBackGuard?.canNavigateBack == true
-                    SecuritySettingsRoute -> navigation.securityBackGuard?.canNavigateBack == true
-                    else -> true
-                }
-            },
+            onBackRequested = navigation::requestBack,
+            canNavigateBack = navigation::canNavigateBack,
             modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainer),
             onBack = {
                 if (backStack.lastOrNull() is AuthRoute) autofill?.cancel()
                 val viewer = backStack.lastOrNull() as? ImageViewerRoute
                 if (viewer != null) navigation.closeImageViewer(viewer, ImageViewerCloseReason.SYSTEM_BACK)
-                else if (backStack.size > 1) backStack.removeLastOrNull()
+                else backStack.lastOrNull()?.let(navigation::popFrom)
             },
             onImageBack = { target ->
                 if (target is ImageViewerRoute) navigation.closeImageViewer(target, ImageViewerCloseReason.SYSTEM_BACK)
@@ -202,11 +186,7 @@ internal fun AppNavHost(
                     backStack.lastOrNull() == restoreOrigin
                 ) {
                     playback.videoId?.let { id ->
-                        val route = VideoRoute(id)
-                        val index = backStack.indexOf(route)
-                        if (index >= 0) {
-                            while (backStack.lastIndex > index) backStack.removeLastOrNull()
-                        } else backStack.add(route)
+                        restoreOrigin?.let { navigation.openFrom(it, VideoRoute(id)) }
                     }
                 }
             },

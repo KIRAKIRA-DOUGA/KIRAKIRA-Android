@@ -18,7 +18,6 @@ package moe.kirakira.ui.navigation
 import android.os.SystemClock
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.PathInterpolator
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
@@ -38,28 +37,35 @@ import kotlin.math.min
 import kotlin.math.sign
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+
+private const val BACK_PREVIEW_SCALE = 0.9f
 
 /**
  * Compose port of DefaultCrossActivityBackAnimation and CrossActivityBackAnimation.
- * Geometry, curves, phase durations and spring parameters follow the pinned AOSP revision.
+ * Gesture geometry, curves, phase durations and cancellation follow the pinned AOSP revision.
+ * Commit restores page bounds without AOSP's additional velocity-driven scale spring.
  * Unlike a seekable tween, finishing the gesture starts a separate post-commit animation.
  */
 internal class PredictiveBackMotion(
     private val scope: CoroutineScope,
     private val emphasized: Easing,
 ) {
-    var closingKey: Any? by mutableStateOf(null)
-        private set
-    var completedPop: Pair<Any, Any>? = null
-        private set
+    private var phase: BackPhase by mutableStateOf(BackPhase.Idle)
+    val closingKey: Any?
+        get() = when (val current = phase) {
+            is BackPhase.Active -> current.pages.closing
+            BackPhase.Idle, is BackPhase.Finished -> null
+        }
+    val completedPop: Pair<Any, Any>?
+        get() = when (val current = phase) {
+            is BackPhase.AwaitingRemoval -> current.pages.closing to current.pages.entering
+            is BackPhase.Finished -> current.pages.closing to current.pages.entering
+            BackPhase.Idle, is BackPhase.Gesture, is BackPhase.Committing, is BackPhase.Cancelling -> null
+        }
     var frame by mutableStateOf(PredictiveBackFrame())
         private set
-    private var enteringKey: Any? = null
     private var animation: Job? = null
-    private var committing = false
-    private var cancelling = false
     private var bounds = Rect.Zero
     private var offset = 0f
     private var margin = 0f
@@ -71,7 +77,6 @@ internal class PredictiveBackMotion(
     private var rawProgress = 0f
     private var velocity = 0f
     private var lastEventTime = 0L
-    private var gestureProgress = 0f
     private val gestureInterpolator = PathInterpolator(0.1f, 0.1f, 0f, 1f)
     // AOSP's post-commit ValueAnimator retains its default time interpolator.
     private val animatorInterpolator = AccelerateDecelerateInterpolator()
@@ -85,10 +90,11 @@ internal class PredictiveBackMotion(
         cornerRadius: Float,
         darkTheme: Boolean,
     ) {
-        if (committing || size.width == 0 || size.height == 0) return
+        if (phase is BackPhase.Committing || phase is BackPhase.AwaitingRemoval ||
+            size.width == 0 || size.height == 0
+        ) return
         animation?.cancel()
-        cancelling = false
-        completedPop = null
+        animation = null
         bounds = Rect(0f, 0f, size.width.toFloat(), size.height.toFloat())
         offset = ACTIVITY_OFFSET_DP * density
         margin = 8f * density
@@ -100,13 +106,12 @@ internal class PredictiveBackMotion(
         rawProgress = 0f
         velocity = 0f
         lastEventTime = eventTime(event)
-        enteringKey = entering
-        closingKey = closing
+        phase = BackPhase.Gesture(BackPages(closing, entering))
         updateGesture(0f)
     }
 
     fun progress(event: NavigationEvent) {
-        if (closingKey == null || committing || cancelling) return
+        if (phase !is BackPhase.Gesture) return
         val time = eventTime(event)
         val deltaTime = time - lastEventTime
         val progress = event.progress.coerceIn(0f, 1f)
@@ -118,53 +123,39 @@ internal class PredictiveBackMotion(
     }
 
     fun complete(onPop: () -> Unit) {
-        if (committing || cancelling) return
-        val closing = closingKey
-        val entering = enteringKey
-        if (closing == null || entering == null) {
-            completedPop = null
-            onPop()
-            return
+        val pages = when (val current = phase) {
+            is BackPhase.Gesture -> current.pages
+            BackPhase.Idle, is BackPhase.Finished -> {
+                reset()
+                onPop()
+                return
+            }
+            is BackPhase.Committing, is BackPhase.Cancelling, is BackPhase.AwaitingRemoval -> return
         }
-        committing = true
+        phase = BackPhase.Committing(pages)
         val startClosing = frame.closing
         val startEntering = frame.entering
         val targetClosing = bounds.translate(Offset(startClosing.left + offset, 0f))
-        val startVelocity = if (gestureProgress < 0.1f) -1.2f else (-velocity).coerceIn(-10f, 0f)
         animation = scope.launch {
-            coroutineScope {
-                val fling = Animatable(1f)
-                val flingJob = launch {
-                    fling.animateTo(
-                        targetValue = 1f,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioLowBouncy,
-                            stiffness = Spring.StiffnessLow,
-                            visibilityThreshold = 0.0075f,
-                        ),
-                        initialVelocity = startVelocity,
-                    )
-                }
-                animate(
-                    initialValue = 0f,
-                    targetValue = 1f,
-                    animationSpec = tween(
-                        durationMillis = ACTIVITY_TRANSITION_MILLIS,
-                        easing = Easing { animatorInterpolator.getInterpolation(it) },
-                    ),
-                ) { fraction, _ ->
-                    val progress = emphasized.transform(fraction)
-                    val flingScale = min(fling.value, 1f)
-                    frame = PredictiveBackFrame(
-                        closing = lerp(startClosing, targetClosing, progress).scaleCentered(flingScale),
-                        entering = lerp(startEntering, bounds, progress).scaleCentered(flingScale),
-                        closingAlpha = max(1f - fraction * 5f, 0f),
-                        scrimAlpha = maxScrimAlpha * (1f - fraction),
-                        cornerRadius = radius,
-                        width = bounds.width,
-                    )
-                }
-                flingJob.cancel()
+            // Public progress samples can imply a large velocity during a quick swipe.
+            // Restore directly from the preview bounds so commit never shrinks either page further.
+            animate(
+                initialValue = 0f,
+                targetValue = 1f,
+                animationSpec = tween(
+                    durationMillis = ACTIVITY_TRANSITION_MILLIS,
+                    easing = Easing { animatorInterpolator.getInterpolation(it) },
+                ),
+            ) { fraction, _ ->
+                val progress = emphasized.transform(fraction)
+                frame = PredictiveBackFrame(
+                    closing = lerp(startClosing, targetClosing, progress),
+                    entering = lerp(startEntering, bounds, progress),
+                    closingAlpha = max(1f - fraction * 5f, 0f),
+                    scrimAlpha = maxScrimAlpha * (1f - fraction),
+                    cornerRadius = radius,
+                    width = bounds.width,
+                )
             }
             // Hold the final frame until NavDisplay disposes the outgoing Scene. Clearing here
             // would make that still-composed page fully visible again before the scene swap.
@@ -175,14 +166,15 @@ internal class PredictiveBackMotion(
                 scrimAlpha = 0f,
                 cornerRadius = 0f,
             )
-            completedPop = closing to entering
+            phase = BackPhase.AwaitingRemoval(pages)
             onPop()
         }
     }
 
     fun cancel() {
-        if (closingKey == null || committing || cancelling) return
-        cancelling = true
+        val current = phase
+        if (current !is BackPhase.Gesture) return
+        phase = BackPhase.Cancelling(current.pages)
         animation = scope.launch {
             // Platform cancellation normally already sends progress back to zero. This also
             // handles other NavigationEvent inputs that deliver cancellation immediately.
@@ -198,49 +190,51 @@ internal class PredictiveBackMotion(
                     ),
                 ) { value, _ -> updateGesture(value.coerceIn(0f, 1f)) }
             }
-            clear()
+            animation = null
+            phase = BackPhase.Idle
+            frame = PredictiveBackFrame()
         }
     }
 
     fun reset() {
         animation?.cancel()
-        completedPop = null
-        clear()
+        animation = null
+        phase = BackPhase.Idle
+        frame = PredictiveBackFrame()
     }
 
     fun onTopChanged(topKey: Any) {
         // The stack updates before AnimatedContent has removed the old Scene. Keep its
         // transparent closing page and full-size entering page through that handoff.
-        val completed = completedPop
-        if (completed?.first == closingKey &&
-            (topKey == completed?.first || topKey == completed?.second)
-        ) {
-            return
+        when (val current = phase) {
+            BackPhase.Idle -> Unit
+            is BackPhase.AwaitingRemoval -> {
+                if (topKey != current.pages.closing && topKey != current.pages.entering) reset()
+            }
+            is BackPhase.Gesture, is BackPhase.Cancelling, is BackPhase.Committing -> {
+                if (topKey != current.pages.closing) reset()
+            }
+            is BackPhase.Finished -> {
+                if (topKey != current.pages.entering) reset()
+            }
         }
-        if (closingKey != null && closingKey != topKey) reset()
-        if (completedPop?.second != topKey) completedPop = null
     }
 
     fun onSceneDisposed(sceneKey: Any) {
-        if (closingKey == sceneKey && completedPop?.first == sceneKey) {
+        val current = phase
+        if (current is BackPhase.AwaitingRemoval && current.pages.closing == sceneKey) {
             // Keep completedPop until the next navigation so a late transitionSpec evaluation
             // still skips the ordinary pop animation.
-            clear()
+            animation = null
+            phase = BackPhase.Finished(current.pages)
+            frame = PredictiveBackFrame()
         }
-    }
-
-    private fun clear() {
-        closingKey = null
-        enteringKey = null
-        committing = false
-        cancelling = false
-        frame = PredictiveBackFrame()
     }
 
     private fun updateGesture(progress: Float) {
         rawProgress = progress
-        gestureProgress = gestureInterpolator.getInterpolation(progress)
-        var targetClosing = bounds.scaleCentered(0.9f)
+        val gestureProgress = gestureInterpolator.getInterpolation(progress)
+        var targetClosing = backPreviewBounds(bounds)
         if (swipeEdge != NavigationEvent.EDGE_RIGHT) {
             targetClosing = targetClosing.translate(Offset(bounds.right - targetClosing.right - margin, 0f))
         }
@@ -251,7 +245,7 @@ internal class PredictiveBackMotion(
         val yShift = max(0f, (bounds.height - closing.height) / 2f - margin) * deceleratedY * sign(deltaY)
         closing = closing.translate(Offset(0f, yShift))
         val startEntering = bounds.translate(Offset(-offset, 0f))
-        val entering = lerp(startEntering, startEntering.scaleCentered(0.9f), gestureProgress)
+        val entering = lerp(startEntering, backPreviewBounds(startEntering), gestureProgress)
             .translate(Offset(0f, yShift))
         frame = PredictiveBackFrame(
             closing = closing,
@@ -264,6 +258,23 @@ internal class PredictiveBackMotion(
 
     private fun eventTime(event: NavigationEvent): Long =
         event.frameTimeMillis.takeIf { it > 0 } ?: SystemClock.uptimeMillis()
+}
+
+private data class BackPages(val closing: Any, val entering: Any)
+
+/** Only active phases retain a preview; finished phases retain solely the pop transition identity. */
+private sealed interface BackPhase {
+    data object Idle : BackPhase
+
+    sealed interface Active : BackPhase {
+        val pages: BackPages
+    }
+
+    data class Gesture(override val pages: BackPages) : Active
+    data class Cancelling(override val pages: BackPages) : Active
+    data class Committing(override val pages: BackPages) : Active
+    data class AwaitingRemoval(override val pages: BackPages) : Active
+    data class Finished(val pages: BackPages) : BackPhase
 }
 
 internal data class PredictiveBackFrame(
@@ -286,8 +297,9 @@ internal data class PredictiveBackFrame(
     }
 }
 
-private fun Rect.scaleCentered(scale: Float): Rect {
-    val halfWidth = width * scale / 2f
-    val halfHeight = height * scale / 2f
+private fun backPreviewBounds(bounds: Rect): Rect {
+    val halfWidth = bounds.width * BACK_PREVIEW_SCALE / 2f
+    val halfHeight = bounds.height * BACK_PREVIEW_SCALE / 2f
+    val center = bounds.center
     return Rect(center.x - halfWidth, center.y - halfHeight, center.x + halfWidth, center.y + halfHeight)
 }

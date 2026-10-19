@@ -57,10 +57,8 @@ internal fun registerContentEntries(
                         isActive = navigation.backStack.lastOrNull() == route,
                         onOpenProfile = { uid -> navigation.openFrom(route, ProfileRoute(uid)) },
                         onOpenTag = { id -> navigation.openFrom(route, TagRoute(id)) },
-                        onLogin = {
-                            if (navigation.backStack.lastOrNull() == route) navigation.backStack.add(AuthRoute())
-                        },
-                        onBack = { if (navigation.backStack.lastOrNull() == route) navigation.backStack.removeLastOrNull() },
+                        onLogin = { navigation.openFrom(route, AuthRoute()) },
+                        onBack = { navigation.popFrom(route) },
                     )
                 }
             }
@@ -70,7 +68,7 @@ internal fun registerContentEntries(
                 if (historyRepository != null) HistoryPage(
                     model = viewModel { HistoryViewModel(historyRepository) },
                     isActive = navigation.backStack.lastOrNull() == HistoryRoute,
-                    onBack = { if (navigation.backStack.lastOrNull() == HistoryRoute) navigation.backStack.removeLastOrNull() },
+                    onBack = { navigation.popFrom(HistoryRoute) },
                     onLogin = { navigation.openFrom(HistoryRoute, AuthRoute()) },
                     onOpenVideo = { id -> navigation.openFrom(HistoryRoute, VideoRoute(id)) },
                 )
@@ -81,7 +79,7 @@ internal fun registerContentEntries(
                 if (contentRepository != null && route.tagId > 0) {
                     TagPage(
                         model = viewModel { TagViewModel(route.tagId, contentRepository) },
-                        onBack = { if (navigation.backStack.lastOrNull() == route) navigation.backStack.removeLastOrNull() },
+                        onBack = { navigation.popFrom(route) },
                         onOpenVideo = { id -> navigation.openFrom(route, VideoRoute(id)) },
                     )
                 }
@@ -96,20 +94,20 @@ internal fun registerContentEntries(
                     onOpenVideo = { id -> navigation.openFrom(route, VideoRoute(id)) },
                     onOpenImage = { navigation.openFrom(route, ImageViewerRoute(it)) },
                     onLogin = { navigation.openFrom(route, AuthRoute()) },
-                    onBack = { if (navigation.backStack.lastOrNull() == route) navigation.backStack.removeLastOrNull() })
+                    onBack = { navigation.popFrom(route) })
             }
         }
         entry<SelfProfileRoute> {
             NavigationPage {
                 val account = accountState.activeProfile
                 if (account == null || contentRepository == null) LaunchedEffect(Unit) {
-                    if (navigation.backStack.lastOrNull() == SelfProfileRoute) navigation.backStack.removeLastOrNull()
+                    navigation.popFrom(SelfProfileRoute)
                 } else ProfilePage(model = viewModel(key = "profile-${account.uid}") { moe.kirakira.feature.profile.ProfileViewModel(account.uid, contentRepository) },
                     onEditProfile = { navigation.openFrom(SelfProfileRoute, ProfileEditorRoute) },
                     onOpenFollowList = { kind -> navigation.openFrom(SelfProfileRoute, FollowListRoute(account.uid, kind)) },
                     onOpenVideo = { id -> navigation.openFrom(SelfProfileRoute, VideoRoute(id)) },
                     onOpenImage = { navigation.openFrom(SelfProfileRoute, ImageViewerRoute(it)) }, onLogin = {},
-                    onBack = { if (navigation.backStack.lastOrNull() == SelfProfileRoute) navigation.backStack.removeLastOrNull() })
+                    onBack = { navigation.popFrom(SelfProfileRoute) })
             }
         }
         entry<FollowListRoute> { route ->
@@ -118,7 +116,7 @@ internal fun registerContentEntries(
                     FollowListPage(
                         model = viewModel { FollowListViewModel(route.uid, route.kind, contentRepository) },
                         isActive = navigation.backStack.lastOrNull() == route,
-                        onBack = { if (navigation.backStack.lastOrNull() == route) navigation.backStack.removeLastOrNull() },
+                        onBack = { navigation.popFrom(route) },
                         onOpenProfile = { uid -> navigation.openFrom(route, ProfileRoute(uid)) },
                     )
                 }

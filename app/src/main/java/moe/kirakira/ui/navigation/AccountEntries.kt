@@ -25,15 +25,11 @@ internal fun registerAccountEntries(
                     state = accountState,
                     onSelectAccount = { id -> onSelectAccount(id.takeUnless { it == GUEST_ACCOUNT_ID }) },
                     onReauthenticate = { email ->
-                        if (navigation.backStack.lastOrNull() == AccountSwitchRoute) navigation.backStack.add(AuthRoute(email))
+                        navigation.openFrom(AccountSwitchRoute, AuthRoute(email))
                     },
                     onRemoveAccount = onRemoveAccount,
-                    onAddAccount = {
-                        if (navigation.backStack.lastOrNull() == AccountSwitchRoute) navigation.backStack.add(AuthRoute())
-                    },
-                    onBack = {
-                        if (navigation.backStack.lastOrNull() == AccountSwitchRoute) navigation.backStack.removeLastOrNull()
-                    },
+                    onAddAccount = { navigation.openFrom(AccountSwitchRoute, AuthRoute()) },
+                    onBack = { navigation.popFrom(AccountSwitchRoute) },
                 )
             }
         }
@@ -44,9 +40,7 @@ internal fun registerAccountEntries(
                     initialEmail = route.email,
                     isActive = navigation.backStack.lastOrNull() == route,
                     predictiveBackEnabled = predictiveBackEnabled,
-                    onClose = {
-                        if (navigation.backStack.lastOrNull() == route) navigation.backStack.removeLastOrNull()
-                    },
+                    onClose = { navigation.popFrom(route) },
                 )
             }
         }

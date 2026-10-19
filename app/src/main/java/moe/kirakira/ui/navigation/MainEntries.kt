@@ -28,15 +28,11 @@ internal fun registerMainEntries(
                 MainScreen(
                     onBottomBarHeightChange = { navigation.bottomBarHeightPx = it },
                     profile = accountState.activeProfile,
-                    onOpenProfile = {
-                        navigation.openFrom(MainRoute, if (accountState.activeProfile == null) AuthRoute() else SelfProfileRoute)
-                    },
+                    onOpenProfile = { navigation.openFrom(MainRoute, if (accountState.activeProfile == null) AuthRoute() else SelfProfileRoute) },
                     onOpenHistory = { navigation.openFrom(MainRoute, HistoryRoute) },
-                    onOpenSettings = {
-                        if (navigation.backStack.lastOrNull() == MainRoute) navigation.backStack.add(SettingsRoute)
-                    },
+                    onOpenSettings = { navigation.openFrom(MainRoute, SettingsRoute) },
                     onOpenVideo = { id ->
-                        if (navigation.backStack.lastOrNull() == MainRoute) navigation.backStack.add(VideoRoute(id))
+                        navigation.openFrom(MainRoute, VideoRoute(id))
                     },
                     videos = homeViewModel?.videos?.collectAsStateWithLifecycle()?.value
                             ?: moe.kirakira.ui.content.ContentState(), onRefreshVideos = { homeViewModel?.refresh() },

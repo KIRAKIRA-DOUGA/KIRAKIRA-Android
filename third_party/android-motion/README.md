@@ -9,7 +9,7 @@
 | [activity_open_enter.xml](https://android.googlesource.com/platform/frameworks/base/+/f68c80b4e9dbdb1e5bf6620f437c3d9f865eb047/core/res/res/anim/activity_open_enter.xml)、[activity_open_exit.xml](https://android.googlesource.com/platform/frameworks/base/+/f68c80b4e9dbdb1e5bf6620f437c3d9f865eb047/core/res/res/anim/activity_open_exit.xml) | `NavigationMotion.kt` 前进动画 |
 | [activity_close_enter.xml](https://android.googlesource.com/platform/frameworks/base/+/f68c80b4e9dbdb1e5bf6620f437c3d9f865eb047/core/res/res/anim/activity_close_enter.xml)、[activity_close_exit.xml](https://android.googlesource.com/platform/frameworks/base/+/f68c80b4e9dbdb1e5bf6620f437c3d9f865eb047/core/res/res/anim/activity_close_exit.xml) | `NavigationMotion.kt` 普通返回动画 |
 | [DefaultCrossActivityBackAnimation.kt](https://android.googlesource.com/platform/frameworks/base/+/f68c80b4e9dbdb1e5bf6620f437c3d9f865eb047/libs/WindowManager/Shell/src/com/android/wm/shell/back/DefaultCrossActivityBackAnimation.kt) | `PredictiveBackMotion.kt` 双页面位置、缩放与收尾 |
-| [CrossActivityBackAnimation.kt](https://android.googlesource.com/platform/frameworks/base/+/f68c80b4e9dbdb1e5bf6620f437c3d9f865eb047/libs/WindowManager/Shell/src/com/android/wm/shell/back/CrossActivityBackAnimation.kt) | 手势映射、纵向移动、遮罩与 fling 弹簧 |
+| [CrossActivityBackAnimation.kt](https://android.googlesource.com/platform/frameworks/base/+/f68c80b4e9dbdb1e5bf6620f437c3d9f865eb047/libs/WindowManager/Shell/src/com/android/wm/shell/back/CrossActivityBackAnimation.kt) | 手势映射、纵向移动与遮罩；不移植提交后的 fling 缩放弹簧 |
 | [BackGestureInterpolator.java](https://android.googlesource.com/platform/frameworks/base/+/f68c80b4e9dbdb1e5bf6620f437c3d9f865eb047/core/java/android/view/animation/BackGestureInterpolator.java)、[Interpolators.java](https://android.googlesource.com/platform/frameworks/base/+/f68c80b4e9dbdb1e5bf6620f437c3d9f865eb047/libs/WindowManager/Shell/src/com/android/wm/shell/animation/Interpolators.java) | 手势曲线 `(0.1, 0.1, 0, 1)`、收尾 `EMPHASIZED` |
 | [BackProgressAnimator.java](https://android.googlesource.com/platform/frameworks/base/+/f68c80b4e9dbdb1e5bf6620f437c3d9f865eb047/core/java/android/window/BackProgressAnimator.java) | 取消时的临界阻尼弹簧参数 |
 | [dimen.xml](https://android.googlesource.com/platform/frameworks/base/+/f68c80b4e9dbdb1e5bf6620f437c3d9f865eb047/libs/WindowManager/Shell/res/values/dimen.xml) | 96dp 进入偏移、8dp 屏幕边距 |
@@ -37,7 +37,7 @@
 
 - 从松手时的实际矩形开始，持续 450ms。上一页回到完整屏幕；退出页恢复完整大小，并移动到 `松手时左边界 + 96dp` 的位置。
 - 与原始 `ValueAnimator` 一致，时间先通过默认 `AccelerateDecelerateInterpolator`；矩形插值再通过 `EMPHASIZED`。透明度按动画器输出的 fraction 计算：退出页 `max(1 - fraction × 5, 0)`，遮罩 `maxAlpha × (1 - fraction)`。
-- 两页叠加同一个速度驱动缩放弹簧：stiffness 200、dampingRatio 0.75；缩放上限为 1。系统以 100 为单位，本项目换算到 1；初始速度限制为 −10…0，低手势进度时为 −1.2，位移可见阈值为 0.0075。
+- 两页直接从松手时的预览大小单调恢复至完整大小，不再叠加 AOSP 的速度驱动 fling 缩放弹簧。原先的额外弹簧可能在快速滑动时让页面继续大幅缩小再回弹；此处有意偏离 AOSP，收尾不再受该速度影响，缩放保持在 0.9…1 范围内。
 - 完成后才出栈，并跳过 Navigation 3 的普通返回转场，避免重复播放。出栈交接期间保留最终帧（退出页透明、上一页完整大小、遮罩消失），直到旧 Scene 离开组合再清理，避免旧页面短暂恢复为不透明而闪烁。
 
 取消返回：沿相同手势几何回到原位，不改变返回栈。平台通常已经发送回到零的进度；对直接发送取消的输入，用 stiffness 1500、dampingRatio 1 的弹簧补齐复原。
@@ -46,14 +46,16 @@
 
 `ActivityNavDisplay` 使用公开的 `rememberDecoratedNavEntries`、`rememberSceneState`、`SceneStrategy`、`NavDisplay` 和 Navigation Event API。普通状态是单页面 Scene，开启预测性返回后手势及收尾期间是双页面 Scene；可保存状态和页面内容仍交由 Navigation 3 管理，不创建第二份页面截图或独立返回栈。
 
+普通页面的 Navigation Event 注册、生命周期监听与回调拦截集中在 `ActivityBackHandler`，`ActivityNavDisplay` 负责 Scene 与页面展示。`PredictiveBackMotion` 用封闭阶段状态表达空闲、手势、取消复原、提交收尾、等待退场和已完成；活动阶段始终携带同一对退出／进入条目。只有手势阶段接收进度、取消或启动提交，提交及等待退场阶段忽略重复完成；出栈后等待退出 Scene 释放才清理预览，已完成阶段仅保留条目配对供迟到的转场计算跳过重复动画。意外栈顶变化、配置变化或宿主停止会取消协程并清理阶段。
+
 默认 `predictivePopTransitionSpec` 只能描述同一 seekable 转场，无法直接表达 AOSP 独立的手势／提交阶段。本宿主自行接收 Navigation Event，向 NavDisplay 提供空闲的事件状态以避免重复驱动；预览期间将页面生命周期限制到 STARTED，并屏蔽内容交互。宿主停止、销毁、尺寸或返回栈意外变化时清理临时动画。普通返回键及工具栏返回仍使用普通 Activity 动画，根页面交还系统处理。
 
 普通转场按最新返回栈顶部的 `contentKey` 分配交互：目标页面在生命周期至少为 STARTED 且目标可见状态为 `EnterExitState.Visible` 时可响应操作，退场页保留期间屏蔽触摸和无障碍语义。普通返回的退出页在淡出结束后移除页面内容及触摸层，外层 Scene 仍完成 450ms 横移；淡出观察与实际 `fadeOut` 共用延迟 35ms、持续 83ms 的线性参数，通过 `derivedStateOf` 只在完成边界更新组合，使触摸可命中新页，旧页开始的触摸不转发。预测性返回预览和收尾继续屏蔽交互，无动画出栈不新增淡出观察时长；图片查看器继续等待 RESUMED 与稳定可见状态，并保留自身控件和缩放的禁用逻辑。
 
-普通页面的预测性返回为外观设置中的可选项，默认关闭。关闭时忽略手势进度，完成时检查返回保护并执行普通返回，取消不出栈；设置变化时移除旧处理器并清理临时动画。开启后保留本文所述 AOSP 几何、曲线和两阶段收尾。逐帧变换通过稳定函数在页面 `graphicsLayer` 中读取，遮罩在 Canvas 绘制阶段读取，不逐帧重组页面。图片查看器始终保留独立的 Navigation 3 可寻址图片返回及共享边界缩回动画，不受普通页面开关影响，详见[图片查看实现](../../docs/implementation/media.md#图片查看与导出)。
+普通页面的预测性返回为外观设置中的可选项，默认关闭。关闭时忽略手势进度，完成时检查返回保护并执行普通返回，取消不出栈；设置变化时移除旧处理器并清理临时动画。开启后采用本文所述手势几何、曲线和两阶段收尾。逐帧变换通过稳定函数在页面 `graphicsLayer` 中读取，遮罩在 Canvas 绘制阶段读取，不逐帧重组页面。图片查看器始终保留独立的 Navigation 3 可寻址图片返回及共享边界缩回动画，不受普通页面开关影响，详见[图片查看实现](../../docs/implementation/media.md#图片查看与导出)。
 
 ## 公开 API 适配边界
 
-- AOSP 的内部 `BackProgressAnimator.getVelocity()` 不公开；使用带时间戳的公开进度样本计算速度，弹簧参数与限幅保持一致。
+- AOSP 的内部 `BackProgressAnimator.getVelocity()` 不公开；使用带时间戳的公开进度样本计算速度，仅供取消时的复原弹簧使用。提交后的收尾不使用推算速度，也不叠加 fling 缩放。
 - AOSP 从系统资源及私有显示修正值读取窗口圆角；这里通过共享 [windowCornerRadius](../../app/src/main/java/moe/kirakira/ui/components/WindowCornerRadius.kt) 优先使用 API 31+ 公开 `WindowInsets.getRoundedCorner()` 提供的最小非零屏幕圆角，预测性返回与颜文字面板共用此算法。无有效圆角信息、Insets 尚不可用或运行在 API 27–30 时，使用应用默认的 28dp（按屏幕密度转换为 px）；该回退值不是 AOSP 系统参数。当前项目 minSdk 为 27，不访问隐藏资源。
 - 系统在真实窗口 Surface 上实现边缘像素扩展、letterbox 和系统栏外观切换。Compose 页面没有独立窗口 Surface；这些窗口级能力不复制，移动露出的区域使用宿主主题背景，系统栏由 Activity 管理。因此这是 AOSP 页面运动逻辑与参数的移植，不是逐像素的系统窗口复刻。
