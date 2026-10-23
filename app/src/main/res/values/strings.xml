@@ -202,9 +202,9 @@
     <string name="account_add">Add account</string>
     <string name="account_edit">Edit</string>
     <string name="account_done">Done</string>
-    <string name="account_remove_title">Remove account?</string>
+    <string name="account_remove_title">Log out?</string>
     <string name="account_remove_message">Remove %1$s and its saved session from this device?</string>
-    <string name="account_remove_description">Remove %1$s</string>
+    <string name="account_remove_description">Log out of %1$s</string>
     <string name="account_remove">Remove</string>
     <string name="account_cancel">Cancel</string>
 

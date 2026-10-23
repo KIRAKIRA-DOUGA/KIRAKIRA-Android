@@ -197,9 +197,9 @@
     <string name="account_add">添加账号</string>
     <string name="account_edit">编辑</string>
     <string name="account_done">完成</string>
-    <string name="account_remove_title">移除账号？</string>
+    <string name="account_remove_title">登出账号？</string>
     <string name="account_remove_message">从此设备移除 %1$s 及其保存的登录会话？</string>
-    <string name="account_remove_description">移除 %1$s</string>
+    <string name="account_remove_description">登出 %1$s</string>
     <string name="account_remove">移除</string>
     <string name="account_cancel">取消</string>
 
