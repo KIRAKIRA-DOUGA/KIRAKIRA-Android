@@ -33,6 +33,9 @@ internal data object SecuritySettingsRoute : NavKey
 internal data object AboutRoute : NavKey
 
 @Serializable
+internal data object ComponentTestRoute : NavKey
+
+@Serializable
 @SerialName("moe.kirakira.LicensesRoute")
 internal data object LicensesRoute : NavKey
 

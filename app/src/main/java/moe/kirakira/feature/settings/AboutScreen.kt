@@ -3,10 +3,14 @@ package moe.kirakira.feature.settings
 import android.content.res.Configuration
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +30,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,6 +50,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.pm.PackageInfoCompat
 import moe.kirakira.R
+import moe.kirakira.ui.components.cardColorShadow
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import kotlin.math.PI
 import kotlin.math.abs
@@ -55,6 +61,7 @@ fun AboutScreen(
     onBack: () -> Unit,
     onNavigateToLicenses: () -> Unit,
     modifier: Modifier = Modifier,
+    onNavigateToComponentTest: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
@@ -69,7 +76,11 @@ fun AboutScreen(
         modifier = modifier.testTag("about_screen"),
         backButtonModifier = Modifier.testTag("about_back"),
     ) {
-        AboutHeader(packageInfo.versionName, PackageInfoCompat.getLongVersionCode(packageInfo))
+        AboutHeader(
+            versionName = packageInfo.versionName,
+            versionCode = PackageInfoCompat.getLongVersionCode(packageInfo),
+            onLogoLongClick = onNavigateToComponentTest,
+        )
         SettingsSection {
             SettingsNavigationItem(
                 title = stringResource(R.string.about_github),
@@ -105,11 +116,22 @@ fun AboutScreen(
 }
 
 @Composable
-private fun AboutHeader(versionName: String?, versionCode: Long) {
+private fun AboutHeader(versionName: String?, versionCode: Long, onLogoLongClick: () -> Unit) {
+    val logoInteraction = remember { MutableInteractionSource() }
+    val logoPressed by logoInteraction.collectIsPressedAsState()
+    val logoScale = animateFloatAsState(
+        targetValue = if (logoPressed) 0.9f else 1f,
+        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+        label = "aboutLogoPressScale",
+    )
+    val shape = MaterialTheme.shapes.extraLarge
+    val container = MaterialTheme.colorScheme.primary
     Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier
+            .fillMaxWidth()
+            .cardColorShadow(shape, container),
+        shape = shape,
+        color = container,
         contentColor = Color.White,
     ) {
         Column(
@@ -117,12 +139,25 @@ private fun AboutHeader(versionName: String?, versionCode: Long) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            Box(modifier = Modifier.size(88.dp)) {
+            Box(
+                modifier = Modifier
+                    .size(88.dp)
+                    .combinedClickable(
+                        interactionSource = logoInteraction,
+                        indication = null,
+                        onClick = {},
+                        onLongClickLabel = "打开组件测试",
+                        onLongClick = onLogoLongClick,
+                    ),
+            ) {
                 Box(contentAlignment = Alignment.Center) {
                     Image(
                         painter = painterResource(R.drawable.ic_launcher_foreground),
                         contentDescription = stringResource(R.string.app_name),
-                        modifier = Modifier.requiredSize(156.dp),
+                        modifier = Modifier.requiredSize(156.dp).graphicsLayer {
+                            scaleX = logoScale.value
+                            scaleY = logoScale.value
+                        },
                     )
                 }
             }
