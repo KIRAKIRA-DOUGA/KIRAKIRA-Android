@@ -6,6 +6,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import moe.kirakira.core.network.ApiClient
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.EventListener
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Protocol
 import okhttp3.Request
@@ -76,6 +77,7 @@ internal class ScriptedApi {
         override fun isExecuted(): Boolean = executed
         override fun isCanceled(): Boolean = canceled
         override fun timeout(): Timeout = Timeout.NONE
+        override fun addEventListener(eventListener: EventListener) = Unit
         override fun clone(): Call = MemoryCall(request, action)
         override fun <T : Any> tag(type: KClass<T>): T? = tag(type.java)
         override fun <T> tag(type: Class<out T>): T? = type.cast(tags[type])
