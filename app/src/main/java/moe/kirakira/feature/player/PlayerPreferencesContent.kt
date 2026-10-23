@@ -42,9 +42,11 @@ internal fun PlayerPreferencesContent(
     onDanmakuSettingsChange: (DanmakuSettings) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val changeTab = rememberTabChangeHandler(pagerState)
     val playbackScroll = rememberScrollState()
     val danmakuScroll = rememberScrollState()
+    val changeTab = rememberTabChangeHandler(pagerState, onTabReselect = { page ->
+        (if (page == 0) playbackScroll else danmakuScroll).animateScrollTo(0)
+    })
     val titles = listOf(stringResource(R.string.player_settings_playback), stringResource(R.string.settings_danmaku))
     // Constrain content only: the sheet needs full window constraints to calculate its bottom anchor.
     BoxWithConstraints(modifier.fillMaxWidth()) {

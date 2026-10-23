@@ -15,8 +15,10 @@ import androidx.compose.ui.unit.lerp
 internal fun TabIndicatorScope.PagerTabIndicator(
     pagerState: PagerState,
     modifier: Modifier = Modifier,
+    pressed: Boolean = false,
 ) {
     val selectedTabIndex = pagerState.currentPage
+    val widthScale = rememberTabIndicatorWidthScale(pressed)
     TabRowDefaults.PrimaryIndicator(
         modifier = modifier.tabIndicatorLayout { measurable, constraints, tabPositions ->
             if (tabPositions.isEmpty()) {
@@ -40,7 +42,9 @@ internal fun TabIndicatorScope.PagerTabIndicator(
                 endLeft + end.contentWidth,
                 leadingFraction,
             ).roundToPx()
-            val width = right - left
+            val fullWidth = right - left
+            val width = (fullWidth * widthScale.value).toInt().coerceAtLeast(0)
+            val pressInset = (fullWidth - width) / 2
             val placeable = measurable.measure(constraints.copy(minWidth = width, maxWidth = width))
             // 可滚动 Tab 栏会将指示器容器按选中 Tab 再次居中，目标坐标已包含文字居中偏移。
             // 扣除父级位移；固定 Tab 栏的容器与 Tab 同宽，位移为零。
@@ -49,7 +53,7 @@ internal fun TabIndicatorScope.PagerTabIndicator(
             val parentOffset = ((selectedTabWidth - constraints.maxWidth) / 2).coerceAtLeast(0)
 
             layout(constraints.maxWidth, placeable.height) {
-                placeable.placeRelative(left - parentOffset, 0)
+                placeable.placeRelative(left + pressInset - parentOffset, 0)
             }
         },
         width = Dp.Unspecified,

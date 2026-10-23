@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -71,7 +73,11 @@ internal fun KaomojiPicker(
         initialPage = categoryIds.indexOf(category).coerceAtLeast(0),
         pageCount = { categoryIds.size },
     )
-    val changeTab = rememberTabChangeHandler(pagerState)
+    val gridStates = categoryIds.map { rememberLazyGridState() }
+    val changeTab = rememberTabChangeHandler(pagerState, onTabReselect = { page ->
+        val entries = if (categoryIds[page] == "recent") recent else kaomojiCatalog[categoryIds[page]].orEmpty()
+        if (entries.isNotEmpty()) gridStates[page].animateScrollToItem(0)
+    })
     LaunchedEffect(pagerState.currentPage) {
         onCategory(categoryIds[pagerState.currentPage])
     }
@@ -103,6 +109,7 @@ internal fun KaomojiPicker(
                 val id = categoryIds[page]
                 KaomojiGrid(
                     category = id,
+                    listState = gridStates[page],
                     entries = if (id == "recent") recent else kaomojiCatalog[id].orEmpty(),
                     onSelect = onSelect,
                     modifier = Modifier.fillMaxSize(),
@@ -117,6 +124,7 @@ internal fun KaomojiPicker(
 @Composable
 private fun KaomojiGrid(
     category: String,
+    listState: LazyGridState,
     entries: List<String>,
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -145,6 +153,7 @@ private fun KaomojiGrid(
     }
     LazyVerticalGrid(
         columns = GridCells.Fixed(KAOMOJI_COLUMNS),
+        state = listState,
         modifier = modifier.fillMaxSize(),
         contentPadding = gridPadding,
         horizontalArrangement = Arrangement.spacedBy(4.dp),

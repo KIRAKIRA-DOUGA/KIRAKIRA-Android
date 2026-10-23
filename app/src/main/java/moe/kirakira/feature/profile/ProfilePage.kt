@@ -115,12 +115,17 @@ internal fun ProfilePage(
         avatarKey = "profile/$sourceInstanceId/$avatarIdentity",
     )
     val pager = rememberPagerState(pageCount = { ProfileTab.entries.size })
-    val onTabChange = rememberTabChangeHandler(pager)
+    val videosListState = rememberLazyListState()
+    val collectionsListState = rememberLazyListState()
+    val onTabChange = rememberTabChangeHandler(pager, onTabReselect = { page ->
+        val listState = if (ProfileTab.entries[page] == ProfileTab.VIDEOS) videosListState else collectionsListState
+        listState.animateScrollToItem(0)
+    })
     var expanded by rememberSaveable { mutableStateOf(false) }
     ProfileScreen(
         state = state, videos = videos, pagerState = pager,
         profileError = profile.error, statsError = stats.error,
-        videosListState = rememberLazyListState(), collectionsListState = rememberLazyListState(),
+        videosListState = videosListState, collectionsListState = collectionsListState,
         bioExpanded = expanded, snackbarHostState = snackbar,
         onTabChange = { onTabChange(it.ordinal) }, onBioExpandedChange = { expanded = it },
         onFollowingChange = { if (session.activeUuid == null) onLogin() else model.follow() },

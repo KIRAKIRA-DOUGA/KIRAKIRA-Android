@@ -3,6 +3,7 @@ package moe.kirakira.feature.video
 import android.os.Build
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
@@ -43,6 +44,8 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
+import androidx.compose.material3.ToggleButtonShapes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -56,6 +59,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Interpolatable
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
@@ -160,7 +165,17 @@ internal fun VideoScreen(
     val kaomojiPanelOpen = commentComposer.panelOpen || danmakuComposer.panelOpen
     val panelNestedScrollConnection = remember { object : NestedScrollConnection {} }
     val pageNestedScrollConnection = PagerDefaults.pageNestedScrollConnection(pager, Orientation.Horizontal)
-    val changeTab = rememberTabChangeHandler(pager)
+    val introductionListState = rememberLazyListState()
+    val commentsListState = rememberLazyListState()
+    val danmakuListState = rememberLazyListState()
+    val changeTab = rememberTabChangeHandler(pager, onTabReselect = { page ->
+        val listState = when (VideoTab.entries[page]) {
+            VideoTab.INTRODUCTION -> introductionListState
+            VideoTab.COMMENTS -> commentsListState
+            VideoTab.DANMAKU -> danmakuListState
+        }
+        listState.animateScrollToItem(0)
+    })
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     LaunchedEffect(pager.currentPage) {
@@ -227,7 +242,7 @@ internal fun VideoScreen(
                     ) {
                         BoxWithConstraints(Modifier.fillMaxSize()) {
                             val statusHeight = (maxHeight - tabPadding - bottomPadding - 48.dp).coerceAtLeast(0.dp)
-                            LazyColumn(contentPadding = PaddingValues(20.dp, tabPadding + 24.dp, 20.dp, bottomPadding + 24.dp),
+                            LazyColumn(state = introductionListState, contentPadding = PaddingValues(20.dp, tabPadding + 24.dp, 20.dp, bottomPadding + 24.dp),
                                 verticalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.fillMaxSize()) {
                                 if (state.detail.error != null || detail == null) {
                                     item("status") {
@@ -330,7 +345,7 @@ internal fun VideoScreen(
                             detail != null && !detail.blockedByOther, onCommentDraft, onSendComment, onCommentsPage,
                             onCommentVote, onOpenProfile, onUnavailable, onCommentsPageRefresh,
                             onCommentsRetry, onCommentsAdjacent, onCommentLocationConsumed,
-                            rememberLazyListState(), contentPadding,
+                            commentsListState, contentPadding,
                             topPadding = tabPadding,
                             onLogin = onLogin.takeUnless { state.signedIn },
                             composerState = commentComposer,
@@ -366,7 +381,7 @@ internal fun VideoScreen(
                                 var headerHeight by remember { mutableIntStateOf(0) }
                                 val statusHeight = (maxHeight - tabPadding - listBottomPadding - 8.dp -
                                     with(density) { headerHeight.toDp() }).coerceAtLeast(0.dp)
-                                LazyColumn(modifier = Modifier.fillMaxSize(),
+                                LazyColumn(state = danmakuListState, modifier = Modifier.fillMaxSize(),
                                     contentPadding = PaddingValues(8.dp, tabPadding + 8.dp, 8.dp, listBottomPadding)) {
                                     item("count") {
                                         Column(Modifier.onSizeChanged { headerHeight = it.height }) {
@@ -552,10 +567,20 @@ private fun ReactionAction(
     } else {
         stringResource(label)
     }
+    val shapes = ToggleButtonDefaults.shapesFor(ToggleButtonDefaults.size)
+    val checkedProgress by animateFloatAsState(
+        targetValue = if (checked) 1f else 0f,
+        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+        label = "reactionCheckedShape",
+    )
+    val outline = Interpolatable.lerp(shapes.shape, shapes.checkedShape, checkedProgress) as? Shape
+        ?: if (checked) shapes.checkedShape else shapes.shape
     ToggleButton(
         checked = checked,
         onCheckedChange = { onClick() },
         enabled = !busy,
+        // One selection animation owns the outline; pressing this compact action row keeps it steady.
+        shapes = ToggleButtonShapes(outline, outline, outline),
         modifier = Modifier.semantics { contentDescription = description },
         icon = { Icon(painterResource(icon), null) },
     ) {

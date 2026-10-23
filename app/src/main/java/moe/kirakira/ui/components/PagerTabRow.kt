@@ -1,5 +1,7 @@
 package moe.kirakira.ui.components
 
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryScrollableTabRow
@@ -8,6 +10,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
@@ -24,12 +27,16 @@ internal fun PagerTabRow(
     minTabWidth: Dp = TabRowDefaults.ScrollableTabRowMinTabWidth,
     enabled: Boolean = true,
 ) {
+    val interactionSources = titles.map { remember { MutableInteractionSource() } }
+    val selectedTabPressed = enabled &&
+        interactionSources.getOrNull(pagerState.currentPage)?.collectIsPressedAsState()?.value == true
     val tabs: @Composable () -> Unit = {
         titles.forEachIndexed { index, title ->
             Tab(
                 selected = pagerState.currentPage == index,
                 onClick = { onTabChange(index) },
                 enabled = enabled,
+                interactionSource = interactionSources[index],
                 selectedContentColor = MaterialTheme.colorScheme.primary,
                 unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 text = { Text(title) },
@@ -43,7 +50,7 @@ internal fun PagerTabRow(
             containerColor = containerColor,
             edgePadding = 12.dp,
             minTabWidth = minTabWidth,
-            indicator = { PagerTabIndicator(pagerState) },
+            indicator = { PagerTabIndicator(pagerState, pressed = selectedTabPressed) },
             divider = {},
             tabs = tabs,
         )
@@ -52,7 +59,7 @@ internal fun PagerTabRow(
             selectedTabIndex = pagerState.currentPage,
             modifier = modifier,
             containerColor = containerColor,
-            indicator = { PagerTabIndicator(pagerState) },
+            indicator = { PagerTabIndicator(pagerState, pressed = selectedTabPressed) },
             divider = {},
             tabs = tabs,
         )
