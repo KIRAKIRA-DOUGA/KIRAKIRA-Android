@@ -9,7 +9,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
@@ -37,9 +36,11 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
+import moe.kirakira.ui.components.ActionDialog
 import moe.kirakira.ui.components.AnimatedCountLabel
 import moe.kirakira.ui.components.AnimatedPageCount
 import moe.kirakira.ui.components.FilledTextField
+import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.theme.BarShadowElevation
 
 @Composable
@@ -119,9 +120,9 @@ internal fun CommentJumpDialog(
     val target = input.toIntOrNull()
     val valid = enabled && target != null && target in 1..totalPages
     val jump = { if (valid) onJump(target) }
-    AlertDialog(
+    ActionDialog(
         onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surface,
+        icon = { Icon(painterResource(R.drawable.ic_symbol_keyboard), contentDescription = null) },
         title = { Text(stringResource(R.string.video_comments_jump_title)) },
         text = {
             Column(
@@ -143,11 +144,18 @@ internal fun CommentJumpDialog(
                 )
             }
         },
-        confirmButton = {
-            TextButton(onClick = jump, enabled = valid) { Text(stringResource(R.string.video_comments_jump)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.video_comments_cancel)) }
+        actions = {
+            ShadowButton(
+                onClick = jump,
+                enabled = valid,
+            ) {
+                Text(stringResource(R.string.video_comments_jump))
+            }
+            TextButton(
+                onClick = onDismiss,
+            ) {
+                Text(stringResource(R.string.video_comments_cancel))
+            }
         },
     )
 }

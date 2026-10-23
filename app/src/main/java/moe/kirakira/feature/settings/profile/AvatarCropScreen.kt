@@ -16,6 +16,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconButtonShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.SnackbarHost
@@ -121,7 +122,6 @@ internal fun AvatarCropScreen(
                     IconButton(
                         onClick = onCancel,
                         enabled = !state.cropBusy,
-                        shapes = IconButtonDefaults.shapes(),
                     ) {
                         ProfileIcon(R.drawable.ic_symbol_close, stringResource(R.string.account_cancel))
                     }
@@ -148,7 +148,10 @@ internal fun AvatarCropScreen(
                             onClick = { cropper?.rotateImage(90) },
                             enabled = state.cropReady && !state.cropBusy,
                             modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
-                            shapes = IconButtonDefaults.shapes(),
+                            shapes = IconButtonShapes(
+                                IconButtonDefaults.filledShape,
+                                IconButtonDefaults.filledShape,
+                            ),
                         ) {
                             Icon(
                                 painterResource(R.drawable.ic_symbol_rotate_right),

@@ -113,6 +113,7 @@ internal fun TotpSetupContent(
                         if (!opened) onCopied(false)
                     },
                     enabled = isActive && !state.working,
+                    shapes = ButtonDefaults.shapes(),
                     modifier = Modifier.align(Alignment.End),
                 ) {
                     Text(stringResource(R.string.security_open_authenticator))
@@ -267,7 +268,7 @@ private fun CopyButton(
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
-    OutlinedButton(onClick = onClick, modifier = modifier, enabled = enabled) {
+    OutlinedButton(onClick = onClick, shapes = ButtonDefaults.shapes(), modifier = modifier, enabled = enabled) {
         Icon(painterResource(R.drawable.ic_symbol_content_copy), null, Modifier.size(ButtonDefaults.IconSize))
         Spacer(Modifier.width(ButtonDefaults.IconSpacing))
         Text(label)

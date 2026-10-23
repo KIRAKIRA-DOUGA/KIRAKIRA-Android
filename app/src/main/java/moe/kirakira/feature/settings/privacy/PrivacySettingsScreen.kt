@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -67,15 +66,16 @@ import moe.kirakira.feature.settings.SettingsColumn
 import moe.kirakira.feature.settings.SettingsScaffold
 import moe.kirakira.feature.settings.SettingsSection
 import moe.kirakira.feature.settings.SettingsSectionHeader
+import moe.kirakira.ui.components.ActionDialog
 import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.ui.components.ContentUnavailableAction
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
-import moe.kirakira.ui.components.DestructiveTextButton
 import moe.kirakira.ui.components.IconBadge
 import moe.kirakira.ui.components.IconBadgeTone
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.ShadowRadioButton
 import moe.kirakira.ui.components.ShadowToggleButton
 import moe.kirakira.ui.components.connectedListItemShapes
@@ -225,18 +225,24 @@ internal fun PrivacySettingsScreen(
         PrivacyVisibilitySheet(state, onSelect, onCloseSelector)
     }
     if (state.confirmReset && signedIn && !sessionBusy) {
-        AlertDialog(
+        ActionDialog(
             onDismissRequest = onCancelReset,
-            containerColor = MaterialTheme.colorScheme.surface,
+            icon = { Icon(painterResource(R.drawable.ic_symbol_shield), contentDescription = null) },
             title = { Text(stringResource(R.string.privacy_reset_title)) },
             text = { Text(stringResource(R.string.privacy_reset_message)) },
-            confirmButton = {
-                DestructiveTextButton(onClick = onReset, enabled = state.canReset) {
+            actions = {
+                ShadowButton(
+                    onClick = onReset,
+                    enabled = state.canReset,
+                    destructive = true,
+                ) {
                     Text(stringResource(R.string.privacy_reset))
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = onCancelReset) { Text(stringResource(R.string.account_cancel)) }
+                TextButton(
+                    onClick = onCancelReset,
+                ) {
+                    Text(stringResource(R.string.account_cancel))
+                }
             },
         )
     }
@@ -272,6 +278,11 @@ private fun PrivacySetAllGroup(state: PrivacySettingsState, onSelectAll: (Privac
             PrivacyVisibility.entries.forEachIndexed { index, visibility ->
                 val checked = uniformVisibility == visibility
                 val label = stringResource(visibility.titleRes())
+                val shapes = when (index) {
+                    0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                    PrivacyVisibility.entries.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                }
                 ShadowToggleButton(
                     checked = checked,
                     onCheckedChange = { onSelectAll(visibility) },
@@ -281,11 +292,8 @@ private fun PrivacySetAllGroup(state: PrivacySettingsState, onSelectAll: (Privac
                         containerColor = MaterialTheme.colorScheme.surface,
                         contentColor = MaterialTheme.colorScheme.onSurface,
                     ),
-                    shapes = when (index) {
-                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                        PrivacyVisibility.entries.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                        else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
-                    },
+                    // Preserve the connected contour on press while retaining selection feedback.
+                    shapes = shapes.copy(pressedShape = if (checked) shapes.checkedShape else shapes.shape),
                     modifier = Modifier.weight(1f).semantics {
                         role = Role.RadioButton
                         selected = checked

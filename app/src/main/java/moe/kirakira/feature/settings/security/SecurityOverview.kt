@@ -38,6 +38,7 @@ import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.ui.components.IconBadge
 import moe.kirakira.ui.components.IconBadgeTone
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.cardColorShadow
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.theme.semanticColors
 import java.text.DateFormat
@@ -74,14 +75,16 @@ private fun SecurityStatusBanner(state: SecuritySettingsState) {
     val unprotected = !state.statusPending && factor == SecondFactor.NONE
     val scheme = MaterialTheme.colorScheme
     val colors = MaterialTheme.semanticColors
+    val shape = MaterialTheme.shapes.extraLarge
+    val container = when {
+        protected -> colors.success
+        unprotected -> colors.warning
+        else -> scheme.surfaceContainerLow
+    }
     Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
-        color = when {
-            protected -> colors.success
-            unprotected -> colors.warning
-            else -> scheme.surfaceContainerLow
-        },
+        modifier = Modifier.fillMaxWidth().cardColorShadow(shape, container),
+        shape = shape,
+        color = container,
         contentColor = when {
             protected -> colors.onSuccess
             unprotected -> colors.onWarning
@@ -200,9 +203,10 @@ private fun TwoFactorEnabledCard(
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.semanticColors
+    val shape = MaterialTheme.shapes.extraLarge
     Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
+        modifier = modifier.fillMaxWidth().cardColorShadow(shape, colors.success),
+        shape = shape,
         color = colors.success,
         contentColor = colors.onSuccess,
     ) {

@@ -4,16 +4,19 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
+import moe.kirakira.ui.components.ActionDialog
 import moe.kirakira.ui.components.ColorEditorControls
+import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.rememberColorEditorState
 
 @Composable
@@ -25,9 +28,9 @@ internal fun CustomColorDialog(
     val state = rememberColorEditorState(seedColorArgb)
     val parsedColor = state.parsedColor
 
-    AlertDialog(
+    ActionDialog(
         onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surface,
+        icon = { Icon(painterResource(R.drawable.ic_symbol_palette), contentDescription = null) },
         title = { Text(stringResource(R.string.theme_color_custom)) },
         text = {
             Column(
@@ -44,15 +47,13 @@ internal fun CustomColorDialog(
                 )
             }
         },
-        confirmButton = {
-            TextButton(
+        actions = {
+            ShadowButton(
                 onClick = { parsedColor?.let(onConfirm) },
                 enabled = parsedColor != null,
             ) {
                 Text(stringResource(R.string.theme_color_apply))
             }
-        },
-        dismissButton = {
             TextButton(
                 onClick = onDismiss,
             ) { Text(stringResource(R.string.theme_color_cancel)) }

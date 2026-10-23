@@ -15,8 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -30,18 +29,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
+import moe.kirakira.ui.components.ActionDialog
 import moe.kirakira.ui.components.CollapsibleTopAppBar
 import moe.kirakira.ui.components.ConnectedListGroup
-import moe.kirakira.ui.components.DestructiveTextButton
 import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.SectionHeader
 import moe.kirakira.ui.components.SegmentedMenuItem
 import moe.kirakira.ui.components.ShadingIcon
+import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorDefaults
@@ -68,24 +69,25 @@ fun SettingsScreen(
 ) {
     var confirmLogout by rememberSaveable(signedIn) { mutableStateOf(false) }
     if (confirmLogout && signedIn) {
-        AlertDialog(
+        ActionDialog(
             onDismissRequest = { confirmLogout = false },
-            containerColor = MaterialTheme.colorScheme.surface,
+            icon = { Icon(painterResource(R.drawable.ic_symbol_logout), contentDescription = null) },
             title = { Text(stringResource(R.string.settings_log_out)) },
             text = { Text(stringResource(R.string.account_logout_message)) },
-            confirmButton = {
-                DestructiveTextButton(
+            actions = {
+                ShadowButton(
                     onClick = {
                         confirmLogout = false
                         onLogout()
                     },
                     enabled = !accountBusy,
+                    destructive = true,
                 ) {
                     Text(stringResource(R.string.settings_log_out))
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmLogout = false }) { Text(stringResource(R.string.account_cancel)) }
+                TextButton(onClick = { confirmLogout = false }) {
+                    Text(stringResource(R.string.account_cancel))
+                }
             },
         )
     }

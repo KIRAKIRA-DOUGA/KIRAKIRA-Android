@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -37,7 +36,6 @@ import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
-import moe.kirakira.ui.components.DestructiveActionDefaults
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.messageRes
 
@@ -309,7 +307,7 @@ private fun SecuritySubmitButton(
         enabled = state.canSubmit,
         busy = state.busy,
         modifier = modifier,
-        colors = if (destructive) DestructiveActionDefaults.buttonColors() else ButtonDefaults.buttonColors(),
+        destructive = destructive,
         actionDescription = when {
             state.completionPending -> stringResource(R.string.profile_finish_save)
             step == SecurityStep.SECRETS -> stringResource(R.string.security_done)

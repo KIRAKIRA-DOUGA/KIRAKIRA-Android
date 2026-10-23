@@ -148,7 +148,7 @@ internal fun PlayerSettingsButtons(
             onClick = { onOpen(PlayerSettingsPanel.QUALITY) },
             enabled = enabled && state.qualityOptions.isNotEmpty() && !state.failed,
             colors = textColors,
-            shapes = ButtonDefaults.shapesFor(buttonSize),
+            shape = ButtonDefaults.shapesFor(buttonSize).shape,
             contentPadding = ButtonDefaults.contentPaddingFor(buttonSize),
             modifier = Modifier
                 .padding(horizontal = textButtonOuterPadding)
@@ -183,7 +183,7 @@ internal fun PlayerSettingsButtons(
                     onClick = { onOpen(PlayerSettingsPanel.SPEED) },
                     enabled = enabled && state.available && !state.failed,
                     colors = textColors.copy(contentColor = speedColor),
-                    shapes = ButtonDefaults.shapesFor(buttonSize),
+                    shape = ButtonDefaults.shapesFor(buttonSize).shape,
                     contentPadding = ButtonDefaults.contentPaddingFor(buttonSize, hasStartIcon = true),
                     modifier = Modifier
                         .padding(horizontal = textButtonOuterPadding)

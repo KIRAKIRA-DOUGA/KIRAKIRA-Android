@@ -58,6 +58,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -294,50 +295,64 @@ private fun PersonalInformation(state: ProfileEditorState, onEdit: (String, Stri
             onClick = { showBirthday = true }, enabled = state.editable,
             shapes = connectedListItemShapes(0, 2),
             leadingContent = { ProfileListIcon(R.drawable.ic_symbol_calendar_today) },
-            supportingContent = { Text(birthday?.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale))
-                ?: draft.birthday.ifBlank { stringResource(R.string.profile_not_set) }) },
+            supportingContent = {
+                Text(
+                    birthday?.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale))
+                        ?: draft.birthday.ifBlank { stringResource(R.string.profile_not_set) },
+                )
+            },
             trailingContent = { ProfileListIcon(R.drawable.ic_symbol_chevron_right) },
             content = { Text(stringResource(R.string.profile_birthday)) },
         )
-        Box {
-            SegmentedListItem(
-                onClick = { showGender = true }, enabled = state.editable,
-                shapes = connectedListItemShapes(1, 2),
-                leadingContent = { ProfileListIcon(R.drawable.ic_symbol_person) },
-                supportingContent = { Text(genderValues.indexOf(draft.gender).takeIf { it >= 0 }?.let {
-                    stringResource(genderLabels[it])
-                } ?: draft.gender) },
-                trailingContent = { ProfileListIcon(R.drawable.ic_symbol_chevron_right) },
-                content = { Text(stringResource(R.string.profile_gender)) },
-            )
-            ExpressiveMenuPopup(
-                expanded = showGender,
-                onDismissRequest = { showGender = false },
-            ) {
-                DropdownMenuGroup(
-                    shapes = MenuDefaults.groupShape(index = 0, count = 1),
-                    modifier = Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()),
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentPadding = PaddingValues(vertical = 4.dp),
-                ) {
-                    genderValues.forEachIndexed { index, value ->
-                        SelectableDropdownMenuItem(
-                            selected = draft.gender == value,
-                            text = { Text(stringResource(genderLabels[index])) },
-                            onClick = {
-                                onEdit("gender", value)
-                                showGender = false
-                            },
-                            shapes = MenuDefaults.itemShape(index = index, count = genderValues.size),
-                            colors = genderItemColors,
-                            trailingContent = if (draft.gender == value) {
-                                { ProfileIcon(R.drawable.ic_symbol_check) }
-                            } else null,
-                        )
+        SegmentedListItem(
+            onClick = { showGender = true }, enabled = state.editable,
+            shapes = connectedListItemShapes(1, 2),
+            leadingContent = { ProfileListIcon(R.drawable.ic_symbol_person) },
+            supportingContent = {
+                Text(
+                    genderValues.indexOf(draft.gender).takeIf { it >= 0 }?.let {
+                        stringResource(genderLabels[it])
+                    } ?: draft.gender,
+                )
+            },
+            trailingContent = {
+                Box {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_symbol_chevron_right),
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp).rotate(90f),
+                    )
+                    ExpressiveMenuPopup(
+                        expanded = showGender,
+                        onDismissRequest = { showGender = false },
+                    ) {
+                        DropdownMenuGroup(
+                            shapes = MenuDefaults.groupShape(index = 0, count = 1),
+                            modifier = Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()),
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            contentPadding = PaddingValues(vertical = 4.dp),
+                        ) {
+                            genderValues.forEachIndexed { index, value ->
+                                SelectableDropdownMenuItem(
+                                    selected = draft.gender == value,
+                                    text = { Text(stringResource(genderLabels[index])) },
+                                    onClick = {
+                                        onEdit("gender", value)
+                                        showGender = false
+                                    },
+                                    shapes = MenuDefaults.itemShape(index = index, count = genderValues.size),
+                                    colors = genderItemColors,
+                                    trailingContent = if (draft.gender == value) {
+                                        { ProfileIcon(R.drawable.ic_symbol_check) }
+                                    } else null,
+                                )
+                            }
+                        }
                     }
                 }
-            }
-        }
+            },
+            content = { Text(stringResource(R.string.profile_gender)) },
+        )
     }
 }
 

@@ -11,8 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -23,19 +22,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import moe.kirakira.R
 import moe.kirakira.data.auth.SecondFactor
 import moe.kirakira.feature.settings.SettingsDefaults
 import moe.kirakira.feature.settings.SettingsErrorCard
 import moe.kirakira.feature.settings.SettingsScaffold
+import moe.kirakira.ui.components.ActionDialog
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentUnavailableAction
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
-import moe.kirakira.ui.components.DestructiveTextButton
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.messageRes
 
 @Composable
@@ -154,23 +155,41 @@ internal fun SecuritySettingsScreen(
         )
     }
     if (state.confirmDiscardCodes && isActive) {
-        AlertDialog(
+        ActionDialog(
             onDismissRequest = onCancelDiscard,
-            containerColor = MaterialTheme.colorScheme.surface,
+            icon = { Icon(painterResource(R.drawable.ic_symbol_lock), contentDescription = null) },
             title = { Text(stringResource(R.string.security_leave_codes_title)) },
             text = { Text(stringResource(R.string.security_leave_codes_message)) },
-            confirmButton = { DestructiveTextButton(onClick = onFinishCodes) { Text(stringResource(R.string.privacy_discard)) } },
-            dismissButton = { TextButton(onClick = onCancelDiscard) { Text(stringResource(R.string.profile_keep_editing)) } },
+            actions = {
+                ShadowButton(
+                    onClick = onFinishCodes,
+                    destructive = true,
+                ) { Text(stringResource(R.string.privacy_discard)) }
+                TextButton(
+                    onClick = onCancelDiscard,
+                ) {
+                    Text(stringResource(R.string.profile_keep_editing))
+                }
+            },
         )
     }
     if (state.confirmDiscardCredentials && isActive) {
-        AlertDialog(
+        ActionDialog(
             onDismissRequest = onCancelDiscardCredentials,
-            containerColor = MaterialTheme.colorScheme.surface,
+            icon = { Icon(painterResource(R.drawable.ic_symbol_lock), contentDescription = null) },
             title = { Text(stringResource(R.string.security_leave_changes_title)) },
             text = { Text(stringResource(R.string.profile_discard_message)) },
-            confirmButton = { DestructiveTextButton(onClick = onDiscardCredentials) { Text(stringResource(R.string.privacy_discard)) } },
-            dismissButton = { TextButton(onClick = onCancelDiscardCredentials) { Text(stringResource(R.string.profile_keep_editing)) } },
+            actions = {
+                ShadowButton(
+                    onClick = onDiscardCredentials,
+                    destructive = true,
+                ) { Text(stringResource(R.string.privacy_discard)) }
+                TextButton(
+                    onClick = onCancelDiscardCredentials,
+                ) {
+                    Text(stringResource(R.string.profile_keep_editing))
+                }
+            },
         )
     }
 }

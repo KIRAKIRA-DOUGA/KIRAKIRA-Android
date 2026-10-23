@@ -3,8 +3,7 @@ package moe.kirakira.feature.settings.profile
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -17,10 +16,12 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import moe.kirakira.R
-import moe.kirakira.ui.components.DestructiveTextButton
+import moe.kirakira.ui.components.ActionDialog
+import moe.kirakira.ui.components.ShadowButton
 
 @Composable
 internal fun ProfileEditorPage(model: ProfileEditorViewModel, onBack: () -> Unit, onLogin: () -> Unit) {
@@ -39,13 +40,22 @@ internal fun ProfileEditorPage(model: ProfileEditorViewModel, onBack: () -> Unit
             snackbar.showSnackbar(resources.getString(message))
         }
     }
-    if (state.confirmDiscard) AlertDialog(
+    if (state.confirmDiscard) ActionDialog(
         onDismissRequest = model::dismissDiscard,
-        containerColor = MaterialTheme.colorScheme.surface,
+        icon = { Icon(painterResource(R.drawable.ic_symbol_edit), contentDescription = null) },
         title = { Text(stringResource(R.string.profile_discard_title)) },
         text = { Text(stringResource(if (state.completionOnly) R.string.profile_saved_pending else R.string.profile_discard_message)) },
-        confirmButton = { DestructiveTextButton(onClick = onBack) { Text(stringResource(R.string.profile_discard)) } },
-        dismissButton = { TextButton(onClick = model::dismissDiscard) { Text(stringResource(R.string.profile_keep_editing)) } },
+        actions = {
+            ShadowButton(
+                onClick = onBack,
+                destructive = true,
+            ) { Text(stringResource(R.string.profile_discard)) }
+            TextButton(
+                onClick = model::dismissDiscard,
+            ) {
+                Text(stringResource(R.string.profile_keep_editing))
+            }
+        },
     )
     val source = state.cropSource
     if (source != null) {
