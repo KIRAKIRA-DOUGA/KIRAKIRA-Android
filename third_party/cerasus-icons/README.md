@@ -22,3 +22,10 @@
 ## 播放器首次加载动画
 
 此前移植的 `LogoCover` 与 `PlayerVideoSplash` 几何加载动画已移除，播放器首次加载改为保留视频封面。
+
+## 危险按钮装饰
+
+- 来源（同一固定版本 `dd5b8cdcabaac4d03ad190f6b7037bfab494c72b`）：[components/Button.vue](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Cerasus/blob/dd5b8cdcabaac4d03ad190f6b7037bfab494c72b/components/Button.vue) 中的 `decoration-move` 与危险按钮装饰样式，许可沿用本目录 GNU AGPL v3.0。
+- Compose 适配位于 `ui/components/DestructiveDecoration.kt`，保留五个错峰图形、向上浮动、淡入淡出及悬停放大旋转；回弹曲线使用 Compose 三次贝塞尔实现，网页尺寸按 dp 适配。
+- 图形复用本项目 Apache-2.0 的 Material Symbols Rounded `ic_symbol_close`，不复制上游 close 图标。颜色继承主题 `onError`；装饰在官方按钮内容后方绘制并由表面轮廓裁剪，保留 Expressive 形变与现有彩色投影。
+- 仅危险实心按钮启用；禁用、加载或系统关闭动画时隐藏并停止，文字按钮与菜单保持原样。

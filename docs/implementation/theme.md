@@ -12,10 +12,11 @@
   - [栏面阴影](#栏面阴影)
   - [按钮动态阴影](#按钮动态阴影)
   - [单选框动态阴影](#单选框动态阴影)
+  - [彩色卡片阴影](#彩色卡片阴影)
 
 ## 主题实现
 
-界面以 Material 3 Expressive 为基础，配色与高度阴影采用 Material Design 2 的视觉风格，并结合 KIRAKIRA 特色的彩色阴影。`KIRAKIRATheme` 保留 Material 3 语义颜色角色及 `MaterialExpressiveTheme` 的组件、形状、排版与动效；经典强调色和中性表面由项目主题生成器提供，关闭色调高度叠加。彩色按钮与 FAB 的投影取实际容器色，选中单选框的投影取实际选中色，中性色使用黑色；共享双层阴影几何参数来自 Material Web，原生阴影由平台绘制。设计约束、强度与场景例外见[主题配色约束](../../CONTRIBUTING.md#主题配色约束)及[按钮、单选框与阴影](../../CONTRIBUTING.md#按钮单选框与阴影)。
+界面以 Material 3 Expressive 为基础，配色与高度阴影采用 Material Design 2 的视觉风格，并结合 KIRAKIRA 特色的彩色阴影。`KIRAKIRATheme` 保留 Material 3 语义颜色角色及 `MaterialExpressiveTheme` 的组件、形状、排版与动效；经典强调色和中性表面由项目主题生成器提供，关闭色调高度叠加。彩色按钮、FAB 与设置页实色大卡片的投影取实际容器色，选中单选框的投影取实际选中色，中性色使用黑色；共享双层阴影几何参数来自 Material Web，原生阴影由平台绘制。设计约束、强度与场景例外见[主题配色约束](../../CONTRIBUTING.md#主题配色约束)及[按钮、单选框与阴影](../../CONTRIBUTING.md#按钮单选框与阴影)。
 
 [ThemeSettingsStore](../../app/src/main/java/moe/kirakira/data/settings/ThemeSettingsStore.kt) 负责 `kirakira_settings` 的读取、写入与旧预设颜色迁移，仅处理字符串、布尔值及 ARGB 数值。[ThemeViewModel](../../app/src/main/java/moe/kirakira/ui/theme/ThemeViewModel.kt) 提供当前主题的默认色和迁移映射，将存储结果映射为 UI 状态；保留后台首次读取、就绪门控、无效明暗模式回退和不透明颜色处理。
 
@@ -23,7 +24,7 @@
 
 主题层的 [ThemeSemanticColors](../../app/src/main/java/moe/kirakira/ui/theme/ThemeSemanticColors.kt) 提供不可变的成功色 `success/onSuccess` 与警告色 `warning/onWarning`，通过 `MaterialTheme.semanticColors` 读取，供成功／完成及警告状态复用，不占用 Material 3 的既有颜色角色。`KIRAKIRATheme` 根据自身 `darkTheme` 参数通过 `CompositionLocal` 提供配色：浅色固定使用 `#008577`，深色使用 `#00594F`，`onSuccess` 默认值为白色，主题生成时直接使用该默认值，不引用个性色预设，不受强调色或系统强调色影响。警告色浅色使用 `#FFC107/#3E2E00`，深色使用 `#5D4300/#FFE082`，同样不随强调色变化。
 
-安全页顶部卡片在已开启二步验证时使用 `success/onSuccess`，确认未开启时使用 `warning/onWarning`，待核对时使用 `surfaceContainerLow/onSurface`；保护状态同时由文案及盾牌／警示图标表达。邀请码顶部卡片使用 `primary` 与 `onPrimary` 实色配对，默认呈品牌粉色并随主题强调色变化。两者沿用关于页的大圆角与实色视觉语言，图标底座使用低透明度前景色；邀请码生成按钮在浅深主题的可用状态均采用白色容器与 `primary` 文字、图标，直接使用官方 `Button` 并设置 `elevation = null`，所有交互状态均无阴影，保留官方 Expressive 尺寸和按压形变，禁用配色沿用统计块的低透明度前景色。加载指示器使用卡片前景色。
+安全页顶部卡片在已开启二步验证时使用 `success/onSuccess`，确认未开启时使用 `warning/onWarning`，待核对时使用 `surfaceContainerLow/onSurface`；保护状态同时由文案及盾牌／警示图标表达。邀请码顶部卡片使用 `primary` 与 `onPrimary` 实色配对，默认呈品牌粉色并随主题强调色变化。安全页与邀请码页的这些卡片沿用关于页的大圆角、实色视觉语言及共享 2dp 彩色投影，图标底座使用低透明度前景色；邀请码生成按钮在浅深主题的可用状态均采用白色容器与 `primary` 文字、图标，直接使用官方 `Button` 并设置 `elevation = null`，所有交互状态均无阴影，保留官方 Expressive 尺寸和按压形变，禁用配色沿用统计块的低透明度前景色。加载指示器使用卡片前景色。
 
 ### 配色生成
 
@@ -49,7 +50,7 @@
 
 普通弹层在官方组件调用处直接引用 `MaterialTheme.colorScheme`，规则见[贡献指南](../../CONTRIBUTING.md#compose-与界面规范)。业务 Sheet 有实际连接列表条目时使用原有的 `surfaceContainerLow`，否则使用 `surface`；深色模式同样使用对应语义颜色，不硬编码白色。判断基于内容状态，不读取懒列表可见条目或探测组件树；空分组不算连接列表条目，保留已有条目的刷新继续使用灰底，不额外添加颜色动画或保存背景偏好。
 
-播放器画质与倍速面板、隐私可见性面板始终包含连接列表，固定使用灰底。标签搜索根据候选是否非空、标签名称根据是否存在非空名称组、屏蔽规则编辑根据是否有用户预览或非空标签结果选择背景。弹幕样式的 `custom` 状态保留在弹层打开分支、提升到 `ModalBottomSheet` 调用之前：样式页用灰底，自定义颜色编辑用 `surface`；关闭后重新打开仍进入样式页，编辑器草稿和确认／取消逻辑保持原有归属。
+播放器画质与倍速面板、隐私可见性面板始终包含连接列表，固定使用灰底。全屏标签选择器根据候选是否非空、标签名称根据是否存在非空名称组、屏蔽规则编辑根据是否有用户预览或非空标签结果选择背景。弹幕样式的 `custom` 状态保留在弹层打开分支、提升到 `ModalBottomSheet` 调用之前：样式页用灰底，自定义颜色编辑用 `surface`；关闭后重新打开仍进入样式页，编辑器草稿和确认／取消逻辑保持原有归属。
 
 普通 `AlertDialog` 与 `DropdownMenu` 显式使用 `surface`。生日选择将同一份 `DatePickerDefaults.colors(containerColor = surface)` 传给 `DatePickerDialog` 和内部 `DatePicker`，确保日历、年份选择和输入模式与外层同色。开源组件通过 `LibraryDefaults.m3VariantColors(sheetSurface = surface)` 配置详情 Sheet，通过 `libraryColors(dialogBackgroundColor = surface)` 配置许可证对话框，保留上游组件与列表页面背景。弹层内列表项、输入框和选中态继续使用原有配色；媒体查看器不适用该规则。
 
@@ -107,15 +108,17 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 
 个人主页与视频页复用 [FollowButton](../../app/src/main/java/moe/kirakira/ui/components/FollowButton.kt)，内部使用官方 `ToggleButton` 与官方尺寸配套 API。未关注状态显式使用 `primary/onPrimary`，接入共享 `buttonShadow` 的双层投影；已关注状态使用灰色 `surfaceContainerHigh/onSurfaceVariant`，不接入投影，官方 elevation 同时设为 `null`。禁用时保留官方禁用配色与语义，不绘制阴影。选中状态与按压状态通过公开 `Interpolatable` API 及主题 `fastSpatialSpec` 插值，所得轮廓同时传给表面和投影，官方组件的三种形状设为同一当前轮廓以避免二次动画；关注布尔值、提交条件与回调继续由原页面拥有。
 
+关注状态的形状、容器色、前景色及两个 `AnimatedContent` 共用 `rememberTransition`：加号与对勾通过旋转、缩放及淡入淡出切换，文字通过短距离纵向滑动与淡入淡出切换，文字的 `SizeTransform` 驱动按钮按本地化文案实际尺寸平滑伸缩。空间变化使用主题 `fastSpatialSpec`，颜色与透明度使用 `fastEffectsSpec`，由 Compose 遵循系统动画时长设置；首次组合直接展示当前状态。动画内容按各自目标状态渲染，按钮提供唯一的当前本地化无障碍标签，保留官方选中及禁用语义。
+
 [ShadowButtons](../../app/src/main/java/moe/kirakira/ui/components/ShadowButtons.kt) 为填充、浅色填充、实心图标按钮及 FAB 封装官方 Material 3 组件；文字、描边及裸图标按钮不使用投影。调用方保留现有颜色、尺寸、形状、内容内边距、语义及点击逻辑，官方高度投影设为零，避免重复叠加。按钮不增加缩放、位移或布局空间，也不保存阴影偏好。投影读取官方 `MinimumInteractiveLeftAlignmentLine` 和 `MinimumInteractiveTopAlignmentLine`，按实际可见轮廓内缩并平移，不把最小触摸目标的留白当作按钮表面；测量及触摸区域保持原样。
 
 播放器黑底控制按钮不接入共享阴影或背景模糊，静止、按压、悬停、聚焦及禁用时均无投影。返回、全屏和倍速图标直接使用官方 `FilledIconButton`，清晰度与带数值的倍速入口使用 `TextButton`，中央播放／缓冲容器使用半透明黑底；小窗继续使用无投影的官方 `IconButton`。资料页 Tab 未吸顶时的顶部按钮保留[黑底毛玻璃按钮](components.md#黑底毛玻璃按钮)。
 
-[VideoScreen](../../app/src/main/java/moe/kirakira/feature/video/VideoScreen.kt) 的下载、分享、更多按钮直接使用官方 `FilledTonalIconButton`，在调用处通过 `IconButtonDefaults.filledTonalIconButtonColors` 将容器与前景设为 `surfaceContainer/onSurfaceVariant`，与未选中的赞踩 `ToggleButton` 一致；不接入共享投影，所有交互及禁用状态均无阴影。
+[VideoScreen](../../app/src/main/java/moe/kirakira/feature/video/VideoScreen.kt) 的下载、分享、更多按钮直接使用官方 `FilledTonalIconButton`，在调用处通过 `IconButtonDefaults.filledTonalIconButtonColors` 将容器与前景设为 `surfaceContainer/onSurfaceVariant`，与未选中的赞踩 `ToggleButton` 一致；不接入共享投影，所有交互及禁用状态均无阴影。整排按钮固定按压轮廓，赞踩与收藏按钮单独插值选中形状，并将当前轮廓同时用于官方组件的静止、按压和选中形状，保留选中动画与配色反馈。
 
 `ShadowFloatingActionButton` 默认使用 `CircleShape` 与主题 `primary` 背景，`contentColorFor(containerColor)` 为默认背景匹配 `onPrimary` 前景，与实心按钮配色一致。保留官方 FAB 尺寸及显式覆盖形状、背景和前景的参数；当前规则管理页直接继承默认值，仅显示本地化无障碍描述的 Material Symbols Rounded `add` 加号。
 
-共享交互源驱动投影和形状。普通按钮静止／按压／悬停或聚焦使用 2dp／8dp／4dp 等效高度，FAB 使用 6dp／12dp／8dp；按下 120ms、松开或取消 180ms，无弹跳，系统动画设置由 Compose 处理。普通按钮和 FAB 禁用时立即移除投影，优先于按压、悬停与聚焦；FAB 通过封装的 `enabled` 参数同时阻止操作并声明禁用语义。传入 Expressive `shapes` 时，默认形状和按压形状通过公开 `Interpolatable` API 与主题 `defaultEffectsSpec` 插值，同一动画形状用于按钮轮廓和投影；不访问 Material 3 内部 API。
+共享交互源驱动投影和形状。普通按钮静止／按压／悬停或聚焦使用 2dp／8dp／4dp 等效高度，FAB 使用 6dp／12dp／8dp；按下 120ms、松开或取消 180ms，无弹跳，系统动画设置由 Compose 处理。普通按钮和 FAB 禁用时立即移除投影，优先于按压、悬停与聚焦；FAB 通过封装的 `enabled` 参数同时阻止操作并声明禁用语义。四类普通共享按钮默认使用官方 Expressive `shapes`，静止和按压形状通过公开 `Interpolatable` API 与主题 `defaultEffectsSpec` 插值，同一动画形状用于按钮轮廓、投影和装饰裁剪；固定轮廓例外提供相同的两种形状并跳过插值。选择按钮继续使用主题 `fastSpatialSpec`。形变和阴影分别管理，固定轮廓不关闭原有动态阴影；场景规则与接入见[按钮按压轮廓](components.md#按钮按压轮廓)，不访问 Material 3 内部 API。
 
 双层 `dropShadow` 由 [MaterialColorShadow](../../app/src/main/java/moe/kirakira/ui/components/MaterialColorShadow.kt) 统一绘制，在最低支持版本同样绘制彩色投影，几何参数采用 Google 官方 [Material Web 双层 elevation 实现](https://github.com/material-components/material-web/blob/main/elevation/internal/_elevation.scss)，高度映射采用官方 [elevation tokens](https://github.com/material-components/material-web/blob/main/tokens/versions/v0_192/_md-sys-elevation.scss)。
 
@@ -143,3 +146,9 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 投影背景层使用 `matchParentSize`，不参与控件尺寸测量；居中 20dp 的圆形轮廓对应当前官方内部 `RadioButtonTokens.IconSize`，该 token 未公开，因此在封装内记录尺寸来源。仅对阴影层使用圆形差集裁剪，防止投影染色空心单选框内部；官方组件的布局、最小触摸目标、涟漪与绘制不被裁剪，也不添加背景填充或平台 elevation。更新 Material 3 时需核对该内部图标尺寸。
 
 设置、账号切换、画质和隐私选项统一使用此封装。整行处理点击时，每行通过 `remember` 创建一个 `MutableInteractionSource`，同时传给 `SegmentedListItem` 和 `ShadowRadioButton`，单选框保持 `onClick = null`；按压、悬停与聚焦整行即驱动选中单选框的阴影。`SettingsItem` 的可选 `interactionSource` 参数由 `SettingsRadioItem` 透传，其余行保留默认交互源。账号切换行使用 `onClick` 重载，整行配色不随选中状态变化；通过显式 `Role.RadioButton`、`selected` 与状态描述保留无障碍单选语义。账号行的加载、编辑和禁用条件沿用原业务状态，不保存阴影偏好。
+
+### 彩色卡片阴影
+
+设置页的实色大圆角卡片复用 [MaterialColorShadow](../../app/src/main/java/moe/kirakira/ui/components/MaterialColorShadow.kt) 中的 `cardColorShadow`，固定 `CardColorShadowElevation = 2.dp`，使用与按钮相同的双层几何和默认强度（彩色环境层／主层 25%／50%，中性 7.5%／15%），阴影取实际容器色。卡片本身没有按压、悬停或聚焦状态，因此不接入交互源、不随内部 Logo 或按钮的交互改变高度；容器色随安全状态或主题变化时，阴影读取当前实际颜色实时更新，内容尺寸变化由卡片自身的尺寸动画带动。
+
+关于页页头、安全状态横幅、二步验证已启用卡片和邀请码统计卡使用此入口。带形状和 `animateContentSize()` 的统计卡将阴影修饰符放在尺寸动画外侧，按动画后的实际尺寸绘制，保证阴影跟随卡片高度；不设置 `Surface.shadowElevation`、`tonalElevation` 或 `CardDefaults.cardElevation`，每个表面只保留一条双层投影路径。中性待核对横幅沿用共享中性回退。主题明暗与个性色卡片保留官方可点击 `Card` 的 1dp／8dp／4dp 交互阴影；内联错误提示、TOTP 代码展示区和连接列表继续使用各自既有规则。容器留白需容纳外侧阴影，滚动或折叠头部不额外添加 margin 或阴影占位。

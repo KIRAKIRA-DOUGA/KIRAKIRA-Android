@@ -8,7 +8,9 @@
   - [圆形加载器](#圆形加载器)
 - [连接列表分组](#连接列表分组)
 - [下拉刷新](#下拉刷新)
+- [普通对话框](#普通对话框)
 - [共享组件接入](#共享组件接入)
+  - [按钮按压轮廓](#按钮按压轮廓)
   - [选择按钮阴影](#选择按钮阴影)
   - [顶部导航按钮定位](#顶部导航按钮定位)
   - [可复用 UI 参数示例](#可复用-ui-参数示例)
@@ -21,6 +23,16 @@
 - [数字动画与字数计数](#数字动画与字数计数)
 - [图标划线过渡](#图标划线过渡)
 - [账号流程布局](#账号流程布局)
+
+## 普通对话框
+
+[ActionDialog](../../app/src/main/java/moe/kirakira/ui/components/ActionDialog.kt) 封装官方 `AlertDialog`，沿用官方形状、排版、间距和图标插槽，背景使用主题 `surface`。`onDismissRequest` 与标题插槽必填，`modifier` 是第一个可选参数并传给根 Dialog；`icon` 和正文插槽默认为 `null`，图标省略时由官方组件移除对应空间。
+
+标题居中，正文保留调用方布局。`actions` 是普通内容插槽，每个直接子项为一个按钮，按主操作、其他操作、取消的优先级提供；调用方不固定按钮宽度，也不通过行列容器包裹整组按钮。共享布局在测量阶段查询各按钮的最大固有宽度，包含单行标签、内边距及最小尺寸，加上 8dp 间距后与操作区实际宽度比较：能够放下时横向靠右、首项位于末端，否则整组纵向全宽、首项位于顶部。排列不由按钮数量、字符数或业务状态决定，宽度、字体和语言变化后重新测量，不写入排列状态。
+
+主操作使用 `ShadowButton`，次操作使用 `TextButton`，危险操作使用 `ShadowButton(destructive = true)` 或 `DestructiveTextButton`。按钮继承居中的文字样式，纵向时保留自然换行高度；组件不接管业务状态、回调或启用条件。
+
+会话异常在失效或认证被拒绝时优先展示实心登录按钮，其次为平面重试；其他异常以重试为主操作。存储异常的清除入口作为危险次操作，点击后仍须单独确认，取消／继续使用位于操作区末尾。普通确认、选色及评论跳页均使用此组件；生日选择保留官方 `DatePickerDialog`。
 
 ## 统一内容状态
 
@@ -81,11 +93,25 @@ ConnectedLazyColumn(state = listState, contentPadding = PaddingValues(16.dp)) {
 
 ## 共享组件接入
 
+### 按钮按压轮廓
+
+按场景选择形变或固定轮廓的规则集中在[按钮、单选框与阴影](../../CONTRIBUTING.md#按钮单选框与阴影)，阴影有无不决定按压行为。
+
+[`ShadowButtons`](../../app/src/main/java/moe/kirakira/ui/components/ShadowButtons.kt) 的 `ShadowButton`、`ShadowFilledTonalButton` 使用非空 `ButtonShapes`，`ShadowFilledIconButton`、`ShadowFilledTonalIconButton` 使用非空 `IconButtonShapes`，默认分别来自官方 `ButtonDefaults.shapes()` 与 `IconButtonDefaults.shapes()`。四类组件只暴露 `shapes` 作为轮廓入口；表面使用固定 `shape` 重载接收共享插值后的当前轮廓，投影与危险装饰沿用同一轮廓，避免重复形状动画。
+
+指定按钮高度时传入 `ButtonDefaults.shapesFor(height)`，内边距、文字及图标继续使用同尺寸的官方配套 API。独立描边按钮直接使用官方 `OutlinedButton(shapes = ButtonDefaults.shapes(), …)` 或 `OutlinedIconButton(shapes = IconButtonDefaults.shapes(), …)`；文字按钮和裸图标按钮使用固定轮廓重载，指定尺寸时可从同尺寸形状中取静止 `shape`。
+
+固定轮廓例外显式令静止与按压形状相同，例如侧滑删除使用 `ButtonShapes(CircleShape, CircleShape)`，图片查看器关闭按钮使用 `IconButtonShapes(CircleShape, CircleShape)`。共享组件识别相同形状后直接使用固定轮廓，仍按原规则处理投影。FAB、发送按钮及媒体叠层按钮继续使用各自已有的固定 `shape`。
+
+开发者组件页的按钮分类展示独立按钮形变、固定轮廓文字与裸图标、工具区和 FAB 例外，以及禁用、加载、选择状态和不同尺寸；它使用与业务页面相同的共享组件。
+
 ### 选择按钮阴影
 
 [`ShadowToggleButton`](../../app/src/main/java/moe/kirakira/ui/components/ShadowToggleButton.kt) 封装官方 `ToggleButton`，适用于独立或连接式选择按钮。调用方提供 `checked`、`onCheckedChange`、根节点 `modifier`，并可传入官方 `buttonSize`、`shapes`、`colors`、`border`、`contentPadding` 和 `interactionSource`；可选 `icon` 与末尾 `content` 插槽保留官方图标尺寸、间距及文字排版。组件不持有业务选择状态，连接形状和单选语义仍由调用方配置。
 
-选中与按压轮廓同时用于表面和投影，原生 elevation 设为 `null`，避免重复阴影。投影复用共享 `buttonShadow`，颜色取当前选中状态的实际容器色，禁用时立即移除；高度和强度遵循[按钮动态阴影](theme.md#按钮动态阴影)。隐私页顶部“全部设为”组复用此组件。
+选中与按压轮廓同时用于表面和投影，原生 elevation 设为 `null`，避免重复阴影。投影复用共享 `buttonShadow`，颜色取当前选中状态的实际容器色，禁用时立即移除；高度和强度遵循[按钮动态阴影](theme.md#按钮动态阴影)。隐私页顶部“全部设为”组复用此组件，使用官方连接形状，并通过 `shapes.copy(pressedShape = if (checked) shapes.checkedShape else shapes.shape)` 固定当前状态的按压轮廓。组件识别该映射后只使用选中轮廓的插值，按压不干扰进行中的选中动画，配色和单选语义保持原样。
+
+视频操作条的官方 `ToggleButton` 由 `checked` 单独驱动官方静止与选中形状的 `fastSpatialSpec` 插值，将当前轮廓作为 `ToggleButtonShapes` 的全部三种形状。这样固定按压轮廓，也保留选中动画；不直接随 `checked` 改写官方组件的 `pressedShape`，避免其内部 `key(shapes)` 重建动画。原有颜色、计数、语义及投影配置保持不变。
 
 ### 顶部导航按钮定位
 
@@ -129,11 +155,11 @@ internal fun Modifier.contentDescriptionWhenEnabled(enabled: Boolean, descriptio
 
 `frostedBarBackground` 的可选 `hazeState` 参数允许自定义布局显式复用相同背景样式，默认仍读取当前页面的采样状态；`shadowElevation` 默认 0dp，普通顶栏、视频页顶部共享背景和胶囊底栏默认显式传入固定的 `BarShadowElevation`，资料顶栏保留默认值。`FrostedScaffold.topBarShadowElevation` 供 `AccountFlowScaffold` 统一按正文滚动位置调整认证与账号安全流程的顶栏高度。
 
-- 背景使用 `HazeInput.Sources` 采样，源消失时使用 `ClearWhenUnavailable`，不继续保留上一页面画面。普通栏面不使用原生 backdrop；无阴影黑底按钮的接入见[黑底毛玻璃按钮](#黑底毛玻璃按钮)。已在 Android 17 模拟器（`CP41.260828.004.A7`，SkiaGL）上复现 `RenderNode.setBackdropRenderEffect()` 与半透明父层、elevation 同时使用时的灰框和内部矩形异常。对照父层 alpha 为 1、0.5、0.2：普通 elevation 及 Haze Sources 正常，Haze Backdrop 异常，强制 Offscreen 仍异常；移除 Compose/Haze、仅使用 Android View 和 RenderNode 也能复现，而移除 backdrop 恢复正常。证据定位到系统原生 backdrop 的合成路径，尚未定位内部实现的具体错误，也未验证所有设备。版本以 `gradle/libs.versions.toml` 为准，不引入玻璃折射模块。
+- 背景使用 `HazeInput.Sources` 采样，源消失时使用 `ClearWhenUnavailable`，不继续保留上一页面画面。普通栏面与资料页无阴影黑底按钮均不使用原生 backdrop；按钮样式见[黑底毛玻璃按钮](#黑底毛玻璃按钮)。已在 Android 17 模拟器（`CP41.260828.004.A7`，SkiaGL）上复现 `RenderNode.setBackdropRenderEffect()` 与半透明父层、elevation 同时使用时的灰框和内部矩形异常。对照父层 alpha 为 1、0.5、0.2：普通 elevation 及 Haze Sources 正常，Haze Backdrop 异常，强制 Offscreen 仍异常；移除 Compose/Haze、仅使用 Android View 和 RenderNode 也能复现，而移除 backdrop 恢复正常。证据定位到系统原生 backdrop 的合成路径，尚未定位内部实现的具体错误，也未验证所有设备。版本以 `gradle/libs.versions.toml` 为准，不引入玻璃折射模块。
 - Android 12+ 使用主题 `surface` 作为缺失源像素的底色，叠加同色 80% 不透明度遮罩、20dp 模糊与零噪点，背景图层 alpha 为 1。Android 8.1–11 绘制不透明主题 `surface`，在同一背景图层上设置 alpha 为 0.9 和原生 elevation，不挂载采样节点；各版本共用[栏面阴影](theme.md#栏面阴影)的机制，不额外增加阴影版本判断。背景透明度不作用于整个栏或前景。
 - 共享背景沿用 Haze 默认采样配置，保留实时更新、模糊半径与遮罩。模糊样式按主题 surface 色缓存，采样输入按页面状态缓存，现有采样层级保持不变。
 - 滚动列表的顶部与底部安全区域放入 `contentPadding`，滚动 Column 则在 `verticalScroll` 后添加，初始避开栏面、滚动时内容可进入栏后。`ContentPullToRefresh.indicatorTopPadding` 仅移动覆盖式指示器，不移动滚动视口。历史页的搜索输入通过共享组件覆盖顶栏，不占用列表条目。
-- 本人及作者资料页使用铺满屏幕的外层列表，将顶部栏避让放入内容内边距，通过扣除顶部栏及 Tab 高度的 Pager 保留栏下吸顶与嵌套分页滚动；包含滚动封面的顶部共享背景单独采样并与内容共享该页状态，同时统一承载封面、资料区与 Tab 的原生投影。Tab 吸顶后，顶部共享背景切换为一整块毛玻璃表面，覆盖 TopBar 与透明 Tab，仅采样 Pager 内容；顶栏和 Tab 不单独绘制背景或阴影。非滚动表单保留安全布局。头像裁剪页同样接入本组件，由宿主提供顶部背景与固定阴影；裁剪引擎与底部操作栏保持原布局。视频画面、播放控件及系统栏不接入本组件。
+- 本人及作者资料页与邀请码页复用 `CollapsingTabLayout`，分页绘制在下层，头部内容与 Tab 共用上层的实际表面、背景及原生阴影。吸顶只改变表面位置和背景样式，顶栏与 Tab 不独立投影。资料页封面及正文沿用独立采样状态；吸顶后共享表面只采样 Pager。非滚动表单保留安全布局。头像裁剪页同样接入本组件，由宿主提供顶部背景与固定阴影；裁剪引擎与底部操作栏保持原布局。视频画面、播放控件及系统栏不接入本组件。
 
 - 视频页为 Tab 栏创建独立 `HazeState`，仅在 Android 12+ 将下方 `HorizontalPager` 接入 `hazeSource`，播放器不参与采样。播放器占位区域与 Tab 共用顶部背景，通过 `frostedBarBackground(hazeState = …, shadowElevation = BarShadowElevation)` 沿整体下沿投影；播放器区域的背景黑底位于同一图层，实际播放器仍独立绘制。官方 `PrimaryTabRow` 容器透明，文字与指示器保持清晰。简介、评论、弹幕列表将实测栏高加入顶部 `contentPadding`，初始避开栏面，滚动时从栏后经过；空状态高度同步扣除栏高。刷新指示器通过 `indicatorTopPadding` 避让，评论分页工具栏固定在栏下，游客登录提示并入评论头部条目以保持分页索引；`FloatingComposerLayout.topPadding` 扣除输入面板可用高度，底部安全区域与输入区留白保持原逻辑。全屏与画中画继续由既有播放器布局和详情显隐处理。
 
@@ -141,7 +167,7 @@ internal fun Modifier.contentDescriptionWhenEnabled(enabled: Boolean, descriptio
 
 [BackdropButtons](../../app/src/main/java/moe/kirakira/ui/components/BackdropButtons.kt) 提供资料页使用的 `BackdropIconButton`，在官方 `FilledIconButton` 的透明表面内部绘制背景。模糊不延伸到最小触摸目标留白，不作用于图标或水波纹；官方组件继续拥有形状、尺寸、点击区域与语义。统一使用 20dp 模糊、零噪点与可用 60%／禁用 30% 的黑色遮罩，默认白色前景，所有状态均无投影。
 
-`MainActivity` 在组合前调用 `enableButtonBackdrops()`，让新按钮的 `HazeInput.Backdrop` 可按 Haze 的平台能力判断使用原生路径；普通应用栏继续显式使用 Sources。各按钮显式接收页面拥有的 `HazeState`，原生路径不可用或失败时回退至 `HazeInput.Sources`，采用 `ClearWhenUnavailable` 清除失效源；缺失源像素透明，不填充不透明底色。Android 12+ 挂载模糊，Android 8.1–11 仅绘制同一半透明黑底。
+各按钮显式接收页面拥有的 `HazeState`，直接使用 `HazeInput.Sources` 采样页面内容，并通过 `ClearWhenUnavailable` 清除失效源；缺失源像素透明，不填充不透明底色。按钮复用资料页已经注册的顶部背景与正文采样源。即使按钮自身没有阴影，原生 backdrop 仍可能与同一页面的 elevation 和返回淡出产生合成异常，因此按钮与普通栏面统一使用 Sources，应用启动不启用原生 backdrop 的全局实验开关，页面透明度继续由导航宿主管理。Android 12+ 挂载模糊，Android 8.1–11 仅绘制同一半透明黑底。
 
 [ProfileScreen](../../app/src/main/java/moe/kirakira/feature/profile/ProfileScreen.kt) 复用该页已有的采样状态，仅在 Tab 未吸顶时将返回和更多按钮替换为共享黑底白色按钮；吸顶后沿用普通图标按钮和既有毛玻璃顶栏。播放器通过 `PlayerContentFrame` 保留 Media3 默认 `SurfaceView`，控制按钮使用半透明黑底，不接入本组件或 Haze 采样。
 
@@ -291,7 +317,7 @@ SearchableTopAppBar(
 
 账号流程靠边文字按钮统一使用 [FormTextButton](../../app/src/main/java/moe/kirakira/ui/components/FormTextButton.kt)，按 `FormButtonEdge.START/END` 选择对齐边，组件沿用 [ExpandableText](../../app/src/main/java/moe/kirakira/ui/components/ExpandableText.kt) 的对齐方式：显式保留 `ButtonDefaults.TextButtonContentPadding`，按当前布局方向读取 start／end 内边距；忘记密码和联系支持向 start 偏移对应内边距，注册和发送验证码向 end 偏移对应内边距，使可见文字与标题及输入框边缘对齐。按钮沿用相同的 48dp 最小宽度，避免短标签因额外居中留白而错位，保留官方最小触摸目标、涟漪及禁用语义。登录注册入口与表单之间使用 `AccountFlowDefaults.FieldSpacing` 的 24dp 留白，并使用按固有宽度换行的末端对齐容器；偏移只作用于按钮，正文宽度与页面留白保持原值。
 
-普通表单输入框统一使用 [FilledTextField](../../app/src/main/java/moe/kirakira/ui/components/FilledTextField.kt)，内部复用 `BasicTextField` 与官方 `TextFieldDefaults.DecorationBox`、`Container`，默认通过共享的 `FilledTextFieldDefaults.colors()` 将聚焦、未聚焦、禁用及错误状态背景设为主题 `surfaceContainerLow`，未聚焦底线使用主题 `outlineVariant`，文字、焦点与错误指示线保留官方默认配色。聚焦与未聚焦底线均为 2dp，参考 Cerasus `TextBox` 的 2px 底线，底线由官方容器绘制，位置不受 supporting text 高度影响；普通输入统一默认使用主题 large 圆角，调用处不重复指定。认证、资料、屏蔽规则、颜色编辑器和评论跳页均继承这些默认值；六格验证码复用相同的背景配色，不绘制底线。搜索栏和评论／弹幕编辑器继续保留各自已有的容器配色、指示线设置与阴影。传入 `errorMessage` 时，组件默认提供错误图标、supporting text 的短过渡和具体错误语义；只有 `isError` 时回退到项目自己的中英文 `text_field_invalid_input` 字符串，不引用 Compose 私有资源。自定义辅助内容（如简介字数）仍由插槽提供，整体高度变化由组件统一动画。
+普通表单输入框统一使用 [FilledTextField](../../app/src/main/java/moe/kirakira/ui/components/FilledTextField.kt)，内部复用 `BasicTextField` 与官方 `TextFieldDefaults.DecorationBox`、`Container`，默认通过共享的 `FilledTextFieldDefaults.colors()` 将聚焦、未聚焦、禁用及错误状态背景设为主题 `surfaceContainerLow`，未聚焦底线使用主题 `outlineVariant`，文字、焦点与错误指示线保留官方默认配色。聚焦与未聚焦底线均为 2dp，参考 Cerasus `TextBox` 的 2px 底线，底线由官方指示线 API 绘制，位置不受 supporting text 高度影响；普通输入统一默认使用主题 large 圆角，调用处不重复指定。认证、资料、屏蔽规则、颜色编辑器和评论跳页均继承这些默认值；六格验证码复用相同的背景配色与内阴影，不绘制底线。共享 `FilledTextFieldContainer` 先绘制官方背景容器，再由同级、同尺寸的独立空 `Box` 应用 `innerShadow`，最后由外层官方 `indicatorLine` 绘制底线；当前 Compose 的 `innerShadow` 先于其后续内容绘制，因此不能直接挂在不透明背景容器外层，否则阴影会被背景覆盖；文字与光标位于整个容器之上，supporting text 不参与内阴影。内阴影使用主题 `scrim`，浅色 6%／深色 12% 不透明度，模糊半径和向下偏移均为 4dp，扩张为 0dp，沿用容器形状且不随聚焦变化；通过当前主题 `surface` 与 `onSurface` 的明度关系识别明暗，不依赖系统模式。搜索栏和评论／弹幕编辑器继续保留各自已有的容器配色、指示线设置与阴影。传入 `errorMessage` 时，组件默认提供错误图标、supporting text 的短过渡和具体错误语义；只有 `isError` 时回退到项目自己的中英文 `text_field_invalid_input` 字符串，不引用 Compose 私有资源。自定义辅助内容（如简介字数）仍由插槽提供，整体高度变化由组件统一动画。
 
 [PasswordTextField](../../app/src/main/java/moe/kirakira/ui/components/PasswordTextField.kt) 在 `FilledTextField` 上统一密码遮蔽、显隐按钮和错误图标排列。登录、注册密码及确认密码、重置密码和账号安全表单均复用该组件；调用方保留现有自动填充语义、IME 动作与焦点目标，并持有仅存内存的显隐状态。提交禁用或页面失活时遮蔽密码，注册确认密码和重置密码不再缺少显隐入口。
 
@@ -299,7 +325,7 @@ SearchableTopAppBar(
 
 [AccountFlowFeedback](../../app/src/main/java/moe/kirakira/ui/components/AccountFlowFeedback.kt) 在组合内保留非敏感提示文字，供退出动画完成前绘制；`Transition<Boolean>` 仅管理显示状态，业务错误仍由页面传入。页面级提示使用淡入淡出与纵向展开／收缩，关联留白放在内容插槽中一同过渡。`textFieldSupportingError` 在字段错误退出完成后返回空插槽，输入框通过 `animateContentSize` 平滑调整整体高度，恢复官方正常高度；退出中的提示清除语义，保留当前字段校验及焦点逻辑。所有过渡使用主题 `motionScheme`，遵循系统动画缩放。`accountFlowCodeTextStyle` 为认证与安全验证码以及代码展示提供统一等宽样式，参数遵循[账号表单规范](../../CONTRIBUTING.md#账号表单与保存)。
 
-[OtpInputField](../../app/src/main/java/moe/kirakira/ui/components/OtpInputField.kt) 使用一个 `BasicTextField` 处理六格输入，代码由流程持有，组合内用普通 `remember` 保留选择位置与焦点状态；完整编辑器保留布局范围和语义，视觉格使用官方 filled `TextFieldDefaults.Container`，背景同样使用 `surfaceContainerLow`，聚焦与未聚焦指示线高度均设为 0dp，不绘制底线，只在当前格连接编辑器的聚焦交互源。编辑器聚焦且可用时，当前格显示 2dp 圆角竖光标，颜色使用主题 `primary`，错误时使用 `error`；空格居中，已有字符时放在对应插入位置旁，光标高度随字符字号缩放。光标每 500ms 切换显隐，输入、删除或改变选择位置时重新亮起，失焦或禁用时移除；闪烁透明度只在绘制阶段读取。每格按当前字符创建独立的 `AnimatedVisibility` 入场节点，输入或替换字符时从下往上滑入并淡入；旧字符在删除或替换时立即移除，不执行退场动画，避免与空格中央的光标重叠。删除会移除入场节点，快速重新输入相同字符也重新播放入场动画。空文字占位保留空格的文字高度；位移与透明度分别使用主题快速空间与效果动效，不对容器尺寸添加动画。六格字符在共享等宽样式上采用主题 `headlineSmall` 的字号与行高，保留 Medium 字重和 1sp 字距；格子仅限制最小高度，字体放大时随文字高度增长。点击已填格选中对应字符，空格定位到已有代码末端；粘贴、退格、全选替换与 IME 操作由同一编辑器处理。六格内容不重复提供语义，整个输入组作为一个编辑目标；错误图标和提示位于组级区域。数字输入与字母数字备用码分别使用数字及 ASCII 键盘，过滤规则对应后端字符集，六位输入不自动提交。认证页额外提供完整恢复码输入，粘贴完整恢复码时切换显示，未将敏感材料放入可保存状态。
+[OtpInputField](../../app/src/main/java/moe/kirakira/ui/components/OtpInputField.kt) 使用一个 `BasicTextField` 处理六格输入，代码由流程持有，组合内用普通 `remember` 保留选择位置与焦点状态；完整编辑器保留布局范围和语义，视觉格使用共享 `FilledTextFieldContainer` 封装官方 filled 容器，背景同样使用 `surfaceContainerLow` 并带有共享中性内阴影，聚焦与未聚焦指示线高度均设为 0dp，不绘制底线，只在当前格连接编辑器的聚焦交互源。编辑器聚焦且可用时，当前格显示 2dp 圆角竖光标，颜色使用主题 `primary`，错误时使用 `error`；空格居中，已有字符时放在对应插入位置旁，光标高度随字符字号缩放。光标每 500ms 切换显隐，输入、删除或改变选择位置时重新亮起，失焦或禁用时移除；闪烁透明度只在绘制阶段读取。每格按当前字符创建独立的 `AnimatedVisibility` 入场节点，输入或替换字符时从下往上滑入并淡入；旧字符在删除或替换时立即移除，不执行退场动画，避免与空格中央的光标重叠。删除会移除入场节点，快速重新输入相同字符也重新播放入场动画。空文字占位保留空格的文字高度；位移与透明度分别使用主题快速空间与效果动效，不对容器尺寸添加动画。六格字符在共享等宽样式上采用主题 `headlineSmall` 的字号与行高，保留 Medium 字重和 1sp 字距；格子仅限制最小高度，字体放大时随文字高度增长。点击已填格选中对应字符，空格定位到已有代码末端；粘贴、退格、全选替换与 IME 操作由同一编辑器处理。六格内容不重复提供语义，整个输入组作为一个编辑目标；错误图标和提示位于组级区域。数字输入与字母数字备用码分别使用数字及 ASCII 键盘，过滤规则对应后端字符集，六位输入不自动提交。认证页额外提供完整恢复码输入，粘贴完整恢复码时切换显示，未将敏感材料放入可保存状态。
 
 `AuthFilledCodePreview` 与 `SecurityFilledCodePreview` 提供独立的“验证码已填写”预览，涵盖邮箱验证码、字母数字备用码和认证页的长恢复码；安全页另展示邮箱与 TOTP 两种修改邮箱核验、邮箱与 TOTP 两种修改密码核验，以及绑定验证器的确认输入。填写值仅为预览专用虚构材料，密码保持为空；预览配置包含中英文、浅深主题和窄屏大字体，不代表已完成设备视觉检查。
 
@@ -307,7 +333,9 @@ TOTP 页面把二维码与打开验证器操作放在同一区域，密钥与复
 
 ## 危险操作
 
-[DestructiveActions](../../app/src/main/java/moe/kirakira/ui/components/DestructiveActions.kt) 提供全 App 共用的危险操作样式。`DestructiveActionDefaults.buttonColors()` 为实心按钮提供主题 `error/onError`，安全流程停用按钮和账号滑动移除均复用；`DestructiveTextButton` 封装官方平面 `TextButton`，使用主题 `error` 前景。登出、移除账号、清除本机账号、舍弃资料／安全流程草稿以及隐私重置的确认按钮共用文字样式，取消和普通重试沿用默认样式；禁用颜色保留 Material 默认值。菜单项继续通过 `SegmentedMenuItem.destructive` 使用同一主题错误色。页面只传入危险语义、状态和事件，不分别定义危险颜色。
+[DestructiveActions](../../app/src/main/java/moe/kirakira/ui/components/DestructiveActions.kt) 提供共用危险配色。实心按钮通过 `ShadowButton(destructive = true)` 使用主题 `error/onError`，覆盖登出、移除／清除账号、舍弃内容、隐私重置及关闭／解绑验证；该语义优先于调用方的 `colors`。安全流程由 `AccountFlowSubmitButton.destructive` 传递，加载时沿用原有禁用与进度反馈。`DestructiveTextButton` 保持官方平面文字按钮，菜单项继续使用 `SegmentedMenuItem.destructive`；取消、普通重试及禁用颜色保留 Material 默认值。
+
+[DestructiveDecoration](../../app/src/main/java/moe/kirakira/ui/components/DestructiveDecoration.kt) 在可用危险实心按钮的内容后方绘制五个 Rounded close 图标。横向起点为容器宽度的 0%、20%、50%、60%、80%，基础尺寸为 36、24、48、16、32dp，默认缩放 1.5 倍；每个图形以 4 秒线性周期从自身高度的 +150% 移至 −150%，中点透明度为 0.4、两端为 0，依次延迟 1.6 秒启动。悬停使用 1 秒回弹过渡，缩放至 2 倍并旋转 90°；触屏继续沿用官方按压反馈。装饰使用与按钮实际可见表面同尺寸的独立绘制节点，文字单独测量且保留原布局；五个图形共用固定尺寸的矢量栅格缓存，仅通过画布缩放产生大小差异，避免同帧反复改写缓存造成图形截断。由官方表面裁剪到与投影共用的动画轮廓，不占布局空间、不添加语义，也不改变内容内边距与点击区域。逐帧状态仅在绘制阶段读取；禁用、加载或系统动画缩放为零时不组合循环动画。来源与移植差异见 [Cerasus 图标与动画](../../third_party/cerasus-icons/README.md#危险按钮装饰)。
 
 ## 数字动画与字数计数
 
@@ -324,3 +352,11 @@ TOTP 页面把二维码与打开验证器操作放在同一区域，密钥与复
 ### 头像占位配色
 
 `PlaceholderAvatar` 参考 Cerasus 无头像状态的灰色背景与中性图标，复用主题现有的 `surfaceContainerHigh/onSurfaceVariant`，随浅深主题切换，不受强调色影响。`AccountAvatar` 共用该占位，覆盖未登录入口、切换账号页的游客及无头像账号；切换账号页的“添加账号”圆形图标使用同一组颜色，编辑状态保留原有禁用配色。
+
+## 开发者组件测试页
+
+`feature/componenttest/ComponentTestScreen.kt` 通过关于页图形 Logo 的长按回调进入独立 `ComponentTestRoute`，使用现有 Navigation 3 返回栈和 `NavigationPage`，不复用旧 `TestRoute`。所有构建开放入口，普通点击不导航。Logo 的 `combinedClickable` 使用独立交互源并关闭 indication，按压时通过主题 `fastSpatialSpec` 将图形缩小到 90%，松开或取消时回弹；缩放值在图形层读取，不改变触摸区域。
+
+页面沿用 `SettingsScaffold` 与 640dp 内容上限，以带稳定分类 key 的惰性列表展示共享组件和官方基础控件。分类内容接收状态与回调，普通选择值用 `rememberSaveable` 保存，滚动位置由 `rememberLazyListState` 恢复；普通输入、密码、验证码及弹层使用 `remember`，页面停止时隐藏密码。单一弹层枚举控制 Dialog、菜单及 Sheet，Snackbar 由组合协程作用域管理。重置通过重新创建页面内容清除所有示例状态、滚动位置和反馈任务。
+
+组件展示直接调用项目阴影按钮、关注按钮、输入框、连接列表、不确定进度、`ActionDialog` 与 `ExpressiveMenuPopup`，其余采用官方 Material 3 控件。示例不依赖 ViewModel、Repository 或真实数据，也不修改应用偏好；专用文案使用中文，已有共享组件文案继续沿用本地化资源。

@@ -96,6 +96,10 @@
 
 [单选框动态阴影实现](implementation/theme.md#单选框动态阴影)
 
+### 彩色卡片阴影
+
+[彩色卡片阴影实现](implementation/theme.md#彩色卡片阴影)
+
 ## 图标划线过渡
 
 [图标划线过渡实现](implementation/components.md#图标划线过渡)
