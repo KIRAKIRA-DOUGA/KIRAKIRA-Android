@@ -31,6 +31,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
@@ -63,6 +64,7 @@ import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.ShadingIcon
 import moe.kirakira.ui.components.appTopAppBarColors
+import moe.kirakira.ui.components.rememberTabReselectHandler
 import moe.kirakira.ui.components.video.VideoCardLayout
 import moe.kirakira.ui.components.video.VideoCardRow
 import moe.kirakira.ui.content.ContentState
@@ -83,13 +85,31 @@ internal fun MainScreen(
     videosLayout: VideoCardLayout = VideoCardLayout.GRID,
     onBottomBarHeightChange: (Int) -> Unit = {},
     searchTopBar: @Composable () -> Unit = { SearchTopBar(SearchUiState(ready = true), {}) },
-    searchContent: @Composable (PaddingValues) -> Unit = { padding ->
-        SearchScreen(SearchUiState(ready = true), {}, onOpenVideo, contentPadding = padding)
+    searchContent: @Composable (PaddingValues, ((suspend () -> Unit)?) -> Unit) -> Unit = { padding, registerScrollToTop ->
+        SearchScreen(
+            SearchUiState(ready = true), {}, onOpenVideo, contentPadding = padding,
+            onScrollToTopActionChange = registerScrollToTop,
+        )
     },
 ) {
     var destination by rememberSaveable { mutableStateOf(AppDestination.HOME) }
     val meScrollState = rememberScrollState()
     val homeScrollState = rememberLazyListState()
+    var searchScrollToTop by remember { mutableStateOf<(suspend () -> Unit)?>(null) }
+    val reselectTab = rememberTabReselectHandler { page ->
+        when (AppDestination.entries[page]) {
+            AppDestination.HOME -> homeScrollState.animateScrollToItem(0)
+            AppDestination.SEARCH -> searchScrollToTop?.invoke()
+            AppDestination.ME -> meScrollState.animateScrollTo(0)
+            AppDestination.FOLLOWING -> Unit
+        }
+    }
+    val registerSearchScrollToTop = remember(reselectTab) {
+        { action: (suspend () -> Unit)? ->
+            if (action == null && destination == AppDestination.SEARCH) reselectTab(null)
+            searchScrollToTop = action
+        }
+    }
     val layoutDirection = LocalLayoutDirection.current
     val motion = rememberNavigationMotion()
     val tabStateHolder = rememberSaveableStateHolder()
@@ -102,7 +122,11 @@ internal fun MainScreen(
         bottomBar = {
             MainBottomBar(
                 destination = destination,
-                onDestinationChange = { destination = it },
+                onDestinationChange = {
+                    reselectTab(null)
+                    destination = it
+                },
+                onDestinationReselect = { reselectTab(it.ordinal) },
                 modifier = Modifier.onSizeChanged { onBottomBarHeightChange(it.height) },
             )
         },
@@ -135,7 +159,10 @@ internal fun MainScreen(
                         MainTopBar(
                             avatar = profile?.avatar,
                             destination = page,
-                            onOpenMe = { destination = AppDestination.ME },
+                            onOpenMe = {
+                                reselectTab(null)
+                                destination = AppDestination.ME
+                            },
                             searchTopBar = searchTopBar,
                         )
                     },
@@ -197,10 +224,13 @@ internal fun MainScreen(
                                 }
                             }
 
-                            AppDestination.SEARCH -> searchContent(PaddingValues(
-                                top = innerPadding.calculateTopPadding(),
-                                bottom = bottomBarPadding.calculateBottomPadding(),
-                            ))
+                            AppDestination.SEARCH -> searchContent(
+                                PaddingValues(
+                                    top = innerPadding.calculateTopPadding(),
+                                    bottom = bottomBarPadding.calculateBottomPadding(),
+                                ),
+                                registerSearchScrollToTop,
+                            )
                             AppDestination.FOLLOWING -> ContentUnavailableView(
                                 state = ContentUnavailableState.EMPTY,
                                 title = stringResource(R.string.content_not_available_yet),

@@ -3,11 +3,13 @@ package moe.kirakira.feature.main
 import androidx.annotation.StringRes
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -90,10 +92,21 @@ internal fun MainBottomBar(
     destination: AppDestination,
     onDestinationChange: (AppDestination) -> Unit,
     modifier: Modifier = Modifier,
+    onDestinationReselect: (AppDestination) -> Unit = {},
 ) {
     val layoutDirection = LocalLayoutDirection.current
     val latestDestination by rememberUpdatedState(destination)
     val latestOnDestinationChange by rememberUpdatedState(onDestinationChange)
+    val latestOnDestinationReselect by rememberUpdatedState(onDestinationReselect)
+    val interactionSources = AppDestination.entries.map { remember { MutableInteractionSource() } }
+    val tabPressStates = interactionSources.map { it.collectIsPressedAsState() }
+    var pointerPressed by remember { mutableStateOf(false) }
+    val indicatorPressProgress = animateFloatAsState(
+        targetValue = if (pointerPressed || tabPressStates.any { it.value }) 1f else 0f,
+        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+        label = "Navigation indicator press",
+    )
+    var pressedPosition by remember { mutableFloatStateOf(Float.NaN) }
     // Pointer samples are consumed only by drawing; composition observes drag start/end instead.
     val dragPosition = remember { mutableFloatStateOf(Float.NaN) }
     var isDragging by remember { mutableStateOf(false) }
@@ -108,7 +121,8 @@ internal fun MainBottomBar(
     val trailingEasing = remember(emphasizedEasing) {
         Easing { TabIndicatorTrailingEasing.transform(emphasizedEasing.transform(it)) }
     }
-    LaunchedEffect(destination, isDragging, dragSettlement, leadingEasing, trailingEasing) {
+    val targetPosition = if (pressedPosition.isNaN()) destination.ordinal.toFloat() else pressedPosition
+    LaunchedEffect(targetPosition, isDragging, dragSettlement, leadingEasing, trailingEasing) {
         if (isDragging) return@LaunchedEffect
 
         val settlement = dragSettlement
@@ -120,7 +134,6 @@ internal fun MainBottomBar(
             if (isDragging) return@LaunchedEffect
             dragPosition.floatValue = Float.NaN
         }
-        val targetPosition = destination.ordinal.toFloat()
         val stretch = settlement != destination
         if (indicatorStart.value != targetPosition || indicatorEnd.value != targetPosition) {
             val currentPosition = (indicatorStart.value + indicatorEnd.value) / 2f
@@ -172,10 +185,22 @@ internal fun MainBottomBar(
                 fun logicalX(x: Float): Float =
                     if (layoutDirection == LayoutDirection.Rtl) size.width - x else x
 
+                fun positionFor(x: Float): Float =
+                    ((logicalX(x) - padding) / itemWidth - 0.5f)
+                        .coerceIn(0f, AppDestination.entries.lastIndex.toFloat())
+
                 val downX = logicalX(down.position.x)
                 val startIndex = ((downX - padding) / itemWidth).toInt()
                     .coerceIn(0, AppDestination.entries.lastIndex)
                 down.consume()
+                // Use the existing Elastic edges to preview the exact pointer position.
+                pointerPressed = true
+                pressedPosition = if (startIndex == latestDestination.ordinal) {
+                    latestDestination.ordinal.toFloat()
+                } else {
+                    positionFor(down.position.x)
+                }
+                dragSettlement = null
                 var dragging = false
                 var released = false
                 try {
@@ -195,18 +220,23 @@ internal fun MainBottomBar(
                             isDragging = true
                             dragSettlement = null
                         }
-                        val position = (startIndex + distance / itemWidth)
-                            .coerceIn(0f, AppDestination.entries.lastIndex.toFloat())
+                        val position = positionFor(change.position.x)
                         if (dragging) dragPosition.floatValue = position
                         if (!change.pressed) {
                             val target = AppDestination.entries[if (dragging) position.roundToInt() else startIndex]
                             dragSettlement = if (dragging) target else null
                             released = true
-                            if (target != latestDestination) latestOnDestinationChange(target)
+                            if (target != latestDestination) {
+                                latestOnDestinationChange(target)
+                            } else if (!dragging) {
+                                latestOnDestinationReselect(target)
+                            }
                             break
                         }
                     }
                 } finally {
+                    pointerPressed = false
+                    pressedPosition = Float.NaN
                     if (dragging) {
                         if (!released) {
                             dragSettlement = latestDestination
@@ -217,6 +247,8 @@ internal fun MainBottomBar(
             }
         } finally {
             // Also restore the committed selection when the bar leaves composition or RTL changes.
+            pointerPressed = false
+            pressedPosition = Float.NaN
             if (isDragging) {
                 dragSettlement = latestDestination
                 isDragging = false
@@ -261,20 +293,30 @@ internal fun MainBottomBar(
                             val end = (if (pointerPosition.isNaN()) indicatorEnd.value else pointerPosition)
                                 .coerceIn(start, AppDestination.entries.lastIndex.toFloat())
                             val logicalStart = padding + start * itemWidth
-                            val width = (end - start + 1f) * itemWidth
+                            val fullWidth = (end - start + 1f) * itemWidth
+                            val pressProgress = indicatorPressProgress.value.coerceIn(0f, 1f)
+                            val width = fullWidth * (1f - 0.15f * pressProgress)
+                            val pressedHeight = height * (1f - 0.1f * pressProgress)
+                            val top = padding + (height - pressedHeight) / 2f
+                            val pressInset = (fullWidth - width) / 2f
                             val left = if (layoutDirection == LayoutDirection.Rtl) {
-                                size.width - logicalStart - width
+                                size.width - logicalStart - fullWidth + pressInset
                             } else {
-                                logicalStart
+                                logicalStart + pressInset
                             }
                             mask.reset()
                             mask.addRoundRect(
                                 RoundRect(
-                                    rect = Rect(left, padding, left + width, padding + height),
-                                    cornerRadius = CornerRadius(minOf(width, height) / 2),
+                                    rect = Rect(left, top, left + width, top + pressedHeight),
+                                    cornerRadius = CornerRadius(minOf(width, pressedHeight) / 2),
                                 ),
                             )
-                            drawPath(path = mask, color = indicatorColor)
+                            drawPath(
+                                path = mask,
+                                color = indicatorColor.copy(
+                                    alpha = indicatorColor.alpha * (1f + 0.5f * pressProgress),
+                                ),
+                            )
 
                             // Isolate foreground alpha so the tint affects only glyphs under the pill.
                             val canvas = drawContext.canvas
@@ -303,12 +345,14 @@ internal fun MainBottomBar(
                             .selectable(
                                 selected = selected,
                                 role = Role.Tab,
-                                interactionSource = remember { MutableInteractionSource() },
+                                interactionSource = interactionSources[item.ordinal],
                                 indication = ripple(),
                                 onClick = {
                                     if (!selected) {
                                         dragSettlement = null
                                         onDestinationChange(item)
+                                    } else {
+                                        onDestinationReselect(item)
                                     }
                                 },
                             )

@@ -1,11 +1,16 @@
 package moe.kirakira.feature.search
 
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -15,10 +20,10 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.MaterialTheme
@@ -29,8 +34,10 @@ import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -51,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.distinctUntilChanged
 import moe.kirakira.R
+import moe.kirakira.data.content.VideoTag
 import moe.kirakira.ui.components.AnimatedCountLabel
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
@@ -64,9 +72,10 @@ internal fun SearchPage(
     onOpenVideo: (Int) -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(),
+    onScrollToTopActionChange: ((suspend () -> Unit)?) -> Unit = {},
 ) {
     val state = model?.state?.collectAsStateWithLifecycle()?.value ?: SearchUiState()
-    SearchScreen(state, { model?.onEvent(it) }, onOpenVideo, modifier, contentPadding)
+    SearchScreen(state, { model?.onEvent(it) }, onOpenVideo, modifier, contentPadding, onScrollToTopActionChange)
 }
 
 @Composable
@@ -76,8 +85,32 @@ internal fun SearchScreen(
     onOpenVideo: (Int) -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(),
+    onScrollToTopActionChange: ((suspend () -> Unit)?) -> Unit = {},
+) {
+    key(state.accountRevision) {
+        SearchScreenContent(state, onEvent, onOpenVideo, modifier, contentPadding, onScrollToTopActionChange)
+    }
+}
+
+@Composable
+private fun SearchScreenContent(
+    state: SearchUiState,
+    onEvent: (SearchEvent) -> Unit,
+    onOpenVideo: (Int) -> Unit,
+    modifier: Modifier,
+    contentPadding: PaddingValues,
+    onScrollToTopActionChange: ((suspend () -> Unit)?) -> Unit,
 ) {
     val listState = remember(state.generation) { LazyListState(state.scrollIndex, state.scrollOffset) }
+    val historyListState = rememberLazyListState()
+    val activeListState by rememberUpdatedState(if (state.submitted == null) historyListState else listState)
+    val scrollToTop: suspend () -> Unit = remember {
+        { activeListState.animateScrollToItem(0) }
+    }
+    DisposableEffect(onScrollToTopActionChange, scrollToTop, activeListState) {
+        onScrollToTopActionChange(scrollToTop)
+        onDispose { onScrollToTopActionChange(null) }
+    }
     val currentEvent by rememberUpdatedState(onEvent)
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
@@ -92,80 +125,91 @@ internal fun SearchScreen(
     val density = LocalDensity.current
     var headerHeightPx by remember { mutableIntStateOf(0) }
     ContentPullToRefresh(
-        isRefreshing = state.videos.loading && state.videos.data != null,
+        isRefreshing = !state.pickerOpen && state.videos.loading && state.videos.data != null,
         onRefresh = { onEvent(SearchEvent.Refresh) },
         modifier = modifier.fillMaxSize().imePadding().testTag("search_screen"),
-        enabled = state.ready && state.submitted != null && !state.videos.loading,
+        enabled = state.ready && !state.pickerOpen && state.submitted != null && !state.videos.loading,
         indicatorTopPadding = contentPadding.calculateTopPadding(),
     ) {
         BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             val headerHeight = with(density) { headerHeightPx.toDp() }
             val statusHeight = (maxHeight - contentPadding.calculateTopPadding() -
-                contentPadding.calculateBottomPadding() - headerHeight - 44.dp).coerceAtLeast(120.dp)
-            LazyColumn(
+                contentPadding.calculateBottomPadding() - headerHeight - 36.dp).coerceAtLeast(120.dp)
+            AnimatedVisibility(
+                visible = state.submitted == null,
+                enter = fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()) +
+                    slideInVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) { it / 24 },
+                exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) +
+                    slideOutVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { -it / 24 },
+            ) {
+                SearchHistoryContent(state, onEvent, contentPadding, listState = historyListState)
+            }
+            if (state.submitted != null) LazyColumn(
                 state = listState,
                 modifier = Modifier.widthIn(max = 840.dp).fillMaxSize(),
                 contentPadding = PaddingValues(
-                    start = 16.dp, end = 16.dp, top = contentPadding.calculateTopPadding() + 16.dp,
+                    start = 16.dp, end = 16.dp, top = contentPadding.calculateTopPadding() + 8.dp,
                     bottom = contentPadding.calculateBottomPadding() + 16.dp,
                 ),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                if ((state.mode == SearchMode.TAG && state.tags.isNotEmpty()) || state.submitted != null) {
-                    item("search-controls") {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().onSizeChanged { headerHeightPx = it.height },
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            if (state.mode == SearchMode.TAG && state.tags.isNotEmpty()) {
-                                SelectedSearchTags(state, onEvent, Modifier.widthIn(max = 640.dp).fillMaxWidth())
-                            }
-                            if (state.submitted != null) SearchResultCount(state)
-                        }
+                if (state.historyError) item("history-error") {
+                    SearchHistoryError(onEvent, canDismiss = state.historyLoaded)
+                }
+                item("search-header") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().onSizeChanged { headerHeightPx = it.height },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        SearchResultCount(state, Modifier.weight(1f))
+                        SearchResultControls(state, onEvent)
                     }
                 }
-                if (state.submitted != null) {
-                    if (state.videos.error != null || state.videos.data.isNullOrEmpty()) {
-                        item("status") {
-                            ContentStatus(
-                                state.videos.copy(loading = state.videos.loading && state.videos.data == null),
-                                onRetry = { onEvent(SearchEvent.Refresh) },
-                                modifier = Modifier.fillMaxWidth().then(
-                                    if (state.videos.data.isNullOrEmpty()) Modifier.heightIn(min = statusHeight) else Modifier,
-                                ),
-                                empty = state.videos.data.isNullOrEmpty(),
-                                emptyTitle = stringResource(R.string.search_videos_empty),
-                                emptyIconRes = R.drawable.ic_symbol_search,
-                            )
-                        }
+                if (state.videos.error != null || state.videos.data.isNullOrEmpty()) {
+                    item("status") {
+                        ContentStatus(
+                            state.videos.copy(loading = state.videos.loading && state.videos.data == null),
+                            onRetry = { onEvent(SearchEvent.Refresh) },
+                            modifier = Modifier.fillMaxWidth().then(
+                                if (state.videos.data.isNullOrEmpty()) Modifier.heightIn(min = statusHeight) else Modifier,
+                            ),
+                            empty = state.videos.data.isNullOrEmpty(),
+                            emptyTitle = stringResource(R.string.search_videos_empty),
+                            emptyIconRes = R.drawable.ic_symbol_search,
+                        )
                     }
-                    items(rows, key = { it.first().id }) { row ->
-                        VideoCardRow(row, state.layout, onOpenVideo, Modifier.fillMaxWidth())
-                    }
+                }
+                items(rows, key = { it.first().id }) { row ->
+                    VideoCardRow(row, state.layout, onOpenVideo, Modifier.fillMaxWidth())
                 }
             }
         }
     }
-    if (state.pickerOpen) TagSearchSheet(state, onEvent)
+    if (state.pickerOpen) TagSearchDialog(state, onEvent)
+    ClearSearchHistoryDialog(state, onEvent)
 }
 
 @Composable
-private fun SelectedSearchTags(state: SearchUiState, onEvent: (SearchEvent) -> Unit, modifier: Modifier = Modifier) {
+internal fun SelectedSearchTags(
+    tags: List<VideoTag>,
+    onRemove: (VideoTag) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
     val language = LocalConfiguration.current.locales[0].toLanguageTag()
     FlowRow(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        state.tags.forEach { tag ->
+        tags.forEach { tag ->
             val label = tag.displayName(language)
             InputChip(
                 selected = true,
-                onClick = { onEvent(SearchEvent.RemoveTag(tag.id)) },
-                enabled = state.ready,
-                label = { Text(label, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                onClick = { onRemove(tag) },
+                enabled = enabled,
+                label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 colors = InputChipDefaults.inputChipColors(
                     selectedContainerColor = MaterialTheme.colorScheme.primary,
                     selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
@@ -183,17 +227,22 @@ private fun SelectedSearchTags(state: SearchUiState, onEvent: (SearchEvent) -> U
 }
 
 @Composable
-private fun SearchResultCount(state: SearchUiState) {
+private fun SearchResultCount(state: SearchUiState, modifier: Modifier = Modifier) {
     val count = state.videos.data?.size
     if (count == null) {
-        Text("", modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.labelLarge)
+        Text(
+            text = "",
+            modifier = modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     } else {
-        androidx.compose.runtime.key(state.generation) {
+        key(state.generation) {
             AnimatedCountLabel(
                 count = count.toLong(),
                 template = pluralStringResource(R.plurals.search_video_count, count),
-                modifier = Modifier.fillMaxWidth(),
-                style = MaterialTheme.typography.labelLarge,
+                modifier = modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -209,7 +258,7 @@ internal fun SearchIconButton(
     enabled: Boolean = true,
 ) {
     SearchTooltip(label) {
-        IconButton(onClick = onClick, modifier = modifier, enabled = enabled, shapes = IconButtonDefaults.shapes()) {
+        IconButton(onClick = onClick, modifier = modifier, enabled = enabled) {
             Icon(painterResource(icon), label)
         }
     }

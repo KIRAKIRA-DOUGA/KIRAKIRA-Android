@@ -11,6 +11,7 @@ import moe.kirakira.data.auth.AuthRepository
 import moe.kirakira.data.auth.SessionStore
 import moe.kirakira.data.content.ContentRepository
 import moe.kirakira.data.history.HistoryRepository
+import moe.kirakira.data.search.SearchHistoryRepository
 import moe.kirakira.data.kaomoji.RecentKaomojiStore
 import moe.kirakira.data.image.ImageExportRepository
 import moe.kirakira.data.profile.ProfileRepository
@@ -28,6 +29,7 @@ internal class AppDependenciesViewModel(application: Application) : AndroidViewM
         BuildConfig.API_BASE_URL,
     )
     val content = ContentRepository(api, auth)
+    val searchHistory = SearchHistoryRepository(application, BuildConfig.API_BASE_URL)
     val recentKaomoji = RecentKaomojiStore(application)
     val settings = AccountSettingsRepository(api, auth)
     val history = HistoryRepository(api, auth, viewModelScope)

@@ -1,13 +1,17 @@
 package moe.kirakira.ui.components
 
 import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.pager.PagerState
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -31,16 +35,19 @@ internal fun tabTransitionDurationMillis(distance: Float): Int =
 internal fun rememberTabChangeHandler(
     pagerState: PagerState,
     scope: CoroutineScope = rememberCoroutineScope(),
+    onTabReselect: suspend (Int) -> Unit = {},
 ): (Int) -> Unit {
+    val reselectTab = rememberTabReselectHandler(onTabReselect)
     val easing = rememberEmphasizedEasing()
     var tabScrollJob by remember { mutableStateOf<Job?>(null) }
-    return remember(pagerState, scope, easing) {
+    return remember(pagerState, scope, easing, reselectTab) {
         { targetPage ->
             if (
                 pagerState.currentPage != targetPage ||
                 pagerState.isScrollInProgress ||
                 tabScrollJob?.isActive == true
             ) {
+                reselectTab(null)
                 tabScrollJob?.cancel()
                 tabScrollJob = scope.launch {
                     val distance = abs(
@@ -52,7 +59,33 @@ internal fun rememberTabChangeHandler(
                         animationSpec = tween(durationMillis, easing = easing),
                     )
                 }
+            } else {
+                reselectTab(targetPage)
             }
         }
     }
 }
+
+/** Runs only the latest reselect action; null cancels it when changing tabs. */
+@Composable
+internal fun rememberTabReselectHandler(
+    onTabReselect: suspend (Int) -> Unit,
+): (Int?) -> Unit {
+    val scope = rememberCoroutineScope()
+    val latestOnTabReselect by rememberUpdatedState(onTabReselect)
+    var reselectJob by remember { mutableStateOf<Job?>(null) }
+    return remember(scope) {
+        { page ->
+            reselectJob?.cancel()
+            reselectJob = if (page == null) null else scope.launch { latestOnTabReselect(page) }
+        }
+    }
+}
+
+/** The indicator compresses around its center while the selected tab is held. */
+@Composable
+internal fun rememberTabIndicatorWidthScale(pressed: Boolean): State<Float> = animateFloatAsState(
+    targetValue = if (pressed) 0.85f else 1f,
+    animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+    label = "Tab indicator press width",
+)

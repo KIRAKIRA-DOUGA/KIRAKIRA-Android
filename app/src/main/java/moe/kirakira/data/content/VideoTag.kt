@@ -5,8 +5,13 @@ import kotlinx.serialization.Serializable
 import moe.kirakira.core.network.ApiException
 import moe.kirakira.core.network.ApiFailure
 
+@Serializable
 internal data class TagName(val name: String, val default: Boolean, val original: Boolean)
+
+@Serializable
 internal data class TagLanguage(val language: String, val names: List<TagName>)
+
+@Serializable
 internal data class VideoTag(val id: Long, val languages: List<TagLanguage>) {
     fun displayName(language: String): String {
         val locale = Locale.forLanguageTag(language)

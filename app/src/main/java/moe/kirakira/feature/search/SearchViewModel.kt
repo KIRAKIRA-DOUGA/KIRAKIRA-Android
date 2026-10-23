@@ -1,17 +1,23 @@
 package moe.kirakira.feature.search
 
 import androidx.annotation.StringRes
+import androidx.lifecycle.viewModelScope
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import moe.kirakira.R
 import moe.kirakira.core.network.ApiException
 import moe.kirakira.data.auth.isReadyForContent
 import moe.kirakira.data.content.ContentRepository
 import moe.kirakira.data.content.VideoSummary
 import moe.kirakira.data.content.VideoTag
+import moe.kirakira.data.search.SearchHistoryEntry
+import moe.kirakira.data.search.SearchHistoryRepository
 import moe.kirakira.ui.components.video.VideoCardLayout
 import moe.kirakira.ui.content.ContentState
 import moe.kirakira.ui.content.ContentViewModel
@@ -34,12 +40,19 @@ internal sealed interface SearchCriteria {
 
 internal data class SearchUiState(
     val ready: Boolean = false,
+    val accountRevision: Long = -1,
+    val history: List<SearchHistoryEntry> = emptyList(),
+    val historyLoaded: Boolean = false,
+    val historyBusy: Boolean = false,
+    val historyError: Boolean = false,
+    val clearHistoryOpen: Boolean = false,
     val mode: SearchMode = SearchMode.KEYWORD,
     val keyword: String = "",
     val tags: List<VideoTag> = emptyList(),
     val submitted: SearchCriteria? = null,
     val videos: ContentState<List<VideoSummary>> = ContentState(),
     val pickerOpen: Boolean = false,
+    val draftTags: List<VideoTag> = emptyList(),
     val tagQuery: String = "",
     val candidates: ContentState<List<VideoTag>> = ContentState(),
     val sort: SearchSort = SearchSort.DEFAULT,
@@ -57,6 +70,14 @@ internal sealed interface SearchEvent {
     data class ModeChanged(val mode: SearchMode) : SearchEvent
     data object OpenTags : SearchEvent
     data object CloseTags : SearchEvent
+    data object ApplyTags : SearchEvent
+    data class UseHistory(val key: String) : SearchEvent
+    data class DeleteHistory(val key: String) : SearchEvent
+    data object RequestClearHistory : SearchEvent
+    data object DismissClearHistory : SearchEvent
+    data object ClearHistory : SearchEvent
+    data object RetryHistory : SearchEvent
+    data object DismissHistoryError : SearchEvent
     data class TagQueryChanged(val value: String) : SearchEvent
     data class ToggleTag(val tag: VideoTag) : SearchEvent
     data class RemoveTag(val id: Long) : SearchEvent
@@ -67,9 +88,17 @@ internal sealed interface SearchEvent {
     data class Scrolled(val generation: Long, val index: Int, val offset: Int) : SearchEvent
 }
 
-internal class SearchViewModel(repository: ContentRepository) : ContentViewModel(repository) {
+internal class SearchViewModel(
+    repository: ContentRepository,
+    private val historyRepository: SearchHistoryRepository,
+) : ContentViewModel(repository) {
     private val _state = MutableStateFlow(SearchUiState())
-    val state = _state.asStateFlow()
+    // Never expose a retired account while its reset/load coroutine is catching up.
+    val state = combine(_state, session) { current, account ->
+        if (current.accountRevision == account.revision && account.isReadyForContent) current
+        else SearchUiState(accountRevision = account.revision)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, SearchUiState())
+    private var historyVersion = 0L
     private var videoJob: Job? = null
     private var tagJob: Job? = null
     private var videoVersion = 0L
@@ -81,7 +110,10 @@ internal class SearchViewModel(repository: ContentRepository) : ContentViewModel
             tagVersion++
             videoJob = null
             tagJob = null
-            _state.value = SearchUiState(ready = true, generation = _state.value.generation + 1)
+            _state.value = SearchUiState(
+                ready = true, accountRevision = revision, generation = _state.value.generation + 1,
+            )
+            updateHistory { historyRepository.load(it) }
         }, {})
     }
 
@@ -96,38 +128,65 @@ internal class SearchViewModel(repository: ContentRepository) : ContentViewModel
                 if (keyword.isEmpty()) resetResults()
                 else if (_state.value.mode == SearchMode.KEYWORD) {
                     _state.value = _state.value.copy(keyword = keyword)
-                    search(SearchCriteria.Keyword(keyword))
+                    search(SearchCriteria.Keyword(keyword), record = true)
                 }
             }
-            SearchEvent.Clear -> {
-                _state.value = _state.value.copy(keyword = "")
-                resetResults()
-            }
+            SearchEvent.Clear -> resetResults(clearConditions = true)
             is SearchEvent.ModeChanged -> if (event.mode != _state.value.mode) {
                 closeTags()
                 _state.value = _state.value.copy(mode = event.mode)
                 resetResults()
-                if (event.mode == SearchMode.TAG) searchSelectedTags()
+                if (event.mode == SearchMode.TAG) searchSelectedTags(record = false)
             }
-            SearchEvent.OpenTags -> {
-                _state.value = _state.value.copy(pickerOpen = true)
+            SearchEvent.OpenTags -> if (!_state.value.pickerOpen) {
+                _state.value = _state.value.copy(pickerOpen = true, draftTags = _state.value.tags)
                 lookupTags()
             }
             SearchEvent.CloseTags -> closeTags()
+            SearchEvent.ApplyTags -> if (_state.value.pickerOpen) {
+                _state.value = _state.value.copy(tags = _state.value.draftTags)
+                closeTags()
+                searchSelectedTags(record = true)
+            }
+            is SearchEvent.UseHistory -> _state.value.history.find { it.key == event.key }?.let { entry ->
+                closeTags()
+                if (entry.keyword != null) {
+                    _state.value = _state.value.copy(mode = SearchMode.KEYWORD, keyword = entry.keyword)
+                    search(SearchCriteria.Keyword(entry.keyword), record = true)
+                } else {
+                    _state.value = _state.value.copy(mode = SearchMode.TAG, tags = entry.tags)
+                    searchSelectedTags(record = true)
+                }
+            }
+            is SearchEvent.DeleteHistory -> if (!_state.value.historyBusy) {
+                updateHistory { historyRepository.remove(it, event.key) }
+            }
+            SearchEvent.RequestClearHistory -> _state.value = _state.value.copy(clearHistoryOpen = true)
+            SearchEvent.DismissClearHistory -> _state.value = _state.value.copy(clearHistoryOpen = false)
+            SearchEvent.ClearHistory -> if (!_state.value.historyBusy) {
+                _state.value = _state.value.copy(clearHistoryOpen = false)
+                updateHistory { historyRepository.clear(it) }
+            }
+            SearchEvent.RetryHistory -> if (!_state.value.historyBusy) updateHistory { historyRepository.load(it) }
+            SearchEvent.DismissHistoryError -> _state.value = _state.value.copy(historyError = false)
             is SearchEvent.TagQueryChanged -> {
-                _state.value = _state.value.copy(tagQuery = event.value)
+                _state.value = _state.value.copy(
+                    pickerOpen = true,
+                    draftTags = if (_state.value.pickerOpen) _state.value.draftTags else _state.value.tags,
+                    tagQuery = event.value,
+                )
                 lookupTags(debounce = true)
             }
             is SearchEvent.ToggleTag -> {
-                val tags = _state.value.tags
-                _state.value = _state.value.copy(tags = if (tags.any { it.id == event.tag.id }) {
+                if (!_state.value.pickerOpen) return
+                val tags = _state.value.draftTags
+                _state.value = _state.value.copy(draftTags = if (tags.any { it.id == event.tag.id }) {
                     tags.filterNot { it.id == event.tag.id }
                 } else (tags + event.tag).distinctBy { it.id })
-                searchSelectedTags()
             }
             is SearchEvent.RemoveTag -> {
                 _state.value = _state.value.copy(tags = _state.value.tags.filterNot { it.id == event.id })
-                searchSelectedTags()
+                searchSelectedTags(record = true)
             }
             SearchEvent.RetryTags -> lookupTags()
             SearchEvent.Refresh -> _state.value.submitted?.let { search(it) }
@@ -145,29 +204,63 @@ internal class SearchViewModel(repository: ContentRepository) : ContentViewModel
         }
     }
 
-    private fun resetResults() {
+    private fun updateHistory(operation: suspend (String?) -> List<SearchHistoryEntry>?) {
+        val expected = revision
+        val owner = session.value.activeUuid
+        val version = ++historyVersion
+        _state.value = _state.value.copy(historyBusy = true, historyError = false)
+        // Local writes finish for their captured owner even when account-bound HTTP work is cancelled.
+        viewModelScope.launch {
+            val entries = operation(owner)
+            if (expected == session.value.revision && version == historyVersion) {
+                _state.value = _state.value.copy(
+                    history = entries ?: _state.value.history,
+                    historyLoaded = entries != null || _state.value.historyLoaded,
+                    historyBusy = false,
+                    historyError = entries == null,
+                )
+            }
+        }
+    }
+
+    private fun resetResults(clearConditions: Boolean = false) {
         videoJob?.cancel()
+        videoJob = null
         videoVersion++
-        _state.value = _state.value.copy(
+        val current = _state.value
+        val cleared = if (clearConditions) {
+            when (current.mode) {
+                SearchMode.KEYWORD -> current.copy(keyword = "")
+                SearchMode.TAG -> current.copy(tags = emptyList())
+            }
+        } else current
+        _state.value = cleared.copy(
             submitted = null, videos = ContentState(), generation = _state.value.generation + 1,
             scrollIndex = 0, scrollOffset = 0,
         )
     }
 
-    private fun searchSelectedTags() {
+    private fun searchSelectedTags(record: Boolean) {
         if (_state.value.mode != SearchMode.TAG) return
         val ids = _state.value.tags.map { it.id }.distinct().sorted()
-        if (ids.isEmpty()) resetResults() else search(SearchCriteria.Tags(ids))
+        if (ids.isEmpty()) resetResults() else search(SearchCriteria.Tags(ids), record)
     }
 
-    private fun search(criteria: SearchCriteria) {
+    private fun search(criteria: SearchCriteria, record: Boolean = false) {
         val current = _state.value
         val same = criteria == current.submitted
         if (same && current.videos.loading) return
+        if (record) {
+            val entry = when (criteria) {
+                is SearchCriteria.Keyword -> SearchHistoryEntry(keyword = criteria.text)
+                is SearchCriteria.Tags -> SearchHistoryEntry(tags = current.tags)
+            }
+            updateHistory { historyRepository.record(it, entry) }
+        }
         videoJob?.cancel()
         val version = ++videoVersion
         val expected = revision
-        _state.value = current.copy(
+        _state.value = _state.value.copy(
             submitted = criteria,
             videos = ContentState(data = if (same) current.videos.data else null, loading = true),
             generation = if (same) current.generation else current.generation + 1,
@@ -196,7 +289,7 @@ internal class SearchViewModel(repository: ContentRepository) : ContentViewModel
     private fun closeTags() {
         tagJob?.cancel()
         tagVersion++
-        _state.value = _state.value.copy(pickerOpen = false, candidates = ContentState())
+        _state.value = _state.value.copy(pickerOpen = false, draftTags = emptyList(), candidates = ContentState())
     }
 
     private fun lookupTags(debounce: Boolean = false) {

@@ -109,7 +109,7 @@ internal fun AppNavHost(
     } else viewModel { PlaybackViewModel(context.applicationContext, createSavedStateHandle(), historyRepository) }
     val kaomojiModel = dependencies?.let { viewModel { KaomojiViewModel(it.recentKaomoji) } }
     val homeViewModel = contentRepository?.let { viewModel { HomeViewModel(it) } }
-    val searchViewModel = contentRepository?.let { viewModel { SearchViewModel(it) } }
+    val searchViewModel = dependencies?.let { viewModel { SearchViewModel(it.content, it.searchHistory) } }
     val videoPageActive = backStack.lastOrNull() is VideoRoute
     LaunchedEffect(backStack.lastOrNull()) {
         if (backStack.lastOrNull() is AuthRoute) playback.pause()
