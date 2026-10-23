@@ -35,7 +35,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
@@ -48,6 +51,7 @@ import moe.kirakira.data.settings.RuleCategory
 import moe.kirakira.data.settings.RuleEntry
 import moe.kirakira.data.settings.RulePage
 import moe.kirakira.data.settings.RuleTag
+import moe.kirakira.feature.settings.SettingsDefaults
 import moe.kirakira.feature.settings.SettingsSectionHeader
 import moe.kirakira.ui.components.AccountAvatar
 import moe.kirakira.ui.components.AnimatedCountLabel
@@ -194,9 +198,16 @@ internal fun RuleManagementScreen(
         val page = state.data
         if (page != null) {
             item {
-                SettingsSectionHeader(modifier = Modifier.padding(bottom = 8.dp)) {
-                    AnimatedCountLabel(page.total.toLong(), stringResource(R.string.management_rule_count))
-                }
+                AnimatedCountLabel(
+                    count = page.total.toLong(),
+                    template = pluralStringResource(R.plurals.management_rule_count, page.total),
+                    modifier = Modifier
+                        .padding(horizontal = SettingsDefaults.HorizontalPadding)
+                        .padding(bottom = 8.dp)
+                        .semantics { heading() },
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             if (page.entries.isEmpty()) item { ManagementEmpty(category.iconRes(), stringResource(R.string.management_no_rules)) }
             connectedItemsIndexed(

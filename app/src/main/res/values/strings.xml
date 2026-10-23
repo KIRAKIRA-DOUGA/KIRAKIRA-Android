@@ -451,7 +451,10 @@
     <string name="management_added">Added</string>
     <string name="management_removed">Removed</string>
     <string name="management_add">Add</string>
-    <string name="management_rule_count">Rules · %1$s</string>
+    <plurals name="management_rule_count">
+        <item quantity="one">%1$s rule</item>
+        <item quantity="other">%1$s rules</item>
+    </plurals>
     <string name="management_no_rules">No rules yet</string>
     <string name="management_uid">UID %1$d</string>
     <string name="management_uid_label">UID</string>

@@ -259,7 +259,7 @@ internal fun VideoCommentsPage(
 private fun CommentCountHeader(count: Int, toolbarSize: IntSize, modifier: Modifier = Modifier) {
     val template = pluralStringResource(R.plurals.video_comments_total, count)
     val label = template.format(count.toString())
-    val style = MaterialTheme.typography.bodyMedium
+    val style = MaterialTheme.typography.titleSmall
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val labelWidth = with(density) { textMeasurer.measure(label, style).size.width.toDp() }

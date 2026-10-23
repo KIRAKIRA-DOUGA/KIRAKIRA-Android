@@ -26,6 +26,6 @@ internal fun VideoListCount(
             .padding(horizontal = 8.dp, vertical = 12.dp)
             .semantics { heading() },
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        style = MaterialTheme.typography.bodyMedium,
+        style = MaterialTheme.typography.titleSmall,
     )
 }

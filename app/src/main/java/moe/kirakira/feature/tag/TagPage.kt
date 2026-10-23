@@ -152,14 +152,18 @@ internal fun TagScreen(
                         item("count") {
                             val count = videos.data?.size
                             if (count == null) {
-                                Text(stringResource(R.string.tag_related_videos),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    modifier = Modifier.fillMaxWidth().semantics { heading() })
+                                Text(
+                                    text = stringResource(R.string.tag_related_videos),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.fillMaxWidth().semantics { heading() },
+                                )
                             } else {
                                 AnimatedCountLabel(
                                     count = count.toLong(),
                                     template = pluralStringResource(R.plurals.tag_video_count, count),
-                                    style = MaterialTheme.typography.titleMedium,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.fillMaxWidth().semantics { heading() },
                                 )
                             }

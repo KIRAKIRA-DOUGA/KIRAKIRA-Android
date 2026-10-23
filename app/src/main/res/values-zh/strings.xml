@@ -444,7 +444,9 @@
     <string name="management_added">已添加</string>
     <string name="management_removed">已解除</string>
     <string name="management_add">添加</string>
-    <string name="management_rule_count">规则 · %1$s</string>
+    <plurals name="management_rule_count">
+        <item quantity="other">%1$s 条规则</item>
+    </plurals>
     <string name="management_no_rules">暂无规则</string>
     <string name="management_uid">UID %1$d</string>
     <string name="management_uid_label">UID</string>
