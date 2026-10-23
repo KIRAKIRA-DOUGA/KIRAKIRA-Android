@@ -14,8 +14,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
-import dev.chrisbanes.haze.ExperimentalHazeApi
-import dev.chrisbanes.haze.HazeFeatureFlags
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeSourceRetention
 import dev.chrisbanes.haze.HazeState
@@ -32,12 +30,6 @@ private object BackdropButtonDefaults {
         noiseFactor(0f)
         colorEffects(emptyList())
     }
-}
-
-// The flag is read when effect nodes attach, so enable it before composing any buttons.
-@OptIn(ExperimentalHazeApi::class)
-internal fun enableButtonBackdrops() {
-    HazeFeatureFlags.isPlatformBackdropEnabled = true
 }
 
 @Composable
@@ -64,7 +56,7 @@ internal fun BackdropIconButton(
         ),
         interactionSource = interactionSource,
     ) {
-        // The official surface clips the backdrop to its visible shape, outside the touch-target padding.
+        // The official surface clips the blurred background to its visible shape, outside the touch-target padding.
         Box(
             modifier = Modifier.fillMaxSize().buttonBackdropBackground(hazeState, enabled),
             contentAlignment = Alignment.Center,
@@ -77,8 +69,10 @@ internal fun BackdropIconButton(
 @Composable
 private fun Modifier.buttonBackdropBackground(hazeState: HazeState, enabled: Boolean): Modifier {
     val input = remember(hazeState) {
-        HazeInput.Backdrop(
-            fallback = HazeInput.Sources(hazeState, retention = HazeSourceRetention.ClearWhenUnavailable),
+        // Native backdrop can produce alpha/elevation compositing artifacts while the page fades.
+        HazeInput.Sources(
+            state = hazeState,
+            retention = HazeSourceRetention.ClearWhenUnavailable,
         )
     }
     return then(

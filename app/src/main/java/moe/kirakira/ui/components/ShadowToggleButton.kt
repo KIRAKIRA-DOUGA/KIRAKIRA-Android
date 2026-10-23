@@ -42,13 +42,19 @@ internal fun ShadowToggleButton(
         animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
         label = "toggleButtonCheckedShape",
     )
+    val restingTargetShape = if (checked) shapes.checkedShape else shapes.shape
+    val morphsOnPress = shapes.pressedShape != restingTargetShape
     val pressedProgress by animateFloatAsState(
-        targetValue = if (enabled && pressed) 1f else 0f,
+        targetValue = if (enabled && pressed && morphsOnPress) 1f else 0f,
         animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
         label = "toggleButtonPressedShape",
     )
     val restingShape = interpolateToggleShape(shapes.shape, shapes.checkedShape, checkedProgress)
-    val outline = interpolateToggleShape(restingShape, shapes.pressedShape, pressedProgress)
+    val outline = if (morphsOnPress) {
+        interpolateToggleShape(restingShape, shapes.pressedShape, pressedProgress)
+    } else {
+        restingShape
+    }
     val containerColor = if (checked) colors.checkedContainerColor else colors.containerColor
     ToggleButton(
         checked = checked,

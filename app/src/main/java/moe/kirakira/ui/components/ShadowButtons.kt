@@ -40,21 +40,29 @@ import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.addOutline
-import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.IntrinsicMeasurable
+import androidx.compose.ui.layout.IntrinsicMeasureScope
+import androidx.compose.ui.layout.LayoutModifier
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.MeasureResult
+import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 
+/** Destructive actions own their error colors; [colors] applies only to ordinary buttons. */
 @Composable
 internal fun ShadowButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    shape: Shape = ButtonDefaults.shape,
-    shapes: ButtonShapes? = null,
+    destructive: Boolean = false,
+    shapes: ButtonShapes = ButtonDefaults.shapes(),
     colors: ButtonColors = ButtonDefaults.buttonColors(),
     border: BorderStroke? = null,
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
@@ -62,19 +70,43 @@ internal fun ShadowButton(
     content: @Composable RowScope.() -> Unit,
 ) {
     val source = interactionSource ?: remember { MutableInteractionSource() }
-    val outline = rememberButtonShadowShape(shape, shapes?.shape, shapes?.pressedShape, enabled, source)
+    val outline = rememberButtonShadowShape(shapes.shape, shapes.pressedShape, enabled, source)
+    val resolvedColors = if (destructive) DestructiveActionDefaults.buttonColors() else colors
+    var visualSize by remember { mutableStateOf(Size.Zero) }
     Button(
         onClick = onClick,
-        modifier = modifier.buttonShadow(outline, colors.containerColor, enabled, source),
+        modifier = modifier
+            .then(
+                if (destructive) Modifier.observeButtonMeasurement { placeable ->
+                    val horizontalInset = placeable[MinimumInteractiveLeftAlignmentLine].coerceAtLeast(0)
+                    val verticalInset = placeable[MinimumInteractiveTopAlignmentLine].coerceAtLeast(0)
+                    visualSize = Size(
+                        (placeable.width - 2 * horizontalInset).toFloat(),
+                        (placeable.height - 2 * verticalInset).toFloat(),
+                    )
+                } else Modifier,
+            )
+            .buttonShadow(outline, resolvedColors.containerColor, enabled, source),
         enabled = enabled,
         shape = outline,
-        colors = colors,
+        colors = resolvedColors,
         elevation = null,
         border = border,
         contentPadding = contentPadding,
         interactionSource = source,
-        content = content,
-    )
+    ) {
+        if (destructive && enabled) {
+            DestructiveButtonContent(
+                visualSize = { visualSize },
+                contentPadding = contentPadding,
+                interactionSource = source,
+                color = resolvedColors.contentColor,
+                content = content,
+            )
+        } else {
+            content()
+        }
+    }
 }
 
 @Composable
@@ -82,8 +114,7 @@ internal fun ShadowFilledTonalButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    shape: Shape = ButtonDefaults.shape,
-    shapes: ButtonShapes? = null,
+    shapes: ButtonShapes = ButtonDefaults.shapes(),
     colors: ButtonColors = ButtonDefaults.filledTonalButtonColors(),
     border: BorderStroke? = null,
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
@@ -91,7 +122,7 @@ internal fun ShadowFilledTonalButton(
     content: @Composable RowScope.() -> Unit,
 ) {
     val source = interactionSource ?: remember { MutableInteractionSource() }
-    val outline = rememberButtonShadowShape(shape, shapes?.shape, shapes?.pressedShape, enabled, source)
+    val outline = rememberButtonShadowShape(shapes.shape, shapes.pressedShape, enabled, source)
     FilledTonalButton(
         onClick = onClick,
         modifier = modifier.buttonShadow(outline, colors.containerColor, enabled, source),
@@ -111,14 +142,13 @@ internal fun ShadowFilledIconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    shape: Shape = IconButtonDefaults.filledShape,
-    shapes: IconButtonShapes? = null,
+    shapes: IconButtonShapes = IconButtonDefaults.shapes(),
     colors: IconButtonColors = IconButtonDefaults.filledIconButtonColors(),
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
 ) {
     val source = interactionSource ?: remember { MutableInteractionSource() }
-    val outline = rememberButtonShadowShape(shape, shapes?.shape, shapes?.pressedShape, enabled, source)
+    val outline = rememberButtonShadowShape(shapes.shape, shapes.pressedShape, enabled, source)
     FilledIconButton(
         onClick = onClick,
         modifier = modifier.buttonShadow(outline, colors.containerColor, enabled, source),
@@ -135,14 +165,13 @@ internal fun ShadowFilledTonalIconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    shape: Shape = IconButtonDefaults.filledShape,
-    shapes: IconButtonShapes? = null,
+    shapes: IconButtonShapes = IconButtonDefaults.shapes(),
     colors: IconButtonColors = IconButtonDefaults.filledTonalIconButtonColors(),
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
 ) {
     val source = interactionSource ?: remember { MutableInteractionSource() }
-    val outline = rememberButtonShadowShape(shape, shapes?.shape, shapes?.pressedShape, enabled, source)
+    val outline = rememberButtonShadowShape(shapes.shape, shapes.pressedShape, enabled, source)
     FilledTonalIconButton(
         onClick = onClick,
         modifier = modifier.buttonShadow(outline, colors.containerColor, enabled, source),
@@ -182,19 +211,18 @@ internal fun ShadowFloatingActionButton(
 
 @Composable
 private fun rememberButtonShadowShape(
-    shape: Shape,
-    defaultShape: Shape?,
-    pressedShape: Shape?,
+    defaultShape: Shape,
+    pressedShape: Shape,
     enabled: Boolean,
     interactionSource: MutableInteractionSource,
 ): Shape {
+    if (defaultShape == pressedShape) return defaultShape
     val pressed by interactionSource.collectIsPressedAsState()
     val progress by animateFloatAsState(
         targetValue = if (enabled && pressed) 1f else 0f,
         animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
         label = "buttonShadowShape",
     )
-    if (defaultShape == null || pressedShape == null) return shape
     return Interpolatable.lerp(defaultShape, pressedShape, progress) as? Shape
         ?: if (enabled && pressed) pressedShape else defaultShape
 }
@@ -223,15 +251,11 @@ internal fun Modifier.buttonShadow(
         label = "buttonShadowElevation",
     )
     if (!enabled) return this
-    return layout { measurable, constraints ->
-        val placeable = measurable.measure(constraints)
+    return observeButtonMeasurement { placeable ->
         visualInset = IntOffset(
             placeable[MinimumInteractiveLeftAlignmentLine].coerceAtLeast(0),
             placeable[MinimumInteractiveTopAlignmentLine].coerceAtLeast(0),
         )
-        layout(placeable.width, placeable.height) {
-            placeable.place(0, 0)
-        }
     }.materialColorShadow(shadowShape, containerColor) { elevation }
 }
 
@@ -252,3 +276,26 @@ private class ButtonShadowOutline(
         return Outline.Generic(path)
     }
 }
+
+/** Intrinsic queries delegate without publishing synthetic measurements to the decoration. */
+private fun Modifier.observeButtonMeasurement(onMeasured: (Placeable) -> Unit): Modifier = then(
+    object : LayoutModifier {
+        override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
+            val placeable = measurable.measure(constraints)
+            onMeasured(placeable)
+            return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+        }
+
+        override fun IntrinsicMeasureScope.minIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int =
+            measurable.minIntrinsicWidth(height)
+
+        override fun IntrinsicMeasureScope.maxIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int =
+            measurable.maxIntrinsicWidth(height)
+
+        override fun IntrinsicMeasureScope.minIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
+            measurable.minIntrinsicHeight(width)
+
+        override fun IntrinsicMeasureScope.maxIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
+            measurable.maxIntrinsicHeight(width)
+    },
+)

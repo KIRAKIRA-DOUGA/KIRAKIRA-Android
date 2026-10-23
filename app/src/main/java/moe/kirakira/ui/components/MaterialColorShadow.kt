@@ -5,7 +5,18 @@ import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+
+/** Static Material Design 2 height for large colored cards; interactive cards keep their own elevation. */
+internal val CardColorShadowElevation = 2.dp
+
+internal fun Modifier.cardColorShadow(
+    shape: Shape,
+    containerColor: Color,
+    elevation: Dp = CardColorShadowElevation,
+    opacityScale: Float = 1f,
+): Modifier = materialColorShadow(shape, containerColor, opacityScale) { elevation.value }
 
 internal fun Modifier.materialColorShadow(
     shape: Shape,

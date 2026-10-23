@@ -22,6 +22,7 @@ import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconButtonShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -181,7 +182,7 @@ fun ImageViewerScreen(
                     ShadowFilledIconButton(
                         onClick = onBack,
                         enabled = controlsVisible && !transitioning,
-                        shape = CircleShape,
+                        shapes = IconButtonShapes(CircleShape, CircleShape),
                         colors = IconButtonDefaults.filledIconButtonColors(
                             containerColor = Color(0xFF242424),
                             contentColor = Color.White,

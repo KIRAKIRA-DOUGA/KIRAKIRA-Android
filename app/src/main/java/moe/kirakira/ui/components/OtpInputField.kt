@@ -202,9 +202,8 @@ internal fun OtpInputField(
                                     ),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                TextFieldDefaults.Container(
-                                    focusedIndicatorLineThickness = 0.dp,
-                                    unfocusedIndicatorLineThickness = 0.dp,
+                                FilledTextFieldContainer(
+                                    indicatorThickness = 0.dp,
                                     colors = FilledTextFieldDefaults.colors(),
                                     enabled = enabled,
                                     isError = error != null,

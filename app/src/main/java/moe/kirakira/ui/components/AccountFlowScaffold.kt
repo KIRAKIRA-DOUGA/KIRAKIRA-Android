@@ -315,6 +315,7 @@ internal fun AccountFlowSubmitButton(
     busy: Boolean,
     modifier: Modifier = Modifier,
     colors: ButtonColors = ButtonDefaults.buttonColors(),
+    destructive: Boolean = false,
     actionDescription: String? = null,
 ) {
     val height = ButtonDefaults.MediumContainerHeight
@@ -322,6 +323,7 @@ internal fun AccountFlowSubmitButton(
     ShadowButton(
         onClick = onClick,
         enabled = enabled && !busy,
+        destructive = destructive,
         shapes = ButtonDefaults.shapesFor(height),
         contentPadding = ButtonDefaults.contentPaddingFor(height),
         colors = colors,

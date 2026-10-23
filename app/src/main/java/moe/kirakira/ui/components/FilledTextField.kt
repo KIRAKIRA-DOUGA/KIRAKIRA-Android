@@ -1,8 +1,10 @@
 package moe.kirakira.ui.components
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
@@ -14,13 +16,17 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.TextFieldDefaults.indicatorLine
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.innerShadow
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -28,6 +34,8 @@ import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
 
@@ -42,6 +50,57 @@ internal object FilledTextFieldDefaults {
         errorContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
     )
+}
+
+/** Keep the inset shadow below the official indicator and the editor's foreground content. */
+@Composable
+internal fun FilledTextFieldContainer(
+    enabled: Boolean,
+    isError: Boolean,
+    interactionSource: InteractionSource,
+    modifier: Modifier = Modifier,
+    colors: TextFieldColors = FilledTextFieldDefaults.colors(),
+    shape: Shape = MaterialTheme.shapes.large,
+    indicatorThickness: Dp = FilledTextFieldDefaults.IndicatorThickness,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val darkTheme = scheme.surface.luminance() < scheme.onSurface.luminance()
+    Box(
+        modifier = modifier.indicatorLine(
+            enabled = enabled,
+            isError = isError,
+            interactionSource = interactionSource,
+            colors = colors,
+            textFieldShape = shape,
+            focusedIndicatorLineThickness = indicatorThickness,
+            unfocusedIndicatorLineThickness = indicatorThickness,
+        ),
+    ) {
+        TextFieldDefaults.Container(
+            enabled = enabled,
+            isError = isError,
+            interactionSource = interactionSource,
+            modifier = Modifier.matchParentSize(),
+            colors = colors,
+            shape = shape,
+            focusedIndicatorLineThickness = 0.dp,
+            unfocusedIndicatorLineThickness = 0.dp,
+        )
+        // innerShadow draws before its content; a separate sibling keeps the opaque background below it.
+        Box(
+            Modifier
+                .matchParentSize()
+                .innerShadow(
+                    shape = shape,
+                    shadow = Shadow(
+                        radius = 4.dp,
+                        spread = 0.dp,
+                        color = scheme.scrim.copy(alpha = if (darkTheme) 0.12f else 0.06f),
+                        offset = DpOffset(0.dp, 4.dp),
+                    ),
+                ),
+        )
+    }
 }
 
 /** Material filled field with a consistent 2dp indicator, matching Cerasus's 2px stripe. */
@@ -116,14 +175,12 @@ internal fun FilledTextField(
                     shape = shape,
                     colors = colors,
                     container = {
-                        TextFieldDefaults.Container(
+                        FilledTextFieldContainer(
                             enabled = enabled,
                             isError = isError,
                             interactionSource = interaction,
                             colors = colors,
                             shape = shape,
-                            focusedIndicatorLineThickness = FilledTextFieldDefaults.IndicatorThickness,
-                            unfocusedIndicatorLineThickness = FilledTextFieldDefaults.IndicatorThickness,
                         )
                     },
                 )
