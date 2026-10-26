@@ -106,6 +106,8 @@ ViewModel 从第 1 页开始，每页 50 条，保留后端顺序并按 UID 去�
 
 两页的 Tab 通过共享 [PagerTabRow](../../app/src/main/java/moe/kirakira/ui/components/PagerTabRow.kt) 使用官方 `PrimaryTabRow`，颜文字分类通过同一组件使用 `PrimaryScrollableTabRow`；组件统一选中／未选中内容色、[PagerTabIndicator](../../app/src/main/java/moe/kirakira/ui/components/PagerTabIndicator.kt) 与空分隔线，调用方保留 Pager 状态、标题、点击事件及背景／布局修饰符。
 
+颜文字面板展开使用与官方 `BottomSheet` 弹出相同的主题 `defaultSpatialSpec` 弹簧，收起沿用相同的空间弹簧；不叠加淡入淡出，避免透明度过渡改变可见节奏。高度限制放在面板内容上，动画外层不以展开高度设置上限，避免 `expandVertically` 的逐帧尺寸约束截断弹簧超调；实际回弹空间仍受页面可用高度限制。
+
 颜文字条目不添加横向滚动，使用 `TextAutoSize.StepBased` 在单元格宽度约束内缩小字号，字号范围最低至 1sp，保证长条目完整显示。网格内左右拖动交给分类 Pager；面板打开期间，外层视频 Pager 关闭手势分页并使用空的页面嵌套滚动连接，保留顶部 Tab 点击切换，让越界位移留给分类 Pager 的原生 overscroll，而不带动视频 Tab。分类 Pager 在首尾类别继续拖动时显示系统边缘反馈（Android 12 起为拉伸，旧系统为边缘光晕）；分类 Pager 与网格使用组件默认的 overscroll 效果，网格保留纵向滚动及上下边界的原生拉伸反馈。
 
 视频页由 `VideoPage` 的常驻 `VideoPlayerViewport` 绘制顶部播放器，`VideoScreen` 保留对应高度的占位区域，下方 Pager 与透明 Tab 栏叠放；播放器占位区域与 Tab 共用顶部背景的固定 4dp 原生投影，文字与指示器独立绘制。资料页 Tab 保留不透明配色、吸顶布局与绘制层级，固定 4dp 原生 elevation 由封面、资料区和 Tab 共用的 `CollapsingHeaderBackground` 承载。在测量阶段读取 `currentPage + currentPageOffsetFraction`。

@@ -5,8 +5,6 @@ import androidx.annotation.StringRes
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -372,18 +370,18 @@ internal fun ContentComposer(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .heightIn(max = panelContentHeight + bottomPadding + 8.dp)
                     .then(if (panelVisible) Modifier else Modifier.clearAndSetSemantics { }),
+                // Limit the content height below, leaving the animated size room for spring overshoot.
                 enter = expandVertically(
                     animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
                     expandFrom = Alignment.Top,
                     clip = false,
-                ) + fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()),
+                ),
                 exit = shrinkVertically(
                     animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
                     shrinkTowards = Alignment.Top,
                     clip = false,
-                ) + fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+                ),
                 label = "Kaomoji panel",
             ) {
                 KaomojiPicker(
