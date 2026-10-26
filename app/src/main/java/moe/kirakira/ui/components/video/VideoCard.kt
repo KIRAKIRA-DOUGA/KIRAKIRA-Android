@@ -43,11 +43,16 @@ internal fun VideoCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     image: String? = null,
+    videoId: Int? = null,
 ) {
+    val artworkShape = if (layout == VideoCardLayout.GRID) MaterialTheme.shapes.large else MaterialTheme.shapes.medium
+    val zoomSource = rememberVideoZoomSource(videoId, image, artworkShape)
     Box(
         modifier = modifier
             .clip(MaterialTheme.shapes.small)
-            .clickable(role = Role.Button, onClick = onClick)
+            .clickable(role = Role.Button) {
+                if (zoomSource == null) onClick() else zoomSource.open(onClick)
+            }
             .padding(4.dp),
     ) {
         if (layout == VideoCardLayout.GRID) {
@@ -57,7 +62,9 @@ internal fun VideoCard(
             ) {
                 VideoArtwork(
                     image = image,
-                    modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(MaterialTheme.shapes.large),
+                    onPainterChange = { zoomSource?.painter = it },
+                    modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f)
+                        .clip(artworkShape).videoZoomSource(zoomSource),
                 )
                 VideoCardInfo(
                     title = title,
@@ -77,7 +84,9 @@ internal fun VideoCard(
             ) {
                 VideoArtwork(
                     image = image,
-                    modifier = Modifier.size(width = 128.dp, height = 72.dp).clip(MaterialTheme.shapes.medium),
+                    onPainterChange = { zoomSource?.painter = it },
+                    modifier = Modifier.size(width = 128.dp, height = 72.dp)
+                        .clip(artworkShape).videoZoomSource(zoomSource),
                 )
                 VideoCardInfo(
                     title = title,
@@ -207,6 +216,7 @@ internal fun VideoCardRow(
                     uploadTime = dateText(video.uploadedAt),
                     layout = layout,
                     image = video.image,
+                    videoId = video.id,
                     onClick = { onOpenVideo(video.id) },
                     modifier = Modifier.weight(1f),
                 )

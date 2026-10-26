@@ -14,6 +14,7 @@ import androidx.navigation3.scene.SceneState
 import androidx.navigationevent.NavigationEvent
 import androidx.navigationevent.NavigationEventHandler
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
+import moe.kirakira.feature.player.PlaybackViewportState
 
 /** Owns ordinary-page back dispatch and lifecycle cleanup; image scenes use NavDisplay's handler. */
 @Composable
@@ -26,6 +27,7 @@ internal fun <T : Any> ActivityBackHandler(
     canNavigateBack: () -> Boolean,
     onBack: () -> Unit,
     onStartGesture: (NavigationEvent) -> Unit,
+    zoomState: PlaybackViewportState? = null,
 ) {
     val currentSceneState by rememberUpdatedState(sceneState)
     val currentOnBack by rememberUpdatedState(onBack)
@@ -33,6 +35,7 @@ internal fun <T : Any> ActivityBackHandler(
     val currentCanNavigateBack by rememberUpdatedState(canNavigateBack)
     val currentStartGesture by rememberUpdatedState(onStartGesture)
     val currentEnabled by rememberUpdatedState(enabled)
+    val currentZoomState by rememberUpdatedState(zoomState)
     val handler = remember(motion, predictiveBackEnabled) {
         object : NavigationEventHandler<SceneInfo<T>>(
             initialInfo = SceneInfo(sceneState.currentScene),
@@ -44,15 +47,22 @@ internal fun <T : Any> ActivityBackHandler(
                 val key = currentSceneState.entries.last().contentKey
                 val allowed = currentCanNavigateBack()
                 attempt = BackAttempt(key, allowed)
-                if (allowed && predictiveBackEnabled) currentStartGesture(event)
+                if (allowed && predictiveBackEnabled) {
+                    if (currentZoomState != null) currentZoomState?.backProgress = 0f
+                    else currentStartGesture(event)
+                }
             }
 
             override fun onBackProgressed(event: NavigationEvent) {
-                if (attempt?.allowed == true && predictiveBackEnabled) motion.progress(event)
+                if (attempt?.allowed == true && predictiveBackEnabled) {
+                    if (currentZoomState != null) currentZoomState?.backProgress = event.progress
+                    else motion.progress(event)
+                }
             }
 
             override fun onBackCancelled() {
                 attempt = null
+                currentZoomState?.backProgress = null
                 if (predictiveBackEnabled) motion.cancel() else motion.reset()
             }
 
@@ -62,6 +72,7 @@ internal fun <T : Any> ActivityBackHandler(
                 val key = currentSceneState.entries.last().contentKey
                 if (started != null && key != started.key) {
                     motion.reset()
+                    currentZoomState?.backProgress = null
                     return
                 }
                 val allowed = if (started != null && predictiveBackEnabled) {
@@ -71,6 +82,7 @@ internal fun <T : Any> ActivityBackHandler(
                 }
                 if (!allowed) {
                     motion.reset()
+                    currentZoomState?.backProgress = null
                     if (started != null && predictiveBackEnabled) currentBackRequest()
                     return
                 }
@@ -79,7 +91,10 @@ internal fun <T : Any> ActivityBackHandler(
                     popIfCurrent(key)
                     return
                 }
-                motion.complete { popIfCurrent(key) }
+                if (currentZoomState != null) {
+                    popIfCurrent(key)
+                    currentZoomState?.backProgress = null
+                } else motion.complete { popIfCurrent(key) }
             }
 
             private fun popIfCurrent(key: Any) {
@@ -111,6 +126,7 @@ internal fun <T : Any> ActivityBackHandler(
             lifecycle.removeObserver(observer)
             handler.remove()
             motion.reset()
+            currentZoomState?.backProgress = null
         }
     }
 }

@@ -46,6 +46,8 @@ internal fun activityInterpolatorResource(): Int =
 internal class NavigationMotion(
     val forward: ContentTransform,
     val backward: ContentTransform,
+    val pageOffset: Float,
+    val pageSlideSpec: TweenSpec<Float>,
 )
 
 /**
@@ -65,12 +67,15 @@ internal fun rememberNavigationMotion(): NavigationMotion {
             activityInterpolatorResource(),
         )
         val offset = distance * direction
+        val easing = Easing { interpolator.getInterpolation(it) }
         val slideSpec = tween<IntOffset>(
             durationMillis = ACTIVITY_TRANSITION_MILLIS,
-            easing = Easing { interpolator.getInterpolation(it) },
+            easing = easing,
         )
 
         NavigationMotion(
+            pageOffset = offset.toFloat(),
+            pageSlideSpec = tween(durationMillis = ACTIVITY_TRANSITION_MILLIS, easing = easing),
             forward = (
                 slideInHorizontally(slideSpec, initialOffsetX = { offset }) +
                     fadeIn(tween(durationMillis = 83, delayMillis = 50, easing = LinearEasing))

@@ -86,6 +86,8 @@ import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.components.video.VideoArtwork
 import moe.kirakira.ui.components.video.dateText
 import moe.kirakira.ui.components.video.durationText
+import moe.kirakira.ui.components.video.rememberVideoZoomSource
+import moe.kirakira.ui.components.video.videoZoomSource
 import moe.kirakira.ui.content.ContentState
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
@@ -307,18 +309,26 @@ private fun HistoryRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val artworkShape = MaterialTheme.shapes.medium
+    val zoomSource = rememberVideoZoomSource(entry.video.id, entry.video.image, artworkShape)
     val time = dateText(entry.updatedAt)
     // Keeping artwork in the content slot lets the text use the full width with large fonts.
     ListItem(
-        modifier = modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick),
+        modifier = modifier.fillMaxWidth()
+            .clickable(role = Role.Button) {
+                if (zoomSource == null) onClick() else zoomSource.open(onClick)
+            },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         supportingContent = null,
     ) {
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val fontScale = LocalDensity.current.fontScale
             val artwork: @Composable (Modifier) -> Unit = { artworkModifier ->
-                Box(artworkModifier.aspectRatio(16f / 9f).clip(MaterialTheme.shapes.medium)) {
-                    VideoArtwork(entry.video.image, Modifier.fillMaxSize())
+                Box(artworkModifier.aspectRatio(16f / 9f).clip(artworkShape)) {
+                    VideoArtwork(
+                        entry.video.image, Modifier.fillMaxSize().videoZoomSource(zoomSource),
+                        onPainterChange = { zoomSource?.painter = it },
+                    )
                     entry.progress?.let { progress ->
                         LinearProgressIndicator(
                             progress = { progress },

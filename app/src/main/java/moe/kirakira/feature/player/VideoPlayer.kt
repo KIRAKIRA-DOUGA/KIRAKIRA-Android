@@ -64,6 +64,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -147,6 +148,7 @@ internal fun VideoPlayer(
     onFullscreen: () -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    artworkPlaceholder: Painter? = null,
     active: Boolean = true,
     onReadVolume: () -> Float? = { null },
     onVolume: (Float) -> Float? = { null },
@@ -248,8 +250,10 @@ internal fun VideoPlayer(
 
     val focusManager = LocalFocusManager.current
     var controlsHaveFocus by remember { mutableStateOf(false) }
-    LaunchedEffect(controlsVisible) {
-        if (!controlsVisible && controlsHaveFocus) focusManager.clearFocus(force = true)
+    LaunchedEffect(controlsVisible, active, pictureInPicture) {
+        if ((!controlsVisible || !active || pictureInPicture) && controlsHaveFocus) {
+            focusManager.clearFocus(force = true)
+        }
     }
     LaunchedEffect(keepVisible, seekingByGesture, interaction, controlsVisible, fullscreen, pictureInPicture) {
         if (keepVisibleBase || seekingByGesture) controlsVisible = true
@@ -308,13 +312,14 @@ internal fun VideoPlayer(
         if (player != null) {
             PlayerContentFrame(player = player, modifier = Modifier.fillMaxSize()) {
                 if (!pictureInPicture && !state.failed) {
-                    VideoArtwork(image = image, modifier = Modifier.fillMaxSize())
+                    VideoArtwork(image = image, modifier = Modifier.fillMaxSize(), placeholder = artworkPlaceholder)
                 }
             }
         } else {
             VideoArtwork(
                 image = image,
                 modifier = Modifier.fillMaxSize(),
+                placeholder = artworkPlaceholder,
                 onLoadingChange = { artworkLoading = it },
             )
         }
@@ -330,9 +335,9 @@ internal fun VideoPlayer(
                     .zIndex(2f),
             )
         }
-        if (!pictureInPicture) {
+        if (active && !pictureInPicture) {
             // Keep the shield through a drag when revealing controls, preserving the pointer owner.
-            if ((!controlsVisible || gestures.dragging) && active) {
+            if (!controlsVisible || gestures.dragging) {
                 Box(
                     Modifier
                         .fillMaxSize()

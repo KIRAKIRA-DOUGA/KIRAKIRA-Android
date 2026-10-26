@@ -7,18 +7,25 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalAutofillManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import moe.kirakira.AppDependenciesViewModel
@@ -27,17 +34,22 @@ import moe.kirakira.data.settings.DanmakuSettings
 import moe.kirakira.data.settings.PlaybackSettings
 import moe.kirakira.feature.account.SessionFeedback
 import moe.kirakira.feature.auth.AuthRoute
+import moe.kirakira.feature.imageviewer.ImageExportViewModel
 import moe.kirakira.feature.imageviewer.ImageViewerCloseReason
 import moe.kirakira.feature.imageviewer.ImageViewerDiagnostics
-import moe.kirakira.feature.imageviewer.ImageExportViewModel
 import moe.kirakira.feature.main.HomeViewModel
 import moe.kirakira.feature.player.PlaybackHost
 import moe.kirakira.feature.player.PlaybackViewModel
+import moe.kirakira.feature.player.PlaybackViewportState
 import moe.kirakira.feature.search.SearchViewModel
 import moe.kirakira.feature.settings.DanmakuSettingsViewModel
 import moe.kirakira.feature.settings.PlaybackSettingsViewModel
 import moe.kirakira.feature.video.KaomojiViewModel
+import moe.kirakira.feature.video.RetainedVideoPage
+import moe.kirakira.feature.video.RetainedVideoPageViewModel
+import moe.kirakira.feature.video.VideoPage
 import moe.kirakira.ui.components.rememberEmphasizedEasing
+import moe.kirakira.ui.components.video.LocalVideoZoomState
 import moe.kirakira.ui.theme.ThemeColorSettings
 import moe.kirakira.ui.theme.ThemeMode
 
@@ -75,6 +87,7 @@ internal fun AppNavHost(
     val playbackSettingsModel = if (LocalInspectionMode.current) null else viewModel<PlaybackSettingsViewModel>()
     val playbackSettings = if (LocalInspectionMode.current) PlaybackSettings()
         else playbackSettingsModel?.settings?.collectAsStateWithLifecycle()?.value
+    val currentPlaybackSettings by rememberUpdatedState(playbackSettings)
     val danmakuSettingsModel = if (LocalInspectionMode.current) null else viewModel<DanmakuSettingsViewModel>()
     val danmakuSettings = if (LocalInspectionMode.current) DanmakuSettings()
         else danmakuSettingsModel?.settings?.collectAsStateWithLifecycle()?.value
@@ -111,18 +124,48 @@ internal fun AppNavHost(
     val homeViewModel = contentRepository?.let { viewModel { HomeViewModel(it) } }
     val searchViewModel = dependencies?.let { viewModel { SearchViewModel(it.content, it.searchHistory) } }
     val videoPageActive = backStack.lastOrNull() is VideoRoute
+    val viewportState = remember { PlaybackViewportState() }
+    val retainedVideoModels = viewModel { RetainedVideoPageViewModel() }
+    fun popRoute(route: NavKey) {
+        if (route is VideoRoute && backStack.lastOrNull() == route) {
+            val keepMiniPlayer = currentPlaybackSettings?.inAppMiniPlayer == true && playback.showPauseIcon &&
+                playback.player != null && !playback.failed
+            if (!keepMiniPlayer) {
+                viewportState.exitingVideoId = route.videoId
+                return
+            }
+            // Publish the mini-player destination before removing its navigation entry so the
+            // retained page never disappears between the route change and the next SideEffect.
+            playback.leaveVideo(true)
+        }
+        navigation.popFrom(route)
+    }
     LaunchedEffect(backStack.lastOrNull()) {
         if (backStack.lastOrNull() is AuthRoute) playback.pause()
     }
     SideEffect {
+        viewportState.cards.ownerProvider = { backStack.lastOrNull() }
         onVideoPageActiveChange(videoPageActive)
         onImageViewerActiveChange(imageViewerActive)
         val sessionChanged = playback.syncSession(accountState.revision)
         val video = backStack.lastOrNull() as? VideoRoute
-        if (video != null && contentRepository != null && video.videoId > 0) playback.showVideo(video.videoId)
-        else playback.leaveVideo(playbackSettings?.inAppMiniPlayer == true)
+        if (video != null && contentRepository != null && video.videoId > 0) {
+            if (viewportState.exitingVideoId != video.videoId) viewportState.exitingVideoId = null
+            playback.showVideo(video.videoId)
+        } else if (viewportState.exitingVideoId == null) {
+            playback.leaveVideo(playbackSettings?.inAppMiniPlayer == true)
+        }
+        if (sessionChanged) viewportState.exitingVideoId = null
+        if (viewportState.backProgress == null) {
+            viewportState.backToMiniPlayer = playbackSettings?.inAppMiniPlayer == true &&
+                playback.showPauseIcon && playback.player != null && !playback.failed
+        }
         if (sessionChanged) playback.cancelAutoplay()
         if (playback.miniPlayer && playbackSettings?.inAppMiniPlayer != true) playback.closeMiniPlayer()
+        if (sessionChanged || (backStack.none { it is VideoRoute } && !playback.miniPlayer &&
+            viewportState.exitingVideoId == null)) {
+            viewportState.cards.clear()
+        }
     }
 
     SessionFeedback(
@@ -138,62 +181,118 @@ internal fun AppNavHost(
     )
 
     // Keep the host opaque under translated pages and the predictive back preview.
-    Box(modifier.fillMaxSize()) {
-        ActivityNavDisplay(
-            backStack = backStack,
-            predictiveBackEnabled = predictiveBackEnabled,
-            onBackRequested = navigation::requestBack,
-            canNavigateBack = navigation::canNavigateBack,
-            modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainer),
-            onBack = {
-                if (backStack.lastOrNull() is AuthRoute) autofill?.cancel()
-                val viewer = backStack.lastOrNull() as? ImageViewerRoute
-                if (viewer != null) navigation.closeImageViewer(viewer, ImageViewerCloseReason.SYSTEM_BACK)
-                else backStack.lastOrNull()?.let(navigation::popFrom)
-            },
-            onImageBack = { target ->
-                if (target is ImageViewerRoute) navigation.closeImageViewer(target, ImageViewerCloseReason.SYSTEM_BACK)
-            },
-            entryProvider = entryProvider {
-                registerMainEntries(this, navigation, accountState, homeViewModel, searchViewModel)
-                registerContentEntries(
-                    this, navigation, dependencies, accountState, playback, playbackSettings, danmakuSettings, kaomojiModel,
-                    onDanmakuEnabled = { danmakuSettingsModel?.setEnabled(it) },
-                    onQualityPreference = { playbackSettingsModel?.setQuality(it) },
-                    onOutsideAppMiniPlayerChange = { playbackSettingsModel?.setOutsideAppMiniPlayer(it) },
-                    onInAppMiniPlayerChange = { playbackSettingsModel?.setInAppMiniPlayer(it) },
-                    onAutoplayChange = { playbackSettingsModel?.setAutoplay(it) },
-                    onDanmakuSettingsChange = { danmakuSettingsModel?.update(it) },
-                )
-                registerImageViewerEntries(this, navigation, imageMetadata, imageExports)
-                registerSettingsEntries(
-                    this, navigation, dependencies, accountState, onLogout,
-                    themeMode, onThemeModeChange, themeColors, onThemeColorsChange,
-                    predictiveBackEnabled, onPredictiveBackEnabledChange,
-                    playbackSettingsModel, playbackSettings, danmakuSettingsModel, danmakuSettings,
-                )
-                registerAccountEntries(
-                    this, navigation, authRepository, accountState, onSelectAccount, onRemoveAccount,
-                    predictiveBackEnabled,
-                )
-            },
-        )
-        val restoreOrigin = backStack.lastOrNull()
-        PlaybackHost(
-            playback = playback,
-            settings = playbackSettings,
-            videoPageActive = videoPageActive,
-            imageViewerActive = imageViewerActive,
-            bottomBarHeightPx = if (backStack.lastOrNull() == MainRoute) navigation.bottomBarHeightPx else 0,
-            onRestore = {
-                if (navigation.composedViewers.isEmpty() && backStack.lastOrNull() !is ImageViewerRoute &&
-                    backStack.lastOrNull() == restoreOrigin
+    CompositionLocalProvider(LocalVideoZoomState provides viewportState.cards) {
+        Box(
+            modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainer)
+                .onGloballyPositioned { viewportState.windowOrigin = it.positionInWindow() },
+        ) {
+            ActivityNavDisplay(
+                backStack = backStack,
+                predictiveBackEnabled = predictiveBackEnabled,
+                videoZoomState = viewportState,
+                onBackRequested = navigation::requestBack,
+                canNavigateBack = navigation::canNavigateBack,
+                onBack = {
+                    if (backStack.lastOrNull() is AuthRoute) autofill?.cancel()
+                    val viewer = backStack.lastOrNull() as? ImageViewerRoute
+                    if (viewer != null) navigation.closeImageViewer(viewer, ImageViewerCloseReason.SYSTEM_BACK)
+                    else backStack.lastOrNull()?.let(::popRoute)
+                },
+                onImageBack = { target ->
+                    if (target is ImageViewerRoute) navigation.closeImageViewer(target, ImageViewerCloseReason.SYSTEM_BACK)
+                },
+                entryProvider = entryProvider {
+                    registerMainEntries(this, navigation, accountState, homeViewModel, searchViewModel)
+                    registerContentEntries(this, navigation, dependencies, accountState)
+                    registerImageViewerEntries(this, navigation, imageMetadata, imageExports)
+                    registerSettingsEntries(
+                        this, navigation, dependencies, accountState, onLogout,
+                        themeMode, onThemeModeChange, themeColors, onThemeColorsChange,
+                        predictiveBackEnabled, onPredictiveBackEnabledChange,
+                        playbackSettingsModel, playbackSettings, danmakuSettingsModel, danmakuSettings,
+                    )
+                    registerAccountEntries(
+                        this, navigation, authRepository, accountState, onSelectAccount, onRemoveAccount,
+                        predictiveBackEnabled,
+                    )
+                },
+            )
+            val restoreOrigin = backStack.lastOrNull()
+            val retainedVideoId = (restoreOrigin as? VideoRoute)?.videoId
+                ?: viewportState.exitingVideoId
+                ?: playback.videoId?.takeIf { playback.miniPlayer }
+                ?: backStack.filterIsInstance<VideoRoute>().lastOrNull()?.videoId
+            val retainedIds = backStack.filterIsInstance<VideoRoute>().map { it.videoId }.toSet() +
+                listOfNotNull(retainedVideoId)
+            SideEffect { retainedVideoModels.retain(accountState.revision, retainedIds) }
+            if (retainedVideoId != null && retainedVideoId > 0 && contentRepository != null && kaomojiModel != null) {
+                val route = VideoRoute(retainedVideoId)
+                RetainedVideoPage(
+                    models = retainedVideoModels,
+                    videoId = retainedVideoId,
+                    retainedIds = retainedIds,
+                    sessionRevision = accountState.revision,
+                    isActive = videoPageActive,
                 ) {
-                    playback.videoId?.let { id ->
-                        restoreOrigin?.let { navigation.openFrom(it, VideoRoute(id)) }
+                    PlaybackHost(
+                        playback = playback,
+                        videoId = retainedVideoId,
+                        viewportState = viewportState,
+                        settings = playbackSettings,
+                        videoPageActive = videoPageActive,
+                        imageViewerActive = imageViewerActive,
+                        videoPageCovered = !imageViewerActive && (
+                            (!videoPageActive && backStack.any { it is VideoRoute }) ||
+                                viewportState.coveringPageKeys.isNotEmpty()
+                            ),
+                        modifier = Modifier.zIndex(
+                            if (playback.miniPlayer && !videoPageActive && !viewportState.navigatingPage) 2f else 0f,
+                        ),
+                        bottomBarHeightPx = if (restoreOrigin == MainRoute) navigation.bottomBarHeightPx else 0,
+                        onRestore = {
+                            val currentRoute = backStack.lastOrNull()
+                            if (navigation.composedViewers.isEmpty() && currentRoute !is ImageViewerRoute &&
+                                currentRoute != route) {
+                                currentRoute?.let { navigation.openFrom(it, route) }
+                            }
+                        },
+                        onCardExitFinished = {
+                            if (viewportState.exitingVideoId == retainedVideoId) {
+                                // Keep the source Scene mounted until the visual return is complete.
+                                if (backStack.lastOrNull() == route) navigation.popFrom(route)
+                                viewportState.exitingVideoId = null
+                                if (playback.videoId == retainedVideoId) playback.leaveVideo(false)
+                            }
+                        },
+                    ) { pageModifier, interactive, surfaceVisible ->
+                        VideoPage(
+                            playback = playback,
+                            viewportState = viewportState,
+                            kaomojiModel = kaomojiModel,
+                            onPlayerBounds = playback::updateBounds,
+                            danmakuSettings = danmakuSettings,
+                            onDanmakuEnabled = { danmakuSettingsModel?.setEnabled(it) },
+                            onOutsideAppMiniPlayerChange = { playbackSettingsModel?.setOutsideAppMiniPlayer(it) },
+                            onInAppMiniPlayerChange = { playbackSettingsModel?.setInAppMiniPlayer(it) },
+                            onAutoplayChange = { playbackSettingsModel?.setAutoplay(it) },
+                            onDanmakuSettingsChange = { danmakuSettingsModel?.update(it) },
+                            onQualityPreference = { playbackSettingsModel?.setQuality(it) },
+                            playbackSettings = playbackSettings,
+                            videoId = retainedVideoId,
+                            repository = contentRepository,
+                            historyRepository = historyRepository,
+                            isActive = interactive,
+                            surfaceVisible = surfaceVisible,
+                            initialImage = viewportState.cards.origin?.takeIf { it.videoId == retainedVideoId }?.image,
+                            onOpenProfile = { uid -> navigation.openFrom(route, ProfileRoute(uid)) },
+                            onOpenTag = { id -> navigation.openFrom(route, TagRoute(id)) },
+                            onLogin = { navigation.openFrom(route, AuthRoute()) },
+                            onBack = { popRoute(route) },
+                            modifier = pageModifier,
+                        )
                     }
                 }
-            },
-        )
+            }
+        }
     }
 }

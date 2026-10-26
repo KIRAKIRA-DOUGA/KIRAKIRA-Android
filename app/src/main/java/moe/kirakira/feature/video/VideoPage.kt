@@ -40,6 +40,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -65,10 +66,13 @@ import moe.kirakira.data.history.HistoryRepository
 import moe.kirakira.data.settings.DanmakuSettings
 import moe.kirakira.data.settings.PlaybackSettings
 import moe.kirakira.feature.player.MediaVolumeController
+import moe.kirakira.feature.player.PlaybackPageViewport
 import moe.kirakira.feature.player.PlaybackViewModel
+import moe.kirakira.feature.player.PlaybackViewportState
 import moe.kirakira.feature.player.PlayerUiState
 import moe.kirakira.feature.player.VideoPlayer
 import moe.kirakira.ui.components.messageRes
+import moe.kirakira.ui.components.video.rememberVideoZoomPlaceholder
 
 private data object FullscreenInfo : NavigationEventInfo()
 
@@ -82,6 +86,7 @@ private data class InlinePlayerLayout(
 internal fun VideoPage(
     playbackSettings: PlaybackSettings?,
     playback: PlaybackViewModel,
+    viewportState: PlaybackViewportState,
     videoId: Int,
     repository: ContentRepository,
     kaomojiModel: KaomojiViewModel,
@@ -92,6 +97,8 @@ internal fun VideoPage(
     modifier: Modifier = Modifier,
     historyRepository: HistoryRepository? = null,
     isActive: Boolean = true,
+    surfaceVisible: Boolean = true,
+    initialImage: String? = null,
     onQualityPreference: (Int?) -> Unit = {},
     danmakuSettings: DanmakuSettings? = null,
     onDanmakuEnabled: (Boolean) -> Unit = {},
@@ -102,6 +109,7 @@ internal fun VideoPage(
     onPlayerBounds: (Rect) -> Unit = {},
 ) {
     val model = viewModel { VideoViewModel(videoId, repository, historyRepository) }
+    val artworkPlaceholder = rememberVideoZoomPlaceholder(viewportState.cards, videoId)
     val recentKaomoji by kaomojiModel.recent.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val mediaVolume = remember(context) { MediaVolumeController(context) }
@@ -156,11 +164,6 @@ internal fun VideoPage(
                 playback.maybeAutoplay(playbackSettings.autoplay)
             }
         }
-    }
-    var previouslyActive by remember { mutableStateOf(isActive) }
-    LaunchedEffect(isActive) {
-        if (isActive && !previouslyActive) model.refresh()
-        previouslyActive = isActive
     }
     LaunchedEffect(error) {
         error?.let { snackbar.showSnackbar(resources.getString(if (it == moe.kirakira.core.network.ApiFailure.NETWORK ||
@@ -274,6 +277,14 @@ internal fun VideoPage(
                                 val bounds = it.boundsInWindow().let { b ->
                                     Rect(b.left.toInt(), b.top.toInt(), b.right.toInt(), b.bottom.toInt())
                                 }
+                                val position = it.positionInParent()
+                                viewportState.pageViewport = PlaybackPageViewport(
+                                    videoId,
+                                    androidx.compose.ui.geometry.Rect(
+                                        position.x, position.y,
+                                        position.x + it.size.width, position.y + it.size.height,
+                                    ),
+                                )
                                 if (isActive) onPlayerBounds(bounds)
                             },
                     ) {
@@ -295,7 +306,9 @@ internal fun VideoPage(
                             onSpeed = playback::changeSpeed,
                             onContinuousSpeed = playback::changeContinuousSpeed,
                             onPreservesPitch = playback::changePreservesPitch,
-                            player = playback.player.takeIf { isActive && playback.videoId == videoId && !playback.miniPlayer },
+                            player = playback.player.takeIf {
+                                surfaceVisible && playback.videoId == videoId
+                            },
                             state = PlayerUiState(
                                 qualityOptions = playback.qualityOptions,
                                 selectedQualityHeight = playback.selectedQualityHeight,
@@ -315,7 +328,8 @@ internal fun VideoPage(
                                 available = isActive && playback.videoId == videoId &&
                                     (playback.player != null || value?.parts?.getOrNull(playback.selectedPart)?.url != null),
                             ),
-                            image = value?.summary?.image,
+                            image = value?.summary?.image ?: initialImage,
+                            artworkPlaceholder = artworkPlaceholder,
                             fullscreen = fullscreenActive,
                             pictureInPicture = pip,
                             onToggle = playback::toggle,

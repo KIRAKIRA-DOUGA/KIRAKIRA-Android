@@ -1,7 +1,10 @@
 package moe.kirakira.ui.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.EntryProviderScope
@@ -9,67 +12,28 @@ import androidx.navigation3.runtime.NavKey
 import moe.kirakira.AppDependenciesViewModel
 import moe.kirakira.R
 import moe.kirakira.data.auth.SessionState
-import moe.kirakira.data.settings.DanmakuSettings
-import moe.kirakira.data.settings.PlaybackSettings
 import moe.kirakira.feature.auth.AuthRoute
 import moe.kirakira.feature.follow.FollowListPage
 import moe.kirakira.feature.follow.FollowListViewModel
 import moe.kirakira.feature.history.HistoryPage
 import moe.kirakira.feature.history.HistoryViewModel
-import moe.kirakira.feature.player.PlaybackViewModel
 import moe.kirakira.feature.profile.ProfilePage
 import moe.kirakira.feature.tag.TagPage
 import moe.kirakira.feature.tag.TagViewModel
-import moe.kirakira.feature.video.KaomojiViewModel
-import moe.kirakira.feature.video.VideoPage
+
+internal const val VIDEO_ZOOM_METADATA = "moe.kirakira.video.zoom"
 
 internal fun registerContentEntries(
     scope: EntryProviderScope<NavKey>,
     navigation: AppNavigationState,
     dependencies: AppDependenciesViewModel?,
     accountState: SessionState,
-    playback: PlaybackViewModel,
-    playbackSettings: PlaybackSettings?,
-    danmakuSettings: DanmakuSettings?,
-    kaomojiModel: KaomojiViewModel?,
-    onDanmakuEnabled: (Boolean) -> Unit,
-    onQualityPreference: (Int?) -> Unit,
-    onOutsideAppMiniPlayerChange: (Boolean) -> Unit,
-    onInAppMiniPlayerChange: (Boolean) -> Unit,
-    onAutoplayChange: (Boolean) -> Unit,
-    onDanmakuSettingsChange: (DanmakuSettings) -> Unit,
 ) {
     val contentRepository = dependencies?.content
     val historyRepository = dependencies?.history
     with(scope) {
-        entry<VideoRoute> { route ->
-            NavigationPage {
-                if (contentRepository == null || kaomojiModel == null || route.videoId <= 0) {
-                    Text(stringResource(R.string.content_login_to_interact))
-                } else {
-                    VideoPage(
-                        playback = playback,
-                        kaomojiModel = kaomojiModel,
-                        onPlayerBounds = playback::updateBounds,
-                        danmakuSettings = danmakuSettings,
-                        onDanmakuEnabled = onDanmakuEnabled,
-                        onOutsideAppMiniPlayerChange = onOutsideAppMiniPlayerChange,
-                        onInAppMiniPlayerChange = onInAppMiniPlayerChange,
-                        onAutoplayChange = onAutoplayChange,
-                        onDanmakuSettingsChange = onDanmakuSettingsChange,
-                        onQualityPreference = onQualityPreference,
-                        playbackSettings = playbackSettings,
-                        videoId = route.videoId,
-                        repository = contentRepository,
-                        historyRepository = historyRepository,
-                        isActive = navigation.backStack.lastOrNull() == route,
-                        onOpenProfile = { uid -> navigation.openFrom(route, ProfileRoute(uid)) },
-                        onOpenTag = { id -> navigation.openFrom(route, TagRoute(id)) },
-                        onLogin = { navigation.openFrom(route, AuthRoute()) },
-                        onBack = { navigation.popFrom(route) },
-                    )
-                }
-            }
+        entry<VideoRoute>(metadata = mapOf(VIDEO_ZOOM_METADATA to true)) {
+            Box(Modifier.fillMaxSize())
         }
         entry<HistoryRoute> {
             NavigationPage {
