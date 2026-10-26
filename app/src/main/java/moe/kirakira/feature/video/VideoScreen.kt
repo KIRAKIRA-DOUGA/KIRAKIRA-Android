@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -49,6 +50,7 @@ import androidx.compose.material3.ToggleButtonShapes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -96,6 +98,7 @@ import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.ExpandableText
 import moe.kirakira.ui.components.FollowButton
+import moe.kirakira.ui.components.LazyListScrollbar
 import moe.kirakira.ui.components.LocalNumberAnimationIdentity
 import moe.kirakira.ui.components.PagerTabRow
 import moe.kirakira.ui.components.frostedBarBackground
@@ -168,6 +171,9 @@ internal fun VideoScreen(
     val introductionListState = rememberLazyListState()
     val commentsListState = rememberLazyListState()
     val danmakuListState = rememberLazyListState()
+    val showDanmakuScrollbar by remember(danmakuListState) {
+        derivedStateOf { danmakuListState.canScrollBackward || danmakuListState.canScrollForward }
+    }
     val changeTab = rememberTabChangeHandler(pager, onTabReselect = { page ->
         val listState = when (VideoTab.entries[page]) {
             VideoTab.INTRODUCTION -> introductionListState
@@ -410,6 +416,16 @@ internal fun VideoScreen(
                                     items(state.danmaku.data.orEmpty()) { entry ->
                                         DanmakuListItem(durationText((entry.timeSeconds * 1000).toLong()), entry.text)
                                     }
+                                }
+                                if (!state.danmaku.data.isNullOrEmpty() && showDanmakuScrollbar) {
+                                    LazyListScrollbar(
+                                        state = danmakuListState,
+                                        modifier = Modifier
+                                            .align(Alignment.CenterEnd)
+                                            .padding(top = tabPadding + 8.dp, bottom = listBottomPadding)
+                                            .width(28.dp)
+                                            .fillMaxSize(),
+                                    )
                                 }
                             }
                         }

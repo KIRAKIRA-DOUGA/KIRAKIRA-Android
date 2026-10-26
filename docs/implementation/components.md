@@ -159,7 +159,7 @@ internal fun Modifier.contentDescriptionWhenEnabled(enabled: Boolean, descriptio
 - Android 12+ 使用主题 `surface` 作为缺失源像素的底色，叠加同色 80% 不透明度遮罩、20dp 模糊与零噪点，背景图层 alpha 为 1；原生投影所在层在模糊节点之前显式绘制同色不透明底色，避免源尚未捕获时效果跳过绘制造成空投影层，不能仅依赖 Haze 样式的 `backgroundColor`。Android 8.1–11 绘制不透明主题 `surface`，在同一背景图层上设置 alpha 为 0.9 和原生 elevation，不挂载采样节点；各版本共用[栏面阴影](theme.md#栏面阴影)的机制，不额外增加阴影版本判断。背景透明度不作用于整个栏或前景。
 - 共享背景沿用 Haze 默认采样配置，保留实时更新、模糊半径与遮罩。模糊样式按主题 surface 色缓存，采样输入按页面状态缓存，现有采样层级保持不变。
 - 滚动列表的顶部与底部安全区域放入 `contentPadding`，滚动 Column 则在 `verticalScroll` 后添加，初始避开栏面、滚动时内容可进入栏后。`ContentPullToRefresh.indicatorTopPadding` 仅移动覆盖式指示器，不移动滚动视口。历史页的搜索输入通过共享组件覆盖顶栏，不占用列表条目。
-- 本人及作者资料页与邀请码页复用 `CollapsingTabLayout`，分页绘制在下层，头部内容与 Tab 共用上层的实际表面、背景及原生阴影。吸顶只改变表面位置和背景样式，顶栏与 Tab 不独立投影。资料页封面及正文沿用独立采样状态；吸顶后共享表面只采样 Pager。非滚动表单保留安全布局。头像裁剪页同样接入本组件，由宿主提供顶部背景与固定阴影；裁剪引擎与底部操作栏保持原布局。视频画面、播放控件及系统栏不接入本组件。
+- 本人及作者资料页与邀请码页复用 `CollapsingTabLayout`，分页绘制在下层，头部内容与 Tab 共用上层的实际表面、背景及原生阴影。背景与原生投影由 `CollapsingHeaderBackground` 同层常驻，前景独立；吸顶只改变位置与展开态遮层的绘制，不替换背景节点，顶栏与 Tab 不独立投影。分页占满视口并以列表顶部内边距避让栏面，使内容可滚入毛玻璃后方。资料页封面及正文沿用独立采样状态；吸顶后共享表面只采样 Pager。非滚动表单保留安全布局。头像裁剪页同样接入本组件，由宿主提供顶部背景与固定阴影；裁剪引擎与底部操作栏保持原布局。视频画面、播放控件及系统栏不接入本组件。
 
 - 视频页为 Tab 栏创建独立 `HazeState`，仅在 Android 12+ 将下方 `HorizontalPager` 接入 `hazeSource`，播放器不参与采样。播放器占位区域与 Tab 共用顶部背景，通过 `frostedBarBackground(hazeState = …, shadowElevation = BarShadowElevation)` 沿整体下沿投影；播放器区域的背景黑底位于同一图层，实际播放器仍独立绘制。官方 `PrimaryTabRow` 容器透明，文字与指示器保持清晰。简介、评论、弹幕列表将实测栏高加入顶部 `contentPadding`，初始避开栏面，滚动时从栏后经过；空状态高度同步扣除栏高。刷新指示器通过 `indicatorTopPadding` 避让，评论分页工具栏固定在栏下，游客登录提示并入评论头部条目以保持分页索引；`FloatingComposerLayout.topPadding` 扣除输入面板可用高度，底部安全区域与输入区留白保持原逻辑。全屏与画中画继续由既有播放器布局和详情显隐处理。
 
@@ -360,3 +360,7 @@ TOTP 页面把二维码与打开验证器操作放在同一区域，密钥与复
 页面沿用 `SettingsScaffold` 与 640dp 内容上限，以带稳定分类 key 的惰性列表展示共享组件和官方基础控件。分类内容接收状态与回调，普通选择值用 `rememberSaveable` 保存，滚动位置由 `rememberLazyListState` 恢复；普通输入、密码、验证码及弹层使用 `remember`，页面停止时隐藏密码。单一弹层枚举控制 Dialog、菜单及 Sheet，Snackbar 由组合协程作用域管理。重置通过重新创建页面内容清除所有示例状态、滚动位置和反馈任务。
 
 组件展示直接调用项目阴影按钮、关注按钮、输入框、连接列表、不确定进度、`ActionDialog` 与 `ExpressiveMenuPopup`，其余采用官方 Material 3 控件。示例不依赖 ViewModel、Repository 或真实数据，也不修改应用偏好；专用文案使用中文，已有共享组件文案继续沿用本地化资源。
+
+## 列表快滚条
+
+[`LazyListScrollbar`](../../app/src/main/java/moe/kirakira/ui/components/LazyListScrollbar.kt) 用于已加载内容的正向列表，不支持吸顶标题或反向布局；邀请码与视频弹幕页复用。调用方提供 `LazyListState`、滑轨布局和显示条件，组件不访问业务数据。中间位置按可见条目平均高度估算，首尾通过 `requestScrollToItem` 定位边界。滑块位于末端边缘内侧 2dp，默认使用 Material 的 4dp 宽度、24dp 最小长度与 `outline` 70% 不透明度，按下时变为 8dp／100%，沿用主题快速空间与效果动画；拖动位置和动画值在绘制阶段读取。快滚条叠加在列表上，不预留额外宽度，也不显示序号或总数提示。

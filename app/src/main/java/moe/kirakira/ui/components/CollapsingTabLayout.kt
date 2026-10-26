@@ -19,6 +19,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -28,8 +29,9 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
-import moe.kirakira.ui.theme.barSurfaceLayer
+import dev.chrisbanes.haze.HazeState
 import kotlin.math.roundToInt
+import moe.kirakira.ui.theme.BarShadowElevation
 
 internal class CollapsingTabState(initialOffset: Float = 0f) {
     private var savedOffset by mutableFloatStateOf(initialOffset)
@@ -77,13 +79,13 @@ internal fun CollapsingTabLayout(
     headerBackground: @Composable BoxScope.() -> Unit,
     header: @Composable () -> Unit,
     tabs: @Composable () -> Unit,
-    content: @Composable () -> Unit,
+    content: @Composable (topContentPadding: Dp) -> Unit,
 ) {
     Layout(
         modifier = modifier.clipToBounds().nestedScroll(state.nestedScrollConnection),
         content = {
-            Box { content() }
-            Box(Modifier.barSurfaceLayer()) {
+            Box { content(topPadding + tabHeight) }
+            Box {
                 Box(Modifier.matchParentSize(), content = headerBackground)
                 Column(Modifier.fillMaxWidth()) {
                     Spacer(Modifier.height(topPadding))
@@ -116,13 +118,33 @@ internal fun CollapsingTabLayout(
             constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity),
         )
         val page = measurables[0].measure(
-            Constraints.fixed(constraints.maxWidth, (constraints.maxHeight - top - tabs).coerceAtLeast(0)),
+            Constraints.fixed(constraints.maxWidth, constraints.maxHeight),
         )
         layout(constraints.maxWidth, constraints.maxHeight) {
             val range = (surface.height - top - tabs).coerceAtLeast(0)
             val offset = state.offset.roundToInt().coerceIn(0, range)
-            page.placeRelative(0, surface.height - offset)
+            // Lists reserve toolbar/tab space in content padding, so scrolled rows remain
+            // behind the frosted surface instead of ending at its lower edge.
+            page.placeRelative(0, range - offset)
             surface.placeRelative(0, -offset)
         }
+    }
+}
+
+/** Keep the blur and native shadow attached while the opaque expanded artwork scrolls away. */
+@Composable
+internal fun CollapsingHeaderBackground(
+    state: CollapsingTabState,
+    hazeState: HazeState,
+    modifier: Modifier = Modifier,
+    expandedContent: @Composable BoxScope.() -> Unit,
+) {
+    Box(modifier.frostedBarBackground(hazeState = hazeState, shadowElevation = BarShadowElevation)) {
+        Box(
+            Modifier.matchParentSize().drawWithContent {
+                if (!state.isCollapsed) drawContent()
+            },
+            content = expandedContent,
+        )
     }
 }

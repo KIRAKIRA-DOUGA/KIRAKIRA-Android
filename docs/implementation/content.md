@@ -74,6 +74,8 @@ ViewModel 分离关键词草稿、所选标签和已提交条件。视频读取�
 
 评论翻页工具栏采用 48dp 紧凑高度，横向内边距为 4dp、纵向为 0dp；高度取 48dp 与页码实测文字高度加官方 TextButton 上下内边距的较大值，保留标准触摸区域并适应字体缩放。背景使用主题 `surface`（浅色纯白、深色跟随主题），箭头继承 `onSurfaceVariant`，页码按钮保留官方强调色和禁用配色；展开与折叠的原生阴影均通过工具栏官方 elevation 参数固定为 4dp，沿默认胶囊形状投影。页码按钮按剩余宽度测量，过长时单行省略，完整页码仍由无障碍描述提供；两端箭头优先保留布局空间，标题继续按工具栏实测尺寸避让。
 
+弹幕接口一次读取并按播放时间排序，弹幕 Tab 的长列表复用共享 `LazyListScrollbar`，与邀请码页使用相同的贴边滑块及按压宽度／透明度动画。快滚条绑定原有 `danmakuListState`，叠加绘制且不改变条目宽度；滑轨顶部避让 Tab，底部使用 `FloatingComposerLayout` 提供的 `listBottomPadding` 避让发送栏与系统区域，随输入面板变化更新。仅有弹幕且列表可滚动时显示，不增加位置提示、时间提示或额外请求。
+
 视频评论与弹幕草稿只暴露只读 StateFlow，页面通过 ViewModel 的更新方法提交输入，忙碌时不改写草稿。
 
 评论通过 `CommentListLoader` 保存连续页区间，继续使用服务端每页 20 条的 API。`CommentPages` 将分页数据与排序、展开、去重后的条目绑定，仅页数据变化时重建；加载、错误与定位状态的复制复用同一份派生数据。分页请求用 `CommentRequest` 与 `CommentOperation` 明确区分跳转、刷新、末页、向前、向后和页内更新，失败重试保存原请求，不组合多个操作布尔参数。各页合并后按评论 ID 去重并保留所属页；`snapshotFlow` 在可见评论距离已加载区间边缘不超过 3 条时请求相邻页，同页请求去重，空页或首末页停止对应方向加载。上下加载具有独立状态和显式失败重试，不自动重复失败请求。列表使用稳定评论 key；向前插入时额外按旧可见评论及像素偏移保持锚点，避免顶部计数或状态条目成为锚点后引起跳动。翻页器页码来自逻辑滚动锚点之后的首条可见评论，忽略仅处于顶部 contentPadding 中的上一页尾项；自动加载不发出定位事件。跳转使用下一次测量定位，确认目标 key 已出现在新列表布局后才消费请求并恢复相邻页加载；显式跳转使用可消费的定位请求，已加载页直接定位，其他页成功后重建窗口。请求代次和账号版本共同拒绝过期响应，跳转、刷新及账号切换取消失效请求。
@@ -94,11 +96,11 @@ ViewModel 从第 1 页开始，每页 50 条，保留后端顺序并按 UID 去�
 
 两页的 Primary Tab 显式设置选中内容色为 `MaterialTheme.colorScheme.primary`、未选中内容色为 `onSurfaceVariant`，遵循 [Material Tabs 配色规范](https://m3.material.io/components/tabs/specs)。不使用 `Tab` 默认的选中与未选中同色参数，颜色随当前主题更新。
 
-资料页与邀请码页复用 `CollapsingTabLayout`：分页内容位于下层，资料／统计信息与 Tab 组成上层的一张完整表面。该表面使用 `barSurfaceLayer()` 的固定 4dp 原生 elevation，背景、前景及投影共用同一个实际布局节点；吸顶前后保持节点和尺寸，只改变其纵向放置位置与背景样式。页面不使用空投影图层、阴影补偿裁剪、外层懒列表占位项或第二份 Tab。
+资料页与邀请码页复用 `CollapsingTabLayout`：分页内容位于下层，资料／统计信息与 Tab 组成上层的一张完整表面。头部的 `CollapsingHeaderBackground` 持续挂载 `frostedBarBackground(shadowElevation = BarShadowElevation)`，背景、透明度和唯一的固定 4dp 原生投影位于同一背景节点，资料文字与 Tab 前景独立绘制。吸顶前后不替换背景 Modifier 或投影节点；展开态封面／实色遮层保持组合，只按同一折叠状态在绘制阶段决定是否绘制。页面不使用空投影图层、阴影补偿裁剪、外层懒列表占位项或第二份 Tab。
 
-`CollapsingTabState` 保存折叠距离，以实测头部高度为范围。分页的 `NestedScrollConnection` 在上滑时优先折叠头部，下滑时先由当前列表消费，剩余距离再展开头部；惯性滚动沿用滚动组件的嵌套分发。头部可直接拖动，未吸顶的 Tab 区域也可驱动折叠；吸顶后 Tab 不发起纵向滚动。分页高度扣除顶部栏及 Tab，高度不会随头部折叠变化，各 Tab 保留独立列表位置和原有回弹效果。系统底部内边距仍放入分页列表内容。刷新指示器从页面顶部滑入。
+`CollapsingTabState` 保存折叠距离，以实测头部高度为范围。分页的 `NestedScrollConnection` 在上滑时优先折叠头部，下滑时先由当前列表消费，剩余距离再展开头部；惯性滚动沿用滚动组件的嵌套分发。头部可直接拖动，未吸顶的 Tab 区域也可驱动折叠；吸顶后 Tab 不发起纵向滚动。分页使用完整视口高度，顶部栏和 Tab 高度经布局的 `topContentPadding` 放入各列表的 `contentPadding`；初始条目避让栏面，滚动后条目可进入栏后供毛玻璃采样，吸顶时分页上沿位于视口顶部。展开时分页只下移尚未折叠的正文高度。各 Tab 保留独立列表位置和原有回弹效果，底部系统安全区域与展开态遮挡高度按列表／滚动条各自规则避让。刷新指示器从页面顶部滑入。
 
-资料页使用页面自身管理的 `Scaffold`，以 `CollapsingTabState.isCollapsed` 同步顶栏昵称、返回／更多按钮和表面背景。未吸顶时背景绘制封面与不透明页面底色，资料可滚过透明顶栏，按钮使用 `BackdropIconButton`。吸顶后头部正文移出可用内容区域并隐藏，完整表面改用仅采样 Pager 的毛玻璃背景，顶栏恢复普通图标按钮。顶栏与 Tab 不重复投影。封面随表面滚动，渐变补偿相同折叠距离以保持在视口顶部；简介展开、字体变化及错误条目以实测头部高度更新折叠范围。
+资料页使用页面自身管理的 `Scaffold`，以 `CollapsingTabState.isCollapsed` 同步顶栏昵称、返回／更多按钮和表面背景。未吸顶时背景绘制封面与不透明页面底色，资料可滚过透明顶栏，按钮使用 `BackdropIconButton`。吸顶后头部正文移出可用内容区域并隐藏，停止绘制展开态封面／实色遮层，显露已挂载且仅采样 Pager 的毛玻璃背景，顶栏恢复普通图标按钮。顶栏与 Tab 不重复投影。封面随表面滚动，渐变补偿相同折叠距离以保持在视口顶部；简介展开、字体变化及错误条目以实测头部高度更新折叠范围。
 
 资料页的顶栏昵称直接复用 Tab 吸顶状态，与毛玻璃背景和图标按钮样式同步：吸顶后显示单行昵称，超长省略，解除吸顶后立即隐藏。不再测量正文昵称位置或向资料头传递坐标回调。
 
@@ -106,7 +108,7 @@ ViewModel 从第 1 页开始，每页 50 条，保留后端顺序并按 UID 去�
 
 颜文字条目不添加横向滚动，使用 `TextAutoSize.StepBased` 在单元格宽度约束内缩小字号，字号范围最低至 1sp，保证长条目完整显示。网格内左右拖动交给分类 Pager；面板打开期间，外层视频 Pager 关闭手势分页并使用空的页面嵌套滚动连接，保留顶部 Tab 点击切换，让越界位移留给分类 Pager 的原生 overscroll，而不带动视频 Tab。分类 Pager 在首尾类别继续拖动时显示系统边缘反馈（Android 12 起为拉伸，旧系统为边缘光晕）；分类 Pager 与网格使用组件默认的 overscroll 效果，网格保留纵向滚动及上下边界的原生拉伸反馈。
 
-视频页由 `VideoPage` 的常驻 `VideoPlayerViewport` 绘制顶部播放器，`VideoScreen` 保留对应高度的占位区域，下方 Pager 与透明 Tab 栏叠放；播放器占位区域与 Tab 共用顶部背景的固定 4dp 原生投影，文字与指示器独立绘制。资料页 Tab 保留不透明配色、吸顶布局与绘制层级，固定 4dp 原生 elevation 由封面、资料区和 Tab 共用的 `CollapsingTabLayout` 的头部表面 承载。在测量阶段读取 `currentPage + currentPageOffsetFraction`。
+视频页由 `VideoPage` 的常驻 `VideoPlayerViewport` 绘制顶部播放器，`VideoScreen` 保留对应高度的占位区域，下方 Pager 与透明 Tab 栏叠放；播放器占位区域与 Tab 共用顶部背景的固定 4dp 原生投影，文字与指示器独立绘制。资料页 Tab 保留不透明配色、吸顶布局与绘制层级，固定 4dp 原生 elevation 由封面、资料区和 Tab 共用的 `CollapsingHeaderBackground` 承载。在测量阶段读取 `currentPage + currentPageOffsetFraction`。
 
 参考 [Material Components 的 Elastic 指示器](https://github.com/material-components/material-components-android/blob/master/lib/java/com/google/android/material/tabs/ElasticTabIndicatorInterpolator.java)，分别以 `sin(πt/2)` 和 `1−cos(πt/2)` 插值前缘、后缘，使其先伸长再收缩；RTL 下通过相对布局镜像。
 

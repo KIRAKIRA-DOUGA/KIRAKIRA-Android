@@ -62,6 +62,7 @@ import moe.kirakira.core.network.ApiFailure
 import moe.kirakira.data.content.FollowListKind
 import moe.kirakira.data.content.VideoSummary
 import moe.kirakira.ui.components.BackdropIconButton
+import moe.kirakira.ui.components.CollapsingHeaderBackground
 import moe.kirakira.ui.components.CollapsingTabLayout
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
@@ -71,7 +72,6 @@ import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.LocalNumberAnimationIdentity
 import moe.kirakira.ui.components.PagerTabRow
 import moe.kirakira.ui.components.appTopAppBarColors
-import moe.kirakira.ui.components.frostedBarBackground
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.components.rememberCollapsingTabState
 import moe.kirakira.ui.components.video.VideoCardLayout
@@ -199,15 +199,22 @@ internal fun ProfileScreen(
                             tabHeight = with(density) { tabRowHeight.toDp() },
                             modifier = Modifier.fillMaxSize(),
                             headerBackground = {
-                                ProfileHeaderSurface(
-                                    coverHeight = coverHeight,
-                                    coverOffset = { headerState.offset },
-                                    tabsPinned = tabsPinned,
+                                CollapsingHeaderBackground(
+                                    state = headerState,
                                     hazeState = pinnedHazeState,
-                                    modifier = Modifier.matchParentSize().then(
-                                        if (!tabsPinned && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Modifier.hazeSource(hazeState) else Modifier,
-                                    ),
-                                )
+                                    modifier = Modifier.matchParentSize(),
+                                ) {
+                                    Box(
+                                        Modifier.matchParentSize()
+                                            .background(background)
+                                            .then(
+                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Modifier.hazeSource(hazeState)
+                                                else Modifier,
+                                            ),
+                                    ) {
+                                        ProfileCover(coverHeight) { headerState.offset }
+                                    }
+                                }
                             },
                             header = {
                                 Column {
@@ -262,7 +269,7 @@ internal fun ProfileScreen(
                                     containerColor = Color.Transparent,
                                 )
                             },
-                        ) {
+                        ) { topContentPadding ->
                             HorizontalPager(
                                 state = pagerState,
                                 modifier = Modifier
@@ -281,7 +288,10 @@ internal fun ProfileScreen(
                                     LazyColumn(
                                         state = videosListState,
                                         modifier = Modifier.fillMaxSize(),
-                                        contentPadding = PaddingValues(bottom = innerPadding.calculateBottomPadding()),
+                                        contentPadding = PaddingValues(
+                                            top = topContentPadding,
+                                            bottom = innerPadding.calculateBottomPadding(),
+                                        ),
                                     ) {
                                         if (videos.error != null || videos.data.isNullOrEmpty()) {
                                             item(key = "profile_videos_status") {
@@ -325,7 +335,10 @@ internal fun ProfileScreen(
                                     LazyColumn(
                                         state = collectionsListState,
                                         modifier = Modifier.fillMaxSize(),
-                                        contentPadding = PaddingValues(bottom = innerPadding.calculateBottomPadding()),
+                                        contentPadding = PaddingValues(
+                                            top = topContentPadding,
+                                            bottom = innerPadding.calculateBottomPadding(),
+                                        ),
                                     ) {
                                         item(key = "profile_collections_empty") {
                                             ContentUnavailableView(
@@ -367,24 +380,6 @@ private fun ProfileTopBarIconButton(
             modifier = modifier,
             content = content,
         )
-    }
-}
-
-@Composable
-private fun ProfileHeaderSurface(
-    coverHeight: Dp,
-    coverOffset: () -> Float,
-    tabsPinned: Boolean,
-    hazeState: HazeState,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier.then(
-            if (tabsPinned) Modifier.frostedBarBackground(hazeState = hazeState)
-            else Modifier.background(ThemeColorDefaults.pageBackgroundColor()),
-        ),
-    ) {
-        if (!tabsPinned) ProfileCover(coverHeight, coverOffset)
     }
 }
 

@@ -32,9 +32,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -47,6 +49,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.CancellationException
@@ -60,6 +63,7 @@ import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.IconBadgeTone
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.LazyListScrollbar
 import moe.kirakira.ui.components.cardColorShadow
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.theme.KIRAKIRATheme
@@ -109,7 +113,7 @@ internal fun InvitationsScreen(
             modifier = modifier,
             onTabReselect = { page -> listStates[page].animateScrollToItem(0) },
             header = { InvitationStatistics(state, busy, accountRevision, onCreate) },
-        ) { page, padding ->
+        ) { page, padding, obscuredBottom ->
             val visible = codes.filter { page == 0 || (if (page == 1) !it.used else it.used) }
                 .sortedWith(compareBy<Invitation> { it.used }.thenByDescending { it.createdAt })
             InvitationList(
@@ -118,6 +122,7 @@ internal fun InvitationsScreen(
                 loaded = state.data != null,
                 error = state.error,
                 contentPadding = padding,
+                obscuredBottom = obscuredBottom,
                 onRefresh = onRefresh,
                 onCopy = { invitation ->
                     scope.launch {
@@ -218,46 +223,67 @@ private fun InvitationList(
     loaded: Boolean,
     error: Int?,
     contentPadding: PaddingValues,
+    obscuredBottom: Dp,
     onRefresh: () -> Unit,
     onCopy: (Invitation) -> Unit,
 ) {
-    ConnectedLazyColumn(
-        state = listState,
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = contentPadding,
-    ) {
-        if (loaded && invitations.isEmpty()) item {
-            ManagementEmpty(R.drawable.ic_symbol_confirmation_number, stringResource(R.string.invitation_empty))
+    val showScrollbar by remember(listState) {
+        derivedStateOf { listState.canScrollBackward || listState.canScrollForward }
+    }
+    // The pager is shifted down by the expanded statistics; reserve that same space
+    // in both the list viewport and scrollbar so their bottom stays on screen.
+    Box(Modifier.fillMaxSize().padding(bottom = obscuredBottom)) {
+        ConnectedLazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = contentPadding,
+        ) {
+            if (loaded && invitations.isEmpty()) item {
+                ManagementEmpty(R.drawable.ic_symbol_confirmation_number, stringResource(R.string.invitation_empty))
+            }
+            connectedItemsIndexed("invitations", invitations, key = { _, code -> code.code }) { index, invitation ->
+                SegmentedListItem(
+                    shapes = connectedListItemShapes(index, invitations.size),
+                    leadingContent = {
+                        ManagementIcon(
+                            if (invitation.used) R.drawable.ic_symbol_check else R.drawable.ic_symbol_confirmation_number,
+                            shape = (if (invitation.used) MaterialShapes.Circle else MaterialShapes.Cookie9Sided).toShape(),
+                            tone = if (invitation.used) IconBadgeTone.NEUTRAL else IconBadgeTone.PRIMARY,
+                        )
+                    },
+                    supportingContent = {
+                        Text(stringResource(if (invitation.used) R.string.invitation_used else R.string.invitation_unused),
+                            color = if (invitation.used) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary)
+                    },
+                    trailingContent = {
+                        IconButton(onClick = { onCopy(invitation) }) {
+                            Icon(painterResource(R.drawable.ic_symbol_content_copy), stringResource(R.string.invitation_copy_named, invitation.code), Modifier.size(24.dp))
+                        }
+                    },
+                    content = { Text(invitation.code, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.titleMedium) },
+                )
+            }
+            if (error != null) item {
+                ContentUnavailableView(
+                    state = ContentUnavailableState.ERROR,
+                    modifier = Modifier.padding(top = 8.dp),
+                    description = stringResource(error),
+                    onRetry = onRefresh,
+                    presentation = ContentUnavailablePresentation.INLINE,
+                )
+            }
         }
-        connectedItemsIndexed("invitations", invitations, key = { _, code -> code.code }) { index, invitation ->
-            SegmentedListItem(
-                shapes = connectedListItemShapes(index, invitations.size),
-                leadingContent = {
-                    ManagementIcon(
-                        if (invitation.used) R.drawable.ic_symbol_check else R.drawable.ic_symbol_confirmation_number,
-                        shape = (if (invitation.used) MaterialShapes.Circle else MaterialShapes.Cookie9Sided).toShape(),
-                        tone = if (invitation.used) IconBadgeTone.NEUTRAL else IconBadgeTone.PRIMARY,
+        if (showScrollbar) {
+            LazyListScrollbar(
+                state = listState,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(
+                        top = contentPadding.calculateTopPadding(),
+                        bottom = contentPadding.calculateBottomPadding(),
                     )
-                },
-                supportingContent = {
-                    Text(stringResource(if (invitation.used) R.string.invitation_used else R.string.invitation_unused),
-                        color = if (invitation.used) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary)
-                },
-                trailingContent = {
-                    IconButton(onClick = { onCopy(invitation) }) {
-                        Icon(painterResource(R.drawable.ic_symbol_content_copy), stringResource(R.string.invitation_copy_named, invitation.code), Modifier.size(24.dp))
-                    }
-                },
-                content = { Text(invitation.code, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.titleMedium) },
-            )
-        }
-        if (error != null) item {
-            ContentUnavailableView(
-                state = ContentUnavailableState.ERROR,
-                modifier = Modifier.padding(top = 8.dp),
-                description = stringResource(error),
-                onRetry = onRefresh,
-                presentation = ContentUnavailablePresentation.INLINE,
+                    .width(28.dp)
+                    .fillMaxSize(),
             )
         }
     }

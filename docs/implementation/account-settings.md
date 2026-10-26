@@ -99,7 +99,7 @@ ViewModel 用 `confirmationPending` 暂停编辑并显示待确认状态，用�
 
 ### 屏蔽规则与邀请码
 
-`data/settings/AccountSettingsRepository` 复用共享 API 客户端与唯一 AuthRepository，屏蔽规则和邀请码通过领域模型交给条目级 ViewModel。导航为 `BlockingOverviewRoute`、带 `RuleCategory` 的 `RuleManagementRoute` 与 `InvitationsRoute`，使用现有条目装饰器、`NavigationPage` 和认证返回流程；不增加依赖或持久化规则副本。
+`data/settings/AccountSettingsRepository` 复用共享 API 客户端与唯一 AuthRepository，屏蔽规则和邀请码通过领域模型交给条目级 ViewModel。导航为 `BlockingOverviewRoute`、带 `RuleCategory` 的 `RuleManagementRoute` 与 `InvitationsRoute`，使用现有条目装饰器、`NavigationPage` 和认证返回流程；不持久化规则副本。
 
 | 请求                                                   | 请求字段／关键响应                                                                                             | 用途            |
 |------------------------------------------------------|-------------------------------------------------------------------------------------------------------|---------------|
@@ -120,7 +120,9 @@ ViewModel 用 `confirmationPending` 暂停编辑并显示待确认状态，用�
 
 关键词与正则的客户端校验仅处理非空及 30 字符限制；正则不经 Kotlin 编译，语法与安全性由 Rosales 判断。
 
-邀请码筛选使用共享 `PagerTabRow` 与真实 `HorizontalPager`，点击和横向手势同时驱动内容与 Indicator。`InvitationsScaffold` 复用 `CollapsingTabLayout`，将统计卡与唯一的 Tab 放在同一张有背景及固定 4dp 原生投影的表面中，统计卡自身使用共享 `cardColorShadow` 的固定 2dp 彩色投影，绘制在分页上方。统计区随嵌套滚动移出，Tab 到达顶栏下沿时停止，内容仍保留拖拽和回弹；未吸顶时可拖动 Tab 区域，吸顶后该区域只保留点击。Tab 填满最大 640dp 的内容宽度，不继承卡片或列表的水平内边距。每页使用 `InvitationsScreen` 持有的独立 `ConnectedLazyColumn` 状态，通过 `onTabReselect` 只回顶当前列表，保留统计区折叠位置。空列表与有数据列表共用折叠范围。吸顶后头部表面使用只采样分页内容的毛玻璃背景，背景、阴影与 Tab 共用实际布局，不另建投影层或占位列表。
+邀请码筛选使用共享 `PagerTabRow` 与真实 `HorizontalPager`，点击和横向手势同时驱动内容与 Indicator。`InvitationsScaffold` 使用固定高度的 `TopAppBar`，标题始终显示；复用 `CollapsingTabLayout`，将统计卡与唯一的 Tab 放在同一张有背景及固定 4dp 原生投影的表面中，统计卡自身使用共享 `cardColorShadow` 的固定 2dp 彩色投影，绘制在分页上方。统计区随嵌套滚动移出，Tab 到达顶栏下沿时停止，内容仍保留拖拽和回弹；未吸顶时可拖动 Tab 区域，吸顶后该区域只保留点击。Tab 填满最大 640dp 的内容宽度，不继承卡片或列表的水平内边距。每页使用 `InvitationsScreen` 持有的独立 `ConnectedLazyColumn` 状态，通过 `onTabReselect` 只回顶当前列表，保留统计区折叠位置。空列表与有数据列表共用折叠范围。头部背景持续挂载只采样分页内容的毛玻璃与原生投影，吸顶仅在绘制阶段隐藏展开态实色遮层；前景 Tab 独立，不替换背景节点。分页覆盖完整视口，列表顶部 `contentPadding` 包含顶栏与 Tab 高度，滚动条同步避让；滚动内容可经过栏后供模糊采样。内容页使用自身 `Scaffold`，顶栏在 Tab 未吸顶或游客／首次加载占位时单独绘制毛玻璃背景，Tab 吸顶后由头部共享背景承托，不叠加第二层栏面。
+
+邀请码长列表通过共享 `LazyListScrollbar` 绑定当前分页的 `LazyListState`，不显示序号或总数。可滚动时显示滑块，支持沿完整滑轨拖动定位；快滚条叠加在列表末端边缘，外侧留白为 2dp，不额外占位或改变列表宽度。滑块静止宽度、最小长度和透明度复用 Material 3 的 `NonInteractiveScrollbarDefaults`，颜色使用主题 `outline`。按下时宽度从 4dp 变为 8dp，不透明度从 70% 提升至 100%，沿用主题 `fastSpatialSpec`／`fastEffectsSpec`，松开或取消后恢复；加宽时固定末端边缘与触摸区域，不影响列表布局。按压监听不消费指针事件，拖动定位继续独立处理，动画值在绘制阶段读取。列表与快滚条共用的容器底部扣除统计区尚未折叠的高度，使实际列表视口与屏幕可见范围一致；滑轨在同一视口内上下避让内容安全留白。中间位置按条目平均高度估算，计入前后内容留白；拖到两端直接通过 `requestScrollToItem` 请求首项或末项，由 LazyColumn 约束实际滚动边界，不再使用第三方库的可见条目／吸顶标题推算。每次拖动仅保留最新定位请求，避免逐事件启动滚动协程。短列表隐藏快滚条。
 
 邀请码的 `assignee` 是否存在决定已使用状态；先检查业务成功，再处理生成冷却。确认生成但尚未被列表读回的邀请码暂存在该账号的 ViewModel 内存中，刷新失败或短暂旧结果不覆盖它；不自动重试生成请求。过滤全部由后端负责，不扩展首页、评论或弹幕的本地规则处理。
 
