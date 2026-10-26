@@ -92,7 +92,7 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 
 原生 [Outline.alpha](https://developer.android.com/reference/android/graphics/Outline#setAlpha(float)) 描述轮廓内内容的不透明程度，[Android 11 绘制实现](https://android.googlesource.com/platform/frameworks/base/+/android-11.0.0_r1/libs/hwui/pipeline/skia/ReorderBarrierDrawables.cpp#208) 据此选择透明遮挡面的阴影路径。仅降低背景颜色的 alpha、却让承载阴影的图层维持 alpha 为 1，会使半透明栏面透出按不透明遮挡面优化后的阴影内缘。
 
-`frostedBarBackground` 在 Android 8.1–11 绘制不透明主题 `surface`，将 0.9 的 alpha 与 elevation 放在同一个背景图层中；Compose 同步图层 alpha 到原生轮廓，保持 90% 不透明度且不重复相乘。Android 12+ 的 Haze 背景图层保持 alpha 为 1，继续使用既有采样配置和同一原生 elevation 机制。
+`frostedBarBackground` 在 Android 8.1–11 绘制不透明主题 `surface`，将 0.9 的 alpha 与 elevation 放在同一个背景图层中；Compose 同步图层 alpha 到原生轮廓，保持 90% 不透明度且不重复相乘。Android 12+ 的 Haze 背景图层保持 alpha 为 1，继续使用既有采样配置和同一原生 elevation 机制。同一背景图层先显式绘制不透明主题 `surface`，再叠加 Sources 模糊；Haze 的 `backgroundColor` 仅在效果实际绘制时生效，采样源或坐标未就绪时可能跳过效果，因此不能单靠它为原生投影提供不透明遮挡面。显式底色保证首帧及转场淡入时投影层仍有实际填充，不改变模糊参数、导航 alpha 或阴影高度。
 
 普通顶栏和胶囊底栏通过独立的背景子节点承载透明度、形状与阴影，文字、图标、选中背景和指示器作为独立前景绘制，不随背景变淡。背景使用 `matchParentSize()` 跟随实际栏高且不参与测量，胶囊前景继续由透明 `Surface` 保留内容裁剪与触摸语义。视频页的共享背景涵盖播放器占位区域与 Tab，下沿跟随播放器高度与实测 Tab 高度之和，Tab 上缘不单独投影；实际播放器保持独立绘制。资料页的原生图层承载封面、资料区与 Tab 共用的不透明顶部背景，下沿跟随 Tab 实测位置，避免独立 Tab 的上缘投影落到同一表面的资料区；资料顶栏毛玻璃背景的 `shadowElevation` 保持默认 0dp。尺寸、折叠程度与字体缩放由原有布局决定，不增加额外留白、空投影图层或持久化状态。
 

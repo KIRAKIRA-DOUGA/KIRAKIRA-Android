@@ -62,10 +62,15 @@ internal fun Modifier.frostedBarBackground(
             colorEffects(listOf(HazeColorEffect.tint(surface.copy(alpha = 0.8f))))
         }
     }
-    return barSurfaceLayer(shape = shape, shadowElevation = shadowElevation).hazeBlur(
-        input = input,
-        style = style,
-    )
+    // Sources may skip effect drawing until their first capture/coordinates are ready.
+    // Keep the elevated surface opaque even in that frame; the effect's backgroundColor
+    // only fills a rendered blur, not the native shadow caster when the effect is skipped.
+    return barSurfaceLayer(shape = shape, shadowElevation = shadowElevation)
+        .background(surface)
+        .hazeBlur(
+            input = input,
+            style = style,
+        )
 }
 
 @Composable

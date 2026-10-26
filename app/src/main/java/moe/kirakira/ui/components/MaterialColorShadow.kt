@@ -15,7 +15,7 @@ internal fun Modifier.cardColorShadow(
     shape: Shape,
     containerColor: Color,
     elevation: Dp = CardColorShadowElevation,
-    opacityScale: Float = 1f,
+    opacityScale: Float = 0.5f,
 ): Modifier = materialColorShadow(shape, containerColor, opacityScale) { elevation.value }
 
 internal fun Modifier.materialColorShadow(
