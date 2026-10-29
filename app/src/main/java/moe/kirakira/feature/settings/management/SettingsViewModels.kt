@@ -6,6 +6,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -15,6 +17,7 @@ import kotlinx.coroutines.launch
 import moe.kirakira.R
 import moe.kirakira.core.coroutines.AccountTasks
 import moe.kirakira.core.network.ApiException
+import moe.kirakira.core.network.ApiFailure
 import moe.kirakira.data.content.ContentRepository
 import moe.kirakira.data.content.PublicProfile
 import moe.kirakira.data.settings.AccountSettingsRepository
@@ -32,7 +35,14 @@ internal data class SettingsLoad<T>(
     val loading: Boolean = false,
     val error: Int? = null,
     val appending: Boolean = false,
-)
+) {
+    fun readFailed(failure: ApiFailure): SettingsLoad<T> = copy(
+        data = data.takeIf { failure.retainsContent },
+        loading = false,
+        error = failure.messageRes(),
+        appending = appending && failure.retainsContent,
+    )
+}
 
 /** Jobs and drafts are owned by the currently published session revision. */
 internal abstract class SettingsViewModel(protected val repository: AccountSettingsRepository) : ViewModel() {
@@ -91,7 +101,8 @@ internal class BlockingOverviewViewModel(repository: AccountSettingsRepository) 
                 }
                 _counts.value = SettingsLoad(counts)
             } catch (error: ApiException) {
-                _counts.value = _counts.value.copy(loading = false, error = error.failure.messageRes())
+                currentCoroutineContext().ensureActive()
+                if (expected == session.value.revision) _counts.value = _counts.value.readFailed(error.failure)
             }
         }
     }
@@ -131,7 +142,8 @@ internal class RuleManagementViewModel(
                 val previous = if (page == 1) emptyList() else _rules.value.data?.entries.orEmpty()
                 _rules.value = SettingsLoad(result.copy(entries = (previous + result.entries).distinctBy { it.value }))
             } catch (error: ApiException) {
-                _rules.value = _rules.value.copy(loading = false, error = error.failure.messageRes())
+                currentCoroutineContext().ensureActive()
+                if (expected == session.value.revision) _rules.value = _rules.value.readFailed(error.failure)
             }
         }
     }
@@ -247,7 +259,11 @@ internal class InvitationsViewModel(repository: AccountSettingsRepository) : Set
                 result.forEach { generated.remove(it.code) }
                 _invitations.value = SettingsLoad((result + generated.values).distinctBy { it.code })
             } catch (error: ApiException) {
-                _invitations.value = _invitations.value.copy(loading = false, error = error.failure.messageRes())
+                currentCoroutineContext().ensureActive()
+                if (expected == session.value.revision) {
+                    if (!error.failure.retainsContent) generated.clear()
+                    _invitations.value = _invitations.value.readFailed(error.failure)
+                }
             }
         }
     }

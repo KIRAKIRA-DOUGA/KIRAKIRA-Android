@@ -80,8 +80,10 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
@@ -124,6 +126,7 @@ internal data class PlayerUiState(
     val positionMs: Long = 0,
     val durationMs: Long = 0,
     val bufferedPositionMs: Long = 0,
+    val resumeNoticePositionMs: Long? = null,
     val available: Boolean = false,
     val qualityOptions: List<VideoQualityOption> = emptyList(),
     val selectedQualityHeight: Int? = null,
@@ -194,7 +197,7 @@ internal fun VideoPlayer(
     val touchExploration = rememberTouchExplorationEnabled()
     val keepVisibleBase =
         settingsPanel != null || state.buffering || waitingForArtwork || showingInitialLoading || state.failed ||
-            dragging || pressing || dragged != null || touchExploration
+            dragging || pressing || dragged != null || touchExploration || state.resumeNoticePositionMs != null
 
     fun interact() {
         controlsVisible = true; interaction++
@@ -493,11 +496,13 @@ internal fun VideoPlayer(
                                     )
                                 },
                                 time = {
+                                    val resumePosition = state.resumeNoticePositionMs
                                     Box(
                                         Modifier
                                             .heightIn(min = 48.dp)
                                             .padding(start = 16.dp)
                                             .clickable(
+                                                enabled = resumePosition == null,
                                                 interactionSource = remember { MutableInteractionSource() },
                                                 indication = null,
                                                 onClickLabel = stringResource(R.string.player_toggle_time_format),
@@ -507,9 +512,19 @@ internal fun VideoPlayer(
                                         contentAlignment = Alignment.CenterStart,
                                     ) {
                                         Text(
-                                            "$displayedTime / ${durationText(state.durationMs)}",
+                                            text = if (resumePosition != null) {
+                                                stringResource(R.string.player_resumed_position, durationText(resumePosition))
+                                            } else {
+                                                "$displayedTime / ${durationText(state.durationMs)}"
+                                            },
                                             style = MaterialTheme.typography.labelMedium,
                                             color = Color.White,
+                                            modifier = if (resumePosition != null) {
+                                                Modifier
+                                                    .background(Color.Black.copy(alpha = 0.6f), MaterialTheme.shapes.small)
+                                                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                                                    .semantics { liveRegion = LiveRegionMode.Polite }
+                                            } else Modifier,
                                         )
                                     }
                                 },

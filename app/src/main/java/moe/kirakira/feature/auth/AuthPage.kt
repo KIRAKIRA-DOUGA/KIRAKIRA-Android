@@ -1,6 +1,5 @@
 package moe.kirakira.feature.auth
 
-import android.widget.Toast
 import androidx.activity.compose.LocalActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -40,6 +39,7 @@ internal fun AuthPage(
     modifier: Modifier = Modifier,
     credentialGateway: PasswordCredentialGateway? = null,
     predictiveBackEnabled: Boolean = false,
+    onCredentialSaveFailure: (Int) -> Unit = {},
 ) {
     // Own the form at the outer AuthRoute so all child entries share the same in-memory draft.
     val context = LocalContext.current
@@ -54,6 +54,7 @@ internal fun AuthPage(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
     val currentOnClose by rememberUpdatedState(onClose)
+    val currentCredentialSaveFailure by rememberUpdatedState(onCredentialSaveFailure)
     val autofill = LocalAutofillManager.current
     val credentialHost = remember(activity) { Any() }
     DisposableEffect(activity) {
@@ -96,7 +97,7 @@ internal fun AuthPage(
                     if (result == PasswordSaveResult.FAILED && viewModel.uiState.value.credentialOperation?.id == operation.id) {
                         val message = if (operation.passwordReset) R.string.auth_password_update_failed
                             else R.string.auth_password_save_failed
-                        Toast.makeText(activity, message, Toast.LENGTH_LONG).show()
+                        currentCredentialSaveFailure(message)
                     }
                     viewModel.passwordSaved(operation.id, credentialHost, result)
                 }

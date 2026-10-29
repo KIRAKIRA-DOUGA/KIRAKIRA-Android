@@ -40,7 +40,8 @@ internal class ContentRepository(private val api: ApiClient, private val auth: A
     suspend fun video(id: Int, revision: Long): VideoDetail = request(revision) { cookie, _ ->
         val response = api.get<VideoResponse>("video", mapOf("videoId" to id.toString()), cookie)
         response.check()
-        val value = response.video ?: throw ApiException(if (response.isBlocked) ApiFailure.REJECTED else ApiFailure.INVALID_RESPONSE)
+        if (response.isBlocked) throw ApiException(ApiFailure.CONTENT_UNAVAILABLE)
+        val value = response.video ?: throw ApiException(ApiFailure.INVALID_RESPONSE)
         if (value.videoId != id) throw ApiException(ApiFailure.INVALID_RESPONSE)
         val uid = value.uploaderInfo?.uid ?: value.uploaderId ?: throw ApiException(ApiFailure.INVALID_RESPONSE)
         if (uid <= 0) throw ApiException(ApiFailure.INVALID_RESPONSE)
@@ -59,12 +60,20 @@ internal class ContentRepository(private val api: ApiClient, private val auth: A
         )
     }
 
-    suspend fun profile(uid: Long, revision: Long): PublicProfile = request(revision) { cookie, _ ->
+    suspend fun profile(uid: Long, revision: Long): PublicProfile {
+        val details = profileDetails(uid, revision)
+        if (details.isBlocked) throw ApiException(ApiFailure.CONTENT_UNAVAILABLE)
+        return details.profile ?: throw ApiException(ApiFailure.INVALID_RESPONSE)
+    }
+
+    suspend fun profileDetails(uid: Long, revision: Long): ProfileDetails = request(revision) { cookie, _ ->
         val response = api.get<ProfileResponse>("user/info", mapOf("uid" to uid.toString()), cookie)
         response.check()
-        if (response.isBlocked) throw ApiException(ApiFailure.REJECTED)
-        (response.result ?: throw ApiException(ApiFailure.INVALID_RESPONSE)).profile(uid)
-            .copy(blockedByOther = response.isBlockedByOther)
+        val profile = if (response.isBlocked) null else {
+            (response.result ?: throw ApiException(ApiFailure.INVALID_RESPONSE)).profile(uid)
+                .copy(blockedByOther = response.isBlockedByOther)
+        }
+        ProfileDetails(profile, response.isBlocked, response.isHidden, response.isBlockedByOther)
     }
 
     suspend fun tag(id: Long, revision: Long): VideoTag? = request(revision) { _, _ ->
@@ -229,7 +238,7 @@ private data class VideosDto(
 ) : ApiResult {
     fun summaries(): List<VideoSummary> {
         check()
-        if (isBlocked) throw ApiException(ApiFailure.REJECTED)
+        if (isBlocked) throw ApiException(ApiFailure.CONTENT_UNAVAILABLE)
         return videos.map { it.summary() }.distinctBy { it.id }
     }
 }
@@ -290,6 +299,7 @@ private object UploaderInfoSerializer : JsonTransformingSerializer<ProfileDto?>(
 private data class ProfileResponse(
     override val success: Boolean,
     val result: ProfileDto? = null,
+    val isHidden: Boolean = false,
     val isBlocked: Boolean = false,
     val isBlockedByOther: Boolean = false,
 ) : ApiResult

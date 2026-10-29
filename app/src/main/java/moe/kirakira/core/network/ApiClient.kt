@@ -21,8 +21,12 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 
 internal enum class ApiFailure(val isStorageFailure: Boolean = false) {
-    NETWORK, TIMEOUT, SERVER, INVALID_RESPONSE, REJECTED, SESSION_EXPIRED, RATE_LIMITED, DAILY_LIMIT,
-    STORAGE(true), STORAGE_FULL(true), STORAGE_DATA(true),
+    NETWORK, TIMEOUT, SERVER, INVALID_RESPONSE, REJECTED, CONTENT_UNAVAILABLE, SESSION_EXPIRED, RATE_LIMITED, DAILY_LIMIT,
+    STORAGE(true), STORAGE_FULL(true), STORAGE_DATA(true);
+
+    /** Read failures preserve confirmed data unless access or the owning session is explicitly lost. */
+    val retainsContent: Boolean
+        get() = this != CONTENT_UNAVAILABLE && this != SESSION_EXPIRED
 }
 
 /** Sanitized failures never contain URLs, request bodies, credentials, or backend messages. */
@@ -89,6 +93,8 @@ internal class ApiClient(
                             when {
                                 it.code == 401 -> throw ApiException(ApiFailure.SESSION_EXPIRED)
                                 it.code == 429 -> throw ApiException(ApiFailure.RATE_LIMITED)
+                                it.code == 403 || it.code == 404 || it.code == 410 ->
+                                    throw ApiException(ApiFailure.CONTENT_UNAVAILABLE)
                                 it.code >= 500 -> throw ApiException(ApiFailure.SERVER)
                                 !it.isSuccessful -> throw ApiException(ApiFailure.REJECTED)
                             }

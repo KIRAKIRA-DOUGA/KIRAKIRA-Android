@@ -93,7 +93,7 @@ internal fun ProfileScreen(
     onFollowingChange: (Boolean) -> Unit,
     onEditProfile: () -> Unit,
     onOpenFollowList: (FollowListKind) -> Unit,
-    onUnavailableAction: (ProfileAction) -> Unit,
+    actions: @Composable (Boolean, HazeState) -> Unit,
     onOpenAvatar: () -> Unit,
     onOpenVideo: (Int) -> Unit,
     onBack: () -> Unit,
@@ -149,20 +149,7 @@ internal fun ProfileScreen(
                                 )
                             }
                         },
-                        actions = {
-                            if (!state.isSelf) {
-                                ProfileTopBarIconButton(
-                                    tabsPinned = tabsPinned,
-                                    hazeState = hazeState,
-                                    onClick = { onUnavailableAction(ProfileAction.MORE) },
-                                ) {
-                                    Icon(
-                                        painterResource(R.drawable.ic_symbol_more_horiz),
-                                        stringResource(R.string.video_more),
-                                    )
-                                }
-                            }
-                        },
+                        actions = { actions(tabsPinned, hazeState) },
                         colors = appTopAppBarColors(),
                     )
                 }
@@ -364,7 +351,7 @@ internal fun ProfileScreen(
 }
 
 @Composable
-private fun ProfileTopBarIconButton(
+internal fun ProfileTopBarIconButton(
     tabsPinned: Boolean,
     hazeState: HazeState,
     onClick: () -> Unit,

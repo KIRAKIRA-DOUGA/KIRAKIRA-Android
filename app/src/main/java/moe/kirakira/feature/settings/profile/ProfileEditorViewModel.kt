@@ -122,7 +122,14 @@ internal class ProfileEditorViewModel(
                 val profile = repository.load()
                 _state.value = ProfileEditorState(original = profile, draft = profile, loading = false)
             } catch (error: ApiException) {
-                _state.update { it.copy(loading = false, error = error.failure) }
+                currentCoroutineContext().ensureActive()
+                if (error.failure.retainsContent) {
+                    _state.update { it.copy(loading = false, error = error.failure) }
+                } else {
+                    imageTask?.cancel()
+                    cleanup()
+                    _state.value = ProfileEditorState(loading = false, error = error.failure)
+                }
             }
         }
     }

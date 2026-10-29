@@ -5,6 +5,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -95,8 +97,14 @@ internal class HistoryRepository(
                 committed.entries.removeAll { writesAtStart[it.key] == it.value }
                 _history.value = HistorySnapshot(revision, merged.values.sortedByDescending { it.updatedAt }, loading = false)
             } catch (error: ApiException) {
+                currentCoroutineContext().ensureActive()
                 if (session.value.revision == revision) {
-                    _history.value = _history.value.copy(loading = false, error = error.failure)
+                    if (!error.failure.retainsContent) committed.clear()
+                    _history.value = _history.value.copy(
+                        entries = _history.value.entries.takeIf { error.failure.retainsContent },
+                        loading = false,
+                        error = error.failure,
+                    )
                 }
                 throw error
             }

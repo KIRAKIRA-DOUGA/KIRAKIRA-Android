@@ -66,6 +66,25 @@ internal class PlaybackViewModel(
     private val historyRecorder = PlaybackHistoryRecorder(history)
     private val initiallyReadyPartIds = mutableSetOf<Int>()
 
+    var resumeNoticePositionMs by mutableStateOf<Long?>(null)
+        private set
+    private var resumeNoticeDismissal: Job? = null
+
+    private fun showResumeNotice(positionMs: Long) {
+        dismissResumeNotice()
+        resumeNoticePositionMs = positionMs
+        resumeNoticeDismissal = viewModelScope.launch {
+            delay(3.seconds)
+            resumeNoticePositionMs = null
+        }
+    }
+
+    private fun dismissResumeNotice() {
+        resumeNoticeDismissal?.cancel()
+        resumeNoticeDismissal = null
+        resumeNoticePositionMs = null
+    }
+
     fun syncSession(revision: Long): Boolean {
         val changed = sessionRevision != null && sessionRevision != revision
         if (changed) clearSession()
@@ -324,10 +343,14 @@ internal class PlaybackViewModel(
                             initialLoading = false
                         }
                         durationMs = player.duration.takeIf { it != C.TIME_UNSET }?.coerceAtLeast(0) ?: 0
-                        if (resume.shouldRestart(durationMs)) {
-                            historyRecorder.resetPosition(0L)
-                            savedState["position"] = 0L
-                            player.seekTo(0)
+                        resume.resolveDuration(durationMs)?.let { position ->
+                            if (position == 0L) {
+                                historyRecorder.resetPosition(0L)
+                                savedState["position"] = 0L
+                                player.seekTo(0)
+                            } else {
+                                showResumeNotice(position)
+                            }
                         }
                         positionMs = player.currentPosition.coerceAtLeast(0)
                         bufferedPositionMs = player.bufferedPosition.coerceIn(0, durationMs)
@@ -407,6 +430,7 @@ internal class PlaybackViewModel(
     }
 
     fun release() {
+        dismissResumeNotice()
         flushHistory()
         player?.let { positionMs = it.currentPosition.coerceAtLeast(0) }
         savedState["position"] = positionMs

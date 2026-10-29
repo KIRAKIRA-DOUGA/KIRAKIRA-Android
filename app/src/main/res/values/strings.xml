@@ -318,7 +318,6 @@
     <string name="follow_list_followers_title">Followers</string>
     <string name="follow_list_following_empty">No following yet</string>
     <string name="follow_list_followers_empty">No followers yet</string>
-    <string name="profile_more_unavailable">More actions are coming later</string>
     <string name="profile_edit">Edit profile</string>
     <string name="profile_stat_description">%1$d %2$s</string>
     <string name="profile_collections">Collections</string>
@@ -337,6 +336,7 @@
     <string name="api_server_error">The server is temporarily unavailable. Please try again later.</string>
     <string name="api_invalid_response">The server returned an unexpected response. Please try again later.</string>
     <string name="api_rejected">The request was not accepted. Check your details and try again.</string>
+    <string name="api_content_unavailable">This content is unavailable</string>
     <string name="account_session_expired">This session has expired. Please sign in again.</string>
     <string name="account_storage_error">Could not read or save accounts on this device. Retry. If the problem persists, check available storage and access to app data.</string>
     <string name="account_storage_full">There is not enough storage to complete this account data operation. Free up space and retry.</string>
@@ -429,6 +429,7 @@
     <string name="player_show_controls">Show playback controls</string>
     <string name="player_hide_controls">Hide playback controls</string>
     <string name="player_seek">Playback position</string>
+    <string name="player_resumed_position">Resumed from last playback position %1$s</string>
     <string name="player_toggle_time_format">Toggle playback time display</string>
     <string name="content_not_available_yet">Not available yet</string>
     <string name="profile_load_failed">Could not load profile</string>
@@ -554,4 +555,14 @@
     <string name="player_gesture_volume_value">%1$d%%</string>
     <string name="player_settings">Player settings</string>
     <string name="player_settings_playback">Player</string>
+    <string name="profile_hide_user">Hide user</string>
+    <string name="profile_unhide_user">Unhide user</string>
+    <string name="profile_block_user">Block user</string>
+    <string name="profile_unblock_user">Unblock user</string>
+    <string name="profile_blocked">User blocked</string>
+    <string name="profile_unblocked">User unblocked</string>
+    <string name="profile_hidden">User hidden</string>
+    <string name="profile_unhidden">User unhidden</string>
+    <string name="share">Share</string>
+    <string name="share_unavailable">Unable to open sharing</string>
 </resources>

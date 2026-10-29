@@ -29,7 +29,7 @@
 | 资料、隐私和账号流程 | 资料在顶栏用平面 `TextButton` 保存，保留同步重试与未保存返回确认；隐私选择立即提交，明确失败恢复确认值，结果不确定时暂停编辑并只读核对；重置五项公开须确认；认证与安全流程复用 `AccountFlowScaffold` 和固定底部主按钮；验证步骤直接展示邮箱，保留任务标题及输入标签；普通输入复用 `FilledTextField` 的 `surfaceContainerLow` 背景与共享中性内阴影，密码复用 `PasswordTextField`，六位代码复用 `OtpInputField`，保留字母数字备用码与完整恢复码入口；错误反馈短过渡且不留占位；二步验证已启用状态卡采用绿色背景与浅色前景，代码展示区的辅助操作使用描边按钮；Auth 无关闭按钮 | [账号表单与保存](CONTRIBUTING.md#账号表单与保存) |
 | 图标和用户名 | 默认 Material Symbols Rounded，不混用图标风格；普通设置图标裸露显示；独立 username 使用 `@username`、等宽字体和次要文字色，空白不显示，输入与 API 保留原始值 | [图标与用户名](CONTRIBUTING.md#图标与用户名) |
 | 文案和预览 | 英语与中文字符串同步维护，开发者组件测试页及其长按入口描述可仅使用中文；短单句标签不加句末标点，保留 `Alpha!` 例外；不内置 Demo，不主动增加功能机制说明；分类用简短具体名词，开启流程省略重复的未启用提示，保留概览状态、失败及待核对反馈；预览优先空表单、游客账号与空列表 | [文案、本地化与无障碍](CONTRIBUTING.md#文案本地化与无障碍) |
-| 加载和刷新 | 不确定加载统一使用 `IndeterminateCircularProgressIndicator` 的官方 Material 2 动画与圆角端点；文字按钮内的加载尺寸使用 Material 3 `ButtonDefaults.iconSizeFor` 匹配按钮规格；刷新保留已有内容和空状态，复用 `ContentPullToRefresh` 覆盖式指示器；首次加载与分页分别处理 | [加载与刷新](CONTRIBUTING.md#加载与刷新) |
+| 加载和刷新 | 不确定加载统一使用 `IndeterminateCircularProgressIndicator` 的官方 Material 2 动画与圆角端点；文字按钮内的加载尺寸使用 Material 3 `ButtonDefaults.iconSizeFor` 匹配按钮规格；同账号同查询读取失败保留已确认内容及空结果，仅会话失效或明确不可访问时清理，账号／查询变化不复用旧结果；刷新复用 `ContentPullToRefresh` 覆盖式指示器；首次加载与分页分别处理；瞬时错误使用 Snackbar，禁止 Toast，页面及可重试内容错误保留 `ContentUnavailableView` | [加载与刷新](CONTRIBUTING.md#加载与刷新) |
 | 栏面和滚动 | 普通栏面固定毛玻璃，默认固定阴影；认证与账号安全流程的 `AccountFlowScaffold` 顶栏仅在正文滚离顶部后显示阴影，复用 `FrostedScaffold`；栏面背景、alpha 和阴影同层，前景独立；普通栏面与资料页毛玻璃按钮使用 Sources 采样，不启用原生 backdrop；滚动内容承载系统 Insets，底栏实测高度放入内容 padding，避免重复避让 | [毛玻璃应用栏](CONTRIBUTING.md#毛玻璃应用栏)、[可折叠大标题栏](CONTRIBUTING.md#可选的可折叠大标题栏) |
 | 主题配色 | 使用 Material Design 2 风格的经典强调色，默认项目粉色，系统强调色可选；选中的可用 Chip 使用 `primary/onPrimary`，其他状态保留官方默认；保留完整语义配色 | [主题配色约束](CONTRIBUTING.md#主题配色约束) |
 

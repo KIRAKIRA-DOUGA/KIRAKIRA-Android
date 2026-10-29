@@ -3,7 +3,6 @@ package moe.kirakira.feature.video
 import android.os.Build
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
@@ -61,8 +60,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Interpolatable
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
@@ -102,6 +99,7 @@ import moe.kirakira.ui.components.LazyListScrollbar
 import moe.kirakira.ui.components.LocalNumberAnimationIdentity
 import moe.kirakira.ui.components.PagerTabRow
 import moe.kirakira.ui.components.frostedBarBackground
+import moe.kirakira.ui.components.rememberMorphingButtonShape
 import moe.kirakira.ui.components.rememberTabChangeHandler
 import moe.kirakira.ui.components.video.categoryText
 import moe.kirakira.ui.components.video.dateText
@@ -113,6 +111,7 @@ internal enum class VideoTab { INTRODUCTION, COMMENTS, DANMAKU }
 
 internal data class VideoUiState(
     val detail: ContentState<VideoDetail>,
+    val access: VideoAccessState,
     val comments: CommentListState,
     val danmaku: ContentState<List<DanmakuEntry>>,
     val busy: Boolean,
@@ -142,8 +141,10 @@ internal fun VideoScreen(
     onSendComment: () -> Unit,
     onSendDanmaku: () -> Unit,
     onRefreshDanmaku: () -> Unit,
+    onRetryDanmaku: () -> Unit,
     onOpenProfile: (Long) -> Unit,
     onUnavailable: () -> Unit,
+    onShare: () -> Unit,
     onLogin: () -> Unit,
     contentPadding: PaddingValues,
     selectedPart: Int,
@@ -191,7 +192,32 @@ internal fun VideoScreen(
         keyboard?.hide()
     }
     val detail = state.detail.data
-    LaunchedEffect(pager.currentPage, state.sessionRevision, isActive) {
+    val accessBlocked = state.access.unavailable || state.access.playbackInvalidationPending
+    val checkingAccess = state.access.unavailable && state.detail.loading
+    val emptyCommentPages = remember { CommentPages() }
+    val visibleComments = if (accessBlocked) {
+        state.comments.copy(
+            content = emptyCommentPages,
+            total = 0,
+            previous = ContentState(),
+            next = ContentState(),
+            location = null,
+            updatingPages = emptySet(),
+        )
+    } else state.comments
+    val commentsRefreshing = checkingAccess && state.access.refreshingTab == VideoTab.COMMENTS
+    val comments = if (checkingAccess) visibleComments.copy(
+        loading = true,
+        refreshing = commentsRefreshing,
+        error = visibleComments.error.takeIf { commentsRefreshing },
+    ) else visibleComments
+    val posted = state.posted.takeUnless { accessBlocked }
+    val danmaku = if (accessBlocked) state.danmaku.copy(data = null) else state.danmaku
+    val danmakuRefreshing = checkingAccess && state.access.refreshingTab == VideoTab.DANMAKU
+    val danmakuStatus = if (checkingAccess) {
+        danmaku.copy(loading = !danmakuRefreshing, error = danmaku.error.takeIf { danmakuRefreshing })
+    } else danmaku.copy(loading = danmaku.loading && danmaku.data == null)
+    LaunchedEffect(pager.currentPage, state.sessionRevision, isActive, detail != null) {
         if (isActive) onLoadTab(VideoTab.entries[pager.currentPage])
     }
     val hazeState = rememberHazeState()
@@ -281,7 +307,7 @@ internal fun VideoScreen(
                                             }
                                         }
                                     }
-                                    item("author") { VideoAuthor(detail.author, onOpenProfile, onFollow, state.busy || detail.blockedByOther) }
+                                    item("author") { VideoAuthor(detail.author, onOpenProfile, onFollow, state.busy || state.detail.loading || state.detail.error != null || detail.blockedByOther) }
                                     item("title") { SelectionContainer { Text(detail.summary.title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() }) } }
                                     item("metadata") {
                                         FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -334,7 +360,7 @@ internal fun VideoScreen(
                                         CompositionLocalProvider(
                                             LocalNumberAnimationIdentity provides Pair(state.sessionRevision, detail.summary.id),
                                         ) {
-                                            VideoActions(detail, state.busy, onVote, onUnavailable)
+                                            VideoActions(detail, state.busy || state.detail.loading || state.detail.error != null, onVote, onUnavailable, onShare)
                                         }
                                     }
                                 }
@@ -343,11 +369,11 @@ internal fun VideoScreen(
                     }
                     VideoTab.COMMENTS -> CompositionLocalProvider(
                         LocalNumberAnimationIdentity provides Triple(
-                            state.sessionRevision, detail?.summary?.id, state.comments.pages.isNotEmpty(),
+                            state.sessionRevision, detail?.summary?.id, comments.pages.isNotEmpty(),
                         ),
                     ) {
                         VideoCommentsPage(
-                            state.comments, state.posted, state.commentDraft, state.busy,
+                            comments, posted, state.commentDraft, state.busy,
                             detail != null && !detail.blockedByOther, onCommentDraft, onSendComment, onCommentsPage,
                             onCommentVote, onOpenProfile, onUnavailable, onCommentsPageRefresh,
                             onCommentsRetry, onCommentsAdjacent, onCommentLocationConsumed,
@@ -378,7 +404,7 @@ internal fun VideoScreen(
                         },
                     ) { listBottomPadding ->
                         ContentPullToRefresh(
-                            isRefreshing = state.danmaku.loading && state.danmaku.data != null,
+                            isRefreshing = danmakuRefreshing || (danmaku.loading && danmaku.data != null),
                             onRefresh = onRefreshDanmaku,
                             modifier = Modifier.fillMaxSize(),
                             indicatorTopPadding = tabPadding,
@@ -393,31 +419,32 @@ internal fun VideoScreen(
                                         Column(Modifier.onSizeChanged { headerHeight = it.height }) {
                                             CompositionLocalProvider(
                                                 LocalNumberAnimationIdentity provides Triple(
-                                                    state.sessionRevision, detail?.summary?.id, state.danmaku.data != null,
+                                                    state.sessionRevision, detail?.summary?.id, danmaku.data != null,
                                                 ),
                                             ) {
-                                                VideoListCount(R.plurals.video_danmaku_total, state.danmaku.data?.size ?: 0)
+                                                VideoListCount(R.plurals.video_danmaku_total, danmaku.data?.size ?: 0)
                                             }
                                         }
                                     }
                                     item("status") {
-                                        if (state.danmaku.error != null || state.danmaku.data.isNullOrEmpty()) {
+                                        if (danmaku.error != null || danmaku.data.isNullOrEmpty()) {
                                             ContentStatus(
-                                                state.danmaku.copy(loading = state.danmaku.loading && state.danmaku.data == null), onRefreshDanmaku,
+                                                danmakuStatus, onRetryDanmaku,
                                                 Modifier.fillMaxWidth().then(
-                                                    if (state.danmaku.data.isNullOrEmpty()) Modifier.heightIn(min = statusHeight) else Modifier,
+                                                    if (danmaku.data.isNullOrEmpty()) Modifier.heightIn(min = statusHeight) else Modifier,
                                                 ),
-                                                state.danmaku.data.isNullOrEmpty(),
+                                                danmaku.data.isNullOrEmpty(),
                                                 emptyTitle = stringResource(R.string.video_danmaku_empty),
                                                 emptyIconRes = R.drawable.ic_custom_danmaku,
+                                                retryEnabled = !checkingAccess && !danmaku.loading,
                                             )
                                         }
                                     }
-                                    items(state.danmaku.data.orEmpty()) { entry ->
+                                    items(danmaku.data.orEmpty()) { entry ->
                                         DanmakuListItem(durationText((entry.timeSeconds * 1000).toLong()), entry.text)
                                     }
                                 }
-                                if (!state.danmaku.data.isNullOrEmpty() && showDanmakuScrollbar) {
+                                if (!danmaku.data.isNullOrEmpty() && showDanmakuScrollbar) {
                                     LazyListScrollbar(
                                         state = danmakuListState,
                                         modifier = Modifier
@@ -548,6 +575,7 @@ private fun VideoActions(
     busy: Boolean,
     onVote: (Reaction) -> Unit,
     onUnavailable: () -> Unit,
+    onShare: () -> Unit,
 ) {
     val actionColors = IconButtonDefaults.filledTonalIconButtonColors(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -560,7 +588,7 @@ private fun VideoActions(
         FilledTonalIconButton(onClick = onUnavailable, colors = actionColors) {
             Icon(painterResource(R.drawable.ic_symbol_download), stringResource(R.string.video_download))
         }
-        FilledTonalIconButton(onClick = onUnavailable, colors = actionColors) {
+        FilledTonalIconButton(onClick = onShare, colors = actionColors) {
             Icon(painterResource(R.drawable.ic_symbol_share), stringResource(R.string.video_share))
         }
         FilledTonalIconButton(onClick = onUnavailable, colors = actionColors) {
@@ -584,13 +612,10 @@ private fun ReactionAction(
         stringResource(label)
     }
     val shapes = ToggleButtonDefaults.shapesFor(ToggleButtonDefaults.size)
-    val checkedProgress by animateFloatAsState(
-        targetValue = if (checked) 1f else 0f,
+    val outline = rememberMorphingButtonShape(
+        targetShape = if (checked) shapes.checkedShape else shapes.shape,
         animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
-        label = "reactionCheckedShape",
     )
-    val outline = Interpolatable.lerp(shapes.shape, shapes.checkedShape, checkedProgress) as? Shape
-        ?: if (checked) shapes.checkedShape else shapes.shape
     ToggleButton(
         checked = checked,
         onCheckedChange = { onClick() },

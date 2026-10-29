@@ -569,7 +569,9 @@ internal class SecuritySettingsViewModel(private val repository: SecurityReposit
             } catch (error: ApiException) {
                 currentCoroutineContext().ensureActive()
                 _state.update {
-                    if (mutation != null && error.failure.isUncertainMutation()) {
+                    if (loading && !error.failure.retainsContent) {
+                        it.copy(status = null, error = error.failure)
+                    } else if (mutation != null && error.failure.isUncertainMutation()) {
                         it.copy(status = null, twoFactor = TwoFactorFlow.Checking(mutation), error = error.failure)
                     } else {
                         it.copy(error = error.failure,
@@ -594,7 +596,7 @@ internal class SecuritySettingsViewModel(private val repository: SecurityReposit
 
 private fun ApiFailure.isUncertainMutation(): Boolean = when (this) {
     ApiFailure.NETWORK, ApiFailure.TIMEOUT, ApiFailure.SERVER, ApiFailure.INVALID_RESPONSE -> true
-    ApiFailure.REJECTED, ApiFailure.SESSION_EXPIRED, ApiFailure.RATE_LIMITED, ApiFailure.DAILY_LIMIT,
+    ApiFailure.REJECTED, ApiFailure.CONTENT_UNAVAILABLE, ApiFailure.SESSION_EXPIRED, ApiFailure.RATE_LIMITED, ApiFailure.DAILY_LIMIT,
     ApiFailure.STORAGE, ApiFailure.STORAGE_FULL, ApiFailure.STORAGE_DATA -> false
 }
 

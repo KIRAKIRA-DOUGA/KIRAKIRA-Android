@@ -163,6 +163,8 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 ### 加载与刷新
 
 - 异步页面明确表达加载、成功、空内容与失败状态；重试入口应与操作语义一致。
+- 同一账号、同一查询的读取失败保留已确认内容（包括空结果），结束本轮加载并提供失败反馈；网络、超时、限流、响应异常和未区分原因的业务拒绝不作为清空依据。只有会话失效或服务端明确确认内容不可访问时撤下旧内容；更换账号、查询或资源标识时不复用旧结果。分页失败保留已加载条目和分页位置，在对应区域手动重试；失败或取消不自动重放写请求。认证、隐私和安全写操作继续按各自的确认／待核对状态处理。
+- 瞬时错误提示统一使用 `Snackbar`，不使用 `Toast`。页面级加载失败及需要点击重试的内容错误继续使用 `ContentUnavailableView`，保留原有重试入口；字段校验保留输入框的错误状态和 supporting text。操作可能在页面关闭后完成时，由导航宿主持有 Snackbar 状态并显示结果，避让底栏、系统安全区域与键盘，不在系统画中画内显示。
 - 无确定进度的加载统一复用 `IndeterminateCircularProgressIndicator`，封装官方 Material 2 `CircularProgressIndicator` 的不确定进度重载；这是 Material 3 Expressive 界面中的加载器例外，不引入 Material 2 主题，不使用 Expressive 形变加载器或 Material 3 圆形加载动画。圆弧端点固定使用 `StrokeCap.Round`，轨道透明，默认颜色来自当前 Material 3 主题 `primary`，媒体区域保留白色。
 - 加载器尺寸按场景适配：普通页面、图片及分页加载和播放器中央缓冲为 40dp、官方默认 4dp 线宽；文字按钮内使用 Material 3 `ButtonDefaults.iconSizeFor(height)`、2dp 线宽，`height` 与按钮规格一致，默认小按钮使用 `ButtonDefaults.MinHeight`；图标按钮、账号行与小窗播放按钮为 24dp、2dp 线宽；下拉刷新内部采用 Material 2 原始刷新尺寸 20dp、2.5dp 线宽，保留 40dp 白色圆形容器。保留按钮触摸目标、账号行固定占位及原有无障碍语义。
 

@@ -1,6 +1,8 @@
 package moe.kirakira.data.settings
 
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
@@ -19,6 +21,8 @@ internal class AccountSettingsRepository(private val api: ApiClient, private val
     val session = auth.session
     private val _ruleVersion = MutableStateFlow(0L)
     val ruleVersion = _ruleVersion.asStateFlow()
+    private val _ruleChanges = MutableSharedFlow<RuleChange>(extraBufferCapacity = 64)
+    val ruleChanges = _ruleChanges.asSharedFlow()
 
     suspend fun privacy(revision: Long): PrivacySettings = request(revision) { cookie ->
         val result = api.post<PrivacyResponseDto>("user/settings", "{}", cookie)
@@ -71,7 +75,7 @@ internal class AccountSettingsRepository(private val api: ApiClient, private val
         } catch (error: ApiException) {
             val uncertain = when (error.failure) {
                 ApiFailure.NETWORK, ApiFailure.TIMEOUT, ApiFailure.SERVER, ApiFailure.INVALID_RESPONSE -> true
-                ApiFailure.REJECTED, ApiFailure.SESSION_EXPIRED, ApiFailure.RATE_LIMITED,
+                ApiFailure.REJECTED, ApiFailure.CONTENT_UNAVAILABLE, ApiFailure.SESSION_EXPIRED, ApiFailure.RATE_LIMITED,
                 ApiFailure.DAILY_LIMIT, ApiFailure.STORAGE, ApiFailure.STORAGE_FULL,
                 ApiFailure.STORAGE_DATA -> false
             }
@@ -118,6 +122,7 @@ internal class AccountSettingsRepository(private val api: ApiClient, private val
             checkSuccess(result.success)
         }
         _ruleVersion.update { it + 1 }
+        _ruleChanges.emit(RuleChange(category, value, remove, revision))
     }
 
     suspend fun searchTags(query: String, revision: Long): List<RuleTag> = request(revision) { cookie ->
@@ -139,6 +144,8 @@ internal class AccountSettingsRepository(private val api: ApiClient, private val
         else InvitationCreation.Created((result.invitationCodeResult ?: invalidResponse()).domain(session.value.activeProfile?.uid))
     }
 }
+
+internal data class RuleChange(val category: RuleCategory, val value: String, val remove: Boolean, val revision: Long)
 
 private fun checkSuccess(success: Boolean) { if (!success) throw ApiException(ApiFailure.REJECTED) }
 private fun invalidResponse(): Nothing = throw ApiException(ApiFailure.INVALID_RESPONSE)

@@ -1,25 +1,38 @@
 package moe.kirakira.ui.navigation
 
 import android.annotation.SuppressLint
-import android.widget.Toast
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalAutofillManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -28,7 +41,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
+import kotlinx.coroutines.launch
 import moe.kirakira.AppDependenciesViewModel
+import moe.kirakira.MainActivity
 import moe.kirakira.data.auth.SessionState
 import moe.kirakira.data.settings.DanmakuSettings
 import moe.kirakira.data.settings.PlaybackSettings
@@ -76,12 +91,18 @@ internal fun AppNavHost(
 ) {
     val context = LocalContext.current
     val applicationContext = context.applicationContext
+    val snackbar = remember { SnackbarHostState() }
+    val resources by rememberUpdatedState(LocalResources.current)
+    val feedbackScope = rememberCoroutineScope()
+    val showFeedback: (Int) -> Unit = { message ->
+        feedbackScope.launch { snackbar.showSnackbar(resources.getString(message)) }
+    }
     val imageExports = dependencies?.imageExports?.let {
         viewModel { ImageExportViewModel(applicationContext, it) }
     }
     LaunchedEffect(imageExports, applicationContext) {
         imageExports?.feedback?.collect { message ->
-            Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).show()
+            snackbar.showSnackbar(resources.getString(message))
         }
     }
     val playbackSettingsModel = if (LocalInspectionMode.current) null else viewModel<PlaybackSettingsViewModel>()
@@ -214,6 +235,7 @@ internal fun AppNavHost(
                     registerAccountEntries(
                         this, navigation, authRepository, accountState, onSelectAccount, onRemoveAccount,
                         predictiveBackEnabled,
+                        onCredentialSaveFailure = showFeedback,
                     )
                 },
             )
@@ -281,6 +303,7 @@ internal fun AppNavHost(
                             videoId = retainedVideoId,
                             repository = contentRepository,
                             historyRepository = historyRepository,
+                            settingsRepository = dependencies.settings,
                             isActive = interactive,
                             surfaceVisible = surfaceVisible,
                             initialImage = viewportState.cards.origin?.takeIf { it.videoId == retainedVideoId }?.image,
@@ -292,6 +315,21 @@ internal fun AppNavHost(
                         )
                     }
                 }
+            }
+            val density = LocalDensity.current
+            val safeBottom = WindowInsets.safeDrawing.getBottom(density)
+            val keyboardBottom = WindowInsets.ime.getBottom(density)
+            val bottomBarPadding = if (backStack.lastOrNull() == MainRoute && keyboardBottom == 0) {
+                with(density) { (navigation.bottomBarHeightPx - safeBottom).coerceAtLeast(0).toDp() }
+            } else 0.dp
+            if ((LocalActivity.current as? MainActivity)?.pictureInPicture != true) {
+                SnackbarHost(
+                    hostState = snackbar,
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                        .zIndex(3f)
+                        .windowInsetsPadding(WindowInsets.safeDrawing.union(WindowInsets.ime))
+                        .padding(bottom = bottomBarPadding),
+                )
             }
         }
     }

@@ -19,6 +19,7 @@ internal fun ContentStatus(
     presentation: ContentUnavailablePresentation = ContentUnavailablePresentation.INLINE,
     emptyTitle: String = stringResource(ContentUnavailableState.EMPTY.titleRes),
     @DrawableRes emptyIconRes: Int = ContentUnavailableState.EMPTY.iconRes,
+    retryEnabled: Boolean = true,
 ) {
     when {
         state.loading -> Box(modifier.padding(16.dp), contentAlignment = Alignment.Center) {
@@ -29,6 +30,7 @@ internal fun ContentStatus(
             modifier = modifier,
             description = stringResource(state.error.messageRes()),
             onRetry = onRetry,
+            retryEnabled = retryEnabled,
             presentation = presentation,
         )
         empty -> ContentUnavailableView(

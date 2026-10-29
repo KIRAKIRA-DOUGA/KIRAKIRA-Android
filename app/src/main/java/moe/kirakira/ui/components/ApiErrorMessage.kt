@@ -11,6 +11,7 @@ internal fun ApiFailure.messageRes(): Int = when (this) {
     ApiFailure.SERVER -> R.string.api_server_error
     ApiFailure.INVALID_RESPONSE -> R.string.api_invalid_response
     ApiFailure.REJECTED -> R.string.api_rejected
+    ApiFailure.CONTENT_UNAVAILABLE -> R.string.api_content_unavailable
     ApiFailure.SESSION_EXPIRED -> R.string.account_session_expired
     ApiFailure.RATE_LIMITED -> R.string.auth_cooling_down
     ApiFailure.DAILY_LIMIT -> R.string.auth_daily_limit

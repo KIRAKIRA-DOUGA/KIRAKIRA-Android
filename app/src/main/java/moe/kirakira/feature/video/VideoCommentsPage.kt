@@ -198,6 +198,7 @@ internal fun VideoCommentsPage(
                                 empty = entries.isEmpty() && posted == null,
                                 emptyTitle = stringResource(R.string.video_comments_empty),
                                 emptyIconRes = R.drawable.ic_symbol_chat_bubble,
+                                retryEnabled = !state.loading,
                             )
                         }
                     }
@@ -216,7 +217,8 @@ internal fun VideoCommentsPage(
                                 Reaction.DISLIKE -> -1
                                 Reaction.NONE -> 0
                             },
-                            enabled = !busy && !state.loading && entry.page !in state.updatingPages && canInteract,
+                            enabled = !busy && !state.loading && entry.page !in state.updatingPages &&
+                                state.unconfirmedPages.isEmpty() && canInteract,
                             onOpenAuthor = { onOpenProfile(comment.author.uid) },
                             onVote = { onVote(comment, if (it == 1) Reaction.LIKE else Reaction.DISLIKE) },
                             onReply = onUnavailable,

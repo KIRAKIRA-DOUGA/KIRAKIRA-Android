@@ -3,6 +3,8 @@ package moe.kirakira.ui.content
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -42,7 +44,12 @@ internal abstract class ContentViewModel(protected val repository: ContentReposi
         }
     }
 
-    protected fun <T> load(target: MutableStateFlow<ContentState<T>>, fetch: suspend (Long) -> T) {
+    protected fun <T> load(
+        target: MutableStateFlow<ContentState<T>>,
+        onContentUnavailable: (ApiFailure) -> Unit = {},
+        onReadFailure: (ApiFailure) -> Unit = {},
+        fetch: suspend (Long) -> T,
+    ) {
         // A pull-to-refresh during startup must not bypass the account observer's readiness gate.
         if (!repository.session.value.isReadyForContent) return
         val expected = revision
@@ -53,9 +60,11 @@ internal abstract class ContentViewModel(protected val repository: ContentReposi
                 val data = fetch(expected)
                 if (expected == repository.session.value.revision) target.value = ContentState(data)
             } catch (error: ApiException) {
+                currentCoroutineContext().ensureActive()
                 if (expected == repository.session.value.revision) {
-                    val keep = error.failure in setOf(ApiFailure.NETWORK, ApiFailure.TIMEOUT, ApiFailure.SERVER)
-                    target.value = ContentState(if (keep) target.value.data else null, error = error.failure)
+                    target.value = target.value.readFailed(error.failure)
+                    if (!error.failure.retainsContent) onContentUnavailable(error.failure)
+                    onReadFailure(error.failure)
                 }
             }
         }
@@ -78,6 +87,10 @@ internal abstract class ContentViewModel(protected val repository: ContentReposi
     }
 
     fun dismissActionError() { _actionError.value = null }
+
+    protected fun <T> cancelRead(target: MutableStateFlow<ContentState<T>>) {
+        reads.remove(target)?.cancel()
+    }
 
     protected fun launchTask(block: suspend () -> Unit): Job = tasks.launch(block)
 }

@@ -279,7 +279,7 @@ internal class SearchViewModel(
             } catch (error: ApiException) {
                 if (expected == session.value.revision && version == videoVersion) {
                     _state.value = _state.value.copy(
-                        videos = _state.value.videos.copy(loading = false, error = error.failure),
+                        videos = _state.value.videos.readFailed(error.failure),
                     )
                 }
             }

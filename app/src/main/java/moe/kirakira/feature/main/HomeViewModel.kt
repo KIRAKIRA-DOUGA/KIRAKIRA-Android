@@ -11,5 +11,5 @@ internal class HomeViewModel(repository: ContentRepository) : ContentViewModel(r
     private val _videos = MutableStateFlow(ContentState<List<VideoSummary>>(loading = true))
     val videos = _videos.asStateFlow()
     init { observeAccount({ _videos.value = ContentState(loading = true) }, ::refresh) }
-    fun refresh() = load(_videos, repository::home)
+    fun refresh() = load(_videos, fetch = repository::home)
 }

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -70,8 +71,11 @@ internal class PrivacySettingsViewModel(private val repository: AccountSettingsR
                 val settings = repository.privacy(expected)
                 _state.value = PrivacySettingsState(revision = expected, original = settings, values = settings.values)
             } catch (error: ApiException) {
+                currentCoroutineContext().ensureActive()
                 _state.update {
-                    if (it.original == null || it.confirmationPending) it.copy(error = error.failure)
+                    if (!error.failure.retainsContent) {
+                        it.copy(original = null, values = emptyMap(), error = error.failure)
+                    } else if (it.original == null || it.confirmationPending) it.copy(error = error.failure)
                     else it.copy(messageFailure = error.failure)
                 }
             } finally {

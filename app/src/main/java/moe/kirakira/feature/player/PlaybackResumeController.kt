@@ -29,11 +29,11 @@ internal class PlaybackResumeController {
         state = State.Handled
     }
 
-    /** Returns whether the pending cloud position is close enough to the end to restart. */
-    fun shouldRestart(durationMs: Long): Boolean {
+    /** Returns the validated cloud position once, or zero when playback should restart. */
+    fun resolveDuration(durationMs: Long): Long? {
         val pending = state
-        if (pending !is State.AwaitingDuration || durationMs <= 0) return false
+        if (pending !is State.AwaitingDuration || durationMs <= 0) return null
         state = State.Handled
-        return pending.positionMs >= durationMs - 10_000
+        return if (pending.positionMs >= durationMs - 10_000) 0L else pending.positionMs
     }
 }

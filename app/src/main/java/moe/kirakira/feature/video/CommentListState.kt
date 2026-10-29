@@ -38,6 +38,7 @@ internal data class CommentListState(
     val endReached: Boolean = false,
     val location: CommentLocation? = null,
     val updatingPages: Set<Int> = emptySet(),
+    val unconfirmedPages: Set<Int> = emptySet(),
 ) {
     val pages: Map<Int, CommentPage> get() = content.pages
     val entries: List<CommentEntry> get() = content.entries
@@ -71,12 +72,19 @@ internal class CommentListLoader(
         mutableState.value = CommentListState()
     }
 
+    fun contentUnavailable(failure: ApiFailure) {
+        cancelRequests()
+        failedRequest = CommentRequest(1, CommentOperation.JUMP)
+        mutableState.value = CommentListState(error = failure)
+    }
+
     private fun cancelRequests() {
         generation++
         requests.values.toList().forEach { it.cancel() }
         requests.clear()
         mutableState.value = mutableState.value.copy(
             loading = false, refreshing = false, previous = ContentState(), next = ContentState(),
+            unconfirmedPages = mutableState.value.unconfirmedPages + mutableState.value.updatingPages,
             updatingPages = emptySet(),
         )
     }
@@ -84,9 +92,14 @@ internal class CommentListLoader(
     fun jump(page: Int) {
         if (!ready) return
         val target = page.coerceAtLeast(1)
-        if (mutableState.value.pages[target]?.comments?.isNotEmpty() == true) {
+        if (mutableState.value.pages[target]?.comments?.isNotEmpty() == true &&
+            mutableState.value.updatingPages.isEmpty()
+        ) {
             cancelRequests()
-            mutableState.value = mutableState.value.copy(error = null, location = CommentLocation(++locationId, target))
+            mutableState.value = mutableState.value.copy(
+                error = mutableState.value.error.takeIf { mutableState.value.unconfirmedPages.isNotEmpty() },
+                location = CommentLocation(++locationId, target),
+            )
             return
         }
         replace(CommentRequest(target, CommentOperation.JUMP))
@@ -148,6 +161,10 @@ internal class CommentListLoader(
         read(CommentRequest(page, CommentOperation.UPDATE))
     }
 
+    fun markUnconfirmed(page: Int) {
+        mutableState.value = mutableState.value.copy(unconfirmedPages = mutableState.value.unconfirmedPages + page)
+    }
+
     fun posted() {
         val total = mutableState.value.total + 1
         mutableState.value = mutableState.value.copy(total = total)
@@ -194,14 +211,21 @@ internal class CommentListLoader(
                         else current.endReached || (!before && !update && result.comments.isEmpty()),
                     location = if (replace) CommentLocation(++locationId, result.page) else current.location,
                     updatingPages = current.updatingPages - page,
+                    unconfirmedPages = if (replace) emptySet() else current.unconfirmedPages - page,
                 )
             } catch (error: ApiException) {
+                currentCoroutineContext().ensureActive()
                 if (generation != expectedGeneration || repository.session.value.revision != revision) return@launch
+                if (!error.failure.retainsContent) {
+                    contentUnavailable(error.failure)
+                    return@launch
+                }
                 val current = mutableState.value
                 mutableState.value = when {
                     replace || update -> current.copy(
                         loading = false, refreshing = false, error = error.failure,
                         updatingPages = current.updatingPages - page,
+                        unconfirmedPages = if (update) current.unconfirmedPages + page else current.unconfirmedPages,
                     )
                     before -> current.copy(previous = ContentState(error = error.failure))
                     else -> current.copy(next = ContentState(error = error.failure))

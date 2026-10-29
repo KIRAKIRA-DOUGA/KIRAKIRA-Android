@@ -61,10 +61,13 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import kotlinx.coroutines.launch
 import moe.kirakira.MainActivity
 import moe.kirakira.R
+import moe.kirakira.core.share.shareContent
+import moe.kirakira.core.share.videoShareUrl
 import moe.kirakira.data.content.ContentRepository
 import moe.kirakira.data.history.HistoryRepository
 import moe.kirakira.data.settings.DanmakuSettings
 import moe.kirakira.data.settings.PlaybackSettings
+import moe.kirakira.data.settings.AccountSettingsRepository
 import moe.kirakira.feature.player.MediaVolumeController
 import moe.kirakira.feature.player.PlaybackPageViewport
 import moe.kirakira.feature.player.PlaybackViewModel
@@ -96,6 +99,7 @@ internal fun VideoPage(
     onOpenTag: (Long) -> Unit,
     modifier: Modifier = Modifier,
     historyRepository: HistoryRepository? = null,
+    settingsRepository: AccountSettingsRepository? = null,
     isActive: Boolean = true,
     surfaceVisible: Boolean = true,
     initialImage: String? = null,
@@ -108,13 +112,14 @@ internal fun VideoPage(
     onDanmakuSettingsChange: (DanmakuSettings) -> Unit = {},
     onPlayerBounds: (Rect) -> Unit = {},
 ) {
-    val model = viewModel { VideoViewModel(videoId, repository, historyRepository) }
+    val model = viewModel { VideoViewModel(videoId, repository, historyRepository, settingsRepository) }
     val artworkPlaceholder = rememberVideoZoomPlaceholder(viewportState.cards, videoId)
     val recentKaomoji by kaomojiModel.recent.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val mediaVolume = remember(context) { MediaVolumeController(context) }
     val resources by rememberUpdatedState(LocalResources.current)
     val detail by model.detail.collectAsStateWithLifecycle()
+    val access by model.access.collectAsStateWithLifecycle()
     val resume by model.resume.collectAsStateWithLifecycle()
     val comments by model.comments.collectAsStateWithLifecycle()
     val danmaku by model.danmaku.collectAsStateWithLifecycle()
@@ -149,17 +154,32 @@ internal fun VideoPage(
     }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val value = detail.data
+    val accessBlocked = access.unavailable || access.playbackInvalidationPending
+    val displayedDetail = if (accessBlocked) detail.copy(
+        data = null,
+        loading = detail.loading || !access.unavailable,
+    ) else detail
+    val value = displayedDetail.data
     val signedIn = session.activeUuid != null
     fun requireLogin(action: () -> Unit) { if (signedIn) action() else { playback.pause(); onLogin() } }
     fun unavailable() { scope.launch { snackbar.showSnackbar(resources.getString(R.string.video_action_unavailable)) } }
     val lifecycleOwner = LocalLifecycleOwner.current
     val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsStateWithLifecycle()
-    LaunchedEffect(value, resume, playbackSettings, isActive, lifecycleState, session.revision) {
-        if (!isActive || playback.videoId != videoId) return@LaunchedEffect
-        if (value != null) {
-            playback.setContent(value.summary.title, value.parts,
-                resume.positionMs, resume.ready, artwork = value.summary.image)
+    LaunchedEffect(access, value, resume, playbackSettings, isActive, lifecycleState, session.revision, playback.videoId) {
+        if (playback.videoId != videoId) return@LaunchedEffect
+        // Read the latest state: a refresh can finish before the collected UI state catches up.
+        val currentAccess = model.access.value
+        if (currentAccess.playbackInvalidationPending) {
+            playback.setContent("", emptyList())
+            if (playback.miniPlayer) playback.closeMiniPlayer()
+            model.playbackInvalidated()
+            return@LaunchedEffect
+        }
+        if (!isActive || currentAccess.unavailable) return@LaunchedEffect
+        val current = model.detail.value.data
+        if (current != null) {
+            playback.setContent(current.summary.title, current.parts,
+                resume.positionMs, resume.ready, artwork = current.summary.image)
             if (resume.ready && lifecycleState == Lifecycle.State.RESUMED && playbackSettings != null) {
                 playback.maybeAutoplay(playbackSettings.autoplay)
             }
@@ -167,7 +187,8 @@ internal fun VideoPage(
     }
     LaunchedEffect(error) {
         error?.let { snackbar.showSnackbar(resources.getString(if (it == moe.kirakira.core.network.ApiFailure.NETWORK ||
-                it == moe.kirakira.core.network.ApiFailure.TIMEOUT) R.string.content_mutation_uncertain else it.messageRes())); model.dismissActionError() }
+                it == moe.kirakira.core.network.ApiFailure.TIMEOUT || it == moe.kirakira.core.network.ApiFailure.SERVER ||
+                it == moe.kirakira.core.network.ApiFailure.INVALID_RESPONSE) R.string.content_mutation_uncertain else it.messageRes())); model.dismissActionError() }
     }
     LaunchedEffect(fullscreen, pip, isActive) {
         if (fullscreen || pip || !isActive) {
@@ -247,15 +268,36 @@ internal fun VideoPage(
                         .focusGroup(),
                 ) {
                     VideoScreen(
-                        VideoUiState(detail, comments, danmaku, busy, signedIn, session.revision, commentDraft, danmakuDraft, posted, danmakuStyle),
+                        VideoUiState(
+                            detail = displayedDetail,
+                            access = access,
+                            comments = comments,
+                            danmaku = danmaku,
+                            busy = busy,
+                            signedIn = signedIn,
+                            sessionRevision = session.revision,
+                            commentDraft = commentDraft,
+                            danmakuDraft = danmakuDraft,
+                            posted = posted,
+                            danmakuStyle = danmakuStyle,
+                        ),
                         model::refresh, { requireLogin(model::follow) }, { requireLogin { model.vote(it) } },
                         { comment, reaction -> requireLogin { model.voteComment(comment, reaction) } },
                         model::comments, model::refreshComments, model::retryComments,
                         model::loadAdjacentComments, model::consumeCommentLocation, model::ensureTab,
                         model::updateCommentDraft, model::updateDanmakuDraft,
                         { requireLogin(model::sendComment) }, { requireLogin { model.sendDanmaku(playback.positionMs) } },
-                        model::refreshDanmaku, onOpenProfile,
-                        ::unavailable, { requireLogin {} }, inlineLayout.contentPadding,
+                        model::refreshDanmaku, model::retryDanmaku, onOpenProfile,
+                        ::unavailable,
+                        {
+                            val title = value?.summary?.title.takeIf {
+                                model.session.value.revision == session.revision
+                            }
+                            if (!shareContent(context, videoShareUrl(videoId), title)) {
+                                scope.launch { snackbar.showSnackbar(resources.getString(R.string.share_unavailable)) }
+                            }
+                        },
+                        { requireLogin {} }, inlineLayout.contentPadding,
                         onDanmakuStyle = model::updateDanmakuStyle,
                         commentComposer = commentComposer, danmakuComposer = danmakuComposer,
                         recentKaomoji = recentKaomoji, onKaomojiInserted = kaomojiModel::record,
@@ -289,7 +331,7 @@ internal fun VideoPage(
                             },
                     ) {
                         VideoPlayer(
-                            danmaku = danmaku.data.orEmpty(),
+                            danmaku = danmaku.data.orEmpty().takeUnless { accessBlocked }.orEmpty(),
                             playbackSettings = playbackSettings,
                             danmakuSettings = danmakuSettings,
                             onOutsideAppMiniPlayerChange = onOutsideAppMiniPlayerChange,
@@ -307,7 +349,7 @@ internal fun VideoPage(
                             onContinuousSpeed = playback::changeContinuousSpeed,
                             onPreservesPitch = playback::changePreservesPitch,
                             player = playback.player.takeIf {
-                                surfaceVisible && playback.videoId == videoId
+                                !accessBlocked && surfaceVisible && playback.videoId == videoId
                             },
                             state = PlayerUiState(
                                 qualityOptions = playback.qualityOptions,
@@ -325,11 +367,12 @@ internal fun VideoPage(
                                 positionMs = playback.positionMs,
                                 durationMs = playback.durationMs,
                                 bufferedPositionMs = playback.bufferedPositionMs,
-                                available = isActive && playback.videoId == videoId &&
+                                resumeNoticePositionMs = playback.resumeNoticePositionMs,
+                                available = !accessBlocked && isActive && playback.videoId == videoId &&
                                     (playback.player != null || value?.parts?.getOrNull(playback.selectedPart)?.url != null),
                             ),
-                            image = value?.summary?.image ?: initialImage,
-                            artworkPlaceholder = artworkPlaceholder,
+                            image = if (accessBlocked) null else value?.summary?.image ?: initialImage,
+                            artworkPlaceholder = artworkPlaceholder.takeUnless { accessBlocked },
                             fullscreen = fullscreenActive,
                             pictureInPicture = pip,
                             onToggle = playback::toggle,

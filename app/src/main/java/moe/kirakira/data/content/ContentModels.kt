@@ -40,6 +40,14 @@ internal data class PublicProfile(
     val blockedByOther: Boolean = false,
 )
 
+/** A blocked profile deliberately has no public user information. */
+internal data class ProfileDetails(
+    val profile: PublicProfile?,
+    val isBlocked: Boolean,
+    val isHidden: Boolean,
+    val isBlockedByOther: Boolean,
+)
+
 internal data class FollowStats(val following: Int? = null, val followers: Int? = null)
 internal data class VideoPart(val id: Int, val title: String, val url: String?)
 internal data class VideoDetail(

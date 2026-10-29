@@ -82,15 +82,14 @@ internal class FollowListViewModel(
                 )
             } catch (error: ApiException) {
                 if (!current(expected, requestGeneration)) return@launchTask
-                val keep = error.failure in setOf(ApiFailure.NETWORK, ApiFailure.TIMEOUT, ApiFailure.SERVER)
                 _state.value = when {
-                    !keep -> {
+                    !error.failure.retainsContent -> {
                         page = 0
                         receivedCount = 0
                         FollowListState(expected, ContentState(error = error.failure))
                     }
                     replacing -> previous.copy(
-                        content = previous.content.copy(loading = false, error = error.failure),
+                        content = previous.content.readFailed(error.failure),
                         loadingMore = false,
                     )
                     else -> previous.copy(loadingMore = false, moreError = error.failure)

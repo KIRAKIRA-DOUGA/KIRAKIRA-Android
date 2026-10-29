@@ -1,6 +1,5 @@
 package moe.kirakira.feature.profile
 
-import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -21,6 +20,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
@@ -31,21 +31,25 @@ import java.util.UUID
 import kotlinx.coroutines.launch
 import moe.kirakira.R
 import moe.kirakira.core.image.deliveryImageUrl
+import moe.kirakira.core.share.profileShareUrl
+import moe.kirakira.core.share.shareContent
+import moe.kirakira.data.auth.isReadyForContent
 import moe.kirakira.data.content.FollowListKind
 import moe.kirakira.data.image.ImageSource
+import moe.kirakira.data.settings.RuleCategory
 import moe.kirakira.feature.imageviewer.ViewerImage
 import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.ContentUnavailablePresentation
+import moe.kirakira.ui.components.ContentUnavailableState
+import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.appTopAppBarColors
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.components.rememberTabChangeHandler
+import moe.kirakira.ui.content.ContentState
 import okio.ByteString.Companion.encodeUtf8
 
 internal enum class ProfileTab { VIDEOS, COLLECTIONS }
-internal enum class ProfileAction(@param:StringRes val messageRes: Int) {
-    MORE(R.string.profile_more_unavailable),
-}
 
 @Composable
 internal fun ProfilePage(
@@ -58,22 +62,56 @@ internal fun ProfilePage(
     onOpenFollowList: (FollowListKind) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val profile by model.profile.collectAsStateWithLifecycle()
-    val videos by model.videos.collectAsStateWithLifecycle()
-    val stats by model.stats.collectAsStateWithLifecycle()
+    val loadedDetails by model.details.collectAsStateWithLifecycle()
+    val pendingMessage by model.message.collectAsStateWithLifecycle()
+    val loadedVideos by model.videos.collectAsStateWithLifecycle()
+    val loadedStats by model.stats.collectAsStateWithLifecycle()
     val busy by model.busy.collectAsStateWithLifecycle()
     val session by model.session.collectAsStateWithLifecycle()
-    val error by model.actionError.collectAsStateWithLifecycle()
-    val snackbar = remember { SnackbarHostState() }
+    val pendingError by model.actionError.collectAsStateWithLifecycle()
+    val currentAccount = session.isReadyForContent && model.isCurrentAccount
+    val details = if (currentAccount) loadedDetails else ContentState(loading = true)
+    val profile = ContentState(details.data?.profile, loading = details.loading, error = details.error)
+    val videos = if (currentAccount) loadedVideos else ContentState(loading = true)
+    val stats = if (currentAccount) loadedStats else ContentState(loading = true)
+    val message = pendingMessage.takeIf { currentAccount }
+    val error = pendingError.takeIf { currentAccount }
+    val snackbar = remember(session.revision) { SnackbarHostState() }
     val resources by rememberUpdatedState(LocalResources.current)
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val share: () -> Unit = {
+        val name = profile.data?.name.takeIf {
+            model.isCurrentAccount && model.session.value.revision == session.revision
+        }
+        if (!shareContent(context, profileShareUrl(model.uid), name)) {
+            scope.launch { snackbar.showSnackbar(resources.getString(R.string.share_unavailable)) }
+        }
+    }
     val density = LocalDensity.current
     val sourceInstanceId = rememberSaveable { UUID.randomUUID().toString() }
-    val scope = rememberCoroutineScope()
-    LaunchedEffect(error) {
+    val blocked = details.data?.isBlocked == true
+    val menuState = ProfileMenuState(
+        accountRevision = session.revision,
+        blocked = blocked,
+        hidden = details.data?.isHidden == true,
+        enabled = !busy && !details.loading && details.error == null && details.data != null,
+        canRetry = !busy && !details.loading && details.error != null,
+    )
+    val changeRule: (RuleCategory) -> Unit = { category ->
+        if (model.session.value.activeUuid == null) onLogin() else model.changeRule(category)
+    }
+    LaunchedEffect(message, session.revision) {
+        message?.let {
+            snackbar.showSnackbar(resources.getString(it))
+            model.dismissMessage()
+        }
+    }
+    LaunchedEffect(error, session.revision) {
         error?.let { snackbar.showSnackbar(resources.getString(it.messageRes())); model.dismissActionError() }
     }
     val value = profile.data
-    if (value == null) {
+    if (value == null || blocked) {
         FrostedScaffold(
             modifier, snackbarHost = { SnackbarHost(snackbar) },
             topBar = {
@@ -81,6 +119,17 @@ internal fun ProfilePage(
                     title = {
                         if (!profile.loading) {
                             Text(stringResource(R.string.me_profile), fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    actions = {
+                        ProfileActionsMenu(
+                            menuState, changeRule, model::refresh,
+                            onShare = share,
+                            showRelationshipActions = model.uid != session.activeProfile?.uid,
+                        ) { open ->
+                            IconButton(onClick = open) {
+                                Icon(painterResource(R.drawable.ic_symbol_more_horiz), stringResource(R.string.video_more))
+                            }
                         }
                     },
                     colors = appTopAppBarColors(),
@@ -95,14 +144,24 @@ internal fun ProfilePage(
                 )
             },
         ) { padding ->
-            ContentStatus(
-                profile,
-                model::refresh,
-                Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                presentation = ContentUnavailablePresentation.PAGE,
-            )
+            if (blocked) {
+                ContentUnavailableView(
+                    state = ContentUnavailableState.EMPTY,
+                    title = stringResource(R.string.profile_blocked),
+                    description = details.error?.let { stringResource(it.messageRes()) },
+                    iconRes = R.drawable.ic_symbol_block,
+                    onRetry = model::refresh,
+                    retryEnabled = !busy && !details.loading,
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                )
+            } else {
+                ContentStatus(
+                    profile,
+                    model::refresh,
+                    Modifier.fillMaxSize().padding(padding),
+                    presentation = ContentUnavailablePresentation.PAGE,
+                )
+            }
         }
         return
     }
@@ -111,7 +170,7 @@ internal fun ProfilePage(
     }
     val state = ProfileUiState(
         value.copy(isSelf = value.uid == session.activeProfile?.uid),
-        stats.data?.following, stats.data?.followers, busy,
+        stats.data?.following, stats.data?.followers, busy || details.loading || details.error != null,
         avatarKey = "profile/$sourceInstanceId/$avatarIdentity",
     )
     val pager = rememberPagerState(pageCount = { ProfileTab.entries.size })
@@ -121,7 +180,7 @@ internal fun ProfilePage(
         val listState = if (ProfileTab.entries[page] == ProfileTab.VIDEOS) videosListState else collectionsListState
         listState.animateScrollToItem(0)
     })
-    var expanded by rememberSaveable { mutableStateOf(false) }
+    var expanded by rememberSaveable(session.revision) { mutableStateOf(false) }
     ProfileScreen(
         state = state, videos = videos, pagerState = pager,
         profileError = profile.error, statsError = stats.error,
@@ -133,7 +192,17 @@ internal fun ProfilePage(
         onEditProfile = {
             if (model.uid == model.session.value.activeProfile?.uid) onEditProfile()
         },
-        onUnavailableAction = { action -> scope.launch { snackbar.showSnackbar(resources.getString(action.messageRes)) } },
+        actions = { tabsPinned, hazeState ->
+            ProfileActionsMenu(
+                menuState, changeRule, model::refresh,
+                onShare = share,
+                showRelationshipActions = !state.isSelf,
+            ) { open ->
+                ProfileTopBarIconButton(tabsPinned = tabsPinned, hazeState = hazeState, onClick = open) {
+                    Icon(painterResource(R.drawable.ic_symbol_more_horiz), stringResource(R.string.video_more))
+                }
+            }
+        },
         onOpenAvatar = {
             deliveryImageUrl(value.avatar)?.let { url ->
                 onOpenImage(
@@ -150,7 +219,7 @@ internal fun ProfilePage(
         },
         onOpenVideo = onOpenVideo, onBack = onBack, onRetry = model::refresh,
         isRefreshing = (profile.loading || videos.loading || stats.loading) &&
-            (profile.data != null || videos.data != null || stats.data != null),
+            currentAccount,
         modifier = modifier,
     )
 }

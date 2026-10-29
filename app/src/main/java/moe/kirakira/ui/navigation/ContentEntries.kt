@@ -60,7 +60,7 @@ internal fun registerContentEntries(
         entry<ProfileRoute> { route ->
             NavigationPage {
                 if (contentRepository == null || route.uid <= 0) Text(stringResource(R.string.content_login_to_interact))
-                else ProfilePage(model = viewModel { moe.kirakira.feature.profile.ProfileViewModel(route.uid, contentRepository) },
+                else ProfilePage(model = viewModel { moe.kirakira.feature.profile.ProfileViewModel(route.uid, contentRepository, requireNotNull(dependencies).settings) },
                     onEditProfile = { navigation.openFrom(route, ProfileEditorRoute) },
                     onOpenFollowList = { kind -> navigation.openFrom(route, FollowListRoute(route.uid, kind)) },
                     onOpenVideo = { id -> navigation.openFrom(route, VideoRoute(id)) },
@@ -74,7 +74,7 @@ internal fun registerContentEntries(
                 val account = accountState.activeProfile
                 if (account == null || contentRepository == null) LaunchedEffect(Unit) {
                     navigation.popFrom(SelfProfileRoute)
-                } else ProfilePage(model = viewModel(key = "profile-${account.uid}") { moe.kirakira.feature.profile.ProfileViewModel(account.uid, contentRepository) },
+                } else ProfilePage(model = viewModel(key = "profile-${account.uid}") { moe.kirakira.feature.profile.ProfileViewModel(account.uid, contentRepository, requireNotNull(dependencies).settings) },
                     onEditProfile = { navigation.openFrom(SelfProfileRoute, ProfileEditorRoute) },
                     onOpenFollowList = { kind -> navigation.openFrom(SelfProfileRoute, FollowListRoute(account.uid, kind)) },
                     onOpenVideo = { id -> navigation.openFrom(SelfProfileRoute, VideoRoute(id)) },

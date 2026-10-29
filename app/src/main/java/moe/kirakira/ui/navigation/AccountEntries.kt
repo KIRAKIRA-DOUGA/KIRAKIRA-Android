@@ -17,6 +17,7 @@ internal fun registerAccountEntries(
     onSelectAccount: (String?) -> Unit,
     onRemoveAccount: (String) -> Unit,
     predictiveBackEnabled: Boolean,
+    onCredentialSaveFailure: (Int) -> Unit,
 ) {
     with(scope) {
         entry<AccountSwitchRoute> {
@@ -41,6 +42,7 @@ internal fun registerAccountEntries(
                     isActive = navigation.backStack.lastOrNull() == route,
                     predictiveBackEnabled = predictiveBackEnabled,
                     onClose = { navigation.popFrom(route) },
+                    onCredentialSaveFailure = onCredentialSaveFailure,
                 )
             }
         }
