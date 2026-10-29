@@ -175,6 +175,15 @@ internal fun PlaybackHost(
     val cardProgress = remember(origin) { Animatable(if (origin != null && videoPageActive) 0f else 1f) }
     val currentCardExitFinished by rememberUpdatedState(onCardExitFinished)
     val backProgress = viewportState.backProgress
+    val returningToCard = exitingCard || (backProgress != null && !viewportState.backToMiniPlayer)
+    val hideSource = origin != null && returningToCard && visible && !pip &&
+        viewportState.pageViewport?.videoId == videoId && viewportState.cards.painter(origin) != null
+    DisposableEffect(viewportState.cards, origin, hideSource) {
+        if (hideSource) viewportState.cards.hideSource(origin)
+        onDispose {
+            if (hideSource) viewportState.cards.showSource(origin)
+        }
+    }
     val zoom = remember(origin) { Animatable(if (miniTarget) 1f else 0f) }
     val emphasizedEasing = rememberEmphasizedEasing()
     fun zoomSpec(expanding: Boolean) = if (expanding) tween<Float>(

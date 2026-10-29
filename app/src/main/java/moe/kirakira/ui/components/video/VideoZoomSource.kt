@@ -11,6 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -25,6 +26,7 @@ internal class VideoZoomState {
     var origin by mutableStateOf<VideoZoomOrigin?>(null)
         private set
     var ownerProvider: (() -> Any?)? = null
+    private var hiddenOrigin by mutableStateOf<VideoZoomOrigin?>(null)
     private val sources = mutableStateMapOf<Pair<Any?, Int>, Map<Any, VideoZoomSource>>()
 
     fun attach(owner: Any?, id: Int, source: VideoZoomSource) {
@@ -41,12 +43,24 @@ internal class VideoZoomState {
     fun canOpen(owner: Any?): Boolean = ownerProvider?.let { it() == owner } ?: true
 
     fun select(origin: VideoZoomOrigin) {
+        hiddenOrigin = null
         this.origin = origin
     }
 
     fun clear() {
+        hiddenOrigin = null
         origin = null
     }
+
+    fun hideSource(origin: VideoZoomOrigin) {
+        if (this.origin === origin) hiddenOrigin = origin
+    }
+
+    fun showSource(origin: VideoZoomOrigin) {
+        if (hiddenOrigin === origin) hiddenOrigin = null
+    }
+
+    fun hides(participant: VideoZoomSource): Boolean = hiddenOrigin?.let { source(it) === participant } == true
 
     private fun source(origin: VideoZoomOrigin): VideoZoomSource? {
         val participants = sources[origin.owner to origin.videoId] ?: return null
@@ -79,6 +93,8 @@ internal class VideoZoomSource(
     var coordinates: LayoutCoordinates? = null
     var painter by mutableStateOf<Painter?>(null)
     val token = Any()
+    val hidden: Boolean
+        get() = state.hides(this)
 
     fun bounds(): Rect? {
         val coordinates = coordinates?.takeIf { it.isAttached } ?: return null
@@ -108,6 +124,7 @@ internal class VideoZoomSource(
 internal fun Modifier.videoZoomSource(source: VideoZoomSource?): Modifier {
     if (source == null) return this
     return onGloballyPositioned { source.coordinates = it }
+        .drawWithContent { if (!source.hidden) drawContent() }
 }
 
 @Composable
