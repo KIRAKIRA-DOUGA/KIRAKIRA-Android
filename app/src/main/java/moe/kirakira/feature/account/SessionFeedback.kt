@@ -2,6 +2,7 @@ package moe.kirakira.feature.account
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -47,6 +48,7 @@ internal fun SessionFeedback(
                         },
                     ) { Text(stringResource(R.string.auth_sign_in)) }
                     TextButton(
+                        contentPadding = ButtonDefaults.ContentPadding,
                         onClick = onDismissNotice,
                     ) {
                         Text(stringResource(R.string.account_continue))
@@ -77,6 +79,7 @@ internal fun SessionFeedback(
                     Text(stringResource(R.string.account_remove))
                 }
                 TextButton(
+                    contentPadding = ButtonDefaults.ContentPadding,
                     onClick = { confirmingReset = false },
                 ) { Text(stringResource(R.string.account_cancel)) }
             },
@@ -91,7 +94,7 @@ internal fun SessionFeedback(
                 ApiFailure.NETWORK -> R.string.account_connection_error_title
                 ApiFailure.TIMEOUT -> R.string.account_connection_timeout_title
                 ApiFailure.SERVER, ApiFailure.INVALID_RESPONSE, ApiFailure.REJECTED,
-                ApiFailure.SESSION_EXPIRED, ApiFailure.RATE_LIMITED, ApiFailure.DAILY_LIMIT,
+                ApiFailure.CONTENT_UNAVAILABLE, ApiFailure.SESSION_EXPIRED, ApiFailure.RATE_LIMITED, ApiFailure.DAILY_LIMIT,
                 ApiFailure.STORAGE, ApiFailure.STORAGE_FULL,
                 ApiFailure.STORAGE_DATA -> R.string.account_session_problem
             }
@@ -127,7 +130,10 @@ internal fun SessionFeedback(
                         onLogin(email)
                     },
                 ) { Text(stringResource(R.string.auth_sign_in)) }
-                TextButton(onClick = retry) {
+                TextButton(
+                    onClick = retry,
+                    contentPadding = ButtonDefaults.ContentPadding,
+                ) {
                     Text(stringResource(R.string.auth_retry))
                 }
             } else {
@@ -137,10 +143,14 @@ internal fun SessionFeedback(
             }
             if (error.isStorageFailure) {
                 DestructiveTextButton(
+                    contentPadding = ButtonDefaults.ContentPadding,
                     onClick = { confirmingReset = true },
                 ) { Text(stringResource(R.string.account_reset_local)) }
             }
-            TextButton(onClick = onDismissError) {
+            TextButton(
+                onClick = onDismissError,
+                contentPadding = ButtonDefaults.ContentPadding,
+            ) {
                 val label = if (isConnectionFailure) R.string.account_continue else R.string.account_cancel
                 Text(stringResource(label))
             }

@@ -32,6 +32,8 @@
 
 主操作使用 `ShadowButton`，次操作使用 `TextButton`，危险操作使用 `ShadowButton(destructive = true)` 或 `DestructiveTextButton`。按钮继承居中的文字样式，纵向时保留自然换行高度；组件不接管业务状态、回调或启用条件。
 
+普通 Dialog 的文字操作（含危险文字操作）显式使用 `ButtonDefaults.ContentPadding`，与填充主操作保持同一套官方内容内边距；高度、最小宽度和触摸目标沿用官方默认，不按截图固定宽高，也不要求不同长度文案的按钮等宽。
+
 会话异常在失效或认证被拒绝时优先展示实心登录按钮，其次为平面重试；其他异常以重试为主操作。存储异常的清除入口作为危险次操作，点击后仍须单独确认，取消／继续使用位于操作区末尾。普通确认、选色及评论跳页均使用此组件；生日选择保留官方 `DatePickerDialog`。
 
 ## 统一内容状态
@@ -40,8 +42,11 @@
 
 [`ContentUnavailableView`](../../app/src/main/java/moe/kirakira/ui/components/ContentUnavailableView.kt) 统一空内容、内容加载失败及未开放页面占位，`ContentStatus` 接收共享 [ContentState](../../app/src/main/java/moe/kirakira/ui/content/ContentState.kt)，将加载／错误／空状态映射到 `IndeterminateCircularProgressIndicator` 或该组件。错误说明通过 `ApiFailure.messageRes()` 本地化，业务重试仍由调用方回调执行。
 
+读取失败的保留决策集中在 `ApiFailure.retainsContent`：网络、超时、限流、解析异常及通用业务拒绝均保留当前身份和查询下已确认的数据，只有 `CONTENT_UNAVAILABLE` 与 `SESSION_EXPIRED` 撤下旧内容。`ContentState.readFailed` 统一结束加载并写入失败；管理列表的 `SettingsLoad.readFailed` 使用同一规则，并在访问失效时清除追加分页标记。历史、评论和关注分页保留各自的分页状态结构，但共用该判定。账号／查询变更仍由各状态所有者重置，取消旧任务时不发布失败收尾。
+
 - `PAGE` 用于有界页面空间，内容居中且不足时可滚动；`INLINE` 不创建内部滚动，适合 `LazyColumn`，调用方为无内容状态预留剩余视口高度。评论与弹幕扣除计数栏、工具栏及发送框占用，列表底部 Insets 随内容滚动。
-- `MEDIA` 用于黑底图片与视频区域，组件集中管理黑底配色和紧凑间距；极短视口隐藏装饰图案，文字与按钮可滚动。宿主预留关闭、返回与全屏操作区域。
+- 各呈现模式的状态图标均裸露显示，不绘制背景 Shape，保留图标区域尺寸与间距。
+- `MEDIA` 用于黑底图片与视频区域，组件集中管理黑底配色和紧凑间距；极短视口隐藏状态图标，文字与按钮可滚动。宿主预留关闭、返回与全屏操作区域。
 - `ContentUnavailableAction` 仅接收资源解析后的文案、回调和启用状态。主操作统一 `Button`，次操作统一 `TextButton`，纵向居中排列，宽度上限 280dp；页面不传入按钮样式或插槽。`onRetry` 自动生成统一文案的主操作，可通过 `retryEnabled` 禁用，与 `primaryAction` 互斥。
 - 资料和统计读取失败在对应内容附近显示组件，不重复弹出 Snackbar；操作失败仍由原有表单、Snackbar 或会话弹窗处理。播放器提供独立 `onRetry` 并绑定 `PlaybackViewModel.play()`，避免失败重试走播放／暂停切换。
 
@@ -99,6 +104,10 @@ ConnectedLazyColumn(state = listState, contentPadding = PaddingValues(16.dp)) {
 
 [`ShadowButtons`](../../app/src/main/java/moe/kirakira/ui/components/ShadowButtons.kt) 的 `ShadowButton`、`ShadowFilledTonalButton` 使用非空 `ButtonShapes`，`ShadowFilledIconButton`、`ShadowFilledTonalIconButton` 使用非空 `IconButtonShapes`，默认分别来自官方 `ButtonDefaults.shapes()` 与 `IconButtonDefaults.shapes()`。四类组件只暴露 `shapes` 作为轮廓入口；表面使用固定 `shape` 重载接收共享插值后的当前轮廓，投影与危险装饰沿用同一轮廓，避免重复形状动画。
 
+共享动画在形变期间保持 `Shape` 对象身份稳定，在 `createOutline` 中读取动画进度并插值轮廓。Material 3 的水波纹节点工厂会比较形状；不能每帧向按钮传入新的 `Shape`，否则节点重建会打断按压水波纹。
+
+[`MorphingButtonShape`](../../app/src/main/java/moe/kirakira/ui/components/MorphingButtonShape.kt) 管理圆角轮廓的起点、目标与 `Animatable` 进度：返回原起点时交换端点并反转速度，目标轮廓改变时从当前可见轮廓继续，不重置为旧静止形状；非 `CornerBasedShape` 直接切换。同一进度的插值结果复用于表面与双层投影，进度在轮廓计算阶段读取。普通按钮使用主题 `defaultEffectsSpec`，与官方 Button 保持一致；固定轮廓场景继续跳过动画，不额外移动按钮内容。
+
 指定按钮高度时传入 `ButtonDefaults.shapesFor(height)`，内边距、文字及图标继续使用同尺寸的官方配套 API。独立描边按钮直接使用官方 `OutlinedButton(shapes = ButtonDefaults.shapes(), …)` 或 `OutlinedIconButton(shapes = IconButtonDefaults.shapes(), …)`；文字按钮和裸图标按钮使用固定轮廓重载，指定尺寸时可从同尺寸形状中取静止 `shape`。
 
 固定轮廓例外显式令静止与按压形状相同，例如侧滑删除使用 `ButtonShapes(CircleShape, CircleShape)`，图片查看器关闭按钮使用 `IconButtonShapes(CircleShape, CircleShape)`。共享组件识别相同形状后直接使用固定轮廓，仍按原规则处理投影。FAB、发送按钮及媒体叠层按钮继续使用各自已有的固定 `shape`。
@@ -107,11 +116,17 @@ ConnectedLazyColumn(state = listState, contentPadding = PaddingValues(16.dp)) {
 
 ### 选择按钮阴影
 
-[`ShadowToggleButton`](../../app/src/main/java/moe/kirakira/ui/components/ShadowToggleButton.kt) 封装官方 `ToggleButton`，适用于独立或连接式选择按钮。调用方提供 `checked`、`onCheckedChange`、根节点 `modifier`，并可传入官方 `buttonSize`、`shapes`、`colors`、`border`、`contentPadding` 和 `interactionSource`；可选 `icon` 与末尾 `content` 插槽保留官方图标尺寸、间距及文字排版。组件不持有业务选择状态，连接形状和单选语义仍由调用方配置。
+[`ShadowToggleButton`](../../app/src/main/java/moe/kirakira/ui/components/ShadowToggleButton.kt) 封装官方 `ToggleButton`，适用于独立或连接式选择按钮。调用方提供 `checked`、`onCheckedChange`、根节点 `modifier`，并可传入官方 `buttonSize`、`shapes`、`colors`、`border`、`contentPadding` 和 `interactionSource`；可选 `icon` 与末尾 `content` 插槽保留官方图标尺寸、间距及文字排版；两者接收当前绘制分支的 `checked`，状态相关内容必须使用该参数，不能读取调用方最新状态，否则旧内容也会提前切换。组件不持有业务选择状态，连接形状和单选语义仍由调用方配置。
 
 选中与按压轮廓同时用于表面和投影，原生 elevation 设为 `null`，避免重复阴影。投影复用共享 `buttonShadow`，颜色取当前选中状态的实际容器色，禁用时立即移除；高度和强度遵循[按钮动态阴影](theme.md#按钮动态阴影)。隐私页顶部“全部设为”组复用此组件，使用官方连接形状，并通过 `shapes.copy(pressedShape = if (checked) shapes.checkedShape else shapes.shape)` 固定当前状态的按压轮廓。组件识别该映射后只使用选中轮廓的插值，按压不干扰进行中的选中动画，配色和单选语义保持原样。
 
-视频操作条的官方 `ToggleButton` 由 `checked` 单独驱动官方静止与选中形状的 `fastSpatialSpec` 插值，将当前轮廓作为 `ToggleButtonShapes` 的全部三种形状。这样固定按压轮廓，也保留选中动画；不直接随 `checked` 改写官方组件的 `pressedShape`，避免其内部 `key(shapes)` 重建动画。原有颜色、计数、语义及投影配置保持不变。
+`ShadowToggleButton` 与 `FollowButton` 同样复用 `rememberMorphingButtonShape`，以主题 `fastSpatialSpec` 在静止、选中和按压目标之间切换，保持水波纹所用的形状身份稳定，并共享插值缓存与动画衔接。关注按钮的图标和文字改为跟随圆形遮罩切换，不再独立执行淡入、滑动、缩放与旋转；加载禁用期间保留原视觉选择状态，恢复可用后再同步图标、文字、轮廓与背景的目标，避免前景转场在禁用期间提前结束。业务选择语义仍使用实际关注状态，稳定的已关注视觉状态不绘制投影；关注变为已关注时阴影在遮罩最初 30% 进度内淡出，反方向在最后 30% 进度内淡入，普通切换按钮的投影颜色与强度跟随同一遮罩进度渐变；加载后恢复的共享选择按钮立即恢复当前状态及遮罩进度应有的投影，不额外淡入或重置状态切换时间轴，具体见[按钮动态阴影](theme.md#按钮动态阴影)。
+
+两者通过 `ButtonColorReveal` 和 `ButtonRevealContent` 共同绘制背景与前景：有图标时以实测图标中心为圆心，没有图标时以可见按钮中心为圆心；图标中心通过布局坐标转换到按钮可见表面，随尺寸动画保持对齐。状态更新后以 600ms、`FastOutSlowInEasing` 将新颜色圆形扩散至整个表面，遵循系统动画时长缩放，触摸、键盘、无障碍及程序更新均使用同一起点规则。背景裁剪复用当前动画轮廓，并按官方最小交互区域的对齐线避开触摸留白；官方按钮容器透明，保留边框、涟漪及选择语义。前景在过渡期间只保留基础状态与单一扩散层，按各自状态提供内容和前景色；圆内显示新内容，圆外保留旧内容。前景将按钮坐标转换到文字／图标自身坐标，以同一图标中心或按钮中心起点、半径和进度互补裁剪；只保留当前目标分支的内容语义，关注按钮由根节点统一提供当前本地化描述。快速反向切换时沿用图标中心或按钮中心起点及当前半径，让现有扩散层收回至 0；再次切换则从当前进度继续展开，不追加冻结的圆形层。恢复基础状态时目标宽度立即转向基础分支，避免文字碎片与旧宽度滞留。主题配色引入第三种颜色时将上一目标归为基础，仅保留一个新扩散层。加载禁用期间只显示官方禁用容器色，暂停扩散并保留原状态背景；恢复可用后才向最终状态扩散，同一目标从已有进度续播，剩余时长按至目标进度的距离计算。状态未变且无中断层时直接恢复，不播放状态扩散。动画状态只驻留组合内存，不改变业务状态和请求时机。
+
+两种按钮的 `ButtonRevealContent` 均以当前目标分支决定目标尺寸，新旧分支居中叠放；使用 `animateContentSize`、主题 `fastSpatialSpec` 和居中对齐平滑调整内容宽度。尺寸动画位于官方按钮内部，使表面、轮廓与投影跟随实际布局尺寸变化。
+
+视频操作条的官方 `ToggleButton` 由 `checked` 单独驱动共享 `rememberMorphingButtonShape` 的 `fastSpatialSpec` 插值，将同一稳定轮廓作为 `ToggleButtonShapes` 的全部三种形状。这样固定按压轮廓，也保留选中动画与水波纹；不直接随 `checked` 改写官方组件的 `pressedShape`，避免其内部 `key(shapes)` 重建动画。原有颜色、计数、语义及投影配置保持不变。
 
 ### 顶部导航按钮定位
 
@@ -355,12 +370,18 @@ TOTP 页面把二维码与打开验证器操作放在同一区域，密钥与复
 
 ## 开发者组件测试页
 
-`feature/componenttest/ComponentTestScreen.kt` 通过关于页图形 Logo 的长按回调进入独立 `ComponentTestRoute`，使用现有 Navigation 3 返回栈和 `NavigationPage`，不复用旧 `TestRoute`。所有构建开放入口，普通点击不导航。Logo 的 `combinedClickable` 使用独立交互源并关闭 indication，按压时通过主题 `fastSpatialSpec` 将图形缩小到 90%，松开或取消时回弹；缩放值在图形层读取，不改变触摸区域。
+`feature/componenttest/ComponentTestIndex.kt` 通过关于页图形 Logo 的长按回调进入独立 `ComponentTestRoute`，分类入口导航到携带可序列化 `ComponentCategory` 的 `ComponentSamplesRoute`，子页由 `ComponentTestScreen.kt` 的 `ComponentSamplesScreen` 展示。入口和子页共用现有 Navigation 3 返回栈与 `NavigationPage`，不嵌套导航宿主，也不复用旧 `TestRoute`。所有构建开放入口，普通点击不导航。Logo 的 `combinedClickable` 使用独立交互源并关闭 indication，按压时通过主题 `fastSpatialSpec` 将图形缩小到 90%，松开或取消时回弹；缩放值在图形层读取，不改变触摸区域。
 
-页面沿用 `SettingsScaffold` 与 640dp 内容上限，以带稳定分类 key 的惰性列表展示共享组件和官方基础控件。分类内容接收状态与回调，普通选择值用 `rememberSaveable` 保存，滚动位置由 `rememberLazyListState` 恢复；普通输入、密码、验证码及弹层使用 `remember`，页面停止时隐藏密码。单一弹层枚举控制 Dialog、菜单及 Sheet，Snackbar 由组合协程作用域管理。重置通过重新创建页面内容清除所有示例状态、滚动位置和反馈任务。
+入口与子页沿用 `SettingsScaffold` 与 640dp 内容上限。五个子页为按钮、输入与选择、内容展示、列表与标签、弹层与反馈，以带稳定示例 key 的惰性列表展示共享组件和官方基础控件。每个导航条目独立持有状态与滚动位置，普通选择值用 `rememberSaveable` 保存，滚动位置由 `rememberLazyListState` 恢复；普通输入、密码、验证码及弹层使用 `remember`，页面停止时隐藏密码。单一弹层枚举控制 Dialog、菜单及 Sheet，Snackbar 由组合协程作用域管理。子页重置通过重新创建本页内容清除其示例状态、滚动位置和反馈任务。
 
 组件展示直接调用项目阴影按钮、关注按钮、输入框、连接列表、不确定进度、`ActionDialog` 与 `ExpressiveMenuPopup`，其余采用官方 Material 3 控件。示例不依赖 ViewModel、Repository 或真实数据，也不修改应用偏好；专用文案使用中文，已有共享组件文案继续沿用本地化资源。
 
+按钮页补充禁用浅色、描边、危险、图标和选中／未选中切换按钮，文字按钮内加载，以及可变／固定按压轮廓的连接式选择组。内容展示页通过 `DisplaySamples.kt` 提供页面／列表／媒体三类加载、空状态与错误状态，重试仅显示本地反馈；数字示例可增减、跨位数、切换正负和页码，并展示窄区域退化。展开文本使用本地短文与长文，头像仅传入空 URL，徽章展示各语义色与禁用状态。
+
+按钮页为切换与关注按钮提供两组可重复点击的本地模拟加载：一组在 1.2 秒加载结束时更新状态，另一组在加载 0.6 秒时先更新状态、再等待 0.6 秒解除禁用，用于观察遮罩是否延后至恢复可用后播放。每个按钮独立禁用并显示旁侧进度，不替换按钮内容；延迟任务属于组合协程作用域，离开内容或重置页面时取消，不访问网络及应用偏好。
+
+弹层页提供“长按钮 Dialog”与“三操作 Dialog”，复用共享 `ActionDialog` 按操作总宽度决定横向或纵向全宽排列，按钮文字自然换行；菜单提供两个官方连接分组与禁用选项。
+
 ## 列表快滚条
 
-[`LazyListScrollbar`](../../app/src/main/java/moe/kirakira/ui/components/LazyListScrollbar.kt) 用于已加载内容的正向列表，不支持吸顶标题或反向布局；邀请码与视频弹幕页复用。调用方提供 `LazyListState`、滑轨布局和显示条件，组件不访问业务数据。中间位置按可见条目平均高度估算，首尾通过 `requestScrollToItem` 定位边界。滑块位于末端边缘内侧 2dp，默认使用 Material 的 4dp 宽度、24dp 最小长度与 `outline` 70% 不透明度，按下时变为 8dp／100%，沿用主题快速空间与效果动画；拖动位置和动画值在绘制阶段读取。快滚条叠加在列表上，不预留额外宽度，也不显示序号或总数提示。
+[`LazyListScrollbar`](../../app/src/main/java/moe/kirakira/ui/components/LazyListScrollbar.kt) 用于已加载内容的正向列表，不支持吸顶标题或反向布局；邀请码与视频弹幕页复用。调用方提供 `LazyListState`、滑轨布局和显示条件，组件不访问业务数据。中间位置按可见条目平均高度估算，首尾通过 `requestScrollToItem` 定位边界。滑块位于末端边缘内侧 2dp，默认使用 Material 的 4dp 宽度、24dp 最小长度与 `outline` 70% 不透明度，按下时变为 8dp，并使用主题强调色 `primary`、100% 不透明度，沿用主题快速空间与效果动画；拖动位置和动画值在绘制阶段读取。快滚条叠加在列表上，不预留额外宽度，也不显示序号或总数提示。

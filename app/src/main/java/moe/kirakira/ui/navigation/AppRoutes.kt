@@ -4,6 +4,7 @@ import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import moe.kirakira.data.content.FollowListKind
+import moe.kirakira.feature.componenttest.ComponentCategory
 import moe.kirakira.feature.imageviewer.ViewerImage
 import java.util.UUID
 
@@ -34,6 +35,9 @@ internal data object AboutRoute : NavKey
 
 @Serializable
 internal data object ComponentTestRoute : NavKey
+
+@Serializable
+internal data class ComponentSamplesRoute(val category: ComponentCategory) : NavKey
 
 @Serializable
 @SerialName("moe.kirakira.LicensesRoute")

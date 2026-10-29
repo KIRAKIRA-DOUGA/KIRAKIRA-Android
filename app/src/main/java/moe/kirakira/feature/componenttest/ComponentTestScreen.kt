@@ -106,15 +106,20 @@ internal data class ComponentInput(
     val passwordVisible: Boolean = false,
 )
 
-internal enum class ComponentOverlay { PLAIN, ICON, DANGER, CHOICE, MENU, SHEET }
+internal enum class ComponentOverlay { PLAIN, ICON, DANGER, CHOICE, LONG_BUTTONS, THREE_ACTIONS, MENU, SHEET }
 
 @Composable
-internal fun ComponentTestScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
+internal fun ComponentSamplesScreen(
+    category: ComponentCategory,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     var generation by rememberSaveable { mutableIntStateOf(0) }
     val focus = LocalFocusManager.current
     // Recreate all sample state and cancel pending feedback jobs when resetting.
     key(generation) {
         ComponentTestContent(
+            category = category,
             onBack = onBack,
             onReset = {
                 focus.clearFocus()
@@ -126,7 +131,12 @@ internal fun ComponentTestScreen(onBack: () -> Unit, modifier: Modifier = Modifi
 }
 
 @Composable
-private fun ComponentTestContent(onBack: () -> Unit, onReset: () -> Unit, modifier: Modifier = Modifier) {
+private fun ComponentTestContent(
+    category: ComponentCategory,
+    onBack: () -> Unit,
+    onReset: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     var selection by rememberSaveable(stateSaver = ComponentSelection.Saver) { mutableStateOf(ComponentSelection()) }
     var input by remember { mutableStateOf(ComponentInput()) }
     var overlay by remember { mutableStateOf<ComponentOverlay?>(null) }
@@ -148,7 +158,7 @@ private fun ComponentTestContent(onBack: () -> Unit, onReset: () -> Unit, modifi
         }
     }
     SettingsScaffold(
-        title = "组件测试",
+        title = category.title,
         onBack = onBack,
         shadingIcon = R.drawable.ic_symbol_palette,
         modifier = modifier,
@@ -169,15 +179,18 @@ private fun ComponentTestContent(onBack: () -> Unit, onReset: () -> Unit, modifi
                 ),
                 verticalArrangement = Arrangement.spacedBy(SettingsDefaults.SectionSpacing),
             ) {
-                item(key = "buttons") {
+                if (category == ComponentCategory.BUTTONS) item(key = "buttons") {
                     ComponentSection("按钮") {
                         ButtonSamples(selection, { selection = it }, feedback)
                     }
                 }
-                item(key = "selection") {
+                if (category == ComponentCategory.BUTTONS) item(key = "connectedButtons") {
+                    ComponentSection("连接式选择按钮") { ConnectedChoiceSamples() }
+                }
+                if (category == ComponentCategory.CONTROLS) item(key = "selection") {
                     ComponentSection("选择控件") { SelectionSamples(selection, { selection = it }) }
                 }
-                item(key = "input") {
+                if (category == ComponentCategory.CONTROLS) item(key = "input") {
                     ComponentSection("输入框") {
                         InputSamples(
                             state = input,
@@ -187,15 +200,29 @@ private fun ComponentTestContent(onBack: () -> Unit, onReset: () -> Unit, modifi
                         )
                     }
                 }
-                item(key = "progress") {
+                if (category == ComponentCategory.CONTENT) item(key = "progress") {
                     ComponentSection("进度") {
                         ProgressSamples(selection.progress, { selection = selection.copy(progress = it) })
                     }
                 }
-                item(key = "lists") {
+                if (category == ComponentCategory.LISTS) item(key = "lists") {
                     ComponentSection("列表与标签") { ListSamples(selection, { selection = it }, feedback) }
                 }
-                item(key = "overlays") {
+                if (category == ComponentCategory.CONTENT) {
+                    item(key = "contentStates") {
+                        ComponentSection("内容状态") { ContentStateSamples(onFeedback = feedback) }
+                    }
+                    item(key = "numbers") {
+                        ComponentSection("数字动画") { NumberSamples() }
+                    }
+                    item(key = "text") {
+                        ComponentSection("展开文本") { ExpandableTextSamples() }
+                    }
+                    item(key = "identity") {
+                        ComponentSection("头像与图标徽章") { IdentitySamples() }
+                    }
+                }
+                if (category == ComponentCategory.OVERLAYS) item(key = "overlays") {
                     ComponentSection("弹层与反馈") {
                         OverlaySamples(
                             overlay = overlay,

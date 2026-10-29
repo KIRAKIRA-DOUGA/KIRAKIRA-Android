@@ -10,6 +10,7 @@ import moe.kirakira.data.auth.SessionState
 import moe.kirakira.data.settings.DanmakuSettings
 import moe.kirakira.data.settings.PlaybackSettings
 import moe.kirakira.feature.auth.AuthRoute
+import moe.kirakira.feature.componenttest.ComponentSamplesScreen
 import moe.kirakira.feature.componenttest.ComponentTestScreen
 import moe.kirakira.feature.settings.AboutScreen
 import moe.kirakira.feature.settings.AppearanceScreen
@@ -177,7 +178,18 @@ internal fun registerSettingsEntries(
         }
         entry<ComponentTestRoute> {
             NavigationPage {
-                ComponentTestScreen(onBack = { navigation.popFrom(ComponentTestRoute) })
+                ComponentTestScreen(
+                    onBack = { navigation.popFrom(ComponentTestRoute) },
+                    onOpenCategory = { navigation.openFrom(ComponentTestRoute, ComponentSamplesRoute(it)) },
+                )
+            }
+        }
+        entry<ComponentSamplesRoute> { route ->
+            NavigationPage {
+                ComponentSamplesScreen(
+                    category = route.category,
+                    onBack = { navigation.popFrom(route) },
+                )
             }
         }
         entry<DanmakuSettingsRoute> {

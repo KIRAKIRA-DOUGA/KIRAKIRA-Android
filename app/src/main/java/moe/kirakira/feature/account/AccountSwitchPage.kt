@@ -1,5 +1,6 @@
 package moe.kirakira.feature.account
 
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -81,6 +82,7 @@ internal fun AccountSwitchPage(
                     Text(stringResource(R.string.settings_log_out))
                 }
                 TextButton(
+                    contentPadding = ButtonDefaults.ContentPadding,
                     onClick = { pendingRemovalId = null },
                 ) {
                     Text(stringResource(R.string.account_cancel))

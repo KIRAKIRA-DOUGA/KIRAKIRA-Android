@@ -17,14 +17,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,7 +68,6 @@ data class ContentUnavailableAction(
  * [onRetry] is a primary-action shortcut and cannot be combined with [primaryAction].
  * INLINE never creates a scroll container, including when hosted in a lazy list.
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ContentUnavailableView(
     state: ContentUnavailableState,
@@ -100,7 +96,7 @@ fun ContentUnavailableView(
         contentAlignment = Alignment.Center,
     ) {
         val scroll = !inline && constraints.hasBoundedHeight
-        val showDecoration = !media || maxHeight >= 180.dp
+        val showIcon = !media || maxHeight >= 180.dp
         Column(
             modifier = Modifier
                 .widthIn(max = 360.dp)
@@ -110,23 +106,17 @@ fun ContentUnavailableView(
             verticalArrangement = Arrangement.spacedBy(if (media) 8.dp else 12.dp),
         ) {
             // Keep the action reachable even in the short, embedded player viewport.
-            if (showDecoration) {
-                Surface(
-                    modifier = Modifier.size(if (media) 48.dp else 144.dp),
-                    shape = when (state) {
-                        ContentUnavailableState.EMPTY -> MaterialShapes.Cookie12Sided
-                        ContentUnavailableState.ERROR -> MaterialShapes.Clover4Leaf
-                    }.toShape(),
-                    color = if (media) Color.DarkGray else scheme.surfaceContainer,
-                    contentColor = if (media) Color.White else scheme.onSurfaceVariant,
+            if (showIcon) {
+                Box(
+                    modifier = Modifier.size(if (media) 48.dp else 64.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(
-                            painter = painterResource(iconRes),
-                            contentDescription = null,
-                            modifier = Modifier.size(if (media) 24.dp else 56.dp),
-                        )
-                    }
+                    Icon(
+                        painter = painterResource(iconRes),
+                        contentDescription = null,
+                        modifier = Modifier.size(if (media) 24.dp else 56.dp),
+                        tint = if (media) Color.White else scheme.onSurfaceVariant,
+                    )
                 }
             }
             Text(

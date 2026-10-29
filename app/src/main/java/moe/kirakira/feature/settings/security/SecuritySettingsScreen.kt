@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -166,6 +167,7 @@ internal fun SecuritySettingsScreen(
                     destructive = true,
                 ) { Text(stringResource(R.string.privacy_discard)) }
                 TextButton(
+                    contentPadding = ButtonDefaults.ContentPadding,
                     onClick = onCancelDiscard,
                 ) {
                     Text(stringResource(R.string.profile_keep_editing))
@@ -185,6 +187,7 @@ internal fun SecuritySettingsScreen(
                     destructive = true,
                 ) { Text(stringResource(R.string.privacy_discard)) }
                 TextButton(
+                    contentPadding = ButtonDefaults.ContentPadding,
                     onClick = onCancelDiscardCredentials,
                 ) {
                     Text(stringResource(R.string.profile_keep_editing))

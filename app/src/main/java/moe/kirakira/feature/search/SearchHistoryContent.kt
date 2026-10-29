@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -240,7 +241,10 @@ internal fun ClearSearchHistoryDialog(state: SearchUiState, onEvent: (SearchEven
                 destructive = true,
                 enabled = state.ready && !state.historyBusy,
             ) { Text(stringResource(R.string.search_history_clear)) }
-            TextButton(onClick = { onEvent(SearchEvent.DismissClearHistory) }) {
+            TextButton(
+                onClick = { onEvent(SearchEvent.DismissClearHistory) },
+                contentPadding = ButtonDefaults.ContentPadding,
+            ) {
                 Text(stringResource(R.string.account_cancel))
             }
         },

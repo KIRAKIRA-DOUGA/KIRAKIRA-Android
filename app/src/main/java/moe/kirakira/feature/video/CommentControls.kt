@@ -152,6 +152,7 @@ internal fun CommentJumpDialog(
                 Text(stringResource(R.string.video_comments_jump))
             }
             TextButton(
+                contentPadding = ButtonDefaults.ContentPadding,
                 onClick = onDismiss,
             ) {
                 Text(stringResource(R.string.video_comments_cancel))

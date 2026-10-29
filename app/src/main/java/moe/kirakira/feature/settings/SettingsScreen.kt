@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -85,7 +86,10 @@ fun SettingsScreen(
                 ) {
                     Text(stringResource(R.string.settings_log_out))
                 }
-                TextButton(onClick = { confirmLogout = false }) {
+                TextButton(
+                    onClick = { confirmLogout = false },
+                    contentPadding = ButtonDefaults.ContentPadding,
+                ) {
                     Text(stringResource(R.string.account_cancel))
                 }
             },

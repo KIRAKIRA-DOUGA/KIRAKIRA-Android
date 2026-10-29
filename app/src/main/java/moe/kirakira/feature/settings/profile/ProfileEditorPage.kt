@@ -3,6 +3,7 @@ package moe.kirakira.feature.settings.profile
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -51,6 +52,7 @@ internal fun ProfileEditorPage(model: ProfileEditorViewModel, onBack: () -> Unit
                 destructive = true,
             ) { Text(stringResource(R.string.profile_discard)) }
             TextButton(
+                contentPadding = ButtonDefaults.ContentPadding,
                 onClick = model::dismissDiscard,
             ) {
                 Text(stringResource(R.string.profile_keep_editing))

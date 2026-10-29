@@ -2,9 +2,9 @@
 
 package moe.kirakira.ui.components
 
+import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateDp
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.rememberTransition
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -39,7 +39,7 @@ import kotlin.math.roundToInt
  */
 @Composable
 internal fun LazyListScrollbar(state: LazyListState, modifier: Modifier = Modifier) {
-    val color = MaterialTheme.colorScheme.outline
+    val colors = MaterialTheme.colorScheme
     val restingThickness = NonInteractiveScrollbarDefaults.Thickness
     val minLength = NonInteractiveScrollbarDefaults.ThumbMinLength
     val pressState = remember(state) { MutableTransitionState(false) }
@@ -49,10 +49,13 @@ internal fun LazyListScrollbar(state: LazyListState, modifier: Modifier = Modifi
         transitionSpec = { motion.fastSpatialSpec() },
         label = "thumbThickness",
     ) { isPressed -> if (isPressed) restingThickness * 2 else restingThickness }
-    val opacity = transition.animateFloat(
+    val color = transition.animateColor(
         transitionSpec = { motion.fastEffectsSpec() },
-        label = "thumbOpacity",
-    ) { isPressed -> if (isPressed) 1f else NonInteractiveScrollbarDefaults.ThumbOpacity }
+        label = "thumbColor",
+    ) { isPressed ->
+        if (isPressed) colors.primary.copy(alpha = 1f)
+        else colors.outline.copy(alpha = NonInteractiveScrollbarDefaults.ThumbOpacity)
+    }
     var dragProgress by remember(state) { mutableStateOf<Float?>(null) }
 
     Box(
@@ -122,7 +125,7 @@ internal fun LazyListScrollbar(state: LazyListState, modifier: Modifier = Modifi
                 val edgeInset = 2.dp.toPx()
                 val x = if (layoutDirection == LayoutDirection.Ltr) size.width - edgeInset - width else edgeInset
                 drawRoundRect(
-                    color = color.copy(alpha = opacity.value.coerceIn(0f, 1f)),
+                    color = color.value,
                     topLeft = Offset(x, (size.height - thumbLength) * (dragProgress ?: metrics.progress)),
                     size = Size(width, thumbLength),
                     cornerRadius = CornerRadius(width / 2f),

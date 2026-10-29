@@ -12,6 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -55,6 +56,8 @@ internal fun OverlaySamples(
         SampleRow {
             listOf(ComponentOverlay.PLAIN to "普通 Dialog", ComponentOverlay.ICON to "图标 Dialog",
                 ComponentOverlay.DANGER to "危险确认", ComponentOverlay.CHOICE to "选择 Dialog",
+                ComponentOverlay.LONG_BUTTONS to "长按钮 Dialog",
+                ComponentOverlay.THREE_ACTIONS to "三操作 Dialog",
                 ComponentOverlay.SHEET to "底部弹层").forEach { (kind, label) ->
                 TextButton(onClick = { onOpen(kind) }) { Text(label) }
             }
@@ -65,26 +68,30 @@ internal fun OverlaySamples(
                         onOpen(null)
                         onFeedback("已关闭菜单")
                     }) {
-                    DropdownMenuGroup(
-                        shapes = MenuDefaults.groupShape(index = 0, count = 1),
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        contentPadding = PaddingValues(vertical = 4.dp),
-                    ) {
-                        repeat(3) { index ->
-                            SelectableDropdownMenuItem(
-                                selected = option == index,
-                                text = { Text("选项 ${index + 1}") },
-                                onClick = { onChoose(index) },
-                                shapes = MenuDefaults.itemShape(index = index, count = 3),
-                                colors = MenuDefaults.selectableItemColors(
-                                    containerColor = Color.Transparent,
-                                    disabledContainerColor = Color.Transparent,
-                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                    selectedTextColor = MaterialTheme.colorScheme.onPrimary,
-                                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
-                                    selectedTrailingContentColor = MaterialTheme.colorScheme.onPrimary,
-                                ),
-                            )
+                    repeat(2) { group ->
+                        DropdownMenuGroup(
+                            shapes = MenuDefaults.groupShape(index = group, count = 2),
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            contentPadding = PaddingValues(vertical = 4.dp),
+                        ) {
+                            repeat(2) { item ->
+                                val index = group * 2 + item
+                                SelectableDropdownMenuItem(
+                                    selected = option == index,
+                                    enabled = index != 3,
+                                    text = { Text(if (index == 3) "禁用选项" else "选项 ${index + 1}") },
+                                    onClick = { onChoose(index) },
+                                    shapes = MenuDefaults.itemShape(index = item, count = 2),
+                                    colors = MenuDefaults.selectableItemColors(
+                                        containerColor = Color.Transparent,
+                                        disabledContainerColor = Color.Transparent,
+                                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                        selectedTextColor = MaterialTheme.colorScheme.onPrimary,
+                                        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+                                        selectedTrailingContentColor = MaterialTheme.colorScheme.onPrimary,
+                                    ),
+                                )
+                            }
                         }
                     }
                 }
@@ -130,9 +137,11 @@ internal fun ComponentTestOverlay(
                 }
             }
         }
-        ComponentOverlay.PLAIN, ComponentOverlay.ICON, ComponentOverlay.DANGER, ComponentOverlay.CHOICE -> {
+        ComponentOverlay.PLAIN, ComponentOverlay.ICON, ComponentOverlay.DANGER, ComponentOverlay.CHOICE,
+        ComponentOverlay.LONG_BUTTONS, ComponentOverlay.THREE_ACTIONS -> {
             val danger = overlay == ComponentOverlay.DANGER
             val choice = overlay == ComponentOverlay.CHOICE
+            val longButtons = overlay == ComponentOverlay.LONG_BUTTONS
             ActionDialog(
                 onDismissRequest = { onClose("已取消") },
                 modifier = modifier,
@@ -140,6 +149,8 @@ internal fun ComponentTestOverlay(
                     ComponentOverlay.ICON -> "带图标的 Dialog"
                     ComponentOverlay.DANGER -> "确认危险操作？"
                     ComponentOverlay.CHOICE -> "选择选项"
+                    ComponentOverlay.LONG_BUTTONS -> "长按钮 Dialog"
+                    ComponentOverlay.THREE_ACTIONS -> "三操作 Dialog"
                     else -> "普通 Dialog"
                 }) },
                 icon = if (overlay == ComponentOverlay.ICON || danger) {
@@ -175,8 +186,17 @@ internal fun ComponentTestOverlay(
                             onClose(if (choice) "已选择选项 ${draftOption + 1}" else "已确认")
                         },
                         destructive = danger,
-                    ) { Text("确认") }
-                    TextButton(onClick = { onClose("已取消") }) { Text("取消") }
+                    ) { Text(if (longButtons) "确认并继续执行当前选择的全部操作" else "确认") }
+                    if (overlay == ComponentOverlay.THREE_ACTIONS) {
+                        TextButton(
+                            onClick = { onClose("已选择稍后处理") },
+                            contentPadding = ButtonDefaults.ContentPadding,
+                        ) { Text("稍后处理") }
+                    }
+                    TextButton(
+                        onClick = { onClose("已取消") },
+                        contentPadding = ButtonDefaults.ContentPadding,
+                    ) { Text(if (longButtons) "暂不执行并返回继续检查当前设置" else "取消") }
                 },
             )
         }

@@ -106,9 +106,9 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 
 通用选择按钮复用 [ShadowToggleButton](../../app/src/main/java/moe/kirakira/ui/components/ShadowToggleButton.kt)，内部保留官方 `ToggleButton`，按选中状态读取 `colors.containerColor` 或 `colors.checkedContainerColor`，并通过共享 `buttonShadow` 绘制投影。选中与按压形变使用主题 `fastSpatialSpec` 插值，表面和阴影共用当前轮廓，官方 elevation 设为 `null`；可用时沿用普通实心按钮的交互高度和强度，禁用时立即移除阴影。尺寸、图标、形状和颜色由调用方配置，接入见[选择按钮阴影](components.md#选择按钮阴影)。
 
-个人主页与视频页复用 [FollowButton](../../app/src/main/java/moe/kirakira/ui/components/FollowButton.kt)，内部使用官方 `ToggleButton` 与官方尺寸配套 API。未关注状态显式使用 `primary/onPrimary`，接入共享 `buttonShadow` 的双层投影；已关注状态使用灰色 `surfaceContainerHigh/onSurfaceVariant`，不接入投影，官方 elevation 同时设为 `null`。禁用时保留官方禁用配色与语义，不绘制阴影。选中状态与按压状态通过公开 `Interpolatable` API 及主题 `fastSpatialSpec` 插值，所得轮廓同时传给表面和投影，官方组件的三种形状设为同一当前轮廓以避免二次动画；关注布尔值、提交条件与回调继续由原页面拥有。
+个人主页与视频页复用 [FollowButton](../../app/src/main/java/moe/kirakira/ui/components/FollowButton.kt)，内部使用官方 `ToggleButton` 与官方尺寸配套 API。未关注状态显式使用 `primary/onPrimary`，接入共享 `buttonShadow` 的双层投影；已关注状态使用灰色 `surfaceContainerHigh/onSurfaceVariant`，稳定时投影不透明度为零，官方 elevation 同时设为 `null`。禁用时保留官方禁用配色与语义，不绘制阴影。选中状态与按压状态通过公开 `Interpolatable` API 及主题 `fastSpatialSpec` 插值，所得轮廓同时传给表面和投影，官方组件的三种形状设为同一当前轮廓以避免二次动画；关注布尔值、提交条件与回调继续由原页面拥有。
 
-关注状态的形状、容器色、前景色及两个 `AnimatedContent` 共用 `rememberTransition`：加号与对勾通过旋转、缩放及淡入淡出切换，文字通过短距离纵向滑动与淡入淡出切换，文字的 `SizeTransform` 驱动按钮按本地化文案实际尺寸平滑伸缩。空间变化使用主题 `fastSpatialSpec`，颜色与透明度使用 `fastEffectsSpec`，由 Compose 遵循系统动画时长设置；首次组合直接展示当前状态。动画内容按各自目标状态渲染，按钮提供唯一的当前本地化无障碍标签，保留官方选中及禁用语义。
+关注按钮的背景、文字和图标共用可反向衔接的圆形遮罩，加载后播放，并按本地化文案实际尺寸平滑伸缩；首次组合直接展示当前状态。按钮提供唯一的当前本地化无障碍标签，保留官方选中及禁用语义。扩散起点、时长、前景裁剪与宽度动画详见[选择按钮阴影](components.md#选择按钮阴影)。
 
 [ShadowButtons](../../app/src/main/java/moe/kirakira/ui/components/ShadowButtons.kt) 为填充、浅色填充、实心图标按钮及 FAB 封装官方 Material 3 组件；文字、描边及裸图标按钮不使用投影。调用方保留现有颜色、尺寸、形状、内容内边距、语义及点击逻辑，官方高度投影设为零，避免重复叠加。按钮不增加缩放、位移或布局空间，也不保存阴影偏好。投影读取官方 `MinimumInteractiveLeftAlignmentLine` 和 `MinimumInteractiveTopAlignmentLine`，按实际可见轮廓内缩并平移，不把最小触摸目标的留白当作按钮表面；测量及触摸区域保持原样。
 
@@ -120,7 +120,11 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 
 共享交互源驱动投影和形状。普通按钮静止／按压／悬停或聚焦使用 2dp／8dp／4dp 等效高度，FAB 使用 6dp／12dp／8dp；按下 120ms、松开或取消 180ms，无弹跳，系统动画设置由 Compose 处理。普通按钮和 FAB 禁用时立即移除投影，优先于按压、悬停与聚焦；FAB 通过封装的 `enabled` 参数同时阻止操作并声明禁用语义。四类普通共享按钮默认使用官方 Expressive `shapes`，静止和按压形状通过公开 `Interpolatable` API 与主题 `defaultEffectsSpec` 插值，同一动画形状用于按钮轮廓、投影和装饰裁剪；固定轮廓例外提供相同的两种形状并跳过插值。选择按钮继续使用主题 `fastSpatialSpec`。形变和阴影分别管理，固定轮廓不关闭原有动态阴影；场景规则与接入见[按钮按压轮廓](components.md#按钮按压轮廓)，不访问 Material 3 内部 API。
 
-双层 `dropShadow` 由 [MaterialColorShadow](../../app/src/main/java/moe/kirakira/ui/components/MaterialColorShadow.kt) 统一绘制，在最低支持版本同样绘制彩色投影，几何参数采用 Google 官方 [Material Web 双层 elevation 实现](https://github.com/material-components/material-web/blob/main/elevation/internal/_elevation.scss)，高度映射采用官方 [elevation tokens](https://github.com/material-components/material-web/blob/main/tokens/versions/v0_192/_md-sys-elevation.scss)。
+双层投影由 [MaterialColorShadow](../../app/src/main/java/moe/kirakira/ui/components/MaterialColorShadow.kt) 通过官方 `ShadowContext` 和 `DropShadowPainter` 统一绘制，在最低支持版本同样绘制彩色投影，几何参数采用 Google 官方 [Material Web 双层 elevation 实现](https://github.com/material-components/material-web/blob/main/elevation/internal/_elevation.scss)，高度映射采用官方 [elevation tokens](https://github.com/material-components/material-web/blob/main/tokens/versions/v0_192/_md-sys-elevation.scss)。
+
+关注按钮在两种状态间保留同一投影节点，根据阴影显隐方向控制不透明度：关注变为已关注时，在遮罩展开最初 30% 的进度内从完整投影平滑淡出至零；已关注变为关注时，在最后 30% 的进度内从零平滑淡入。反向打断时沿用同一扩散层的进度映射，不瞬间添加或移除投影。加载禁用立即隐藏阴影；恢复可用时立即恢复当前视觉状态及遮罩进度应有的投影，不附加延迟或启用淡入，也不重置状态切换的阴影时间轴。原状态无投影时继续保持零投影，直到原有末段淡入阶段。禁用期间投影高度回到静止值，投影节点不参与绘制，避免重新启用时从零高度爬升。普通切换按钮保留投影，以同一遮罩进度在两种状态的阴影颜色与强度间渐变，反向打断沿用当前进度；先将两个端点映射为实际彩色或黑色中性投影，再插值颜色与透明度，避免中性色判定阈值造成强度跳变。投影颜色通过绘制阶段的 `ColorFilter` 着色，透明度乘到两层 painter，不随颜色或透明度帧重建轮廓或阴影位图；静态强度与交互高度映射保持原样。
+
+投影在 `drawWithCache` 中读取动画形状的当前 `Outline`，并封装为固定轮廓后交给阴影缓存；形状进度、尺寸或高度变化会重建绘制缓存，静止时复用两层绘制器与渲染缓存。不能将内部轮廓会变化但身份稳定的动画 `Shape` 直接作为阴影缓存键，否则按压或选中形变后可能继续使用旧圆角。此修复只调整轮廓缓存时机，颜色、强度、扩张、模糊和偏移仍使用下表的共享映射。
 
 下表按「垂直偏移／模糊／扩张」列出官方逻辑像素值，接入时映射为 dp；水平偏移均为零。这里复用官方设计参数，仍由 Compose 绘制，不使用 Android 平台光照模型，也不保证与浏览器逐像素一致。
 

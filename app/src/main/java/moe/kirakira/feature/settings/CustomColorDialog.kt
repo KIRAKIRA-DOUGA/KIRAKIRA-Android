@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -55,6 +56,7 @@ internal fun CustomColorDialog(
                 Text(stringResource(R.string.theme_color_apply))
             }
             TextButton(
+                contentPadding = ButtonDefaults.ContentPadding,
                 onClick = onDismiss,
             ) { Text(stringResource(R.string.theme_color_cancel)) }
         },

@@ -35,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Interpolatable
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
@@ -218,13 +217,10 @@ private fun rememberButtonShadowShape(
 ): Shape {
     if (defaultShape == pressedShape) return defaultShape
     val pressed by interactionSource.collectIsPressedAsState()
-    val progress by animateFloatAsState(
-        targetValue = if (enabled && pressed) 1f else 0f,
+    return rememberMorphingButtonShape(
+        targetShape = if (enabled && pressed) pressedShape else defaultShape,
         animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
-        label = "buttonShadowShape",
     )
-    return Interpolatable.lerp(defaultShape, pressedShape, progress) as? Shape
-        ?: if (enabled && pressed) pressedShape else defaultShape
 }
 
 @Composable
@@ -234,6 +230,8 @@ internal fun Modifier.buttonShadow(
     enabled: Boolean,
     interactionSource: MutableInteractionSource,
     floating: Boolean = false,
+    opacity: () -> Float = { 1f },
+    tint: () -> Color = { materialShadowColor(containerColor) },
 ): Modifier {
     val pressed by interactionSource.collectIsPressedAsState()
     val hovered by interactionSource.collectIsHoveredAsState()
@@ -242,7 +240,8 @@ internal fun Modifier.buttonShadow(
     val shadowShape = remember(shape, visualInset) { ButtonShadowOutline(shape, visualInset) }
     val elevation by animateFloatAsState(
         targetValue = when {
-            !enabled -> 0f
+            // Disabled buttons draw no shadow, but retain resting geometry for immediate restoration.
+            !enabled -> if (floating) 6f else 2f
             pressed -> if (floating) 12f else 8f
             hovered || focused -> if (floating) 8f else 4f
             else -> if (floating) 6f else 2f
@@ -256,7 +255,7 @@ internal fun Modifier.buttonShadow(
             placeable[MinimumInteractiveLeftAlignmentLine].coerceAtLeast(0),
             placeable[MinimumInteractiveTopAlignmentLine].coerceAtLeast(0),
         )
-    }.materialColorShadow(shadowShape, containerColor) { elevation }
+    }.materialColorShadow(shadowShape, containerColor, opacity = opacity, tint = tint) { elevation }
 }
 
 private class ButtonShadowOutline(
@@ -278,7 +277,7 @@ private class ButtonShadowOutline(
 }
 
 /** Intrinsic queries delegate without publishing synthetic measurements to the decoration. */
-private fun Modifier.observeButtonMeasurement(onMeasured: (Placeable) -> Unit): Modifier = then(
+internal fun Modifier.observeButtonMeasurement(onMeasured: (Placeable) -> Unit): Modifier = then(
     object : LayoutModifier {
         override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
             val placeable = measurable.measure(constraints)

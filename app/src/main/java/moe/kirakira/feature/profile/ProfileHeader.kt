@@ -56,7 +56,13 @@ internal fun ProfileAvatar(
     modifier: Modifier = Modifier,
     size: Dp = profileAvatarSize,
 ) {
-    AccountAvatar(state.profile.avatar, modifier, size, clipToCircle = LocalImageSharedScope.current == null)
+    AccountAvatar(
+        url = state.profile.avatar,
+        modifier = modifier,
+        size = size,
+        clipToCircle = LocalImageSharedScope.current == null,
+        showLoadingIndicator = true,
+    )
 }
 
 @Composable
