@@ -24,6 +24,8 @@
 
 画质、倍速和通用设置由 `PlayerSettingsSheet` 统一创建底部面板，按 `PlayerSettingsPanel` 的明确分支展示内容。通用设置的 `PlayerPreferencesContent` 仅接收状态与回调，使用 `BoxWithConstraints` 获取扣除拖动柄后实际可用的内容高度，使用其 90%，不再设置固定 dp 上限，也不随所选页签或内容长度改变。高度限制仅作用于内部内容 Column，外层保留完整窗口约束，供官方组件计算底部锚点。横向 Pager 保留默认边界回弹、共享 Tab 动画与默认页面缓存策略，各页纵向滚动的默认边界效果继续保留。PagerState 由弹层持有并传给内容组件；监听横向 DragInteraction 与滚动状态，从手动拖动开始至惯性结束临时关闭外层 sheetGesturesEnabled，避免当前 Material 3 的面板 onPostFling 把子 Pager 已消费的横向速度再次返回。仅滚动状态不会启动该隔离，保持普通纵向滚动与面板拖动；点击 Tab 的程序动画仍使用共享处理。
 
+弹幕设置的范围与步长由 `DanmakuSettingRanges` 提供，模型归一化与界面 Slider 共用同一约束。
+
 设置内容与应用设置页共用 `PlaybackSettingsContent`、`DanmakuSettingsContent`，通过导航宿主传递现有设置 ViewModel 的状态和回调，立即生效并保存到同一设备级存储。画质与倍速保留独立入口和原有内容。
 
 视频画面的控制层局部提供 `LocalRippleConfiguration`，统一使用白色水波纹并保留官方透明度与动效，包含进度条和媒体错误页重试按钮；弹出的清晰度与倍速设置面板继续跟随应用主题，进度条本身保留主题色。弹幕 Switch 开启时使用白色轨道、黑色滑块与白色图标，关闭时使用透明轨道、白色描边及滑块与黑色图标；禁用状态显式使用半透明配色，不随浅深色主题变化，保留官方尺寸、状态语义和划线过渡。
@@ -64,6 +66,8 @@ Slider 使用官方 `SliderDefaults.Thumb`（16dp 等宽高，保留默认按压
 播放器控制层的显隐独立于控件业务可用状态：`AnimatedVisibility` 使用主题淡入淡出动效，隐藏时按钮、开关与进度条保持原有配色，退出完成后移出组合；`enabled` 仅表达媒体、轨道或页面等实际可用条件。画面显隐点击由播放器与控件的共同父容器处理，接收未被按钮、进度拖动或滚动消费的轻触，避免全屏滚动控件布局挡住独立背景点击层。开始隐藏时在控制层上方放置独立的画面点击层，点击只恢复控制层并重置计时，不触发底下控件。退出期间清除控制层语义、阻止焦点进入并释放该层已有焦点，操作回调再次检查显隐状态，避免未结束的交互提交操作。暂停与播放结束不再强制显示控件，均支持轻触显隐与三秒自动隐藏；缓冲、错误、进度拖动、设置面板和 TalkBack 触摸探索期间保持显示。
 
 ### 播放器控制与设置
+
+`PlaybackSpeedRules` 统一倍速范围、预设、连续值归一化、无障碍步进及进度／角度转换，供 ViewModel、仪表盘、拖动输入、图标与 Slider 使用。仪表盘和 Slider 的无障碍操作只在最终倍率变化时回调并返回成功，到达边界后返回 false。
 
 播放器控制栏自动隐藏、手势判定窗口、反馈停留、历史采样的最小进度差与恢复读取超时使用 `kotlin.time.Duration`；系统手势配置在输入边界转换。Media3 播放位置、弹幕时间线与 Compose 动画参数继续使用各自 API 的毫秒类型，弹幕空白区等待在协程超时调用前转换为 `Duration`。媒体、API、图片下载及头像上传的 OkHttp 超时直接使用 `Duration` 重载。
 
@@ -110,7 +114,7 @@ fastSpatialSpec，颜色与透明度使用 fastEffectsSpec。格式沿用本地�
 
 `PlaybackViewModel` 与 `ImageExportViewModel` 在构造时将传入 Context 转为 Application Context，避免随宿主作用域保留 Activity。
 
-`AppNavHost` 持有共享 `PlaybackViewModel`，视频页、小窗与系统画中画使用同一 ExoPlayer／MediaSession。播放页由导航宿主在固定组合位置承载，活动播放页、应用内小窗和系统画中画复用同一个 `PlayerContentFrame` 与原生 Surface；小窗位于导航内容上层，系统画中画从小窗进入时切换为全窗口视频。图片查看器覆盖或会话释放时撤下视频输出，同一时刻仅一个画面绑定。导航完成后根据 `showPauseIcon`（含缓冲待播放）决定是否保留应用内小窗；预测性返回取消不修改模式，返回全屏先退出全屏。回到视频页重新读取详情时，同分 P 的媒体 URL 更新不打断当前播放。分 P 重排按 ID 保留当前选择和进度；当前分 P 不再存在时释放播放器、回到首 P、清零进度与时长并取消自动播放，同时重置续播决策和历史采样基准。关闭小窗、账号修订变化和普通后台路径释放会话；旋转保留 ViewModel，进程恢复只读取非敏感标量并保持暂停，不保存 URL 或凭据。
+`AppNavHost` 持有共享 `PlaybackViewModel`，视频页、小窗与系统画中画使用同一 ExoPlayer／MediaSession。播放页由导航宿主在固定组合位置承载，活动播放页、应用内小窗和系统画中画复用同一个 `PlayerContentFrame` 与原生 Surface；小窗位于导航内容上层，系统画中画从小窗进入时切换为全窗口视频。图片查看器从视频页打开时，播放页与 Surface 保留在查看器下方；从其他页面查看图片时仍隐藏应用内小窗并撤下其视频输出，会话释放时同样撤下输出，同一时刻仅一个画面绑定。导航完成后根据 `showPauseIcon`（含缓冲待播放）决定是否保留应用内小窗；预测性返回取消不修改模式，返回全屏先退出全屏。回到视频页重新读取详情时，同分 P 的媒体 URL 更新不打断当前播放。分 P 重排按 ID 保留当前选择和进度；当前分 P 不再存在时释放播放器、回到首 P、清零进度与时长并取消自动播放，同时重置续播决策和历史采样基准。关闭小窗、账号修订变化和普通后台路径释放会话；旋转保留 ViewModel，进程恢复只读取非敏感标量并保持暂停，不保存 URL 或凭据。
 
 ### 全屏与系统栏
 
@@ -126,6 +130,8 @@ Compose [共享元素转场](https://developer.android.com/develop/ui/compose/an
 
 ### 小窗与画中画
 
+画中画宽高比在转换为 `Rational` 后仍保持在系统允许范围内：边界采用 `100/239` 与 `239/100`，中间值限制整数分子，避免下限经截断后越界。更新平台参数保留对参数与 Activity 状态异常的保护，失败时禁用当前画中画资格，不让平台拒绝参数导致播放器崩溃；视频退出仍更新参数以关闭自动进入。
+
 `PlaybackHost` 统一管理 Activity 生命周期、屏幕常亮、系统画中画资格和来源矩形；小窗位置以可用区域的横纵比例保存，拖动结束通过 `Animatable` 和 300ms `tween` 动画贴左右边缘，复用共享 `rememberEmphasizedEasing()` 的 Material emphasized 无回弹曲线；动画逐帧更新实际横向位置，再次拖动时取消动画并从当前位置接手，遵循系统动画时长设置。小窗外框使用固定 8dp 原生 elevation 阴影，阴影与画面共用 8dp 圆角，裁剪只作用于画面；布局用 safeDrawing 与 IME Insets 并扣除实测主界面底栏高度；底栏额外避让高度通过 `animateDpAsState` 和同样的 300ms emphasized 曲线过渡，使进出主页时小窗平滑升降。拖动手势通过 `rememberUpdatedState` 读取最新可用范围，布局动画期间不重启手势。MainActivity 负责平台画中画桥接和系统栏，Android 12+ 使用 `setAutoEnterEnabled`，Android 8–11 在 `onUserLeaveHint` 检查应用外开关与播放资格；比例限制在系统支持区间。不新增悬浮窗权限、前台服务或后台音频播放。全屏使用 `SCREEN_ORIENTATION_SENSOR_LANDSCAPE`，退出恢复此前方向策略；进入系统画中画暂时解除方向请求，展开后恢复全屏。播放器弹幕开关继续使用官方 Switch 和 Cerasus 图标，暂停时保留，手动画中画按钮已移除。
 
 播放页与应用内小窗之间使用整页 Zoom：`PlaybackHost` 持续承载同一棵 `VideoPage`，页面始终按窗口尺寸测量，只动画改变外框位置、大小、圆角、阴影及整页图层的等比缩放。收缩时详情随页面一起缩小并逐步裁出外框，终点对齐视频区域；展开时反向恢复。`PlayerContentFrame` 在页面内的位置、实例和视频 Surface 均不因缩放切换而重建或迁移，不再进行页面／宿主之间的视频输出交接，视频输出不使用封面或截图替代。卡片与小窗的 Zoom 按方向选择曲线：放大进入播放页、从小窗恢复和取消返回手势时使用 450ms Material emphasized `tween`，到全屏不回弹；返回卡片或收为小窗时使用轻微欠阻尼弹簧，阻尼比 0.85、刚度 380、完成阈值 0.001。预测性返回提交或取消后，从当前进度继续；收缩弹簧被打断后保留当前速度。位移、缩放和裁剪保留弹簧超出目标的进度，圆角限制为非负，透明度与阴影进度限制在 0–1，避免回弹产生非法绘制值。帧级状态在布局和图层块中读取。关闭小窗使用独立 220ms 加速曲线（`CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)`）向最近侧滑出，完成后释放播放会话。系统画中画仍沿用平台窗口动画。
@@ -134,7 +140,7 @@ Compose [共享元素转场](https://developer.android.com/develop/ui/compose/an
 
 视频路由通过 `VIDEO_ZOOM_METADATA` 声明由驻留层承载动画，`NavDisplay` 仅在推入视频页和弹出视频页时关闭 AOSP 横移，避免与 Zoom 叠加；视频页推入用户、标签、登录等普通页面，以及从这些页面弹回视频页时，使用应用统一的 AOSP 横移与淡入淡出。普通页面及其退场 Scene 保留在驻留视频层上方直至销毁；期间视频占位 Scene 不绘制原卡片页背景，使退场露出驻留视频页。视频 Scene 将普通横移的进度传给驻留层，驻留视频页与用户页共享同一转场时钟、方向和距离；系统返回预览直接使用普通返回的进入页变换，提交后不重复播放横移。普通转场期间暂停小窗 Zoom，整页随导航移动；进入普通页面完成后在遮挡下切为小窗并淡入，返回时在退出页遮挡下恢复整页。原生 Surface 保持驻留，不重新挂接。视频 Scene 保留来源页作为静止背景，生命周期限制为 STARTED，并屏蔽背景交互。预测性返回直接更新同一组 Zoom 进度：播放可保留时目标为小窗，否则为来源卡片；取消恢复整页，提交后继续完成剩余收缩。回卡片时保持来源 Scene、视频页与 Surface 至退场完成，再出栈并释放会话；晚到的完成回调不能清理新视频。缩到小窗时在返回事件中先提交小窗播放状态，再移除视频路由，避免驻留层在路由已退出而小窗状态尚未发布的空档被移除。返回回调通过 `rememberUpdatedState` 读取当前播放设置，恢复按钮在点击时读取实时返回栈，避免驻留内容的旧回调使用启动时未加载的设置或旧路由。页面与小窗过渡继续复用同一 Surface。
 
-`RetainedVideoPage` 保持当前视频的可保存页面状态和组合，ViewModelStore 由宿主级 `RetainedVideoPageViewModel` 按账号修订和视频 ID 持有，跨 Activity 配置重建保留已加载数据与内存草稿。其他保留的视频路由按 ID 保留 ViewModelStore，路由与小窗均不再引用时清理，账号修订变化时清理旧账号的 Store，宿主最终销毁时全部释放。缩为小窗时将页面生命周期限制到 STARTED，并停用详情；原播放器的控件层从组合中移除，连同进度条、设置入口、遮罩、焦点与语义一起关闭，视频 Surface 继续驻留；展开后恢复交互。图片查看器覆盖时停止绘制并撤下视频输出，关闭后恢复。
+`RetainedVideoPage` 保持当前视频的可保存页面状态和组合，ViewModelStore 由宿主级 `RetainedVideoPageViewModel` 按账号修订和视频 ID 持有，跨 Activity 配置重建保留已加载数据与内存草稿。其他保留的视频路由按 ID 保留 ViewModelStore，路由与小窗均不再引用时清理，账号修订变化时清理旧账号的 Store，宿主最终销毁时全部释放。缩为小窗时将页面生命周期限制到 STARTED，并停用详情；原播放器的控件层从组合中移除，连同进度条、设置入口、遮罩、焦点与语义一起关闭，视频 Surface 继续驻留；展开后恢复交互。图片查看器直接覆盖完整视频页时，页面和 Surface 持续绘制，详情交互与生命周期保持非活动状态，直到查看器的退出组合销毁后恢复交互；小窗被图片查看器覆盖时仍停止绘制并撤下视频输出，关闭后恢复。
 
 点击关闭小窗立即暂停播放、取消贴边动画并禁用交互与语义，整页缩略框从最近的左右边缘滑出，完成后仅在播放器实例仍匹配且仍为小窗时释放会话。账号切换、播放失败、后台释放及关闭设置仍立即清理；清理当前页或会话会取消未完成的动画，不延迟清理新会话。
 
@@ -164,17 +170,31 @@ Compose [共享元素转场](https://developer.android.com/develop/ui/compose/an
 
 同步队列串行执行，每个尚未发送的视频只保留最新进度。成功提交更新缓存中的位置、时间、封面与实际媒体时长；失败不输出服务端原文、敏感日志或周期性 Snackbar，不自动重放。队列与缓存不落盘，进程结束时的提交仅尽力完成；采样与续播阈值、页面交互见[历史记录功能](../features.md#历史记录)。
 
+公开媒体地址的 HTTPS、无用户名及密码判定集中在 `isPublicMediaHttpUrl`，供地址解析、图片导出跳转、播放器和头像上传的基础检查复用。上传另保留固定主机与端口限制，导出另保留跳转次数和大小限制；各传输客户端及认证边界保持独立。
+
 ## 图片查看与导出
 
 图片页通过 [ImageViewerNavigation](../../app/src/main/java/moe/kirakira/ui/navigation/ImageViewerNavigation.kt) 将打开、关闭、预测返回三种转场写入官方 `NavDisplay` 元数据，由 `ActivityScene` 继承顶部 `NavEntry` 的元数据。不要对 `Scene.key` 做路由类型判断：这里的键来自 `NavEntry.contentKey`，是用于内容身份与状态恢复的字符串，并非路由对象。打开时采用淡入与 `KeepUntilTransitionsFinished`，保留原位的来源页直到转场结束；返回时来源页无位移、查看页淡出。图片返回处理器读取同一份元数据标记，普通页继续使用原 AOSP 转场。接入方式与 [Navigation 3 官方转场配置](https://developer.android.com/guide/navigation/navigation-3/animate-destinations) 一致。
 
-图片页始终使用独立的 `NavigationBackHandler`、图片 `PredictivePopTransitionKey`、`imageSharedBounds` 与 `imageReturnTransform`，不受普通页面的 `predictiveBackEnabled` 开关影响。关闭开关后，匹配来源的图片仍在按钮关闭、系统返回及边缘手势中缩回原位；无来源时沿用淡出，取消手势恢复原有查看与缩放状态。
+图片页的跟手返回遵循 `predictiveBackEnabled` 开关。开启时使用独立的 `NavigationBackHandler`、图片 `PredictivePopTransitionKey`、`imageSharedBounds` 与 `imageReturnTransform`；关闭时由 `ActivityBackHandler` 处理返回完成，不将手势进度传给 `NavDisplay`，完成后再播放普通图片收回动画。处理器及其导航事件状态随开关切换重新绑定，避免沿用旧手势状态。关闭按钮和系统返回保留普通收回动画；无来源时沿用淡出，取消手势保留查看与缩放状态。
 
-资料头像与全屏查看器使用 Compose 官方 `SharedTransitionLayout` / `sharedBounds` 连接。共享键由来源页可保存的实例 UUID 与 UID／头像来源的 SHA-256 身份组成（`profile/<实例 UUID>/<图片身份>`），避免多个资料页及头像更新时错误配对；共享边界的几何缓存随来源或查看器参与者释放。图片页单独使用 Navigation 3 的可寻址预测返回进度；图片进出时来源页面保持原位，查看器直接覆盖其上，普通页面继续由 AOSP 动效宿主管理。
+资料头像、顶部默认 banner 与全屏查看器使用 Compose 官方 `SharedTransitionLayout` / `sharedBounds` 连接。共享键由来源页可保存的实例 UUID 与 UID／头像来源的 SHA-256 身份组成（`profile/<实例 UUID>/<图片身份>`），避免多个资料页及头像更新时错误配对；banner 使用同一来源页实例下独立的 `profile/<实例 UUID>/banner` 键，来源轮廓保持矩形，头像保持圆形；共享边界的几何缓存和来源轮廓记录随来源或查看器参与者释放。图片页单独使用 Navigation 3 的可寻址预测返回进度；图片进出时来源页面保持原位，查看器直接覆盖其上，普通页面继续由 AOSP 动效宿主管理。
 
-共享边界、页面显隐、背景与控件显隐共用 [EmphasizedEasing](../../app/src/main/java/moe/kirakira/ui/components/EmphasizedEasing.kt) 的 Material 3 emphasized 曲线及 420ms 时长；Tab 点击也复用该曲线。共享边界插值时，图片由圆形头像逐渐展开成直角视口：采用 `RemeasureToBounds` 让图片在变化的宽高比中重新排版，避免全屏图片压缩时露出平直内容边缘。静止时由图片层裁剪，匹配过渡时仅由共享覆盖层裁剪；覆盖层圆角根据当前共享边界逐帧计算，关闭及预测返回时跟随实际收缩进度。
+共享边界、页面显隐、背景与控件显隐和视频 Zoom 共用 [MediaZoomMotion](../../app/src/main/java/moe/kirakira/ui/components/MediaZoomMotion.kt)：进入使用 450ms 的 Material 3 emphasized 曲线，退出使用阻尼比 0.85、刚度 380 的弹簧；共享边界按像素位移换算视频归一化进度的 0.001 收敛阈值。预测返回继续由手势驱动，取消后按展开曲线恢复。Tab 点击也复用 [EmphasizedEasing](../../app/src/main/java/moe/kirakira/ui/components/EmphasizedEasing.kt) 曲线。共享边界插值时，图片由圆形头像逐渐展开成直角视口：采用 `RemeasureToBounds` 让图片在变化的宽高比中重新排版，避免全屏图片压缩时露出平直内容边缘。静止时由图片层裁剪，匹配过渡时仅由共享覆盖层裁剪；覆盖层圆角根据当前共享边界逐帧计算，关闭及预测返回时跟随实际收缩进度。
 
-固定全屏的黑色背景由查看器页面绘制为不透明黑色，仅随 Navigation 3 页面转场淡入淡出，不再移入共享覆盖层或叠加自己的透明度动画。头像白色圆框留在资料页原位，不参与共享边界动画。返回时用 Telephoto 的当前内容几何反向补偿缩放，手势取消无需修改其内部缩放状态。来源不在组合中时仅淡入或淡出。用户关闭系统动画时，Compose 时长缩放统一生效。
+固定全屏的黑色背景由查看器页面绘制，静止时不透明，普通返回随 Navigation 3 页面转场淡出；下拉退出时额外按拖动距离降低不透明度，显露真实来源页，背景不移入共享覆盖层。头像白色圆框留在资料页原位，不参与共享边界动画。返回时用 Telephoto 的当前内容几何反向补偿缩放，手势取消无需修改其内部缩放状态。指定共享键但来源不在组合中时仅淡入或淡出。用户关闭系统动画时，Compose 时长缩放统一生效。
+
+banner 来源通过 `sourceContentScale = ContentScale.Crop` 登记实际填充方式；来源图、查看器的占位图与原图共用 `rememberImageContentScale`，按当前共享边界尺寸在来源的 Crop 缩放与全屏 Fit 缩放之间插值，避免边界变化或加载接力时直接切换填充方式。普通关闭、下拉提交和预测返回均跟随相同的边界几何，静止或无匹配来源时恢复各端原有填充方式；头像仍沿用原有填充与圆角转场。来源填充记录随参与者释放，不进入路由或持久状态。
+
+视频操作区通过 [VideoActionsMenu](../../app/src/main/java/moe/kirakira/feature/video/VideoActionsMenu.kt) 的 Expressive 菜单提供「查看封面」，由 `VideoPage` 校验当前会话、页面交互状态与公开图片地址，再经驻留视频页的导航回调打开 `ImageViewerRoute`。封面使用不限制宽度的原图分发地址，720px 地址仅作缩略占位；不传 `sharedKey`，不关联视频卡片或播放器。
+
+从视频页打开图片时，`AppNavHost` 通过栈顶／上一条目的 `VideoRoute` 和仍在组合中的查看器计数维护 `videoPageUnderImage`，覆盖打开、查看、预测返回、下拉恢复及退出收尾。`PlaybackHost` 保留整页与原生 Surface、禁止缩为小窗并停用交互；图片导航层固定绘制在其上方。视频占位 Scene 此时不绘制原卡片页背景，且不把图片覆盖误当作普通横移，避免进出瞬间露出空白或卡片页。
+
+未指定共享键的查看器使用 `imageStandaloneMotion`：图片层按同一导航时钟由 0.92 放大至 1，普通退出缩至 0.96，黑底和控件沿用图片页淡入淡出。该缩放只作用于图片图层，不改变加载视口或 Telephoto 状态。下拉提交时保留释放位置，再向下移动视口高度的 18% 并继续缩小淡出；有共享来源时仍使用回到来源的几何补偿。系统边缘返回预览继续遵循预测返回开关。
+
+下拉退出由 [ImageDismissGesture](../../app/src/main/java/moe/kirakira/ui/components/image/ImageDismissGesture.kt) 管理临时位移与恢复弹簧。仅在原图可用、未放大、无缩放动画及文件操作时接管越过 touch slop 的明显向下单指拖动；手势监听位于静止容器，图片变换位于其子层，避免图层移动改变输入坐标。达到 120dp（短窗口取高度的 20%）或越过两倍 touch slop 后以至少 900dp/s 下甩时提交；不足阈值、反向快速甩回或多指介入则恢复，不修改 Telephoto 缩放状态。位移、缩放及背景／控件透明度在图层和绘制块中读取。
+
+[ImageDismissNavigation](../../app/src/main/java/moe/kirakira/ui/navigation/ImageDismissNavigation.kt) 使用独立的 `DirectNavigationEventInput` 向 Navigation 3 提供零进度返回预览，拖动和恢复期间保留来源 Scene。该输入不接收系统返回，因而不受预测返回开关影响。提交后由同一共享返回转场接手，拖动姿态按剩余显隐进度消退，避免先复位再退出；恢复完成后才取消预览。输入按图片条目身份创建并随组合释放，完成回调校验当前栈顶，关闭诊断记录为 `DRAG_DOWN`。
 
 [ViewerImage](../../app/src/main/java/moe/kirakira/feature/imageviewer/ViewerImage.kt) 是可序列化的图片描述，其来源模型 [ImageSource](../../app/src/main/java/moe/kirakira/data/image/ImageSource.kt) 支持 drawable 资源 ID、可读 `content://` URI 和公开 HTTPS 图片 URL，并保留迁移前的序列化类型名。描述接收默认 `null` 的可选 `thumbnail`；调用方负责保留 URI 读取授权。查看 UI 位于 `ui/components/image/`，接收受控的 `ZoomableImageSource`、加载状态、回调与可选共享元素修饰符；导出数据访问由 `data/image/` 负责，只接收来源与文件名。
 
@@ -214,7 +234,7 @@ Compose [共享元素转场](https://developer.android.com/develop/ui/compose/an
 
 `DanmakuColorPalette` 将九种预设色与自定义入口排成两排五列，保持每格至少 48dp 的点击区域。可见色块使用官方 Extra Small `IconToggleButton` 容器，`IconButtonDefaults.toggleableShapes` 提供未选中圆形、选中圆角矩形及按压形状。色块与外描边共用动画 `Shape` 和交互源，使用主题 `defaultEffectsSpec` 插值，按压形状优先；色块传入官方组件的 `shape` 重载，描边按当前可见色块轮廓向外扩张 4dp，并同步扩张圆角，保持 2dp 主题色描边。未选中时不绘制边框；描边淡入和勾选的淡入缩放由同一选择 Transition 驱动，采用主题 `fastEffectsSpec` 与 `fastSpatialSpec`。动画值在轮廓绘制及 `graphicsLayer` 中读取，不改变色板测量尺寸。自定义颜色选中后以实际颜色显示，并将调色板图标过渡为勾选标记；当前 HEX 显示在颜色标题尾侧。默认样式下禁用重置。
 
-色板之后的开关沿用 Cerasus `FlyoutDanmakuFormat.vue` 的「创作者专属渐变」／「Creator's Gradient」文案与 `rainbow-example`：24dp 前导区域内绘制 20dp、3dp 边框的粉蓝空心圆角示例。开关使用 `SegmentedListItem` 的 `onClick` 重载与 `Role.Switch`、`toggleableState` 语义，尾部 Switch 不独立处理点击，整行背景及形状不随开启状态变化。预览使用 14／20／28sp，彩虹描边参考 Cerasus 的粉蓝渐变；关闭系统动画时静态显示。预览独立于播放器，播放器使用更紧凑的三档字号与相同粉蓝描边，见下方弹幕显示实现。
+色板之后的开关沿用 Cerasus `FlyoutDanmakuFormat.vue` 的「创作者专属渐变」／「Creator's Gradient」文案与 `rainbow-example`：24dp 前导区域内绘制 20dp、3dp 边框的粉蓝空心圆角示例。开关使用 `SegmentedListItem` 的 `onClick` 重载与 `Role.Switch`、`toggleableState` 语义，尾部 Switch 不独立处理点击，整行背景及形状不随开启状态变化。预览使用 14／20／28sp，彩虹描边参考 Cerasus 的粉蓝渐变，播放器、预览及开关示例共用 `ui/components/video/DanmakuColors.rainbowOutline` 的颜色定义；关闭系统动画时静态显示。预览独立于播放器，播放器使用更紧凑的三档字号与相同粉蓝描边，见下方弹幕显示实现。
 
 ### 弹幕显示与设置
 

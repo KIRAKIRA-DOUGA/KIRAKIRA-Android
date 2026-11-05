@@ -56,11 +56,13 @@
 
 ### 选色与持久保存
 
+主题、播放和弹幕 Store 共用 `settingsPreferences` 获取应用级 `kirakira_settings` 文件；读取缺失项时使用各自设置模型的默认值。存储 key、迁移和 apply 写入方式保持原样，搜索历史与最近颜文字仍使用各自独立文件。
+
 [自定义选色对话框](../../app/src/main/java/moe/kirakira/feature/settings/CustomColorDialog.kt)使用 [colorpicker-compose](https://github.com/skydoves/colorpicker-compose)（Apache-2.0）的 HSV 色盘与亮度滑条，封装在 Material 3 `AlertDialog` 中，补充亮度无障碍调节与 HEX／RGB／OKLCH 输入。它只增加 Compose 选色绘制与手势代码，不引入 View 互操作，许可证由 AboutLibraries 收集。
 
 主题色对话框和弹幕颜色面板共用 [ColorEditorControls](../../app/src/main/java/moe/kirakira/ui/components/ColorEditorControls.kt)。`ColorEditorState` 保存不透明 ARGB 草稿、格式和原始输入，重建后恢复草稿，控制器只留在组合内。输入区与预览通过插槽传入，容器和确认／取消操作仍由调用方负责；主题色确认返回 ARGB，弹幕确认时才去掉 alpha 转为 RGB。弹幕入口保留 HEX 界面；主题入口使用 `CustomColorInput` 菜单切换 HEX、RGB、OKLCH，在输入框前导位置显示唯一的 40dp 原色色块。切换格式转换上一次有效颜色，不改变实际颜色；重复选择当前格式不重置草稿。色盘和滑条更新当前格式的输入，有效输入同步控制器，无效或未完成输入保留上一次有效颜色并禁用应用。格式只属于可恢复的对话框草稿，不增加持久化设置。
 
-格式化与解析位于 `core/color`，接受首尾空白。HEX 使用六位十六进制；RGB 使用 0–255 整数，接受空格或逗号分隔及可选的 `rgb(...)` 包装；OKLCH 接受三个分量及可选的 `oklch(...)` 包装，L 为 0–1 或百分比、C 为 0–0.4、H 为有限度数并归一化至 0–360。Oklab 转换采用[原作者的公开公式](https://bottosson.github.io/posts/oklab/)，OKLCH 显示六位小数，底层仍保存不透明的 8 位 sRGB。超出色域时固定亮度和色相，通过二分降低彩度至 sRGB 色域内，保留原始输入并提示调整，色块和最终确认使用实际映射颜色；此处采用固定色相的彩度压缩，不是 CSS 完整色域映射算法。
+格式化与解析位于 `core/color`：严格的 `formatRgbHex`／`parseRgbHex` 统一六位 HEX 转换，供主题与弹幕共用；弹幕协议不带 `#`，不接受空白。界面通过 `formatRgbColor`／`parseRgbColor` 添加 `#` 或接受可选前缀及首尾空白。HEX 使用六位十六进制；RGB 使用 0–255 整数，接受空格或逗号分隔及可选的 `rgb(...)` 包装；OKLCH 接受三个分量及可选的 `oklch(...)` 包装，L 为 0–1 或百分比、C 为 0–0.4、H 为有限度数并归一化至 0–360。Oklab 转换采用[原作者的公开公式](https://bottosson.github.io/posts/oklab/)，OKLCH 显示六位小数，底层仍保存不透明的 8 位 sRGB。超出色域时固定亮度和色相，通过二分降低彩度至 sRGB 色域内，保留原始输入并提示调整，色块和最终确认使用实际映射颜色；此处采用固定色相的彩度压缩，不是 CSS 完整色域映射算法。
 
 `ThemeColorSettings` 保存 `useSystemColors`、`seedColorArgb`、`customColorArgb` 与 `useCustomColor`，分别持久化为 `theme_system_colors`、`theme_seed_color`、`theme_custom_color` 与 `theme_use_custom_color`。默认关闭系统强调色与自定义选择，两份原色均为项目粉色，不保存配色算法。读取时仅将非自定义的旧蓝／紫／绿／琥珀／珊瑚预设原色映射至智乃蓝／理世紫／千夜绿／纱路黄／小惠红，并只写回变更后的 `theme_seed_color`；品牌粉色不变。系统强调色来源和独立自定义色值保持原样，自定义状态为真时不迁移，即使色值等于旧预设。
 

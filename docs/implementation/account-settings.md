@@ -2,8 +2,9 @@
 
 [实现索引](../implementation.md) · [功能现状](../features.md) · [开发指南](../development.md) · [贡献规范](../../CONTRIBUTING.md)
 
-本文维护资料编辑、安全与二步验证、隐私、屏蔽规则及邀请码。开发约束以贡献指南为准。
+本文维护设置搜索、资料编辑、安全与二步验证、隐私、屏蔽规则及邀请码。开发约束以贡献指南为准。
 
+- [设置搜索](#设置搜索)
 - [本人资料编辑](#本人资料编辑)
 - [设置表单操作区](#设置表单操作区)
 - [账号设置管理](#账号设置管理)
@@ -11,21 +12,29 @@
   - [隐私设置](#隐私设置)
   - [屏蔽规则与邀请码](#屏蔽规则与邀请码)
 
+## 设置搜索
+
+设置首页的 `SettingsSearchBar` 使用官方 `SearchBar`，并与 `ExpandedFullScreenSearchBar` 共用 `rememberSearchBarState` 和 `SearchBarDefaults.InputField`。搜索栏放在 `FrostedScaffold.topBar` 内的 `CollapsibleTopAppBar` 下方，标题区域恢复「设置」、返回按钮和旋转齿轮底纹，并接入共享折叠滚动行为。搜索栏内容最大宽度与设置列表共用 640dp，胶囊左右使用相同的 16dp 页面内边距，顶部不额外留白，底部保留 12dp；系统顶端安全区由大标题栏承载，搜索栏只避让横向安全区，不重复添加状态栏高度。收起时胶囊左侧显示搜索图标，展开后改为关闭搜索的返回按钮；页面返回入口保留在大标题栏。顶栏背景与阴影由毛玻璃宿主提供；收起输入区域使用 `surfaceContainerLow`，展开页使用 `surface`（浅色白色），通过公开 `dividerColor` 隐藏顶部内容分隔线，并关闭搜索组件自身的色调高度与阴影，避免重复投影。查询与展开状态可恢复，结果只有一个内容组，使用普通 `LazyColumn` 与官方 `ListItem`，独立保存滚动位置；结果列表不添加整列表外层内边距；条目按 AndroidX `SearchBarSamples.SampleSearchResults` 的顺序使用 `clickable → fillMaxWidth → padding(horizontal = 16.dp, vertical = 4.dp)`，保留官方 `ListItem` 内部间距、透明条目背景与满宽点击反馈，不显示尾部箭头，主标题和辅助路径均沿用官方文本槽。面包屑按路径段渲染，省略最外层「设置」；多个路径段之间使用 Material Symbols Rounded `chevron_right` 图标，不拼接分隔字符。一级入口没有剩余路径时不提供辅助文本槽，避免空行占位。系统安全区由搜索宿主处理。输入变化回到结果顶部。导航离开时移除搜索弹层，保留搜索状态，返回后恢复。
+
+`SettingsSearchCatalog.kt` 只登记静态资源、分类路径、页面、稳定 ID 和可见条件，不读取账号字段或远端列表。空查询或仅空白输入直接返回空列表，界面保持空白；清空关键词也回到该状态，不展示一级入口或无结果 Logo。匹配使用当前语言，去除查询首尾空白、忽略大小写，所有空白分隔的词均需在名称或路径中命中。结果按完整标题、标题包含、路径匹配排序，同级保留目录顺序；系统强调色受系统版本限制，账号设置受登录状态限制。新增可搜索设置时同步登记目录及页面锚点。设置搜索无匹配时通过 `ContentUnavailableView.icon` 插槽展示 `SettingsSearchLogo`，移植 Cerasus 齿轮与反向内环的一次性 1 秒入场动画；持续无结果时不随每次输入重播，重新进入空结果才重播。关闭系统动画时显示最终姿态，历史搜索不使用该 Logo，来源见 [Cerasus 图标说明](../../third_party/cerasus-icons/README.md#设置搜索空结果-logo)。
+
+`SettingsSearchTargetRoute` 仅保存目录项 ID，与普通路由复用设置页面装配；返回、后续导航和返回保护均使用实际当前路由。`SettingsSearchTargetProvider` 将可选定位目标传给页面，`settingsSearchAnchor` 只请求可见，不请求焦点或执行操作。普通滚动列直接使用 `BringIntoViewRequester`；外观和屏蔽懒列表先滚动到包含目标的条目，外观卡片按当前列数换算位置。目标完成布局且页面恢复到 RESUMED 后定位，加载失败时等待目标实际出现；完成状态可恢复，避免返回后重复定位。切换账户沿用普通账户路由，退出登录留在首页定位操作区。
+
 ## 本人资料编辑
 
 个人主页通过 `ProfileHeader → ProfileScreen → ProfilePage` 的独立 `onEditProfile` 回调上报编辑操作。`SelfProfileRoute` 与当前用户的 `ProfileRoute` 均通过 `openFrom` 打开同一个 `ProfileEditorRoute`，防止重复入栈；按钮按当前登录用户 UID 显示，点击时再次核对身份。编辑页退出仍使用现有返回保护，保存后沿用会话修订触发主页资料刷新。
 
 个人主页「编辑资料」使用全宽的 `ShadowButton`（内部保留官方 M3E `Button`），以 `ButtonDefaults.MediumContainerHeight` 设置最小高度，并将同一高度传给 `shapesFor`、`contentPaddingFor` 与 `textStyleFor`，统一使用官方 Medium 形状、内边距与文字样式；`heightIn(min = …)` 允许字体缩放时按钮随内容增高。
 
-`ProfileEditorRoute` 使用 Navigation 3 条目级 `ProfileEditorViewModel`，资料通过 `data/profile/ProfileRepository` 访问，DTO 与凭据保持在数据层。`AccountProfile` 增加生日、性别和标签及兼容旧存储的默认值；读取本人资料时核对 UUID、UID。
+`ProfileEditorRoute` 使用 Navigation 3 条目级 `ProfileEditorViewModel`，资料通过 `data/profile/ProfileRepository` 访问，DTO 与凭据保持在数据层。`AccountProfile` 增加生日、性别和标签及兼容旧存储的默认值；读取本人资料时核对 UUID、UID。保存任务被取消后，错误处理与收尾不再更新页面状态，避免旧任务清除新账号任务的忙碌状态。
 
 页面最大宽度 640dp，与设置页同用 `surfaceContainer` 背景；表单使用无标题的 `SettingsSection`，保留字段标签和组间留白；顶部为大圆角横幅，使用 `Image` 与 `ContentScale.Crop` 展示个人主页共用的 `profile_banner_placeholder` 樱花图，保留服务端背景字段；头像为居中重叠的 112dp 头像，带背景色描边的编辑按钮固定在头像右下角。按钮的 `TooltipBox` 外层使用直接属于头像容器的 `Box(Modifier.align(Alignment.BottomEnd))`，避免 Tooltip 内部锚点截留父布局对齐参数；描边、阴影、提示、加载及禁用行为保持一致。
 
 基本资料与标签放在 `surface` 圆角卡片中，个人信息使用标准两行分段资料行，字段名使用主文本槽，当前值使用辅助文本槽并继承官方字号与次要文字色，整行可点击；尾部仅显示图标，生日保留向右箭头，性别使用向下箭头，菜单锚定右侧图标并随可用空间调整展开方向；保存操作接入[设置表单操作区](#设置表单操作区)。另含日期选择器与标签 Chips。性别选择与搜索排序共用 `ExpressiveMenuPopup` 宿主和官方 `DropdownMenuGroup`、`SelectableDropdownMenuItem`；动画图层通过 `LayerOutsets` 保留组外阴影，不增加布局边距，具体接入见[共享菜单说明](components.md#连接列表分组)。所有界面文本维护中英文资源，预览使用空表单。
 
-用户名与昵称均为必填，按 Rosales `ValidTool.validateNameField` 校验，最长 20 个 UTF-16 单元；简介最长 200。保存统一 NFC 规范化，用户名执行 trim，只有修改用户名才调用查重。标签保留顺序及已有 ID，新项使用最小可用非负 ID；生日未设置时发送空字符串，不默认写入当天。更新始终包含用户名与已有背景，其他不属于编辑表单的字段不主动发送。昵称必填由 Android 表单在提交前校验，服务端仍允许缺失昵称；资料回读、旧会话存储和名称展示保留兼容，旧账号下次保存资料时必须补填昵称。
+用户名与昵称均为必填，注册与资料编辑共用 `data/auth/AccountNameRules.kt` 的 Cerasus 字符白名单，最长 20 个 UTF-16 单元；不允许首尾空格或连续空格，连字符与下划线沿用 Cerasus 规则。简介最长 200。客户端白名单与 Rosales 的现有校验范围有差异，最终提交仍由后端决定是否接受，不修改后端规则。保存统一 NFC 规范化，用户名执行 trim，重名校验由资料更新接口负责，使用服务端排除本人后的检查结果，不调用注册用的公开查重接口。标签保留顺序及已有 ID，新项使用最小可用非负 ID；生日未设置时发送空字符串，不默认写入当天。更新始终包含用户名与已有背景，其他不属于编辑表单的字段不主动发送。昵称必填由 Android 表单在提交前校验，服务端仍允许缺失昵称；资料回读、旧会话存储和名称展示保留兼容，旧账号下次保存资料时必须补填昵称。
 
-保存依次进行头像上传、资料更新、本人资料回读和本机会话提交。Repository 持有单个编辑流程的检查点：已上传的同一头像草稿不重复上传；服务端已保存后锁定编辑，刷新失败只重试刷新，写盘失败保留已读结果并仅重试提交。提交保留 token 与 bootstrap hint，仅替换当前账号资料；发布会话修订后现有内容观察者刷新“我”及本人主页。外部账号／修订变化取消请求和清除草稿，仅自身提交产生的修订被编辑页接纳。HTTP 200 的业务拒绝不通过匹配服务器消息推断过期。
+保存依次进行头像上传、资料更新、本人资料回读和本机会话提交。Repository 持有单个编辑流程的检查点：已上传的同一头像草稿不重复上传；发送资料写请求前建立检查点；成功响应后锁定编辑，刷新失败只重试刷新，写盘失败保留已读结果并仅重试提交。写入结果不确定时也暂停编辑，但不宣称服务端已保存；后续保存按钮仅回读并比较提交过的全部可编辑字段，匹配后才同步本机会话，不匹配时继续保留待核对状态，不再次提交整份旧草稿。用户可确认离开核对，提示离开不会撤销可能已生效的修改。提交保留 token 与 bootstrap hint，仅替换当前账号资料；发布会话修订后现有内容观察者刷新“我”及本人主页。外部账号／修订变化取消请求和清除草稿，仅自身提交产生的修订被编辑页接纳。HTTP 200 的业务拒绝不通过匹配服务器消息推断过期。
 
 图片选择使用 `PickVisualMedia`，回调绑定选择时的账号修订；原图复制限制 32 MiB。CanHub Android Image Cropper 提供经过验证的裁剪、EXIF 与采样能力，通过 `AndroidView` 封装 `CropImageView`，仅这一引擎使用第三方 View，周围顶栏、工具按钮、加载与确认均使用 Compose M3E。固定 1:1 裁剪和圆形预览，异步输出最大 1024px 的 JPEG（质量 90）；Manifest 移除库自带的导出 Activity 与未使用的文件提供者。
 
@@ -71,7 +80,7 @@
 
 安全验证码复用 AuthRepository 的按邮箱互斥锁、单调时钟与 60 秒冷却，当前邮箱使用认证端点，新邮箱使用带当前会话的通用邮箱端点；两者独立显示剩余时间。模板对应 `SendChangeEmailVerificationCode` / `update-email`、`SendChangePasswordVerificationCode` / `update-password`、`SendDisableUserEmail2FAVerificationCode` / `delete-email-2fa`。Rosales 当前 `General2FAVerifier` 在无二步验证的严格校验分支固定查询 `update-email`：这类账号修改密码时发送密码模板但使用 `update-email` 业务名，兼容实际服务端逻辑；已启用邮箱验证仍使用 `update-password`。不改动 Rosales 或 Cerasus。
 
-邮箱与密码更新服务端确认成功后，Repository 在内存记录完成检查点；邮箱检查点只重读并发布本人资料，密码检查点只删除请求所属本机会话。存储失败释放表单凭据并提供同步重试，不重放写请求。AuthRepository 在会话互斥锁内校验请求并成功写入本地存储后、发布会话状态前，通过回调提供本次实际发布的 revision；资料与安全流程据此识别自身发布／登出，不自行推算下一修订号。账号切换或其他会话变更仍取消旧流程。密码变更后经一次性邮箱状态打开登录并尽力清理密码提供者会话，不自动读取或保存密码。
+邮箱与密码更新在发送写请求前记录内存检查点，不持有密码、摘要或验证码；成功响应将检查点标记为已确认，明确拒绝则清除，网络、超时、服务错误、异常响应及请求取消保留未确认检查点。已确认的邮箱检查点只重读并发布本人资料，已确认的密码检查点只删除请求所属本机会话。未确认时释放表单凭据并暂停编辑：邮箱仅回读核对，仅当前邮箱与目标一致时完成同步；旧值不能证明原写请求已经停止，旧值、其他值或读取失败都保留只读核对，不恢复可直接提交的表单。未确认流程可经返回确认离开，明确提示离开不会撤销仍可能生效的修改；明确 401 经共享会话处理失效。密码无法直接核对是否已修改，显示结果未确认及新密码可能已生效，用户点击“重新登录”后清除请求所属本机会话并打开登录，不再次提交旧密码。存储失败释放表单凭据并提供同步重试，不重放写请求。AuthRepository 在会话互斥锁内校验请求并成功写入本地存储后、发布会话状态前，通过回调提供本次实际发布的 revision；资料与安全流程据此识别自身发布／登出，不自行推算下一修订号。账号切换或其他会话变更仍取消旧流程。密码变更后经一次性邮箱状态打开登录并尽力清理密码提供者会话，不自动读取或保存密码。
 
 安全首页使用共享可折叠顶栏、官方分段列表和按验证状态配色的横幅；二步验证管理页和操作页复用认证流程布局、居中流程图标与固定底部通栏主按钮，多步操作保留分步进度。验证方式单选使用 `ConnectedListGroup`、`SettingsRadioItem` 与 `selectableGroup`，整行及单选框共用交互源，选中状态由 ViewModel 提供。普通设置入口、开关、单选、滑块、资料和安全列表前后图标使用裸露的 24dp Material Symbols Rounded（含尾部箭头及列表内操作图标），继承列表内容颜色及禁用样式，危险操作使用共享危险按钮样式和主题错误色；密码框复用 `PasswordTextField`，普通字段继承 `FilledTextField` 的默认样式；弹幕总开关保留官方 checked 行强调。
 
@@ -114,13 +123,15 @@ ViewModel 用 `confirmationPending` 暂停编辑并显示待确认状态，用�
 | GET `user/myInvitationCode`                          | Cookie；`invitationCodeResult`                                                                         | 当前账号邀请码       |
 | POST `user/createInvitationCode`                     | 空 JSON 对象及 Cookie；`isCoolingDown`, `invitationCodeResult`                                             | 生成邀请码         |
 
-规则接口使用 Cookie `uuid` / `token`，邀请码使用 `uid` / `token`，统一通过既有会话 Cookie 构造器提供。管理页 `SettingsViewModel` 与内容页共用 `AccountTasks` 的子 Job 取消机制，保留管理页自己的会话就绪、重置与刷新条件。每次请求捕获会话 revision，完成及失败时检查身份，账号变化取消任务并清空草稿；邀请码响应校验 `creatorUid`。HTTP 401 沿用会话失效处理，普通业务拒绝不直接撤销 token，也不展示原始服务端消息。
+规则接口使用 Cookie `uuid` / `token`，邀请码使用 `uid` / `token`，统一通过既有会话 Cookie 构造器提供。规则写入结果不确定时发布带 `confirmed = false` 的规则变化通知并刷新管理列表；保留的视频页对可能已生效的用户屏蔽先撤下内容和播放，之后通过详情读取核对访问状态，不伪报屏蔽成功。邀请码生成结果不确定时提示并重新读取已有列表，列表读取失败时先重试读取；未确认请求后若仍未读到新增邀请码，再次生成须先确认可能重复的风险，不把旧列表视为原请求已停止，不自动再次生成。添加用户规则使用 `profileDetails` 核对 UID；目标已被自己屏蔽而资料不可见时仍可按已确认 UID 添加隐藏规则，不把可见资料当作规则写入前提。管理页 `SettingsViewModel` 与内容页共用 `AccountTasks` 的子 Job 取消机制，保留管理页自己的会话就绪、重置与刷新条件。每次请求捕获会话 revision，完成及失败时检查身份，账号变化取消任务并清空草稿；邀请码响应校验 `creatorUid`。HTTP 401 沿用会话失效处理，普通业务拒绝不直接撤销 token，也不展示原始服务端消息。
 
 总览每类读取一条以获取数量，管理列表每页 20 条；写入成功发布规则版本变化，刷新存活总览，并重新读取当前类别首屏。服务端空集合的聚合可能省略 `blocklistCount`，仅在结果确实为空时兼容为零。用户规则的 `value` 为 UUID，解除必须使用关联的 `uid`，不能将 UUID 当作 UID；关联用户被删除导致 UID 缺失时保留标识、禁用解除。标签名称按 Cerasus 的 `zhs` / `zht` / `en` 等语言代码选择，回退 `other`、首个语言和标签 ID。
 
 关键词与正则的客户端校验仅处理非空及 30 字符限制；正则不经 Kotlin 编译，语法与安全性由 Rosales 判断。
 
 邀请码筛选使用共享 `PagerTabRow` 与真实 `HorizontalPager`，点击和横向手势同时驱动内容与 Indicator。`InvitationsScaffold` 使用固定高度的 `TopAppBar`，标题始终显示；复用 `CollapsingTabLayout`，将统计卡与唯一的 Tab 放在同一张有背景及固定 4dp 原生投影的表面中，统计卡自身使用共享 `cardColorShadow` 的固定 2dp 彩色投影，绘制在分页上方。统计区随嵌套滚动移出，Tab 到达顶栏下沿时停止，内容仍保留拖拽和回弹；未吸顶时可拖动 Tab 区域，吸顶后该区域只保留点击。Tab 填满最大 640dp 的内容宽度，不继承卡片或列表的水平内边距。每页使用 `InvitationsScreen` 持有的独立 `ConnectedLazyColumn` 状态，通过 `onTabReselect` 只回顶当前列表，保留统计区折叠位置。空列表与有数据列表共用折叠范围。头部背景持续挂载只采样分页内容的毛玻璃与原生投影，吸顶仅在绘制阶段隐藏展开态实色遮层；前景 Tab 独立，不替换背景节点。分页覆盖完整视口，列表顶部 `contentPadding` 包含顶栏与 Tab 高度，滚动条同步避让；滚动内容可经过栏后供模糊采样。内容页使用自身 `Scaffold`，顶栏在 Tab 未吸顶或游客／首次加载占位时单独绘制毛玻璃背景，Tab 吸顶后由头部共享背景承托，不叠加第二层栏面。
+
+规则列表与邀请码分页复用共享 `ContentStatusViewport`，接入规则见[统一内容状态](components.md#统一内容状态)。规则列表传入实际列表 padding 和实测数量标题高度；邀请码使用已扣除未折叠统计区的实际列表视口。两类列表无记录且读取失败时优先显示错误和重试入口，有记录时保留原列表及尾部错误提示。
 
 邀请码长列表通过共享 `LazyListScrollbar` 绑定当前分页的 `LazyListState`，不显示序号或总数。可滚动时显示滑块，支持沿完整滑轨拖动定位；快滚条叠加在列表末端边缘，外侧留白为 2dp，不额外占位或改变列表宽度。滑块静止宽度、最小长度和透明度复用 Material 3 的 `NonInteractiveScrollbarDefaults`，颜色使用主题 `outline`。按下时宽度从 4dp 变为 8dp，颜色切换为主题强调色 `primary`，不透明度从 70% 提升至 100%，沿用主题 `fastSpatialSpec`／`fastEffectsSpec`，松开或取消后恢复；加宽时固定末端边缘与触摸区域，不影响列表布局。按压监听不消费指针事件，拖动定位继续独立处理，动画值在绘制阶段读取。列表与快滚条共用的容器底部扣除统计区尚未折叠的高度，使实际列表视口与屏幕可见范围一致；滑轨在同一视口内上下避让内容安全留白。中间位置按条目平均高度估算，计入前后内容留白；拖到两端直接通过 `requestScrollToItem` 请求首项或末项，由 LazyColumn 约束实际滚动边界，不再使用第三方库的可见条目／吸顶标题推算。每次拖动仅保留最新定位请求，避免逐事件启动滚动协程。短列表隐藏快滚条。
 

@@ -26,11 +26,11 @@
 
 `ActivityNavDisplay` 在可保存状态装饰器之后添加 `rememberViewModelStoreNavEntryDecorator`，认证 ViewModel 绑定外层 `AuthRoute` 条目，旋转时保留、出栈后释放。`AuthRoute` 只携带可选邮箱以便重新登录；内部 `AuthStepRoute` 只携带步骤枚举，不包含表单数据。各步骤通过 `rememberNavBackStack` 与嵌套 `ActivityNavDisplay` 展示，复用普通转场和预测性返回。子分发器连接外层 Navigation Event 分发器，仅在认证页为当前页面时启用；子页面重置继承的页面变换，避免外层退出手势被重复应用。
 
-`AuthStep.previousStep` 统一定义内部路径：注册按资料、凭据、邀请码、验证逐级返回；登录 2FA 返回邮箱密码；重置密码和 TOTP 找回说明返回邮箱输入。顶部返回箭头与系统返回使用同一路径，根登录页通过系统返回退出认证，所有步骤均不提供关闭按钮。ViewModel 校验后推进步骤，导航保留路径的公共前缀，各条目独立保存滚动位置。转场中的离开页面使用仅驻留内存的表单快照，避免提前渲染下一步；退出或返回会取消当前请求，旧请求的收尾不再改写新页面状态。
+`AuthStep.previousStep` 统一定义内部路径：注册按资料、凭据、邀请码、验证逐级返回；登录 2FA 返回邮箱密码；重置密码和 TOTP 找回说明返回邮箱输入。顶部返回箭头与系统返回使用同一路径，根登录页通过系统返回退出认证，所有步骤均不提供关闭按钮。ViewModel 校验后推进步骤，导航保留路径的公共前缀，各条目独立保存滚动位置。转场中的离开页面使用仅驻留内存的表单快照，避免提前渲染下一步；可返回步骤的退出或返回会取消当前请求，旧请求的收尾不再改写新页面状态；注册最终提交与密码重置写请求期间暂停返回，避免取消后重新提交。
 
 仅邮箱通过 `SavedStateHandle` 恢复。认证内部可保存状态以 ViewModel 生命周期内的随机键隔离：旋转沿用该键，进程重建生成新键并回到登录入口，不恢复密码、验证码及依赖这些输入的步骤。密码显隐使用条目内的普通 `remember`，步骤切换和 UI 重建后隐藏。
 
-提交发生在 `viewModelScope` 中；成功状态仅在 RESUMED 时通过页面回调返回，宿主检查当前路由，避免重复出栈。认证会话只在本机存储成功后发布。如果认证已成功但保存失败，保留内存待保存凭据并进入保存重试步骤，避免再次注册或消耗验证码；关闭页面会释放待保存凭据。密码重置已被服务器确认、但本机会话清理写盘失败时，也进入单独的清理重试步骤，不重发密码重置请求。API 资料暂时不可用时保留登录返回的邮箱和 UID，不把资料读取失败误作需要再次注册。
+提交发生在 `viewModelScope` 中；成功状态仅在 RESUMED 时通过页面回调返回，宿主检查当前路由，避免重复出栈。认证会话只在本机存储成功后发布。如果认证已成功但保存失败，保留内存待保存凭据并进入保存重试步骤，避免再次注册或消耗验证码；关闭页面会释放待保存凭据。密码重置在写请求前建立不含密码或验证码的检查点；明确拒绝清除检查点，超时、网络故障、服务异常或响应异常保留未确认状态并清空表单凭据。未确认时主按钮改为重新登录，只执行对应邮箱的本机会话清理，再回到带未确认提示的登录页，不保存尚未确认的新密码到系统提供者。已确认但本机清理失败时继续使用清理重试步骤，不重发密码重置请求。注册响应不确定且尚未取得可保存的会话时，清空草稿并回到预填邮箱的登录页，提示账号可能已创建，不自动注册或登录。注册最终提交与密码重置请求执行期间不允许返回取消；未确认的密码重置须先完成本机清理才能返回登录。API 资料暂时不可用时保留登录返回的邮箱和 UID，不把资料读取失败误作需要再次注册。
 
 资料解析或身份一致性检查失败时拒绝保存，也不提供保存未验证身份的重试。已解析的资料随待保存会话留在内存，写盘重试不再发送资料请求；旧请求完成不可取消的写盘阶段后，仅清除属于自身的待处理记录，避免影响后来开始的认证或密码重置。待保存记录通过内存中的 `AuthFlowOwner` 绑定条目，旧页面退出动画结束后的清理不能删除新页面的数据。成功提交后禁止继续编辑表单或切换认证分支，直至页面关闭。历史用例及验证边界见[认证离线测试](../auth-testing.md)；其中 UI 记录对应文内标明的验证日期。
 
@@ -53,6 +53,8 @@
 `AccountSwitchPage` 将非空 username 转为展示用的 `@用户名`，与 `needsLogin` 状态分别传给账号行；用户名使用等宽字体与次要文字色，邮箱继续用于重新登录预填。`AccountSwitchScreen` 在账号行内持有编辑和副标题的 `Transition`，通过 `AnimatedContent` 复用主题的空间及淡入淡出动效，退出中的文字和控件清除无障碍语义，删除按钮仅在当前编辑模式可用。普通账号始终保留 `SwipeToRemoveAccount` 容器，编辑或忙碌时通过 `enabled` 停用手势及侧滑操作，避免切换编辑模式时重建整行；已有侧滑偏移平滑收回。添加账号图标使用主题颜色过渡。
 
 参考：[官方密码接入](https://developer.android.com/identity/passwords)、[Compose Autofill](https://developer.android.com/develop/ui/compose/text/autofill)、[Credentials 版本记录](https://developer.android.com/jetpack/androidx/releases/credentials)。
+
+注册与资料编辑的用户名、昵称校验共用 `data/auth/AccountNameRules.kt`，字符范围来自 Cerasus 的 `assets/pomsky/username.pom`，并保留最多 20 个 UTF-16 单元及空格限制；最终提交仍接受 Rosales 的现有校验结果。
 
 ## API 与会话
 
@@ -85,15 +87,15 @@
 
 密码传输格式与 Cerasus `generateHash` 一致：UTF-8 原密码的 SHA-256，小写 64 位十六进制，不能 trim 原密码或把 DTO 中旧的 bcrypt 注释当作契约。摘要依然等价于敏感凭据，只在内存保留，不得记录。
 
-邮件模板／业务名分别是 `SendLoginVerificationCode` / `login`、`SendRegistrationVerificationCode` / `registration`、`SendResetPasswordVerificationCode` / `forgot-password`；语言为 `zh-Hans-CN` 或 `en-US`。Rosales 的冷却按邮箱跨业务共用，Repository 使用单调时钟记录 60 秒截止值并串行发送；冷却间隔与协程轮询延迟使用 `kotlin.time.Duration`，截止时间保留系统毫秒值，剩余冷却仅在交给界面时向上取整为秒数；服务端冷却或每日发送／校验上限优先于 `success`。邮箱验证码为六位数字；TOTP 输入允许备用／恢复码。注册用户名与昵称均为必填，字符策略与 Cerasus `assets/pomsky/username.pom` 对齐，表单长度上限为 20 个 UTF-16 单元。
+邮件模板／业务名分别是 `SendLoginVerificationCode` / `login`、`SendRegistrationVerificationCode` / `registration`、`SendResetPasswordVerificationCode` / `forgot-password`；语言为 `zh-Hans-CN` 或 `en-US`。认证页、认证步骤和安全步骤共用 `verificationMailLanguage` 将应用 Locale 映射到邮件语言，不与标签语言映射混用。Rosales 的冷却按邮箱跨业务共用，Repository 使用单调时钟记录 60 秒截止值并串行发送；冷却间隔与协程轮询延迟使用 `kotlin.time.Duration`，截止时间保留系统毫秒值，剩余冷却仅在交给界面时向上取整为秒数；服务端冷却或每日发送／校验上限优先于 `success`。邮箱验证码为六位数字；TOTP 输入允许备用／恢复码。`VerificationCodeFormat` 集中定义六位数字、六位字母数字备用码与二十四位恢复码；输入组件复用长度和字符过滤，认证、安全设置及一次性材料读取复用格式校验，各流程继续管理提交和错误提示。注册用户名与昵称均为必填，字符策略与 Cerasus `assets/pomsky/username.pom` 对齐，表单长度上限为 20 个 UTF-16 单元。
 
 ### 网络与错误
 
 [ApiClient](../../app/src/main/java/moe/kirakira/core/network/ApiClient.kt) 由宿主 `AppDependenciesViewModel` 统一创建并注入各 API Repository，认证与内容请求共享同一 OkHttp 客户端。统一使用 OkHttp 与 serialization，连接 15 秒、读写 20 秒、完整调用 30 秒，响应上限 1 MiB。通过 callback 与 `suspendCancellableCoroutine` 绑定取消，解析和散列使用 Default，存储使用 IO。认证请求关闭自动重试、重定向和缓存，不安装日志或全局 CookieJar；API 路径为代码常量，query 通过 builder 编码，单次请求明确绑定凭据快照。头像请求不共享会话。
 
-`AuthRepository.withRequestSession` 为内容、历史、账号管理设置和安全请求统一捕获账号快照，检查预期 revision、取消和结果归属，并处理明确的会话失效。默认要求登录；内容仓库按原有接口约定显式允许游客。该入口不重放请求，代码块内不得发布新 revision；资料保存和安全操作的本地完成阶段仍由各自检查点处理身份发布，避免把操作自身推进的版本误判为账号切换。
+`AuthRepository.withRequestSession` 为内容、历史、账号管理设置和安全请求统一捕获账号快照，检查预期 revision、取消和结果归属，并处理明确的会话失效。默认要求登录；内容仓库按原有接口约定显式允许游客。该入口不重放请求，代码块内不得发布新 revision；资料保存和安全操作的本地完成阶段仍由各自检查点处理身份发布，避免把操作自身推进的版本误判为账号切换。账号库初始化或恢复读取失败时保留当前 revision，恢复成功后继续递增，避免在同一进程中复用旧请求的版本号。
 
-HTTP 401、429、5xx 分别映射失效、限流、服务故障，其余失败与网络／超时／响应格式异常分开。HTTP 2xx 仍需检查业务 `success` 和必要字段；获取自己资料还校验 uuid 与 uid。服务器消息不直接显示，统一使用 UI 字符串资源。
+HTTP 401、429、5xx 分别映射失效、限流、服务故障，其余失败与网络／超时／响应格式异常分开。API 请求与头像上传的连接和响应读取错误统一通过 `ApiFailure.fromIOException` 分类，`InterruptedIOException` 归为超时，其余 IO 错误归为网络失败；客户端、响应校验和重试策略仍各自管理。写操作的网络、超时、服务故障与响应异常由 `ApiFailure.isUncertainMutation` 统一标记为结果不确定；隐私、安全和视频操作分别保留原有核对流程与提示。HTTP 2xx 仍需检查业务 `success` 和必要字段；获取自己资料还校验 uuid 与 uid。服务器消息不直接显示，统一使用 UI 字符串资源。
 
 当前 Rosales 的 `/user/self` 对无效 token 和数据库故障都可能返回 HTTP 200 + `success=false`，缺少可靠业务错误码。因此此类拒绝标记需要重新验证、撤下该账号当前身份，但保留本机 token 供用户重试；不能宣称一定已过期。明确 401 才清除 token，账号条目保留。网络和超时保留离线资料及会话。后续后端提供稳定错误码后应更新这一映射，而不是匹配中文 `message`。
 
@@ -103,11 +105,11 @@ HTTP 401、429、5xx 分别映射失效、限流、服务故障，其余失败�
 
 [SessionStore](../../app/src/main/java/moe/kirakira/data/auth/SessionStore.kt) 将 token 与账号资料以 UTF-8 JSON 原子保存至 `noBackupFilesDir/sessions.json`，正常读取、写入、切换、移除和清除账号均不访问 Keystore，不新增存储依赖或加密模式开关。该方案使用 Android 官方的[应用私有存储](https://developer.android.com/privacy-and-security/security-tips#internal-storage)与现有 AndroidX Core 的 [AtomicFile](https://developer.android.com/reference/androidx/core/util/AtomicFile)，各 Android 版本统一先写 `.new` 再重命名，避免旧系统首次写入直接修改主文件。保护依靠应用沙盒及系统存储保护；这不是 Google 对未额外加密 token 的专项推荐。
 
-[SessionCodec](../../app/src/main/java/moe/kirakira/data/auth/SessionCodec.kt) 沿用 `StoredSessions` 的 v1 JSON 结构，校验版本、HTTPS 环境、UUID 去重、账号身份、token、bootstrap hint 和当前账号的一致性，严格解码 UTF-8 并限制读写在 1 MiB。未知字段允许向前兼容；结构校验不等同于密码学完整性校验。临时读写字节数组使用后清零，但 Kotlin／Java 字符串与库内部副本不能保证立即清除。
+[SessionCodec](../../app/src/main/java/moe/kirakira/data/auth/SessionCodec.kt) 沿用 `StoredSessions` 的 v1 JSON 结构，校验版本、HTTPS 环境、UUID 去重、账号身份、token、bootstrap hint 和当前账号的一致性，严格解码 UTF-8 并限制读写在 1 MiB。登录响应、会话编解码和 Cookie 构造共用 `SessionFieldRules.kt` 的 UUID、token 与 bootstrap hint 基础校验；响应异常、本地库错误及无效可选 hint 的处理仍由各入口决定。未知字段允许向前兼容；结构校验不等同于密码学完整性校验。临时读写字节数组使用后清零，但 Kotlin／Java 字符串与库内部副本不能保证立即清除。
 
 读取优先检查新库主文件及 `.bak` 备份，使用 `AtomicFile.openRead()` 恢复旧式备份；已提交的新库为空、损坏或不可读取都不会回退到旧账号库。主文件及备份都不存在、仅剩 `.new` 时，视为首次写入未提交，先删除该临时文件再重试迁移，不清除旧加密库。临时文件删除失败报告存储错误，可在恢复文件访问后重试。新库读取失败或尚未完成初始化时禁止写入，保留原文件并提供重试及确认清除入口。
 
-写入显式同步文件描述符，仅写入及同步失败时调用 `failWrite`。`finishWrite` 与提交后核验位于回滚分支之外；核验失败不会再次回滚或删除已提交的主文件。核验通过与启动相同的 `openRead()` 路径回读并比较字节，同时检查 `.bak` 已恢复，避免只读主文件而忽略备份恢复失败。单实例 Mutex 串行化磁盘操作，Repository 仍在写入成功后发布身份。
+写入显式同步文件描述符，仅写入及同步失败时调用 `failWrite`。`finishWrite` 与提交后核验位于回滚分支之外；核验失败不会再次回滚或删除已提交的主文件。核验通过与启动相同的 `openRead()` 路径回读并比较字节，同时检查 `.bak` 已恢复，避免只读主文件而忽略备份恢复失败。单实例 Mutex 串行化磁盘操作，Repository 仍在写入成功后发布身份。进入 `finishWrite` 前关闭写入许可并设置 `SessionPersistence.requiresReload`，仅核验成功才恢复；提交后核验失败或清除账号文件失败时，Repository 撤下内存身份及旧账号快照并推进 revision，阻止旧内存覆盖文件。用户重试会重新初始化并读取实际文件，不重放原账号操作；认证的本地保存／清理重试也可先重新读取账号库。
 
 只有不存在新库主文件及备份、且已清理孤立 `.new` 时，[LegacySessionReader](../../app/src/main/java/moe/kirakira/data/auth/LegacySessionReader.kt) 才读取旧 `sessions.v1.enc`，使用已有 `kirakira.sessions.v1` 密钥调用 [SessionCipher](../../app/src/main/java/moe/kirakira/data/auth/SessionCipher.kt) 验证旧 AES-GCM 标签后解码，不创建或替换密钥。生产代码只使用旧解密路径，保留的加密方法仅供已有离线夹具使用。旧库解码及校验成功后先完整迁移原后端地址、账号及登录选择，再尽力清理旧文件；清理失败不撤销提交。后端地址不匹配时只向当前环境返回空账号状态，磁盘保留原后端的数据；首次实际保存当前环境会话时才替换账号库，不因启动另一环境的构建就清空旧会话。
 

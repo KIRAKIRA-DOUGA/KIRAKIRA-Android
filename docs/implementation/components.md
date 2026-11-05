@@ -20,6 +20,8 @@
   - [顶栏淡色图标底纹](#顶栏淡色图标底纹)
   - [可选的可折叠大标题栏](#可选的可折叠大标题栏)
   - [可复用的顶栏搜索](#可复用的顶栏搜索)
+- [用户名展示](#用户名展示)
+- [日期与矢量资源](#日期与矢量资源)
 - [数字动画与字数计数](#数字动画与字数计数)
 - [图标划线过渡](#图标划线过渡)
 - [账号流程布局](#账号流程布局)
@@ -40,9 +42,9 @@
 
 评论与弹幕空状态通过 `ContentStatus.emptyTitle` 和 `emptyIconRes` 分别显示“暂无评论”与对话气泡、“暂无弹幕”与字幕图标；这些参数只影响空状态，加载和错误继续使用统一呈现。
 
-[`ContentUnavailableView`](../../app/src/main/java/moe/kirakira/ui/components/ContentUnavailableView.kt) 统一空内容、内容加载失败及未开放页面占位，`ContentStatus` 接收共享 [ContentState](../../app/src/main/java/moe/kirakira/ui/content/ContentState.kt)，将加载／错误／空状态映射到 `IndeterminateCircularProgressIndicator` 或该组件。错误说明通过 `ApiFailure.messageRes()` 本地化，业务重试仍由调用方回调执行。
+[`ContentUnavailableView`](../../app/src/main/java/moe/kirakira/ui/components/ContentUnavailableView.kt) 统一空内容、内容加载失败及未开放页面占位，`ContentStatus` 接收共享 [ContentState](../../app/src/main/java/moe/kirakira/ui/content/ContentState.kt)，将加载／错误／空状态映射到 `ContentLoadingView` 或该组件。错误说明通过 `ApiFailure.messageRes()` 本地化，业务重试仍由调用方回调执行。
 
-读取失败的保留决策集中在 `ApiFailure.retainsContent`：网络、超时、限流、解析异常及通用业务拒绝均保留当前身份和查询下已确认的数据，只有 `CONTENT_UNAVAILABLE` 与 `SESSION_EXPIRED` 撤下旧内容。`ContentState.readFailed` 统一结束加载并写入失败；管理列表的 `SettingsLoad.readFailed` 使用同一规则，并在访问失效时清除追加分页标记。历史、评论和关注分页保留各自的分页状态结构，但共用该判定。账号／查询变更仍由各状态所有者重置，取消旧任务时不发布失败收尾。
+读取失败的保留决策集中在 `ApiFailure.retainsContent`：网络、超时、限流、解析异常及通用业务拒绝均保留当前身份和查询下已确认的数据，只有 `CONTENT_UNAVAILABLE` 与 `SESSION_EXPIRED` 撤下旧内容。`ContentState.readFailed` 统一结束加载并写入失败；管理列表的 `SettingsLoad.readFailed` 使用同一规则，并在访问失效时清除追加分页标记。历史、评论和关注分页保留各自的分页状态结构，但共用该判定。账号／查询变更仍由各状态所有者重置，取消旧任务时不发布失败收尾。历史页面与 Repository 共用 `SessionState.isReadyForContent`，等待初始化身份校验完成后再读取内容。
 
 - `PAGE` 用于有界页面空间，内容居中且不足时可滚动；`INLINE` 不创建内部滚动，适合 `LazyColumn`，调用方为无内容状态预留剩余视口高度。评论与弹幕扣除计数栏、工具栏及发送框占用，列表底部 Insets 随内容滚动。
 - 各呈现模式的状态图标均裸露显示，不绘制背景 Shape，保留图标区域尺寸与间距。
@@ -50,7 +52,11 @@
 - `ContentUnavailableAction` 仅接收资源解析后的文案、回调和启用状态。主操作统一 `Button`，次操作统一 `TextButton`，纵向居中排列，宽度上限 280dp；页面不传入按钮样式或插槽。`onRetry` 自动生成统一文案的主操作，可通过 `retryEnabled` 禁用，与 `primaryAction` 互斥。
 - 资料和统计读取失败在对应内容附近显示组件，不重复弹出 Snackbar；操作失败仍由原有表单、Snackbar 或会话弹窗处理。播放器提供独立 `onRetry` 并绑定 `PlaybackViewModel.play()`，避免失败重试走播放／暂停切换。
 
-管理、安全与隐私设置页的页面级加载分支位于滚动列表或列之外，通过 `Box(Modifier.fillMaxSize().padding(scaffoldPadding), contentAlignment = Alignment.Center)` 在顶栏与底部系统栏之间居中，继续复用 `IndeterminateCircularProgressIndicator`。标签页仅在标签与视频均无数据且同时加载时使用这一全页分支，部分数据就绪后的独立状态保留列表内呈现；不改变请求、错误重试或下拉刷新条件。
+[`ContentStatusViewport`](../../app/src/main/java/moe/kirakira/ui/components/ContentStatusViewport.kt) 集中计算列表状态区域的剩余高度。调用方传入与列表共用的实际 `contentPadding`、包含间距的实测前置内容高度 `leadingContentHeight`，以及尚未由容器避让的底部遮挡高度 `obscuredBottomHeight`。组件要求有界视口，将剩余高度下限限制为 0dp，通过内容插槽提供带全宽与最小高度的 Modifier；加载、空内容及无内容时的错误使用同一 Modifier。状态内容高于剩余空间时随列表自然撑开并滚动，列表内继续使用 `INLINE`，不嵌套滚动容器。有记录时的局部错误不使用整页最小高度。
+
+首页、搜索、标签候选与详情、历史、关注／粉丝、资料分页、视频简介、评论、弹幕和管理列表复用这一视口。页面仍拥有标题、统计区、输入区及其测量，系统 Insets 与列表留白只从实际 padding 扣除一次，不另外维护合计常数。资料与邀请码分页的列表容器底部先扣除尚未折叠的头部高度，状态区域与列表使用同一个可见视口，不再扣除该高度。
+
+[`ContentLoadingView`](../../app/src/main/java/moe/kirakira/ui/components/ContentLoadingView.kt) 统一中央加载圈容器，内部继续复用 `IndeterminateCircularProgressIndicator`。`ContentStatus` 加载分支按原 `presentation` 接入；资料编辑、隐私、安全、管理及许可证页的独立加载分支传入已避让栏面的页面空间。管理页独立加载与列表共用内容 padding；标签页仅在标签与视频均无数据且同时加载时显示正文加载区域，部分数据就绪后沿用列表内状态。下拉刷新、分页尾部、按钮、条目及媒体遮罩加载保持原有布局和动画。
 
 ### 圆形加载器
 
@@ -60,7 +66,9 @@
 
 ## 连接列表分组
 
-[ConnectedListGroup](../../app/src/main/java/moe/kirakira/ui/components/ConnectedListGroup.kt) 提供满宽、零行间距的普通分组布局和固定 1dp 整组阴影，不额外绘制背景或添加内边距，默认不裁剪内容；`SettingsSection` 在内部复用它，`title` 默认为 `null`，省略时直接写 `SettingsSection { … }`，不显示标题或预留标题间距；组间留白和列表项语义保持不变，独立条目在调用处显式包裹单项分组。共享 `connectedListItemShapes(index, count)` 以零圆角 `RoundedCornerShape` 为基础，通过官方 `ListItemDefaults.segmentedShapes` 获取首项顶部、末项底部及单项的主题圆角，中间连接边为直角；选中、按压、聚焦、悬停与拖动形状均沿用基础形状，保留官方颜色反馈与无障碍语义。菜单、设置、账号、标签及播放器面板共用此入口。阴影属于容器或列表宿主，条目不再通过组合局部上下文跳过投影，也不绘制和拼接行级阴影。账号侧滑组继续通过 `clipContent` 按整体外轮廓裁剪，外侧阴影及删除按钮的横向间距保持不变。
+单组列表（包括无分类的搜索结果）使用普通 `Column`／`LazyColumn` 和官方 `ListItem`，不添加连接形状、连接容器或整组阴影；多个语义分组才使用下述连接列表组件，不人为拆组。设置搜索结果使用普通 `LazyColumn`，逐项保留稳定 key、名称、路径和点击语义。
+
+[ConnectedListGroup](../../app/src/main/java/moe/kirakira/ui/components/ConnectedListGroup.kt) 提供满宽、零行间距的普通分组布局和固定 1dp 整组阴影，不额外绘制背景或添加内边距，默认不裁剪内容；`SettingsSection` 在内部复用它，`title` 默认为 `null`，省略时直接写 `SettingsSection { … }`，不显示标题或预留标题间距；组间留白和列表项语义保持不变，多组列表中的独立条目在调用处显式包裹单项分组。共享 `connectedListItemShapes(index, count)` 以零圆角 `RoundedCornerShape` 为基础，通过官方 `ListItemDefaults.segmentedShapes` 获取首项顶部、末项底部及单项的主题圆角，中间连接边为直角；选中、按压、聚焦、悬停与拖动形状均沿用基础形状，保留官方颜色反馈与无障碍语义。菜单、设置、账号、标签及播放器面板共用此入口。阴影属于容器或列表宿主，条目不再通过组合局部上下文跳过投影，也不绘制和拼接行级阴影。账号侧滑组继续通过 `clipContent` 按整体外轮廓裁剪，外侧阴影及删除按钮的横向间距保持不变。
 
 [ConnectedLazyColumn](../../app/src/main/java/moe/kirakira/ui/components/ConnectedLazyColumn.kt) 在官方 `LazyColumn` 外提供分组声明及统一投影，接收 `LazyListState`、`modifier`、`contentPadding` 和内容 DSL，固定零行间距与正向垂直布局。
 
@@ -194,7 +202,7 @@ internal fun Modifier.contentDescriptionWhenEnabled(enabled: Boolean, descriptio
 
 `icon` 接收现有 Drawable 资源，`endPadding` 默认为 16dp，`alignment` 默认为 `Alignment.CenterEnd`，`offset` 默认为 `DpOffset.Zero`。对齐同时用于图标在宿主内的定位及不受约束的尺寸布局，`offset.x` 的正值沿布局方向向末端移动，`offset.y` 的正值向下移动。首页传入 `logo_kirakira` 并保留 72dp 末端留白避让头像，使用默认对齐和偏移。
 
-设置与历史页指定 `Alignment.BottomEnd`、`endPadding = 0.dp` 和 `DpOffset(32.dp, 32.dp)`，让图标向末端及底部各溢出 32dp，由组件边界裁切。底纹随顶栏实际高度始终贴住底边，下拉展开后也保持底部定位。设置首页使用 `ic_symbol_settings` 并开启旋转；历史页使用 `ic_symbol_history`，保持默认静止状态。历史底纹与普通顶栏一起放在 `SearchableTopAppBar` 的 `topBar` 插槽内，搜索展开时随普通顶栏退场并隐藏，退出搜索后恢复。
+设置与历史页指定 `Alignment.BottomEnd`、`endPadding = 0.dp` 和 `DpOffset(32.dp, 32.dp)`，让图标向末端及底部各溢出 32dp，由组件边界裁切。底纹随顶栏实际高度始终贴住底边，下拉展开后也保持底部定位。设置首页使用 `ic_symbol_settings` 并开启旋转；历史页使用 `ic_symbol_history`，保持默认静止状态。历史底纹与普通大标题栏一起放在搜索栏上方；全屏搜索覆盖页面，收起后恢复普通顶栏。
 
 使用 `SettingsScaffold` 的设置子页面沿用这一右下角定位，但传入页面自身的现有图标且保持静止：外观使用 `ic_symbol_palette`，播放使用 `ic_symbol_play_circle`，弹幕使用 `ic_custom_danmaku`，关于使用 `ic_symbol_info`，资料使用 `ic_symbol_badge`，隐私使用 `ic_symbol_shield`，安全使用 `ic_symbol_lock`。管理页的共享 `ManagementFrame` 接收同一图标参数，屏蔽总览使用 `ic_symbol_block`，屏蔽分类详情使用 `RuleCategory.iconRes()`，邀请码使用 `ic_symbol_confirmation_number`；账户切换和许可证独立包裹顶栏，分别使用 `ic_symbol_switch_account` 与 `ic_symbol_description`。头像裁剪页是独立的图片编辑顶栏，不绘制该底纹。
 
@@ -263,52 +271,27 @@ FrostedScaffold(
 
 ### 可复用的顶栏搜索
 
-[`SearchableTopAppBar`](../../app/src/main/java/moe/kirakira/ui/components/SearchableTopAppBar.kt) 接收关键词、展开状态、提示文案、输入／展开／清空／退出／提交事件及 `enabled`、`isActive`。`topBar` 插槽提供打开搜索的事件，调用方可保留普通顶栏、动态标题及其他操作，使用配套的 `TopAppBarSearchButton` 放置搜索图标。组件不依赖页面、ViewModel、Repository 或导航控制器，退出是否清空由页面决定。
+[`PageSearchBarAnchor`](../../app/src/main/java/moe/kirakira/ui/components/PageSearchBar.kt) 供设置与历史页放在可折叠大标题下，接收页面拥有的 `TextFieldState`、`SearchBarState`、提示文案、可用状态及最大内容宽度。使用官方 `SearchBar` 和共享的官方 `SearchBarDefaults.InputField`，不访问 ViewModel 或 Repository；数据过滤与结果列表由页面管理。
 
-共享组件通过 `AnimatedContent` 与主题 Expressive spatial／effects 动效从逻辑方向的末端展开搜索栏。搜索栏使用官方 `TopAppBar`、单行 `TextField` 和平面 `IconButton`，容器与下划线透明；字体放大时增加最小栏高。动画离场的顶栏清除语义并阻止指针输入。背景采样和阴影仍由外部宿主提供，普通顶栏与搜索栏必须使用相同 `windowInsets`，默认由各自官方顶栏避让一次，不在外层重复 padding。
+搜索胶囊左右保留 16dp，顶部无额外内边距、底部 12dp；默认上限为 640dp，历史页按既有列表宽度传入 840dp。大标题负责顶端系统安全区，搜索栏仅处理横向安全区。收起容器使用 `surfaceContainerLow`，全屏展开使用 `surface`，不显示内容分隔线；毛玻璃和栏面投影由外部 `FrostedScaffold` 管理。
 
-只有通过插槽事件主动展开才请求焦点和键盘；恢复已展开的页面或从其他页面返回不会自动聚焦。页面失活、禁用或关闭搜索时释放输入焦点，只有本组件持有焦点时才主动收起键盘，避免影响其他页面。提交先释放焦点、收起键盘，再调用 `onSearch`，不会自动退出。活动搜索模式通过 `NavigationBackHandler` 消费局部返回：键盘可见时先收起，否则调用 `onClose`，页面返回栈不变。
+设置页的 `PageSearchBar` 组合搜索胶囊和官方 `ExpandedFullScreenSearchBar` Dialog。历史页通过 `PageSearchOverlay` 将搜索内容直接放在页面根布局的上层，与视频宿主共用 Activity 窗口；视频入栈时保持搜索层挂载，`isActive` 只管理焦点与局部返回，不决定是否显示搜索层。其 `PageSearchOverlayLayout` 移植官方普通展开／收回的几何插值，胶囊实际边界仅在测量阶段读取，位置、尺寸、圆角和内容淡入同步遵循官方 `SearchBarState` 进度；不再用整页淡入代替胶囊展开。没有截图复制、额外持久化或跨窗口转场，来源及局部返回适配见 [AndroidX 搜索布局说明](../../third_party/android-search/README.md)。
 
-普通固定顶栏接入示例（状态、事件和文案由页面提供）：
+输入框左侧在收起时显示搜索图标，展开时提供收起搜索的返回按钮；清空只清空文字，提交只收起键盘。历史搜索在首次展开后请求焦点，页面失活时仅释放自身输入焦点，返回后保留内容和位置；局部返回先收起键盘，再收起搜索，最后由页面处理退出。禁用时收起搜索并禁用输入与清空。历史与设置都保留普通大标题嵌套滚动连接，旧的顶栏替换与先折叠标题再打开搜索的代码已移除。
 
-```kotlin
-SearchableTopAppBar(
-    query = query,
-    expanded = searchExpanded,
-    placeholder = searchPlaceholder,
-    onQueryChange = onQueryChange,
-    onExpand = { searchExpanded = true },
-    onClear = { onQueryChange("") },
-    onClose = {
-        searchExpanded = false
-        onQueryChange("")
-    },
-    onSearch = onSearch,
-    isActive = isActive,
-) { openSearch ->
-    TopAppBar(
-        title = { Text(title) },
-        navigationIcon = { /* 页面返回按钮 */ },
-        actions = { TopAppBarSearchButton(openSearch, searchPlaceholder) },
-        colors = appTopAppBarColors(),
-    )
-}
-```
+### 搜索空结果图形
 
-可折叠顶栏沿用上述参数，替换插槽并在页面的 `onExpand` 中先以主题动效将 `scrollBehavior.state.heightOffset` 动画至 `heightOffsetLimit`，完成后才设置展开状态。开始折叠与搜索期间暂停顶栏的 `nestedScroll` 连接，退出后重新接入并保持折叠；异步折叠工作应随页面失活或账号变化取消。历史页的完整接入见 [`HistoryPage`](../../app/src/main/java/moe/kirakira/feature/history/HistoryPage.kt)。插槽示例：
+主搜索使用 [`SearchEmptyLogos.kt`](../../app/src/main/java/moe/kirakira/ui/components/SearchEmptyLogos.kt) 中的两幅 Compose 矢量插画：`SearchHistoryEmptyLogo` 复用缩至 102dp 的 `HistorySearchLogo`，前景叠加深灰色放大镜，`SearchVideosEmptyLogo` 按用户提供的红色胶片参考图绘制：4:3 圆角纸片，上半深红、下半亮红，两侧各四个圆角镂空孔，不绘制播放三角，前景保留深灰色放大镜。孔洞通过路径差集贯穿纸片，随页面背景显示。两者共用 `SearchPaperMagnifier`，镜片使用单一中性浅灰色 `#EEEEEE`，不绘制高光、反光斜面或透明玻璃效果；镜框、窄颈和方头斜柄采用 Google 经典 Material Icons `search` 的原始路径比例，在镜片内孔补入纯色纸层后整体等比放大为连续纸片，统一使用深灰色 `#616161` 正面、`#424242` 的 1dp 底边及一层 2dp 原生投影，避免接合处重复投影和底边叠加。两者沿用收藏、历史和设置图形的经典 Material 剪纸风格，使用固定插画配色、128dp 画布、胶片卡 2dp／放大镜 1dp 深色底边及分层原生投影，不引入位图。仅挂载在主搜索空历史与已提交搜索的空结果分支，加载和失败保留原有提示。两幅图案均不整体旋转或缩放；视频卡保持静止，历史时钟保留自身回拨动画，放大镜沿左上方轻扫后回到原位，最大水平／垂直位移为 24dp／8dp。扫动采用相同的 1 秒快起慢收曲线驱动半正弦路径，只播放一次，不循环、不淡入；进度仅在图层读取，镜框、镜片、手柄及投影同步移动，系统关闭动画及静态预览直接显示终态。
 
-```kotlin
-{ openSearch ->
-    CollapsibleTopAppBar(
-        title = title,
-        onBack = onBack,
-        scrollBehavior = scrollBehavior,
-        actions = { TopAppBarSearchButton(openSearch, searchPlaceholder, enabled = !searchOpening) },
-    )
-}
-```
+设置搜索的 `SettingsSearchLogo` 保留 Cerasus 齿轮图形与转动动画，配色取自用户提供的 Android L `Settings.png`：齿轮 `#688491`、长阴影 `#546A74`，内环依次为 `#92A6B0`、`#D2DADE` 和 `#AAFFEC`，中心圆使用同一薄荷绿 `#AAFFEC`；浅深主题均使用该固定插画配色。历史搜索的 [`HistorySearchLogo`](../../app/src/main/java/moe/kirakira/ui/components/HistorySearchLogo.kt) 参考用户提供的 Android L Clock 与青色回溯时钟插画，用 Compose 圆形、线段与计算路径绘制钟盘和宽箭头。整体为 128dp，所有图层共用 512 × 512 画布和 `(256, 256)` 中心；表盘半径为 202，箭带内外半径为 192／244，带宽 13dp；箭头头部的内外基点分别延伸到半径 144／292，其中心半径 218 与环带中心一致，避免头部偏在环带内侧。头部与弧带使用同一条连续闭合轮廓；绘制复用路径缓冲区，投影轮廓随同一进度更新。
 
-个人主页后续可把自身带动态昵称、返回按钮与更多操作的 `TopAppBar` 放入同一插槽，保留外层独立 Haze 采样背景；搜索数据、Tab 范围与过滤策略由个人主页定义。当前仅历史页接入。
+配色按用户提供的青色回溯时钟参考图调整：外圈与箭头正面为亮青色 `#19C7CC`，底边为深青色 `#009BA3`；表盘由 `#008D96` 轻过渡至 `#00838D`，时针与分针为白色 `#FFFFFF`，秒针与中心轴为黄色 `#FFEB3B`。这些是应用插画配色，不是 Google 官方指定色。背景仍跟随页面主题。底边仅向下偏移 8 个画布单位（2dp），箭带正面、底边与 4dp 原生投影共用图层和透明度；表盘采用 2dp 原生投影。三根指针保留直线、线宽与中心轴设计，按可见表盘半径 192 个画布单位（48dp）调整长度：时针约 27.8dp、分针约 40.3dp、秒针 43dp，最长指针与箭带内缘仍留 5dp。指针和长阴影统一裁剪到表盘内部，箭带绘制在其上方，避免针尖或投影压到外圈；长阴影继续按固定右下光向投射，重叠区域一次填充。参考记录见 [Android Classic Icons](../../third_party/android-classic-icons/README.md)。
+
+历史时钟进入无结果分支时运行一次 1 秒动画，外沿箭头与指针共用设置齿轮已有的 `cubic-bezier(0.1, 0.9, 0.2, 1)` 快起慢收曲线，由同一个 `Animatable` 提供进度，不分段。分针回拨四分之一圈、时针按十二分之一角度同步移动、秒针一圈。弧带尾端固定在左侧，前沿从 180° 逆时针扫过 312°，头部以固定大小跟随前沿绕钟盘转动。头部基线与扫切前沿共用角度，尖端保持相对基线 −3° 的固定朝向偏差，避免脱节或形变；弧带、头部、底边和投影由同一进度绘制，全程保持不透明，终态保持原有轮廓。
+
+逐帧进度仅在图层与绘制阶段读取，绘制路径复用缓存；动画不循环，持续无匹配时输入变化不重播，关闭系统动画时显示最终姿态。状态包装与私有绘制组件分离，正式页面持有一次性动画；页面预览通过 `LocalInspectionMode` 显示终态。文件内的 `HistorySearchLogoPreview` 和 `HistorySearchLogoDarkPreview` 直接传入固定终态，`HistorySearchMotionPreview` 另将 0／50／100／200／400／700／1000ms 时刻映射到同一曲线，可用 Android CLI 导出 PNG 检查路径揭示、衔接与裁切；独立渲染不需要运行 IDE、设备或模拟器，命令见[Compose 布局预览](../development.md#compose-布局预览)。
+
+图形不增加语义，标题沿用原有中英文空状态文案。`ContentStatus.emptyIcon` 是可选空态图形插槽，仅传给空状态分支；加载、错误与重试不使用它。历史页的普通空记录、搜索无匹配和游客登录提示均提供该时钟 Logo，加载与错误提示保留原有表现。
 
 ## 图标划线过渡
 
@@ -317,6 +300,8 @@ SearchableTopAppBar(
 `rememberSlashIconProgress` 初始值取当前状态，后续通过 Compose `Animatable` 平滑切换；快速点击从当前进度反向，系统动画时长缩放及关闭动画由 Compose 处理。播放器在控制栏显隐分支外持有该状态，重新显示控制栏不会重播；弹幕设置异步读入时通过 `ready` 建立初始进度，不播放加载过渡。密码按钮的划线表示“隐藏密码”操作，密码遮罩和弹幕业务状态立即切换；图标仅提供视觉过渡，不改变按钮语义、禁用表现或开关尺寸。设置页普通 Switch 不新增图标。
 
 ## 账号流程布局
+
+安全概览正文复用 `SettingsColumn` 的内容宽度、滚动和边距；下拉刷新包裹内容，正文负责 Insets 消费。首次加载、未登录和错误分支保持原有入口。
 
 `AuthScreen` 与账号安全操作页共用 [AccountFlowScaffold](../../app/src/main/java/moe/kirakira/ui/components/AccountFlowScaffold.kt)：`FrostedScaffold` 提供 `surface` 背景和独立毛玻璃采样，`CenterAlignedTopAppBar` 的标题槽居中显示主题色流程图标；登录 Logo 为 40dp，其余图标为 32dp，不使用底板。非登录步骤的返回使用官方平面 `IconButton` 和默认 AppBar 槽位定位，所有步骤均无关闭按钮。`AuthScreen.onClose` 仅保留默认空实现兼容现有离线 UI 检查调用，生产导航不再传递，认证完成仍通过 `AuthPage` 的回调退出。
 
@@ -352,9 +337,19 @@ TOTP 页面把二维码与打开验证器操作放在同一区域，密钥与复
 
 [DestructiveDecoration](../../app/src/main/java/moe/kirakira/ui/components/DestructiveDecoration.kt) 在可用危险实心按钮的内容后方绘制五个 Rounded close 图标。横向起点为容器宽度的 0%、20%、50%、60%、80%，基础尺寸为 36、24、48、16、32dp，默认缩放 1.5 倍；每个图形以 4 秒线性周期从自身高度的 +150% 移至 −150%，中点透明度为 0.4、两端为 0，依次延迟 1.6 秒启动。悬停使用 1 秒回弹过渡，缩放至 2 倍并旋转 90°；触屏继续沿用官方按压反馈。装饰使用与按钮实际可见表面同尺寸的独立绘制节点，文字单独测量且保留原布局；五个图形共用固定尺寸的矢量栅格缓存，仅通过画布缩放产生大小差异，避免同帧反复改写缓存造成图形截断。由官方表面裁剪到与投影共用的动画轮廓，不占布局空间、不添加语义，也不改变内容内边距与点击区域。逐帧状态仅在绘制阶段读取；禁用、加载或系统动画缩放为零时不组合循环动画。来源与移植差异见 [Cerasus 图标与动画](../../third_party/cerasus-icons/README.md#危险按钮装饰)。
 
+## 用户名展示
+
+[UsernameText](../../app/src/main/java/moe/kirakira/ui/components/UsernameText.kt) 接收原始 username，统一添加 `@`、使用等宽字体和主题次要文字色；空白值不产生文字或布局。调用方保留字号、行数、溢出处理、对齐与修饰符；列表的可选副标题插槽仍在调用处按空白值省略，避免留下插槽间距。账号列表的 `AccountItem.handle` 保留既有展示值契约，调用组件前移除已有前缀，状态提示继续使用普通文字。
+
+## 日期与矢量资源
+
+[DateFormatting](../../app/src/main/java/moe/kirakira/ui/components/DateFormatting.kt) 的 `dateOnlyText` 与 `dateTimeText` 使用应用配置的 Locale。规则创建日期、二步验证绑定日期和历史日期标题复用日期格式化；生日使用 LocalDate 重载，不经过时区转换；内容发布时间保留短日期与时间格式。应用单独选择语言后，这些日期随应用语言更新。
+
+[VectorPaths](../../app/src/main/java/moe/kirakira/ui/components/VectorPaths.kt) 按资源顺序读取 VectorDrawable 的全部 pathData，并为当前使用绝对 M 命令的动画图标提供轮廓拆分。音量、倍速、双击箭头和划线图标共用资源读取；各图标仍负责选择路径、坐标变换和动画几何，不把所有矢量图标当作相同结构处理。
+
 ## 数字动画与字数计数
 
-`AnimatedNumberText` 封装 NumberFlow 的逐位滚动、主题 `fastSpatialSpec` 和 `animateContentSize`，数位增减时平滑过渡数字区域宽度。接收数值、格式函数、根 Modifier、文字样式与颜色，默认继承所在组件的排版和前景色；只负责数字，固定单位或上限放在外部。无障碍语义读取完整目标数字，不逐字符朗读。来源、许可与固定提交见 [NumberFlow](../../third_party/number-flow/README.md)。
+`AnimatedNumberText` 封装 NumberFlow 的逐位滚动、主题 `fastSpatialSpec` 和 `animateContentSize`，数位增减时平滑过渡数字区域宽度。接收数值、格式函数、根 Modifier、文字样式与颜色，默认继承所在组件的排版和前景色，并启用 OpenType `tnum` 等宽数字，减少相同位数更新时的宽度变化；计数标签的测量与窄屏文字回退使用相同设置。播放时间、验证码重发倒计时、播放器手势提示及滑块读数也启用 `tnum`，倍速仪表读数的测量同步使用该设置；实际效果取决于字体支持。只负责数字，固定单位或上限放在外部。无障碍语义读取完整目标数字，不逐字符朗读。来源、许可与固定提交见 [NumberFlow](../../third_party/number-flow/README.md)。
 
 `CharacterCount` 组合动态当前字数与静态的斜杠、上限，使用中英文共享格式资源，并将整项合并为完整计数语义。资料简介与关键词／正则屏蔽规则输入复用该组件，保留各自原有的长度计算、上限、错误优先级及校验逻辑。播放器的 `PlaybackSpeedText` 同样复用 `AnimatedNumberText`，乘号保持在数字动画区域外。动画遵循系统时长设置；初次显示直接采用当前值。
 
@@ -385,3 +380,15 @@ TOTP 页面把二维码与打开验证器操作放在同一区域，密钥与复
 ## 列表快滚条
 
 [`LazyListScrollbar`](../../app/src/main/java/moe/kirakira/ui/components/LazyListScrollbar.kt) 用于已加载内容的正向列表，不支持吸顶标题或反向布局；邀请码与视频弹幕页复用。调用方提供 `LazyListState`、滑轨布局和显示条件，组件不访问业务数据。中间位置按可见条目平均高度估算，首尾通过 `requestScrollToItem` 定位边界。滑块位于末端边缘内侧 2dp，默认使用 Material 的 4dp 宽度、24dp 最小长度与 `outline` 70% 不透明度，按下时变为 8dp，并使用主题强调色 `primary`、100% 不透明度，沿用主题快速空间与效果动画；拖动位置和动画值在绘制阶段读取。快滚条叠加在列表上，不预留额外宽度，也不显示序号或总数提示。
+
+### 收藏剪纸图形
+
+[`FavoritesLogo`](../../app/src/main/java/moe/kirakira/ui/components/FavoritesLogo.kt) 按本次视觉要求使用经典 Material Design Icons 的实心 `star` 五角星轮廓，作为默认 Rounded 图标规则的插画例外。图形为 128dp，使用 24 × 24 坐标；黄色正面叠加右侧折面，底层轮廓下移 2dp 绘制深黄色底边，完整轮廓使用 4dp 原生投影。配色固定为浅黄 `#FFEE58`、黄 `#FDD835` 和深黄 `#F9A825`，浅深主题一致，不引入位图。入场时由 -72° 旋转到正向，同时从 72% 放大到原尺寸；共用历史／设置图标的 1 秒 `CubicBezierEasing(0.1, 0.9, 0.2, 1)` 快起慢收曲线，只播放一次，不淡入。旋转、缩放、底边与投影使用同一图层，逐帧进度仅在 `graphicsLayer` 读取；关闭系统动画及静态预览直接显示终态。
+
+### 关注剪纸图形
+
+[`FollowingLogo`](../../app/src/main/java/moe/kirakira/ui/components/FollowingLogo.kt) 用于主界面关注 Tab 的未开放占位。主轮廓复用底栏 `FollowingTabIcon` 的 `ic_symbol_wifi_tethering` 外圈、内圈与中心路径，等比缩至 82% 后将原信号圆心 `(480, 520)` 对齐纸底圆心 `(480, 480)`，保留原形状和比例，并为动画峰值留出安全区域。整体为 128dp，沿用 960 × 960 坐标；纸底半径 408、中心 `(480, 480)`，使用靛蓝 `#5C6BC0`、1dp 深蓝 `#3949AB` 底边与 4dp 原生投影，上沿叠加 1dp／20% 白色浅边，左上覆盖最高 8% 的白色径向柔光。两层信号弧使用米白 `#F5F5F5`、浅靛蓝 `#C5CAE9` 底边和 1dp 投影；中心使用琥珀黄 `#FFCA28`、深黄 `#FFA000` 底边及 2dp 投影。中心和两层信号弧均沿右下 45° 投射长阴影：路径轮廓按最多 4 个画布单位的弧长间隔采样，将相邻边沿光向扫掠为同绕向四边形，缓存整条投影轮廓；绘制时跟随各纸层缩放，固定裁切在纸底内。三份投影先以不透明黑色合成，再统一施加 20% 透明度，重叠区域不累积加深；浅深主题保持同一插画配色。这些是基于 Material Design 1 Product icons 纸层、光向与简洁层次原则的应用设计选择，不是 Google 官方产品图标。
+
+入场时保留底栏关注点击的脉冲节奏：中心、内圈、外圈相隔 70ms 启动，各自在 90ms 达到 1.22／1.14／1.10 倍、190ms 回收到 0.95／0.97／0.98 倍、300ms 回到原尺寸，总时长 440ms。各纸层以共同圆心 `(480, 480)` 缩放，纸底静止，底边与投影共用图层，逐帧状态仅在图层及绘制阶段读取。每次进入组合播放一次，不循环；关闭系统动画及静态预览显示终态。图形无独立语义，保留“暂未开放”标题，无辅助小字；关注业务仍为占位。
+
+`FollowingLogoPreview` 与 `FollowingLogoDarkPreview` 在实际主题 `Surface` 上展示固定终态；`FollowingLogoMotionPreview` 用同一脉冲 AnimationSpec 在 0／90／160／230／440ms 固定采样。通过 Android CLI 独立渲染以上预览检查同心、投影重叠和动画峰值留白，不访问网络或账号状态，不新增截图基线。预览命令见[Compose 布局预览](../development.md#compose-布局预览)。
