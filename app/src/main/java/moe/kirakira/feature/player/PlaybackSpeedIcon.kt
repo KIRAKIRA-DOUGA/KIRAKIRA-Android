@@ -1,6 +1,5 @@
 package moe.kirakira.feature.player
 
-import android.annotation.SuppressLint
 import androidx.compose.foundation.Canvas
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
@@ -21,7 +20,8 @@ import kotlin.math.asin
 import kotlin.math.cos
 import kotlin.math.tan
 import moe.kirakira.R
-import org.xmlpull.v1.XmlPullParser
+import moe.kirakira.ui.components.readVectorPathData
+import moe.kirakira.ui.components.vectorPathContours
 
 /** An outlined dial with a moving gap aligned to the official speed icon's needle contour. */
 @Composable
@@ -31,26 +31,14 @@ internal fun PlaybackSpeedIcon(
 ) {
     val resources = LocalResources.current
     val needle = remember(resources) {
-        // getXml also accepts compiled VectorDrawables; retain the official needle geometry.
-        @SuppressLint("ResourceType")
-        val data = resources.getXml(R.drawable.ic_symbol_speed).use { parser ->
-            var pathData = ""
-            while (parser.eventType != XmlPullParser.END_DOCUMENT) {
-                if (parser.eventType == XmlPullParser.START_TAG && parser.name == "path") {
-                    pathData = parser.getAttributeValue("http://schemas.android.com/apk/res/android", "pathData")
-                    break
-                }
-                parser.next()
-            }
-            pathData
-        }
-        PathParser().parsePathString(data.substring(0, data.indexOf('M', startIndex = 1))).toPath()
+        val data = readVectorPathData(resources, R.drawable.ic_symbol_speed).first()
+        PathParser().parsePathString(vectorPathContours(data).first()).toPath()
     }
     val dial = remember { SpeedIconDial() }
     val color = LocalContentColor.current
     Canvas(modifier) {
         scale(size.width / 960f, size.height / 960f, pivot = Offset.Zero) {
-            val displayedAngle = angle().coerceIn(150f, 360f)
+            val displayedAngle = angle().coerceIn(PlaybackSpeedRules.ZERO_ANGLE, PlaybackSpeedRules.MAX_ANGLE)
             drawPath(
                 dial.path(displayedAngle),
                 color,

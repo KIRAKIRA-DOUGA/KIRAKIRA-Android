@@ -517,7 +517,7 @@ internal fun VideoPlayer(
                                             } else {
                                                 "$displayedTime / ${durationText(state.durationMs)}"
                                             },
-                                            style = MaterialTheme.typography.labelMedium,
+                                            style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
                                             color = Color.White,
                                             modifier = if (resumePosition != null) {
                                                 Modifier

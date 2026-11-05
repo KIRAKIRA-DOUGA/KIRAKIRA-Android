@@ -34,16 +34,24 @@ internal fun registerImageViewerEntries(
             }
             var drawable by remember(route.instanceId) { mutableStateOf(false) }
             val visibility = rememberImageVisibility()
+            val dismissNavigation = LocalImageDismissNavigation.current
             ImageViewerPage(
                 image = route.image,
                 instanceId = route.instanceId,
                 exports = checkNotNull(imageExports),
                 onBack = { navigation.closeImageViewer(route, ImageViewerCloseReason.CLOSE_BUTTON) },
-                imageModifier = Modifier.imageSharedBounds(
-                    route.image.sharedKey, viewer = true, drawable = drawable,
-                ),
+                imageModifier = if (route.image.sharedKey != null) {
+                    Modifier.imageSharedBounds(route.image.sharedKey, viewer = true, drawable = drawable)
+                } else {
+                    Modifier.imageStandaloneMotion()
+                },
+                returnToSource = route.image.sharedKey != null,
+                contentScale = rememberImageContentScale(route.image.sharedKey),
                 controlsModifier = Modifier.imageControlsOverlay(),
                 onDrawableChange = { drawable = it },
+                onDismissStarted = { dismissNavigation?.begin() == true },
+                onDismissCancelled = { dismissNavigation?.cancel() },
+                onDismiss = { dismissNavigation?.complete() },
                 transitioning = visibility.value != 1f,
                 visibilityProgress = { visibility.value },
             )

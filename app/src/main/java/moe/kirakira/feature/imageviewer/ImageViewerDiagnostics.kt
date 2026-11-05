@@ -4,7 +4,7 @@ import android.util.Log
 import androidx.lifecycle.Lifecycle
 import moe.kirakira.BuildConfig
 
-internal enum class ImageViewerCloseReason { CLOSE_BUTTON, SYSTEM_BACK }
+internal enum class ImageViewerCloseReason { CLOSE_BUTTON, SYSTEM_BACK, DRAG_DOWN }
 
 /** Only generated instance IDs and application-owned states may be recorded here. */
 internal object ImageViewerDiagnostics {

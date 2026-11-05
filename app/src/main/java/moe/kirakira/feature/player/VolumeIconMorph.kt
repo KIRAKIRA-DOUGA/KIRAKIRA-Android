@@ -1,6 +1,5 @@
 package moe.kirakira.feature.player
 
-import android.annotation.SuppressLint
 import android.content.res.Resources
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -11,7 +10,8 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.unit.LayoutDirection
 import moe.kirakira.R
-import org.xmlpull.v1.XmlPullParser
+import moe.kirakira.ui.components.readVectorPathData
+import moe.kirakira.ui.components.vectorPathContours
 
 /** Official volume_up contours; collapsing waves and shifting the speaker match down/mute geometry. */
 internal class VolumeIconMorph(resources: Resources) {
@@ -20,20 +20,7 @@ internal class VolumeIconMorph(resources: Resources) {
     private val outerWave: Path
 
     init {
-        // getXml accepts compiled drawable XML too; these vector contours are needed for the morph.
-        @SuppressLint("ResourceType")
-        val data = resources.getXml(R.drawable.ic_symbol_volume_up).use { parser ->
-            var pathData = ""
-            while (parser.eventType != XmlPullParser.END_DOCUMENT) {
-                if (parser.eventType == XmlPullParser.START_TAG && parser.name == "path") {
-                    pathData = parser.getAttributeValue("http://schemas.android.com/apk/res/android", "pathData")
-                    break
-                }
-                parser.next()
-            }
-            pathData
-        }
-        val contours = Regex("M[^M]+").findAll(data).map { it.value }.toList()
+        val contours = vectorPathContours(readVectorPathData(resources, R.drawable.ic_symbol_volume_up).first())
         fun path(data: String): Path = PathParser().parsePathString(data).toPath()
         outerWave = path(contours[0])
         speaker = path(contours[1])

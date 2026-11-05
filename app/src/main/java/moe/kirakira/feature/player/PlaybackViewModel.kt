@@ -25,20 +25,19 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import java.io.IOException
-import kotlin.math.abs
-import kotlin.math.round
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import moe.kirakira.core.image.isPublicMediaHttpUrl
 import moe.kirakira.data.content.VideoPart
 import moe.kirakira.data.history.HistoryRepository
 import okhttp3.OkHttpClient
 
 internal data class VideoQualityOption(val height: Int, val bitrate: Int?)
 
-internal val playbackSpeeds = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f, 3f, 4f)
+internal val playbackSpeeds = PlaybackSpeedRules.speeds
 
 /** Host-owned playback, paused on restoration; never stores URLs or credentials in SavedState. */
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
@@ -179,7 +178,7 @@ internal class PlaybackViewModel(
         private set
     var actualVideoHeight by mutableStateOf<Int?>(null)
         private set
-    var speed by mutableFloatStateOf(savedState.get<Float>("speed")?.takeIf { it.isFinite() && it in 0.25f..4f } ?: 1f)
+    var speed by mutableFloatStateOf(savedState.get<Float>("speed")?.takeIf { it.isFinite() && it in PlaybackSpeedRules.range } ?: 1f)
         private set
     var continuousSpeed by mutableStateOf(savedState.get<Boolean>("continuous_speed") ?: false)
         private set
@@ -216,9 +215,7 @@ internal class PlaybackViewModel(
 
     fun changeSpeed(value: Float) {
         if (!value.isFinite()) return
-        val bounded = value.coerceIn(0.25f, 4f)
-        speed = if (continuousSpeed) round(bounded * 100) / 100
-            else playbackSpeeds.minBy { abs(it - bounded) }
+        speed = PlaybackSpeedRules.normalize(value, continuousSpeed)
         savedState["speed"] = speed
         applySpeed()
     }
@@ -460,6 +457,6 @@ private val publicMediaClient: OkHttpClient = OkHttpClient.Builder()
     .followSslRedirects(false)
     .addNetworkInterceptor { chain ->
         val url = chain.request().url
-        if (!url.isHttps || url.username.isNotEmpty() || url.password.isNotEmpty()) throw IOException("Invalid media URL")
+        if (!isPublicMediaHttpUrl(url)) throw IOException("Invalid media URL")
         chain.proceed(chain.request())
     }.build()

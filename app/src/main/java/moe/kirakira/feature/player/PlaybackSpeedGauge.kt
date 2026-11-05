@@ -36,8 +36,8 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
@@ -50,19 +50,17 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.abs
 import kotlin.math.asin
 import kotlin.math.cos
-import kotlin.math.log2
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.tan
 import moe.kirakira.R
+import moe.kirakira.feature.player.PlaybackSpeedRules.MAX_ANGLE
+import moe.kirakira.feature.player.PlaybackSpeedRules.ZERO_ANGLE
 import moe.kirakira.ui.components.rememberEmphasizedEasing
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
-private const val ZERO_ANGLE = 150f
-private const val MAX_ANGLE = 360f
-private val gaugeSpeeds = listOf(0f, 0.25f, 0.5f, 1f, 2f, 4f)
+private val gaugeSpeeds = listOf(0f, PlaybackSpeedRules.range.start, 0.5f, 1f, 2f, PlaybackSpeedRules.range.endInclusive)
 
 /** Shared by the control icon and expanded gauge, including the paused/buffering zero position. */
 @Composable
@@ -71,7 +69,7 @@ internal fun rememberPlaybackSpeedAngle(
     playing: Boolean,
     immediate: Boolean = false,
 ): State<Float> = animateFloatAsState(
-    targetValue = gaugeAngle(if (playing) speed else 0f),
+    targetValue = PlaybackSpeedRules.angle(if (playing) speed else 0f),
     animationSpec = if (immediate) snap() else tween(durationMillis = 300, easing = rememberEmphasizedEasing()),
     label = "PlaybackSpeedAngle",
 )
@@ -93,16 +91,14 @@ internal fun PlaybackSpeedGauge(
     val sliderColors = SliderDefaults.colors()
     val readoutLabel = speedLabel(speed)
     val adjustProgress: (Float) -> Boolean = { target ->
-        val requested = 2f.pow(target.coerceIn(-2f, 2f))
-        val next = if (continuousSpeed) requested else {
-            if (requested > speed) playbackSpeeds.firstOrNull { it > speed } ?: speed
-            else if (requested < speed) playbackSpeeds.lastOrNull { it < speed } ?: speed
-            else speed
-        }
+        val next = PlaybackSpeedRules.adjustedSpeed(speed, target, continuousSpeed)
         if (next != speed) onSpeed(next)
         next != speed
     }
-    val readoutStyle = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Medium)
+    val readoutStyle = MaterialTheme.typography.headlineLarge.copy(
+        fontWeight = FontWeight.Medium,
+        fontFeatureSettings = "tnum",
+    )
     val labelColor = colorScheme.onSurfaceVariant
     val labelStyle = MaterialTheme.typography.labelMedium.copy(color = labelColor)
     val textMeasurer = rememberTextMeasurer()
@@ -113,12 +109,12 @@ internal fun PlaybackSpeedGauge(
             maxLines = 1,
         )
     }
-    val majorAngles = gaugeSpeeds.map(::gaugeAngle)
+    val majorAngles = gaugeSpeeds.map(PlaybackSpeedRules::angle)
     val readout = textMeasurer.measure(readoutLabel, readoutStyle, maxLines = 1)
     // Reserve the widest two-decimal readout so changing speed never changes the sheet height.
     val readoutBounds = listOf(
         readout,
-        textMeasurer.measure(speedLabel(0.25f), readoutStyle, maxLines = 1),
+        textMeasurer.measure(speedLabel(PlaybackSpeedRules.range.start), readoutStyle, maxLines = 1),
         textMeasurer.measure(speedLabel(1.25f), readoutStyle, maxLines = 1),
         textMeasurer.measure(speedLabel(3.99f), readoutStyle, maxLines = 1),
     )
@@ -173,20 +169,20 @@ internal fun PlaybackSpeedGauge(
                     .semantics {
                         contentDescription = description
                         stateDescription = readoutLabel
-                        progressBarRangeInfo = ProgressBarRangeInfo(log2(speed), -2f..2f)
+                        progressBarRangeInfo = ProgressBarRangeInfo(PlaybackSpeedRules.progress(speed), PlaybackSpeedRules.progressRange)
                         setProgress(action = adjustProgress)
                     }
                     .onKeyEvent { event ->
                         if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
                         val target = when (event.key) {
-                            Key.DirectionRight, Key.DirectionUp -> log2(speed) + 0.1f
-                            Key.DirectionLeft, Key.DirectionDown -> log2(speed) - 0.1f
-                            Key.MoveHome -> -2f
-                            Key.MoveEnd -> 2f
+                            Key.DirectionRight, Key.DirectionUp -> PlaybackSpeedRules.progress(speed) + 0.1f
+                            Key.DirectionLeft, Key.DirectionDown -> PlaybackSpeedRules.progress(speed) - 0.1f
+                            Key.MoveHome -> PlaybackSpeedRules.progressRange.start
+                            Key.MoveEnd -> PlaybackSpeedRules.progressRange.endInclusive
                             else -> return@onKeyEvent false
                         }
                         if (event.key == Key.MoveHome || event.key == Key.MoveEnd) {
-                            onSpeed(2f.pow(target))
+                            onSpeed(PlaybackSpeedRules.speedAtProgress(target))
                         } else {
                             adjustProgress(target)
                         }
@@ -241,13 +237,13 @@ internal fun PlaybackSpeedGauge(
                             gaugePoint(center, outerRadius + gap + textSize.width / 2f, ZERO_ANGLE).x,
                             center.y + max(outerRadius * zeroSine + gap, labelHeight + gap),
                         )
-                        0.25f -> Offset(center.x - outerRadius - gap - textSize.width / 2f, center.y)
-                        4f -> Offset(center.x + outerRadius + gap + textSize.width / 2f, center.y)
+                        PlaybackSpeedRules.range.start -> Offset(center.x - outerRadius - gap - textSize.width / 2f, center.y)
+                        PlaybackSpeedRules.range.endInclusive -> Offset(center.x + outerRadius + gap + textSize.width / 2f, center.y)
                         else -> {
-                            val radians = Math.toRadians(gaugeAngle(value).toDouble())
+                            val radians = Math.toRadians(PlaybackSpeedRules.angle(value).toDouble())
                             val textRadius = (textSize.width * abs(cos(radians)).toFloat() +
                                 textSize.height * abs(sin(radians)).toFloat()) / 2
-                            gaugePoint(center, outerRadius + gap + textRadius, gaugeAngle(value))
+                            gaugePoint(center, outerRadius + gap + textRadius, PlaybackSpeedRules.angle(value))
                         }
                     }
                     val left = (anchor.x - textSize.width / 2f).coerceIn(0f, max(0f, size.width - textSize.width))
@@ -327,9 +323,6 @@ private fun gaugeTrackPath(
         close()
     }
 }
-
-private fun gaugeAngle(speed: Float): Float =
-    if (speed <= 0f) ZERO_ANGLE else 180f + 180f * (log2(speed.coerceIn(0.25f, 4f)) + 2f) / 4f
 
 private fun gaugePoint(center: Offset, radius: Float, angle: Float): Offset {
     val radians = Math.toRadians(angle.toDouble())

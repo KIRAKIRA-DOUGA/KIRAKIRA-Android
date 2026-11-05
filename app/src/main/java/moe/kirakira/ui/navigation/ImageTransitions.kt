@@ -5,9 +5,8 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Easing
-import androidx.compose.animation.core.TweenSpec
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.shape.CircleShape
@@ -26,26 +25,42 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.ScaleFactor
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.util.lerp
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
+import kotlin.math.abs
+import moe.kirakira.ui.components.mediaZoomSpec
 import moe.kirakira.ui.components.rememberEmphasizedEasing
 
-internal const val IMAGE_TRANSITION_MILLIS = 420
-internal fun <T> imageTransitionSpec(easing: Easing): TweenSpec<T> =
-    tween(durationMillis = IMAGE_TRANSITION_MILLIS, easing = easing)
+internal fun imageTransitionSpec(easing: Easing, expanding: Boolean): FiniteAnimationSpec<Float> =
+    mediaZoomSpec(expanding, easing, visibilityThreshold = 0.001f)
 
 internal val LocalImageSharedScope = compositionLocalOf<SharedTransitionScope?> { null }
 internal val LocalImageTransitionSizes = compositionLocalOf<ImageTransitionSizes?> { null }
 
 internal class ImageTransitionSizes {
-    private val sourceSizes = mutableMapOf<String, Size>()
-    private val viewerSizes = mutableMapOf<String, Size>()
+    private val sourceSizes = mutableStateMapOf<String, Size>()
+    private val sourceContentScales = mutableStateMapOf<String, Map<Any, ContentScale>>()
+    private val circularSources = mutableMapOf<String, MutableSet<Any>>()
+    private val viewerSizes = mutableStateMapOf<String, Size>()
     private val participants = mutableMapOf<String, MutableMap<Any, Boolean>>()
     private val drawableViewers = mutableStateMapOf<String, Map<Any, Boolean>>()
 
-    fun attach(key: String, participant: Any, viewer: Boolean) {
+    fun attach(
+        key: String,
+        participant: Any,
+        viewer: Boolean,
+        circularSource: Boolean,
+        sourceContentScale: ContentScale?,
+    ) {
         participants.getOrPut(key) { mutableMapOf() }[participant] = viewer
+        if (!viewer && circularSource) circularSources.getOrPut(key) { mutableSetOf() }.add(participant)
+        if (!viewer && sourceContentScale != null) {
+            sourceContentScales[key] = sourceContentScales[key].orEmpty() + (participant to sourceContentScale)
+        }
     }
 
     fun drawable(key: String, participant: Any, drawable: Boolean) {
@@ -58,8 +73,14 @@ internal class ImageTransitionSizes {
     fun release(key: String, participant: Any) {
         val remaining = participants[key] ?: return
         remaining.remove(participant)
+        circularSources[key]?.let { sources ->
+            sources.remove(participant)
+            if (sources.isEmpty()) circularSources.remove(key)
+        }
         val drawable = drawableViewers[key].orEmpty() - participant
         if (drawable.isEmpty()) drawableViewers.remove(key) else drawableViewers[key] = drawable
+        val scales = sourceContentScales[key].orEmpty() - participant
+        if (scales.isEmpty()) sourceContentScales.remove(key) else sourceContentScales[key] = scales
         if (remaining.values.none { it } || remaining.values.none { !it }) {
             sourceSizes.remove(key)
             viewerSizes.remove(key)
@@ -76,32 +97,74 @@ internal class ImageTransitionSizes {
     }
 
     fun roundness(key: String, bounds: Rect, viewer: Boolean): Float {
+        if (circularSources[key].isNullOrEmpty()) return 0f
         val source = sourceSizes[key] ?: return if (viewer) 0f else 1f
         val target = viewerSizes[key] ?: return if (viewer) 0f else 1f
+        val fraction = sizeProgress(source, target, bounds.size) ?: return if (viewer) 0f else 1f
+        // Hold the circular silhouette until the bounds have opened substantially.
+        return 1f - fraction * fraction
+    }
+
+    fun contentScale(key: String, srcSize: Size, dstSize: Size, restingContentScale: ContentScale): ScaleFactor {
+        val fallback = restingContentScale.computeScaleFactor(srcSize, dstSize)
+        val sourceScale = sourceContentScales[key]?.values?.firstOrNull()
+            ?: return fallback
+        val source = sourceSizes[key] ?: return fallback
+        val target = viewerSizes[key] ?: return fallback
+        val fraction = sizeProgress(source, target, dstSize) ?: return fallback
+        val start = sourceScale.computeScaleFactor(srcSize, source)
+        val end = ContentScale.Fit.computeScaleFactor(srcSize, target)
+        // Use the same geometry as the shared bounds, including reverse and predictive motion.
+        return ScaleFactor(lerp(start.scaleX, end.scaleX, fraction), lerp(start.scaleY, end.scaleY, fraction))
+    }
+
+    private fun sizeProgress(source: Size, target: Size, current: Size): Float? {
         val widthChange = target.width - source.width
         val heightChange = target.height - source.height
         val distanceSquared = widthChange * widthChange + heightChange * heightChange
-        if (distanceSquared == 0f) return if (viewer) 0f else 1f
+        if (distanceSquared == 0f) return null
         val progress = (
-            (bounds.width - source.width) * widthChange +
-                (bounds.height - source.height) * heightChange
+            (current.width - source.width) * widthChange +
+                (current.height - source.height) * heightChange
             ) / distanceSquared
-        val fraction = progress.coerceIn(0f, 1f)
-        // Hold the circular silhouette until the bounds have opened substantially.
-        return 1f - fraction * fraction
+        return progress.coerceIn(0f, 1f)
+    }
+}
+
+/** Match a source's fill at its bounds, then continuously reveal the full image in the viewer. */
+@Composable
+internal fun rememberImageContentScale(
+    key: String?,
+    restingContentScale: ContentScale = ContentScale.Fit,
+): ContentScale {
+    val sharedScope = LocalImageSharedScope.current ?: return restingContentScale
+    val sizes = LocalImageTransitionSizes.current ?: return restingContentScale
+    if (key == null) return restingContentScale
+    return remember(key, sharedScope, sizes, restingContentScale) {
+        object : ContentScale {
+            override fun computeScaleFactor(srcSize: Size, dstSize: Size): ScaleFactor =
+                if (sharedScope.isTransitionActive) sizes.contentScale(key, srcSize, dstSize, restingContentScale)
+                else restingContentScale.computeScaleFactor(srcSize, dstSize)
+        }
     }
 }
 
 /** Bounds and the zoom layer are separate: closing never resets Telephoto's current transform. */
 @Composable
-internal fun Modifier.imageSharedBounds(key: String?, viewer: Boolean, drawable: Boolean = false): Modifier {
+internal fun Modifier.imageSharedBounds(
+    key: String?,
+    viewer: Boolean,
+    drawable: Boolean = false,
+    circularSource: Boolean = true,
+    sourceContentScale: ContentScale? = null,
+): Modifier {
     val easing = rememberEmphasizedEasing()
     val sharedScope = LocalImageSharedScope.current ?: return this
     if (key == null) return this
     val sizes = LocalImageTransitionSizes.current ?: return this
     val participant = remember(key, viewer) { Any() }
-    DisposableEffect(key, participant, sizes) {
-        sizes.attach(key, participant, viewer)
+    DisposableEffect(key, participant, sizes, circularSource, sourceContentScale) {
+        sizes.attach(key, participant, viewer, circularSource, sourceContentScale)
         onDispose { sizes.release(key, participant) }
     }
     SideEffect { if (viewer) sizes.drawable(key, participant, drawable) }
@@ -136,7 +199,17 @@ internal fun Modifier.imageSharedBounds(key: String?, viewer: Boolean, drawable:
                 exit = ExitTransition.None,
                 boundsTransform = { initial, target ->
                     sizes.record(key, initial, target)
-                    imageTransitionSpec(easing)
+                    // Match the video's normalized 0.001 settling threshold in pixel coordinates.
+                    mediaZoomSpec(
+                        expanding = target.width * target.height > initial.width * initial.height,
+                        easing = easing,
+                        visibilityThreshold = Rect(
+                            abs(target.left - initial.left).coerceAtLeast(1f) * 0.001f,
+                            abs(target.top - initial.top).coerceAtLeast(1f) * 0.001f,
+                            abs(target.right - initial.right).coerceAtLeast(1f) * 0.001f,
+                            abs(target.bottom - initial.bottom).coerceAtLeast(1f) * 0.001f,
+                        ),
+                    )
                 },
                 resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
                 clipInOverlayDuringTransition = overlayClip,
@@ -146,7 +219,7 @@ internal fun Modifier.imageSharedBounds(key: String?, viewer: Boolean, drawable:
                 // The overlay owns the clipping during a match; this layer only clips at rest.
                 // Its radius follows the animated bounds, including predictive return seeking.
                 val movingInOverlay = state.isMatchFound && isTransitionActive
-                shape = if (viewer) RectangleShape else CircleShape
+                shape = if (viewer || !circularSource) RectangleShape else CircleShape
                 clip = !movingInOverlay
                 // Match lifetime outlasts overlay rendering. Restore the source on the same
                 // frame the overlay stops drawing, rather than waiting for viewer disposal.
@@ -159,7 +232,7 @@ internal fun Modifier.imageSharedBounds(key: String?, viewer: Boolean, drawable:
 internal fun rememberImageVisibility(): State<Float> {
     val easing = rememberEmphasizedEasing()
     return LocalNavAnimatedContentScope.current.transition.animateFloat(
-        transitionSpec = { imageTransitionSpec(easing) },
+        transitionSpec = { imageTransitionSpec(easing, expanding = targetState == EnterExitState.Visible) },
         label = "image visibility",
     ) { if (it == EnterExitState.Visible) 1f else 0f }
 }
@@ -175,9 +248,29 @@ internal fun Modifier.imageControlsOverlay(): Modifier {
             this@imageControlsOverlay
                 .renderInSharedTransitionScopeOverlay(zIndexInOverlay = 2f)
                 .animateEnterExit(
-                    enter = fadeIn(imageTransitionSpec(easing)),
-                    exit = fadeOut(imageTransitionSpec(easing)),
+                    enter = fadeIn(imageTransitionSpec(easing, expanding = true)),
+                    exit = fadeOut(imageTransitionSpec(easing, expanding = false)),
                 )
         }
+    }
+}
+
+/** An unanchored image opens around its own center, without inventing a shared source. */
+@Composable
+internal fun Modifier.imageStandaloneMotion(): Modifier {
+    val easing = rememberEmphasizedEasing()
+    val scale = LocalNavAnimatedContentScope.current.transition.animateFloat(
+        transitionSpec = { imageTransitionSpec(easing, expanding = targetState == EnterExitState.Visible) },
+        label = "standalone image scale",
+    ) {
+        when (it) {
+            EnterExitState.PreEnter -> 0.92f
+            EnterExitState.Visible -> 1f
+            EnterExitState.PostExit -> 0.96f
+        }
+    }
+    return graphicsLayer {
+        scaleX = scale.value
+        scaleY = scale.value
     }
 }

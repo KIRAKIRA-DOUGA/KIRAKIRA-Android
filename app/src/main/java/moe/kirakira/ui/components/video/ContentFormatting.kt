@@ -1,12 +1,10 @@
 package moe.kirakira.ui.components.video
 
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
-import java.text.DateFormat
-import java.util.Date
 import java.util.Locale
 import moe.kirakira.R
+import moe.kirakira.ui.components.dateTimeText
 
 @Composable
 internal fun categoryText(category: String): String {
@@ -31,9 +29,4 @@ internal fun durationText(milliseconds: Long?): String {
 }
 
 @Composable
-internal fun dateText(timestamp: Long?): String {
-    val locale = LocalConfiguration.current.locales[0]
-    return timestamp?.takeIf { it >= 0 }?.let {
-        DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT, locale).format(Date(it))
-    } ?: "—"
-}
+internal fun dateText(timestamp: Long?): String = dateTimeText(timestamp)

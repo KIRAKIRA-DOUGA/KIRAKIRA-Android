@@ -8,7 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
@@ -20,7 +19,6 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -74,7 +72,6 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
@@ -83,6 +80,7 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import moe.kirakira.R
+import moe.kirakira.core.image.deliveryImageUrl
 import moe.kirakira.data.content.DanmakuEntry
 import moe.kirakira.data.content.DanmakuStyle
 import moe.kirakira.data.content.PublicProfile
@@ -93,11 +91,13 @@ import moe.kirakira.ui.components.AccountAvatar
 import moe.kirakira.ui.components.AnimatedCountLabel
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
+import moe.kirakira.ui.components.ContentStatusViewport
 import moe.kirakira.ui.components.ExpandableText
 import moe.kirakira.ui.components.FollowButton
 import moe.kirakira.ui.components.LazyListScrollbar
 import moe.kirakira.ui.components.LocalNumberAnimationIdentity
 import moe.kirakira.ui.components.PagerTabRow
+import moe.kirakira.ui.components.UsernameText
 import moe.kirakira.ui.components.frostedBarBackground
 import moe.kirakira.ui.components.rememberMorphingButtonShape
 import moe.kirakira.ui.components.rememberTabChangeHandler
@@ -147,6 +147,7 @@ internal fun VideoScreen(
     onShare: () -> Unit,
     onLogin: () -> Unit,
     contentPadding: PaddingValues,
+    onViewCover: () -> Unit,
     selectedPart: Int,
     onSelectPart: (Int) -> Unit,
     onOpenTag: (Long) -> Unit,
@@ -272,15 +273,19 @@ internal fun VideoScreen(
                         modifier = Modifier.fillMaxSize().padding(horizontalPadding),
                         indicatorTopPadding = tabPadding,
                     ) {
-                        BoxWithConstraints(Modifier.fillMaxSize()) {
-                            val statusHeight = (maxHeight - tabPadding - bottomPadding - 48.dp).coerceAtLeast(0.dp)
-                            LazyColumn(state = introductionListState, contentPadding = PaddingValues(20.dp, tabPadding + 24.dp, 20.dp, bottomPadding + 24.dp),
+                        val listContentPadding = PaddingValues(20.dp, tabPadding + 24.dp, 20.dp, bottomPadding + 24.dp)
+                        ContentStatusViewport(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = listContentPadding,
+                            leadingContentHeight = 0.dp,
+                        ) { statusModifier ->
+                            LazyColumn(state = introductionListState, contentPadding = listContentPadding,
                                 verticalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.fillMaxSize()) {
                                 if (state.detail.error != null || detail == null) {
                                     item("status") {
                                         ContentStatus(
                                             state.detail, onRetry,
-                                            Modifier.fillMaxWidth().then(if (detail == null) Modifier.heightIn(min = statusHeight) else Modifier),
+                                            Modifier.fillMaxWidth().then(if (detail == null) statusModifier else Modifier),
                                         )
                                     }
                                 }
@@ -360,7 +365,14 @@ internal fun VideoScreen(
                                         CompositionLocalProvider(
                                             LocalNumberAnimationIdentity provides Pair(state.sessionRevision, detail.summary.id),
                                         ) {
-                                            VideoActions(detail, state.busy || state.detail.loading || state.detail.error != null, onVote, onUnavailable, onShare)
+                                            VideoActions(
+                                                detail = detail,
+                                                busy = state.busy || state.detail.loading || state.detail.error != null,
+                                                onVote = onVote,
+                                                onUnavailable = onUnavailable,
+                                                onShare = onShare,
+                                                onViewCover = onViewCover,
+                                            )
                                         }
                                     }
                                 }
@@ -409,12 +421,15 @@ internal fun VideoScreen(
                             modifier = Modifier.fillMaxSize(),
                             indicatorTopPadding = tabPadding,
                         ) {
-                            BoxWithConstraints(Modifier.fillMaxSize()) {
-                                var headerHeight by remember { mutableIntStateOf(0) }
-                                val statusHeight = (maxHeight - tabPadding - listBottomPadding - 8.dp -
-                                    with(density) { headerHeight.toDp() }).coerceAtLeast(0.dp)
+                            var headerHeight by remember { mutableIntStateOf(0) }
+                            val listContentPadding = PaddingValues(8.dp, tabPadding + 8.dp, 8.dp, listBottomPadding)
+                            ContentStatusViewport(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = listContentPadding,
+                                leadingContentHeight = with(density) { headerHeight.toDp() },
+                            ) { statusModifier ->
                                 LazyColumn(state = danmakuListState, modifier = Modifier.fillMaxSize(),
-                                    contentPadding = PaddingValues(8.dp, tabPadding + 8.dp, 8.dp, listBottomPadding)) {
+                                    contentPadding = listContentPadding) {
                                     item("count") {
                                         Column(Modifier.onSizeChanged { headerHeight = it.height }) {
                                             CompositionLocalProvider(
@@ -431,7 +446,7 @@ internal fun VideoScreen(
                                             ContentStatus(
                                                 danmakuStatus, onRetryDanmaku,
                                                 Modifier.fillMaxWidth().then(
-                                                    if (danmaku.data.isNullOrEmpty()) Modifier.heightIn(min = statusHeight) else Modifier,
+                                                    if (danmaku.data.isNullOrEmpty()) statusModifier else Modifier,
                                                 ),
                                                 danmaku.data.isNullOrEmpty(),
                                                 emptyTitle = stringResource(R.string.video_danmaku_empty),
@@ -536,11 +551,9 @@ private fun VideoAuthor(
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (author.username.isNotBlank()) {
-                    Text(
-                        text = "@${author.username}",
+                    UsernameText(
+                        username = author.username,
                         style = MaterialTheme.typography.bodyMedium,
-                        fontFamily = FontFamily.Monospace,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -576,6 +589,7 @@ private fun VideoActions(
     onVote: (Reaction) -> Unit,
     onUnavailable: () -> Unit,
     onShare: () -> Unit,
+    onViewCover: () -> Unit,
 ) {
     val actionColors = IconButtonDefaults.filledTonalIconButtonColors(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -591,8 +605,14 @@ private fun VideoActions(
         FilledTonalIconButton(onClick = onShare, colors = actionColors) {
             Icon(painterResource(R.drawable.ic_symbol_share), stringResource(R.string.video_share))
         }
-        FilledTonalIconButton(onClick = onUnavailable, colors = actionColors) {
-            Icon(painterResource(R.drawable.ic_symbol_more_horiz), stringResource(R.string.video_more))
+        VideoActionsMenu(
+            videoId = detail.summary.id,
+            coverAvailable = deliveryImageUrl(detail.summary.image) != null,
+            onViewCover = onViewCover,
+        ) { open ->
+            FilledTonalIconButton(onClick = open, colors = actionColors) {
+                Icon(painterResource(R.drawable.ic_symbol_more_horiz), stringResource(R.string.video_more))
+            }
         }
     }
 }

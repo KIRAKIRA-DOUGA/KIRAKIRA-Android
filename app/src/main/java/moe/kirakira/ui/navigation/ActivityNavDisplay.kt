@@ -73,7 +73,9 @@ internal fun <T : Any> ActivityNavDisplay(
     canNavigateBack: () -> Boolean = { true },
     predictiveBackEnabled: Boolean = false,
     onImageBack: (T) -> Unit = { onBack() },
+    onImageDismiss: (T) -> Unit = onImageBack,
     videoZoomState: PlaybackViewportState? = null,
+    videoPageUnderImage: Boolean = false,
     entryProvider: (T) -> NavEntry<T>,
 ) {
     val ordinaryMotion = rememberNavigationMotion()
@@ -101,6 +103,7 @@ internal fun <T : Any> ActivityNavDisplay(
     )
     val currentEntriesState = rememberUpdatedState(entries)
     val imageActive = entries.last().usesImageTransition
+    val imagePredictiveBack = imageActive && predictiveBackEnabled
     val zoomRoute = entries.last().metadata[VIDEO_ZOOM_METADATA] == true
     // Keep outgoing ordinary pages above the retained video until their Scene is disposed.
     val videoCovered = !imageActive && (
@@ -108,6 +111,7 @@ internal fun <T : Any> ActivityNavDisplay(
             videoZoomState?.coveringPageKeys?.isNotEmpty() == true
         )
     val videoCoveredState = rememberUpdatedState(videoCovered)
+    val videoSourceCoveredState = rememberUpdatedState(videoCovered || videoPageUnderImage)
     val zoomPreview = zoomRoute && videoZoomState?.backProgress != null
     val previewKey = if (zoomPreview) entries.last().contentKey else motion.closingKey
     val returningToVideo = !zoomRoute && motion.closingKey == entries.last().contentKey &&
@@ -117,25 +121,42 @@ internal fun <T : Any> ActivityNavDisplay(
         videoZoomState?.navigationReturn = readVideoReturn.takeIf { returningToVideo }
     }
     val strategy = remember(motion, previewKey, currentEntriesState, zoomPreview, videoZoomState) {
-        ActivitySceneStrategy(motion, previewKey, currentEntriesState, zoomPreview, videoZoomState, videoCoveredState)
+        ActivitySceneStrategy(
+            motion, previewKey, currentEntriesState, zoomPreview, videoZoomState,
+            videoCoveredState, videoSourceCoveredState,
+        )
     }
     val sceneState = rememberSceneState(entries, listOf(strategy), onBack = onBack)
     val topRoute = backStack.last()
-    // The image viewer uses Navigation 3's seekable predictive back. Other pages retain AOSP motion.
-    val displayState = key(if (imageActive) entries.last().contentKey else OrdinaryNavigationEventKey) {
+    // Only opt into Navigation 3's seekable image return while the setting is enabled.
+    // Changing the setting retires the previous gesture state and its handler.
+    val displayState = key(if (imagePredictiveBack) entries.last().contentKey else OrdinaryNavigationEventKey) {
         val state = rememberNavigationEventState(
             currentInfo = SceneInfo(sceneState.currentScene),
             backInfo = sceneState.previousScenes.asReversed().map { SceneInfo(it) },
         )
         NavigationBackHandler(
             state = state,
-            isBackEnabled = imageActive && entries.size > 1,
+            isBackEnabled = imagePredictiveBack && entries.size > 1,
             onBackCompleted = {
                 // Keying the handler retires an old gesture participant when another instance opens.
-                if (imageActive && backStack.size > 1 && backStack.lastOrNull() == topRoute) onImageBack(topRoute)
+                if (imagePredictiveBack && backStack.size > 1 && backStack.lastOrNull() == topRoute) onImageBack(topRoute)
             },
         )
         state
+    }
+    val dismissNavigation = remember(if (imageActive) entries.last().contentKey else null) {
+        ImageDismissNavigation()
+    }
+    val dismissEventState = key(dismissNavigation) {
+        rememberImageDismissEventState(
+            navigation = dismissNavigation,
+            sceneState = sceneState,
+            enabled = imageActive && entries.size > 1,
+            onDismiss = {
+                if (imageActive && backStack.size > 1 && backStack.lastOrNull() == topRoute) onImageDismiss(topRoute)
+            },
+        )
     }
     var size by remember { mutableStateOf(IntSize.Zero) }
     val density = LocalDensity.current.density
@@ -145,7 +166,7 @@ internal fun <T : Any> ActivityNavDisplay(
         motion = motion,
         sceneState = sceneState,
         predictiveBackEnabled = predictiveBackEnabled,
-        enabled = entries.size > 1 && !imageActive,
+        enabled = entries.size > 1 && !imagePredictiveBack,
         onBackRequested = onBackRequested,
         canNavigateBack = canNavigateBack,
         onBack = onBack,
@@ -166,15 +187,16 @@ internal fun <T : Any> ActivityNavDisplay(
         },
         zoomState = videoZoomState.takeIf { zoomRoute },
     )
-    SharedTransitionLayout(modifier = modifier.fillMaxSize().zIndex(if (videoCovered) 1f else 0f)) {
+    SharedTransitionLayout(modifier = modifier.fillMaxSize().zIndex(if (videoCovered || videoPageUnderImage) 1f else 0f)) {
         val imageSizes = remember { ImageTransitionSizes() }
         CompositionLocalProvider(
+            LocalImageDismissNavigation provides dismissNavigation.takeIf { imageActive },
             LocalImageSharedScope provides this,
             LocalImageTransitionSizes provides imageSizes,
         ) {
             NavDisplay(
                 sceneState = sceneState,
-                navigationEventState = displayState,
+                navigationEventState = if (imageActive && dismissNavigation.active) dismissEventState else displayState,
                 modifier = Modifier
                     .fillMaxSize()
                     .clipToBounds()
@@ -217,6 +239,7 @@ private class ActivitySceneStrategy<T : Any>(
     private val zoomPreview: Boolean,
     private val videoZoomState: PlaybackViewportState?,
     private val videoCovered: State<Boolean>,
+    private val videoSourceCovered: State<Boolean>,
 ) : SceneStrategy<T> {
     override fun SceneStrategyScope<T>.calculateScene(entries: List<NavEntry<T>>): Scene<T> =
         ActivityScene(
@@ -230,6 +253,7 @@ private class ActivitySceneStrategy<T : Any>(
             zoomPreview = zoomPreview,
             videoZoomState = videoZoomState,
             videoCovered = videoCovered,
+            videoSourceCovered = videoSourceCovered,
         )
 }
 
@@ -242,6 +266,7 @@ private data class ActivityScene<T : Any>(
     val zoomPreview: Boolean,
     val videoZoomState: PlaybackViewportState?,
     val videoCovered: State<Boolean>,
+    val videoSourceCovered: State<Boolean>,
 ) : Scene<T> {
     override val content: @Composable () -> Unit = {
         DisposableEffect(key, motion) {
@@ -310,7 +335,7 @@ private data class ActivityScene<T : Any>(
                     .drawWithContent {
                         // This placeholder Scene must reveal the persistent VideoPage, not its
                         // original card page, under an ordinary page entering or leaving above it.
-                        if (!zoomLayer || !videoCovered.value) drawContent()
+                        if (!zoomLayer || !videoSourceCovered.value) drawContent()
                     }
                     .then(
                         if (retainContent && !interactive) Modifier.clearAndSetSemantics {}.pointerInput(Unit) {

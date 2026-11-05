@@ -47,7 +47,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
-import moe.kirakira.data.content.DanmakuStyle
+import moe.kirakira.core.color.formatRgbHex
 
 private val danmakuColors =
     listOf(0xFFFFFF, 0xFF3225, 0xF06E8E, 0xFFA800, 0xFBFF34, 0x2CE73F, 0x39C5BB, 0x24C1F2, 0xDC1FED)
@@ -73,7 +73,7 @@ internal fun DanmakuColorPalette(
                             onClick = { onColor(rgb) },
                             description = stringResource(
                                 R.string.danmaku_style_color_value,
-                                DanmakuStyle(color = rgb).colorHex,
+                                formatRgbHex(rgb),
                             ),
                             color = Color(0xFF000000.toInt() or rgb),
                             modifier = Modifier.weight(1f),

@@ -75,8 +75,6 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.takeOrElse
 import java.math.BigDecimal
-import kotlin.math.log2
-import kotlin.math.pow
 import kotlin.math.roundToInt
 import moe.kirakira.R
 import moe.kirakira.data.settings.DanmakuSettings
@@ -349,8 +347,8 @@ private fun PlaybackOptionsContent(
         } else {
             val rateLabel = speedLabel(state.speed)
             val sliderLabel = stringResource(R.string.player_speed)
-            val slider = rememberSliderState(trackRange = -2f..2f)
-            SideEffect { slider.value = log2(state.speed) }
+            val slider = rememberSliderState(trackRange = PlaybackSpeedRules.progressRange)
+            SideEffect { slider.value = PlaybackSpeedRules.progress(state.speed) }
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                 PlaybackSpeedGauge(
                     speed = state.speed,
@@ -360,26 +358,21 @@ private fun PlaybackOptionsContent(
                 )
                 Slider(
                     state = slider,
-                    onValueChange = { onSpeed(2f.pow(it)) },
+                    onValueChange = { onSpeed(PlaybackSpeedRules.speedAtProgress(it)) },
                     modifier = Modifier.fillMaxWidth().semantics {
                         contentDescription = sliderLabel
                         stateDescription = rateLabel
                         setProgress { target ->
-                            val requested = 2f.pow(target.coerceIn(-2f, 2f))
-                            val next = if (state.continuousSpeed) requested else {
-                                if (requested > state.speed) playbackSpeeds.firstOrNull { it > state.speed } ?: state.speed
-                                else if (requested < state.speed) playbackSpeeds.lastOrNull { it < state.speed } ?: state.speed
-                                else state.speed
-                            }
-                            onSpeed(next)
-                            true
+                            val next = PlaybackSpeedRules.adjustedSpeed(state.speed, target, state.continuousSpeed)
+                            if (next != state.speed) onSpeed(next)
+                            next != state.speed
                         }
                     },
                 )
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(speedLabel(0.25f), style = MaterialTheme.typography.labelMedium)
+                    Text(speedLabel(PlaybackSpeedRules.range.start), style = MaterialTheme.typography.labelMedium)
                     Text(speedLabel(1f), style = MaterialTheme.typography.labelMedium)
-                    Text(speedLabel(4f), style = MaterialTheme.typography.labelMedium)
+                    Text(speedLabel(PlaybackSpeedRules.range.endInclusive), style = MaterialTheme.typography.labelMedium)
                 }
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

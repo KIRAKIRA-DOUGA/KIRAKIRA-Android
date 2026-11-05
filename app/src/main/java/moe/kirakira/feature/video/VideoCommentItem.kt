@@ -25,12 +25,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
 import moe.kirakira.data.content.VideoComment
 import moe.kirakira.ui.components.AccountAvatar
 import moe.kirakira.ui.components.AnimatedCountLabel
+import moe.kirakira.ui.components.UsernameText
 import moe.kirakira.ui.components.video.dateText
 
 @Composable
@@ -81,14 +81,10 @@ internal fun VideoCommentItem(
                         comment.author.name.ifBlank { stringResource(R.string.content_unknown_author) },
                         style = MaterialTheme.typography.titleMedium,
                     )
-                    if (comment.author.username.isNotBlank()) {
-                        Text(
-                            text = "@${comment.author.username}",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontFamily = FontFamily.Monospace,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    UsernameText(
+                        username = comment.author.username,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                 }
                 SelectionContainer {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

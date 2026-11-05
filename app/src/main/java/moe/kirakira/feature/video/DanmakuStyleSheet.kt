@@ -40,7 +40,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
@@ -60,6 +59,7 @@ import moe.kirakira.data.content.DanmakuMode
 import moe.kirakira.data.content.DanmakuStyle
 import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.ui.components.connectedListItemShapes
+import moe.kirakira.ui.components.video.DanmakuColors
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -300,7 +300,7 @@ private fun CreatorGradientSample(modifier: Modifier = Modifier) {
             .padding(2.dp)
             .border(
                 width = 3.dp,
-                brush = Brush.horizontalGradient(listOf(Color(0xFFF2509E), Color(0xFF308BCD))),
+                brush = Brush.horizontalGradient(DanmakuColors.rainbowOutline),
                 shape = MaterialTheme.shapes.extraSmall,
             ),
     )

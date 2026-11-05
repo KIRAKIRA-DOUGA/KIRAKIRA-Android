@@ -33,8 +33,10 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -43,6 +45,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -92,12 +95,39 @@ fun ImageViewerScreen(
     modifier: Modifier = Modifier,
     imageModifier: Modifier = Modifier,
     controlsModifier: Modifier = Modifier,
+    returnToSource: Boolean = true,
+    contentScale: ContentScale = ContentScale.Fit,
     placeholder: Painter? = null,
     onViewportChange: (IntSize) -> Unit = {},
     onDrawableChange: (Boolean) -> Unit = {},
+    onDismissStarted: () -> Boolean = { false },
+    onDismissCancelled: () -> Unit = {},
+    onDismiss: () -> Unit = {},
     visibilityProgress: () -> Float = { 1f },
 ) {
-    val available = imageState.isImageDisplayed && !loadFailed && !saving && !copying && !transitioning
+    var viewportHeight by remember { mutableIntStateOf(0) }
+    val dismissScope = rememberCoroutineScope()
+    val dismiss = remember(dismissScope) { ImageDismissState(dismissScope) }
+    val startDismiss by rememberUpdatedState(onDismissStarted)
+    val cancelDismiss by rememberUpdatedState(onDismissCancelled)
+    val completeDismiss by rememberUpdatedState(onDismiss)
+    val disposeDismiss = remember(dismiss) { onDismissCancelled }
+    DisposableEffect(dismiss) {
+        onDispose {
+            dismiss.dispose()
+            disposeDismiss()
+        }
+    }
+    val available = imageState.isImageDisplayed && !loadFailed && !saving && !copying &&
+        !transitioning && !dismiss.active
+    val gestureEnabled = imageState.isImageDisplayed && !loadFailed && !saving && !copying && !transitioning
+    val canStartDismiss by rememberUpdatedState({
+        val zoom = imageState.zoomableState
+        gestureEnabled && (zoom.zoomFraction ?: 1f) <= 0.001f && !zoom.isAnimationRunning
+    })
+    val controlsDragModifier = Modifier.graphicsLayer {
+        alpha = (1f - dismiss.fraction(viewportHeight.toFloat()) * 3f).coerceIn(0f, 1f)
+    }
     val saveLabel = stringResource(R.string.image_save)
     val copyLabel = stringResource(R.string.image_copy)
     SideEffect { onDrawableChange(imageState.isImageDisplayed || placeholder != null) }
@@ -108,14 +138,17 @@ fun ImageViewerScreen(
     var appBarFocused by remember { mutableStateOf(false) }
     var toolbarFocused by remember { mutableStateOf(false) }
     val reportInteraction by rememberUpdatedState(onInteractionChange)
-    LaunchedEffect(touching, appBarFocused, toolbarFocused) {
-        reportInteraction(touching || appBarFocused || toolbarFocused)
+    LaunchedEffect(touching, appBarFocused, toolbarFocused, dismiss.active) {
+        reportInteraction(touching || appBarFocused || toolbarFocused || dismiss.active)
     }
     DisposableEffect(Unit) {
         onDispose { reportInteraction(false) }
     }
     Box(
-        modifier.fillMaxSize().onSizeChanged(onViewportChange).pointerInput(Unit) {
+        modifier.fillMaxSize().onSizeChanged {
+            viewportHeight = it.height
+            onViewportChange(it)
+        }.pointerInput(Unit) {
             // Observe touches without consuming them or competing with Telephoto's gestures.
             try {
                 awaitPointerEventScope {
@@ -130,29 +163,67 @@ fun ImageViewerScreen(
         contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.fillMaxSize()) {
-            drawRect(Color.Black)
+            drawRect(Color.Black, alpha = 1f - dismiss.fraction(viewportHeight.toFloat()) * 0.9f)
         }
-        Box(imageModifier.fillMaxSize().clipToBounds(), contentAlignment = Alignment.Center) {
-            if (!imageState.isImageDisplayed && placeholder != null) {
-                Image(placeholder, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
-            }
-            ZoomableImage(
-                image = image,
-                contentDescription = description,
-                state = imageState,
-                gestures = if (transitioning) EnabledZoomGestures.None else EnabledZoomGestures.ZoomAndPan,
-                clipToBounds = false,
-                onClick = { if (!transitioning) onToggleControls() },
-                modifier = Modifier
+        Box(
+            Modifier.fillMaxSize().imageDismissGesture(
+                state = dismiss,
+                enabled = gestureEnabled,
+                canStart = { canStartDismiss() },
+                onStarted = { startDismiss() },
+                onCancelled = { cancelDismiss() },
+                onDismiss = { completeDismiss() },
+            ),
+        ) {
+            Box(
+                imageModifier
                     .fillMaxSize()
-                    .imageReturnTransform(imageState, visibilityProgress)
-                    .semantics(mergeDescendants = true) {
-                        onClick(label = toggleLabel) {
-                            if (!transitioning) onToggleControls()
-                            !transitioning
+                    .graphicsLayer {
+                        val remaining = visibilityProgress().coerceIn(0f, 1f)
+                        val fraction = dismiss.fraction(viewportHeight.toFloat())
+                        if (dismiss.dismissing && !returnToSource) {
+                            // With no source to land on, carry the release pose farther downward.
+                            scaleX = 1f - fraction * 0.25f - (1f - remaining) * 0.08f
+                            scaleY = scaleX
+                            translationX = dismiss.offset.x * 0.7f
+                            translationY = dismiss.offset.y + viewportHeight * 0.18f * (1f - remaining)
+                        } else {
+                            // Unwind the drag with the shared return so it lands on its source.
+                            scaleX = 1f - fraction * 0.25f * remaining
+                            scaleY = scaleX
+                            translationX = dismiss.offset.x * 0.7f * remaining
+                            translationY = dismiss.offset.y * remaining
                         }
+                    }
+                    .clipToBounds(),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (!imageState.isImageDisplayed && placeholder != null) {
+                    Image(placeholder, null, Modifier.fillMaxSize(), contentScale = contentScale)
+                }
+                ZoomableImage(
+                    image = image,
+                    contentDescription = description,
+                    state = imageState,
+                    contentScale = contentScale,
+                    gestures = if (transitioning || dismiss.active) {
+                        EnabledZoomGestures.None
+                    } else {
+                        EnabledZoomGestures.ZoomAndPan
                     },
-            )
+                    clipToBounds = false,
+                    onClick = { if (!transitioning && !dismiss.active) onToggleControls() },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .imageReturnTransform(imageState, visibilityProgress)
+                        .semantics(mergeDescendants = true) {
+                            onClick(label = toggleLabel) {
+                                if (!transitioning && !dismiss.active) onToggleControls()
+                                !transitioning && !dismiss.active
+                            }
+                        },
+                )
+            }
         }
         if (loadFailed) {
             ContentUnavailableView(
@@ -160,7 +231,7 @@ fun ImageViewerScreen(
                 title = stringResource(R.string.image_load_failed),
                 description = null,
                 onRetry = onRetry,
-                retryEnabled = !transitioning,
+                retryEnabled = !transitioning && !dismiss.active,
                 presentation = ContentUnavailablePresentation.MEDIA,
                 modifier = Modifier
                     .fillMaxSize()
@@ -174,14 +245,14 @@ fun ImageViewerScreen(
             visible = controlsVisible,
             enter = fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()),
             exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
-            modifier = Modifier.align(Alignment.TopCenter).then(controlsModifier),
+            modifier = Modifier.align(Alignment.TopCenter).then(controlsModifier).then(controlsDragModifier),
         ) {
             TopAppBar(
                 title = {},
                 navigationIcon = {
                     ShadowFilledIconButton(
                         onClick = onBack,
-                        enabled = controlsVisible && !transitioning,
+                        enabled = controlsVisible && !transitioning && !dismiss.active,
                         shapes = IconButtonShapes(CircleShape, CircleShape),
                         colors = IconButtonDefaults.filledIconButtonColors(
                             containerColor = Color(0xFF242424),
@@ -209,7 +280,8 @@ fun ImageViewerScreen(
                 .align(Alignment.BottomEnd)
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.End + WindowInsetsSides.Bottom))
                 .padding(end = 16.dp, bottom = 16.dp)
-                .then(controlsModifier),
+                .then(controlsModifier)
+                .then(controlsDragModifier),
         ) {
             HorizontalFloatingToolbar(
                 expanded = true,

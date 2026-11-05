@@ -44,6 +44,7 @@ import moe.kirakira.data.content.VideoComment
 import moe.kirakira.ui.components.AnimatedCountLabel
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
+import moe.kirakira.ui.components.ContentStatusViewport
 import moe.kirakira.ui.content.ContentState
 
 @Composable
@@ -165,18 +166,21 @@ internal fun VideoCommentsPage(
             modifier = Modifier.fillMaxSize(),
             indicatorTopPadding = topPadding,
         ) {
-            BoxWithConstraints(Modifier.fillMaxSize()) {
-                val statusHeight = (maxHeight - topPadding - listBottomPadding - 8.dp -
-                    with(density) { headerHeight.toDp() }).coerceAtLeast(0.dp)
+            val listContentPadding = PaddingValues(
+                start = 8.dp,
+                end = 8.dp,
+                top = topPadding + 8.dp,
+                bottom = listBottomPadding,
+            )
+            ContentStatusViewport(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = listContentPadding,
+                leadingContentHeight = with(density) { headerHeight.toDp() },
+            ) { statusModifier ->
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        start = 8.dp,
-                        end = 8.dp,
-                        top = topPadding + 8.dp,
-                        bottom = listBottomPadding,
-                    ),
+                    contentPadding = listContentPadding,
                 ) {
                     item("count") {
                         Column(Modifier.onSizeChanged { headerHeight = it.height }) {
@@ -192,7 +196,7 @@ internal fun VideoCommentsPage(
                                 ContentState(data = state.pages.takeIf { it.isNotEmpty() }, loading = showLoadingStatus, error = state.error),
                                 onRetry,
                                 Modifier.fillMaxWidth().then(
-                                    if (entries.isEmpty() && posted == null) Modifier.heightIn(min = statusHeight)
+                                    if (entries.isEmpty() && posted == null) statusModifier
                                     else Modifier,
                                 ),
                                 empty = entries.isEmpty() && posted == null,
@@ -261,7 +265,7 @@ internal fun VideoCommentsPage(
 private fun CommentCountHeader(count: Int, toolbarSize: IntSize, modifier: Modifier = Modifier) {
     val template = pluralStringResource(R.plurals.video_comments_total, count)
     val label = template.format(count.toString())
-    val style = MaterialTheme.typography.titleSmall
+    val style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum")
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val labelWidth = with(density) { textMeasurer.measure(label, style).size.width.toDp() }

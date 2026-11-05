@@ -61,13 +61,16 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import kotlinx.coroutines.launch
 import moe.kirakira.MainActivity
 import moe.kirakira.R
+import moe.kirakira.core.image.deliveryImageUrl
 import moe.kirakira.core.share.shareContent
 import moe.kirakira.core.share.videoShareUrl
 import moe.kirakira.data.content.ContentRepository
+import moe.kirakira.data.image.ImageSource
 import moe.kirakira.data.history.HistoryRepository
+import moe.kirakira.data.settings.AccountSettingsRepository
 import moe.kirakira.data.settings.DanmakuSettings
 import moe.kirakira.data.settings.PlaybackSettings
-import moe.kirakira.data.settings.AccountSettingsRepository
+import moe.kirakira.feature.imageviewer.ViewerImage
 import moe.kirakira.feature.player.MediaVolumeController
 import moe.kirakira.feature.player.PlaybackPageViewport
 import moe.kirakira.feature.player.PlaybackViewModel
@@ -97,6 +100,7 @@ internal fun VideoPage(
     onOpenProfile: (Long) -> Unit,
     onLogin: () -> Unit,
     onOpenTag: (Long) -> Unit,
+    onOpenImage: (ViewerImage) -> Unit,
     modifier: Modifier = Modifier,
     historyRepository: HistoryRepository? = null,
     settingsRepository: AccountSettingsRepository? = null,
@@ -132,6 +136,7 @@ internal fun VideoPage(
     val danmakuComposer = rememberComposerState(videoId, session.revision, danmakuDraft)
     val posted by model.posted.collectAsStateWithLifecycle()
     val error by model.actionError.collectAsStateWithLifecycle()
+    val publicationRetry by model.publicationRetry.collectAsStateWithLifecycle()
     val activity = remember(context) { context.mainActivity() }
     val pip = activity?.pictureInPicture == true
     val configuration = LocalConfiguration.current
@@ -145,6 +150,11 @@ internal fun VideoPage(
     var windowFullscreen by remember { mutableStateOf(false) }
     var fullscreenInlineLayout by remember { mutableStateOf<InlinePlayerLayout?>(null) }
     val detailsInteractive = isActive && !pip && !fullscreen && !windowFullscreen
+    if (publicationRetry != null && detailsInteractive) {
+        PublicationRetryDialog(
+            busy, model::dismissPublicationRetry, model::checkPublication, model::confirmPublicationRetry,
+        )
+    }
     fun requestFullscreen(target: Boolean) {
         fullscreen = target
         if (!target) fullscreenInlineLayout = null
@@ -186,9 +196,11 @@ internal fun VideoPage(
         }
     }
     LaunchedEffect(error) {
-        error?.let { snackbar.showSnackbar(resources.getString(if (it == moe.kirakira.core.network.ApiFailure.NETWORK ||
-                it == moe.kirakira.core.network.ApiFailure.TIMEOUT || it == moe.kirakira.core.network.ApiFailure.SERVER ||
-                it == moe.kirakira.core.network.ApiFailure.INVALID_RESPONSE) R.string.content_mutation_uncertain else it.messageRes())); model.dismissActionError() }
+        error?.let {
+            val message = if (it.isUncertainMutation) R.string.content_mutation_uncertain else it.messageRes()
+            snackbar.showSnackbar(resources.getString(message))
+            model.dismissActionError()
+        }
     }
     LaunchedEffect(fullscreen, pip, isActive) {
         if (fullscreen || pip || !isActive) {
@@ -298,6 +310,23 @@ internal fun VideoPage(
                             }
                         },
                         { requireLogin {} }, inlineLayout.contentPadding,
+                        onViewCover = {
+                            val image = value?.summary?.image.takeIf {
+                                model.session.value.revision == session.revision && detailsInteractive
+                            }
+                            deliveryImageUrl(image)?.let { url ->
+                                onOpenImage(
+                                    ViewerImage(
+                                        source = ImageSource.RemoteUrl(url),
+                                        description = resources.getString(
+                                            R.string.video_cover_description, value?.summary?.title.orEmpty(),
+                                        ),
+                                        fileName = "cover_$videoId",
+                                        thumbnail = deliveryImageUrl(image, 720)?.let(ImageSource::RemoteUrl),
+                                    ),
+                                )
+                            }
+                        },
                         onDanmakuStyle = model::updateDanmakuStyle,
                         commentComposer = commentComposer, danmakuComposer = danmakuComposer,
                         recentKaomoji = recentKaomoji, onKaomojiInserted = kaomojiModel::record,

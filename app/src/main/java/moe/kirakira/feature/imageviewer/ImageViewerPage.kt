@@ -23,6 +23,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.unit.IntSize
@@ -51,7 +52,12 @@ internal fun ImageViewerPage(
     modifier: Modifier = Modifier,
     imageModifier: Modifier = Modifier,
     controlsModifier: Modifier = Modifier,
+    returnToSource: Boolean = true,
+    contentScale: ContentScale = ContentScale.Fit,
     onDrawableChange: (Boolean) -> Unit = {},
+    onDismissStarted: () -> Boolean = { false },
+    onDismissCancelled: () -> Unit = {},
+    onDismiss: () -> Unit = {},
     transitioning: Boolean = false,
     visibilityProgress: () -> Float = { 1f },
 ) {
@@ -170,9 +176,14 @@ internal fun ImageViewerPage(
             modifier = modifier,
             imageModifier = imageModifier,
             controlsModifier = controlsModifier,
+            returnToSource = returnToSource,
+            contentScale = contentScale,
             placeholder = loader.placeholder,
             onViewportChange = { viewport = it },
             onDrawableChange = onDrawableChange,
+            onDismissStarted = onDismissStarted,
+            onDismissCancelled = onDismissCancelled,
+            onDismiss = onDismiss,
             visibilityProgress = visibilityProgress,
         )
     }

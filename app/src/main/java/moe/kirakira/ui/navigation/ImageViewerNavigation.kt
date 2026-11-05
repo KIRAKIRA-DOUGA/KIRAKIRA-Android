@@ -22,13 +22,13 @@ internal fun imageViewerNavigationMetadata(easing: Easing) = metadata {
     put(ImageTransitionKey, true)
     put(NavDisplay.TransitionKey) {
         // Retain the stationary source even when it has no matching shared image.
-        fadeIn(imageTransitionSpec(easing)) togetherWith ExitTransition.KeepUntilTransitionsFinished
+        fadeIn(imageTransitionSpec(easing, expanding = true)) togetherWith ExitTransition.KeepUntilTransitionsFinished
     }
     put(NavDisplay.PopTransitionKey) {
-        EnterTransition.None togetherWith fadeOut(imageTransitionSpec(easing))
+        EnterTransition.None togetherWith fadeOut(imageTransitionSpec(easing, expanding = false))
     }
     put(NavDisplay.PredictivePopTransitionKey) {
-        EnterTransition.None togetherWith fadeOut(imageTransitionSpec(easing))
+        EnterTransition.None togetherWith fadeOut(imageTransitionSpec(easing, expanding = false))
     }
 }
 

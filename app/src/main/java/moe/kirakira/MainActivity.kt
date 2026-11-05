@@ -70,11 +70,26 @@ class MainActivity : ComponentActivity() {
         canEnterPictureInPicture = eligible && packageManager.hasSystemFeature("android.software.picture_in_picture")
         autoEnterPictureInPicture = canEnterPictureInPicture && autoEnter
         val ratio = aspectRatio.takeIf { it.isFinite() }?.coerceIn(1f / 2.39f, 2.39f) ?: (16f / 9f)
-        val builder = PictureInPictureParams.Builder().setAspectRatio(Rational((ratio * 10000).toInt(), 10000))
+        val fraction = when {
+            ratio <= 1f / 2.39f -> Rational(100, 239)
+            ratio >= 2.39f -> Rational(239, 100)
+            else -> Rational((ratio * 10000).toInt().coerceIn(4185, 23900), 10000)
+        }
+        val builder = PictureInPictureParams.Builder().setAspectRatio(fraction)
         if (bounds != null && !bounds.isEmpty) builder.setSourceRectHint(bounds)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) builder.setAutoEnterEnabled(autoEnterPictureInPicture)
         pipParams = builder.build()
-        if (packageManager.hasSystemFeature("android.software.picture_in_picture")) setPictureInPictureParams(pipParams)
+        if (packageManager.hasSystemFeature("android.software.picture_in_picture")) {
+            try {
+                setPictureInPictureParams(pipParams)
+            } catch (_: IllegalArgumentException) {
+                canEnterPictureInPicture = false
+                autoEnterPictureInPicture = false
+            } catch (_: IllegalStateException) {
+                canEnterPictureInPicture = false
+                autoEnterPictureInPicture = false
+            }
+        }
     }
 
     fun enterVideoPictureInPicture(): Boolean = canEnterPictureInPicture &&

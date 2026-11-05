@@ -7,7 +7,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -93,6 +92,7 @@ import moe.kirakira.MainActivity
 import moe.kirakira.R
 import moe.kirakira.data.settings.PlaybackSettings
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.mediaZoomSpec
 import moe.kirakira.ui.components.rememberEmphasizedEasing
 import androidx.compose.ui.geometry.Rect as RectF
 
@@ -106,6 +106,7 @@ internal fun PlaybackHost(
     settings: PlaybackSettings?,
     videoPageActive: Boolean,
     imageViewerActive: Boolean,
+    videoPageUnderImage: Boolean,
     videoPageCovered: Boolean,
     bottomBarHeightPx: Int,
     onRestore: () -> Unit,
@@ -169,8 +170,11 @@ internal fun PlaybackHost(
     val exitingCard = viewportState.exitingVideoId != null
     val navigatingPage = viewportState.navigatingPage
     val coveredMini = videoPageCovered && !videoPageActive
-    val miniTarget = playback.miniPlayer && !videoPageActive && !pip && !exitingCard && !navigatingPage
-    val visible = (videoPageActive || videoPageCovered || playback.miniPlayer || pip || exitingCard) && !imageViewerActive
+    val miniTarget = playback.miniPlayer && !videoPageActive && !videoPageUnderImage &&
+        !pip && !exitingCard && !navigatingPage
+    val visible = videoPageUnderImage || (
+        (videoPageActive || videoPageCovered || playback.miniPlayer || pip || exitingCard) && !imageViewerActive
+        )
     val origin = viewportState.cards.origin?.takeIf { it.videoId == videoId }
     val cardProgress = remember(origin) { Animatable(if (origin != null && videoPageActive) 0f else 1f) }
     val currentCardExitFinished by rememberUpdatedState(onCardExitFinished)
@@ -186,14 +190,7 @@ internal fun PlaybackHost(
     }
     val zoom = remember(origin) { Animatable(if (miniTarget) 1f else 0f) }
     val emphasizedEasing = rememberEmphasizedEasing()
-    fun zoomSpec(expanding: Boolean) = if (expanding) tween<Float>(
-        durationMillis = 450,
-        easing = emphasizedEasing,
-    ) else spring<Float>(
-        dampingRatio = 0.85f,
-        stiffness = 380f,
-        visibilityThreshold = 0.001f,
-    )
+    fun zoomSpec(expanding: Boolean) = mediaZoomSpec(expanding, emphasizedEasing, visibilityThreshold = 0.001f)
     LaunchedEffect(miniTarget, pip, backProgress, navigatingPage, coveredMini) {
         // Ordinary navigation owns the whole page. The native video stays in this tree;
         // switch to/from its floating presentation only while the covering page obscures it.
@@ -506,7 +503,7 @@ internal fun PlaybackHost(
                     else Modifier,
                 )
                 .then(
-                    if (closing || transitioning || !visible) Modifier.clearAndSetSemantics { } else Modifier,
+                    if (closing || transitioning || !visible || imageViewerActive) Modifier.clearAndSetSemantics { } else Modifier,
                 ),
         ) {
             // Measure the page at window size for both destinations. Only its layer transform
@@ -526,7 +523,7 @@ internal fun PlaybackHost(
                         translationX = offset.x
                         translationY = offset.y
                     },
-                videoPageActive && !transitioning && !navigatingPage && visible,
+                videoPageActive && !imageViewerActive && !transitioning && !navigatingPage && visible,
                 visible,
             )
             if (origin != null) {

@@ -55,7 +55,7 @@ internal fun CommentToolbar(
     val pageTemplate = stringResource(R.string.video_comments_page_count)
     val pageLabel = pageTemplate.format(currentPage.toString(), totalPages.toString())
     val pageDescription = stringResource(R.string.video_comments_page_description, currentPage, totalPages)
-    val pageTextStyle = MaterialTheme.typography.labelLarge
+    val pageTextStyle = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
     val pageButtonPadding = ButtonDefaults.TextButtonContentPadding
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current

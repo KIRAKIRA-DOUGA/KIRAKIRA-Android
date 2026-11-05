@@ -8,7 +8,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import kotlin.math.atan2
 import kotlin.math.cos
-import kotlin.math.pow
 import kotlin.math.sin
 
 /** Claim only presses near the arc, leaving the rest of the sheet available for scrolling. */
@@ -23,7 +22,7 @@ internal fun Modifier.playbackSpeedDrag(
         val down = awaitFirstDown()
         val offset = down.position - center
         var previousAngle = pointerAngle(offset)
-        var angle = (if (previousAngle < 90f) previousAngle + 360f else previousAngle).coerceIn(150f, 360f)
+        var angle = (if (previousAngle < 90f) previousAngle + 360f else previousAngle).coerceIn(PlaybackSpeedRules.ZERO_ANGLE, PlaybackSpeedRules.MAX_ANGLE)
         val radians = Math.toRadians(angle.toDouble())
         val nearest = Offset(cos(radians).toFloat() * radius, sin(radians).toFloat() * radius)
         if (radius <= 0f || (offset - nearest).getDistance() > touchRadius) return@awaitEachGesture
@@ -31,7 +30,7 @@ internal fun Modifier.playbackSpeedDrag(
         down.consume()
         onDraggingChange(true)
         try {
-            onSpeed(speedAtAngle(angle))
+            onSpeed(PlaybackSpeedRules.speedAtAngle(angle))
             while (true) {
                 val event = awaitPointerEvent()
                 val change = event.changes.firstOrNull { it.id == down.id } ?: break
@@ -45,9 +44,9 @@ internal fun Modifier.playbackSpeedDrag(
                 if (position.getDistance() >= touchRadius) {
                     val nextAngle = pointerAngle(position)
                     val delta = (nextAngle - previousAngle + 540f) % 360f - 180f
-                    angle = (angle + delta).coerceIn(150f, 360f)
+                    angle = (angle + delta).coerceIn(PlaybackSpeedRules.ZERO_ANGLE, PlaybackSpeedRules.MAX_ANGLE)
                     previousAngle = nextAngle
-                    onSpeed(speedAtAngle(angle))
+                    onSpeed(PlaybackSpeedRules.speedAtAngle(angle))
                 }
                 change.consume()
             }
@@ -59,5 +58,3 @@ internal fun Modifier.playbackSpeedDrag(
 
 private fun pointerAngle(offset: Offset): Float =
     (Math.toDegrees(atan2(offset.y, offset.x).toDouble()).toFloat() + 360f) % 360f
-
-private fun speedAtAngle(angle: Float): Float = 2f.pow((angle.coerceIn(180f, 360f) - 270f) / 45f)

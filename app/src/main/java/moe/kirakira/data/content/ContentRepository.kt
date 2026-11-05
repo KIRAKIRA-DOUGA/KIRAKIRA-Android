@@ -11,6 +11,7 @@ import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import moe.kirakira.core.color.parseRgbHex
 import moe.kirakira.core.image.publicMediaUrl
 import moe.kirakira.core.network.ApiClient
 import moe.kirakira.core.network.ApiException
@@ -192,7 +193,7 @@ internal class ContentRepository(private val api: ApiClient, private val auth: A
             it.time.isFinite() && it.time >= 0 && it.time < Long.MAX_VALUE / 1000.0 && it.text.isNotBlank()
         }.map {
             DanmakuEntry(it.time, it.text, it.editDateTime, DanmakuStyle(
-                color = it.color?.takeIf { value -> value.matches(Regex("[0-9a-fA-F]{6}")) }?.toIntOrNull(16) ?: 0xFFFFFF,
+                color = it.color?.let(::parseRgbHex) ?: 0xFFFFFF,
                 fontSize = DanmakuFontSize.entries.firstOrNull { size -> size.wireValue == it.fontSize } ?: DanmakuFontSize.MEDIUM,
                 mode = DanmakuMode.entries.firstOrNull { mode -> mode.wireValue == it.mode } ?: DanmakuMode.RTL,
                 enableRainbow = it.enableRainbow ?: false,

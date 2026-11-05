@@ -1,5 +1,7 @@
 package moe.kirakira.data.content
 
+import moe.kirakira.core.color.formatRgbHex
+
 internal enum class DanmakuFontSize(val wireValue: String, val previewSize: Int) {
     SMALL("small", 14), MEDIUM("medium", 20), LARGE("large", 28),
 }
@@ -14,5 +16,5 @@ internal data class DanmakuStyle(
     val mode: DanmakuMode = DanmakuMode.RTL,
     val enableRainbow: Boolean = false,
 ) {
-    val colorHex: String get() = (color and 0xFFFFFF).toString(16).uppercase().padStart(6, '0')
+    val colorHex: String get() = formatRgbHex(color)
 }

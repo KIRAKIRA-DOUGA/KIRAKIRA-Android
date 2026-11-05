@@ -27,6 +27,11 @@ import moe.kirakira.ui.content.ContentViewModel
 
 internal data class VideoResumeState(val ready: Boolean = false, val positionMs: Long? = null)
 
+internal sealed interface PublicationRetry {
+    data object Comment : PublicationRetry
+    data class Danmaku(val positionMs: Long) : PublicationRetry
+}
+
 internal data class VideoAccessState(
     val unavailable: Boolean = false,
     // A later successful read must not erase playback cleanup before the page consumes it.
@@ -63,6 +68,10 @@ internal class VideoViewModel(
     val danmakuDraft = _danmakuDraft.asStateFlow()
     private val _posted = MutableStateFlow<VideoComment?>(null)
     val posted = _posted.asStateFlow()
+    private val _publicationRetry = MutableStateFlow<PublicationRetry?>(null)
+    val publicationRetry = _publicationRetry.asStateFlow()
+    private var unconfirmedComment: String? = null
+    private var unconfirmedDanmaku: Pair<String, DanmakuStyle>? = null
     private var commentsRequested = false
     private var danmakuRequested = false
     private var authorUid: Long? = null
@@ -81,6 +90,9 @@ internal class VideoViewModel(
             _danmakuDraft.value = ""
             _danmakuStyle.value = DanmakuStyle()
             _posted.value = null
+            _publicationRetry.value = null
+            unconfirmedComment = null
+            unconfirmedDanmaku = null
             commentsRequested = false
             danmakuRequested = false
             authorUid = null
@@ -94,7 +106,10 @@ internal class VideoViewModel(
                 if (change.revision == revision && change.revision == session.value.revision &&
                     change.category == RuleCategory.BLOCK && change.value.toLongOrNull() == authorUid
                 ) {
-                    if (change.remove) {
+                    if (!change.confirmed && !change.remove) {
+                        // A possibly committed block must stop retained playback until access is checked again.
+                        invalidateContent(ApiFailure.CONTENT_UNAVAILABLE)
+                    } else if (change.remove) {
                         if (contentUnavailable) refresh()
                     } else {
                         invalidateContent(ApiFailure.CONTENT_UNAVAILABLE)
@@ -130,6 +145,7 @@ internal class VideoViewModel(
     }
 
     private fun invalidateContent(failure: ApiFailure) {
+        _publicationRetry.value = null
         cancelRead(_detail)
         _detail.value = _detail.value.readFailed(failure)
         _access.update { it.copy(unavailable = true, playbackInvalidationPending = true, refreshingTab = null) }
@@ -257,27 +273,78 @@ internal class VideoViewModel(
         if (!busy.value) _danmakuDraft.value = text
     }
 
-    fun sendComment() {
+    fun sendComment() = submitComment(allowDuplicate = false)
+
+    private fun submitComment(allowDuplicate: Boolean) {
         if (!canAccessContent) return
         val text = commentDraft.value.trim()
         if (text.isEmpty() || text.length >= 20000) return
+        if (!allowDuplicate && text == unconfirmedComment) {
+            _publicationRetry.value = PublicationRetry.Comment
+            return
+        }
         mutate { revision ->
-            val comment = repository.postComment(videoId, text, revision)
+            val comment = try {
+                repository.postComment(videoId, text, revision)
+            } catch (error: ApiException) {
+                if (!error.failure.isUncertainMutation) throw error
+                unconfirmedComment = text
+                _publicationRetry.value = PublicationRetry.Comment
+                commentList.refresh()
+                return@mutate
+            }
+            unconfirmedComment = null
             _commentDraft.value = ""
             if (!canAccessContent) return@mutate
             _posted.value = comment
             commentList.posted()
         }
     }
-    fun sendDanmaku(positionMs: Long) {
+    fun sendDanmaku(positionMs: Long) = submitDanmaku(positionMs, allowDuplicate = false)
+
+    private fun submitDanmaku(positionMs: Long, allowDuplicate: Boolean) {
         if (!canAccessContent) return
         val text = danmakuDraft.value.trim()
         if (text.isEmpty() || positionMs < 0) return
         val style = _danmakuStyle.value
+        if (!allowDuplicate && (text to style) == unconfirmedDanmaku) {
+            _publicationRetry.value = PublicationRetry.Danmaku(positionMs)
+            return
+        }
         mutate { revision ->
-            repository.postDanmaku(videoId, text, positionMs / 1000.0, revision, style)
+            try {
+                repository.postDanmaku(videoId, text, positionMs / 1000.0, revision, style)
+            } catch (error: ApiException) {
+                if (!error.failure.isUncertainMutation) throw error
+                unconfirmedDanmaku = text to style
+                _publicationRetry.value = PublicationRetry.Danmaku(positionMs)
+                loadDanmaku()
+                return@mutate
+            }
+            unconfirmedDanmaku = null
             _danmakuDraft.value = ""
             loadDanmaku()
+        }
+    }
+
+    fun dismissPublicationRetry() { _publicationRetry.value = null }
+
+    fun checkPublication() {
+        val request = _publicationRetry.value ?: return
+        dismissPublicationRetry()
+        when (request) {
+            PublicationRetry.Comment -> refreshComments()
+            is PublicationRetry.Danmaku -> refreshDanmaku()
+        }
+    }
+
+    fun confirmPublicationRetry() {
+        val request = _publicationRetry.value ?: return
+        if (busy.value) return
+        dismissPublicationRetry()
+        when (request) {
+            PublicationRetry.Comment -> submitComment(allowDuplicate = true)
+            is PublicationRetry.Danmaku -> submitDanmaku(request.positionMs, allowDuplicate = true)
         }
     }
 }

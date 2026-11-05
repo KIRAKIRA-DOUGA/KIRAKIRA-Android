@@ -41,6 +41,7 @@ import kotlin.math.roundToInt
 import moe.kirakira.R
 import moe.kirakira.data.content.DanmakuMode
 import moe.kirakira.data.content.DanmakuStyle
+import moe.kirakira.ui.components.video.DanmakuColors
 
 @Composable
 internal fun DanmakuStylePreview(draft: String, style: DanmakuStyle, modifier: Modifier = Modifier) {
@@ -85,7 +86,7 @@ internal fun DanmakuStylePreview(draft: String, style: DanmakuStyle, modifier: M
         ) {
             if (style.enableRainbow) {
                 Text(text, maxLines = 1, style = textStyle.copy(
-                    brush = Brush.horizontalGradient(listOf(Color(0xFFF2509E), Color(0xFF308BCD))),
+                    brush = Brush.horizontalGradient(DanmakuColors.rainbowOutline),
                     drawStyle = Stroke(width = 4f),
                     shadow = null,
                 ))

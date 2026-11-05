@@ -320,9 +320,17 @@ internal fun PlayerGestureOverlay(state: PlayerGestureState, modifier: Modifier 
                             modifier = Modifier.size(24.dp),
                             tint = Color.White,
                         )
-                        Text(label, color = Color.White, style = MaterialTheme.typography.labelLarge)
+                        Text(
+                            label,
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+                        )
                         feedback.positionMs?.let {
-                            Text(durationText(it), color = Color.White, style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                durationText(it),
+                                color = Color.White,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
+                            )
                         }
                     }
                 }
@@ -417,7 +425,7 @@ private fun PlayerVolumeHud(percent: Int, sliderHeight: Dp) {
         Text(
             stringResource(R.string.player_gesture_volume_value, percent),
             color = Color.White,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
         )
     }
 }

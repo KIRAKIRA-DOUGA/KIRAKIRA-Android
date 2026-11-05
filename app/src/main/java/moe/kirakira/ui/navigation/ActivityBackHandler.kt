@@ -16,7 +16,7 @@ import androidx.navigationevent.NavigationEventHandler
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import moe.kirakira.feature.player.PlaybackViewportState
 
-/** Owns ordinary-page back dispatch and lifecycle cleanup; image scenes use NavDisplay's handler. */
+/** Owns ordinary back dispatch and image returns when predictive back is disabled. */
 @Composable
 internal fun <T : Any> ActivityBackHandler(
     motion: PredictiveBackMotion,

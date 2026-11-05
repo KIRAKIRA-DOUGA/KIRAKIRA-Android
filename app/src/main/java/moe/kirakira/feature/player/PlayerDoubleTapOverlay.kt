@@ -54,7 +54,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import moe.kirakira.R
-import org.xmlpull.v1.XmlPullParser
+import moe.kirakira.ui.components.readVectorPathData
+import moe.kirakira.ui.components.vectorPathContours
 
 /** Decorative feedback only; the player underneath retains all pointer handling. */
 @Composable
@@ -122,7 +123,7 @@ internal fun PlayerDoubleTapOverlay(
                     text = label,
                     color = Color.White,
                     textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
                 )
             }
         }
@@ -135,21 +136,11 @@ private fun DoubleTapArrows(direction: Int, motion: DoubleTapArrowMotion, modifi
     val resources = LocalResources.current
     val arrows = remember(resources, direction) {
         val resource = if (direction > 0) R.drawable.ic_symbol_fast_forward else R.drawable.ic_symbol_fast_rewind
-        val data = resources.getXml(resource).use { parser ->
-            var pathData = ""
-            while (parser.eventType != XmlPullParser.END_DOCUMENT) {
-                if (parser.eventType == XmlPullParser.START_TAG && parser.name == "path") {
-                    pathData = parser.getAttributeValue("http://schemas.android.com/apk/res/android", "pathData")
-                    break
-                }
-                parser.next()
-            }
-            pathData
-        }
-        Regex("M[^M]+").findAll(data).map {
-            val path = PathParser().parsePathString(it.value).toPath()
+        val data = readVectorPathData(resources, resource).first()
+        vectorPathContours(data).map {
+            val path = PathParser().parsePathString(it).toPath()
             path to path.getBounds().center
-        }.toList()
+        }
     }
     Canvas(modifier) {
         val first = motion.arrows[0].value.coerceIn(0f, 1f)

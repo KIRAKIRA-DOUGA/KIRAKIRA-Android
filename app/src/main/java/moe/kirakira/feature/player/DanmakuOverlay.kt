@@ -47,6 +47,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import moe.kirakira.data.content.DanmakuEntry
 import moe.kirakira.data.content.DanmakuFontSize
 import moe.kirakira.data.settings.DanmakuSettings
+import moe.kirakira.ui.components.video.DanmakuColors
 
 private data class DanmakuSprite(
     val flight: DanmakuFlight,
@@ -130,7 +131,7 @@ internal fun DanmakuOverlay(
                     DanmakuSprite(
                         flight, text,
                         if (flight.entry.style.enableRainbow) Brush.horizontalGradient(
-                            listOf(Color(0xFFF2509E), Color(0xFF308BCD)),
+                            DanmakuColors.rainbowOutline,
                             endX = text.size.width.toFloat().coerceAtLeast(1f),
                         ) else null,
                     )

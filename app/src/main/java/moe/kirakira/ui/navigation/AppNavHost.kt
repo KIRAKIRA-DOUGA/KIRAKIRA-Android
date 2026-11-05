@@ -145,6 +145,11 @@ internal fun AppNavHost(
     val homeViewModel = contentRepository?.let { viewModel { HomeViewModel(it) } }
     val searchViewModel = dependencies?.let { viewModel { SearchViewModel(it.content, it.searchHistory) } }
     val videoPageActive = backStack.lastOrNull() is VideoRoute
+    // Include composed viewers so the video stays underneath the entire image exit.
+    val videoPageUnderImage = imageViewerActive && (
+        videoPageActive || (backStack.lastOrNull() is ImageViewerRoute &&
+            backStack.getOrNull(backStack.lastIndex - 1) is VideoRoute)
+        )
     val viewportState = remember { PlaybackViewportState() }
     val retainedVideoModels = viewModel { RetainedVideoPageViewModel() }
     fun popRoute(route: NavKey) {
@@ -211,6 +216,7 @@ internal fun AppNavHost(
                 backStack = backStack,
                 predictiveBackEnabled = predictiveBackEnabled,
                 videoZoomState = viewportState,
+                videoPageUnderImage = videoPageUnderImage,
                 onBackRequested = navigation::requestBack,
                 canNavigateBack = navigation::canNavigateBack,
                 onBack = {
@@ -221,6 +227,9 @@ internal fun AppNavHost(
                 },
                 onImageBack = { target ->
                     if (target is ImageViewerRoute) navigation.closeImageViewer(target, ImageViewerCloseReason.SYSTEM_BACK)
+                },
+                onImageDismiss = { target ->
+                    if (target is ImageViewerRoute) navigation.closeImageViewer(target, ImageViewerCloseReason.DRAG_DOWN)
                 },
                 entryProvider = entryProvider {
                     registerMainEntries(this, navigation, accountState, homeViewModel, searchViewModel)
@@ -254,7 +263,7 @@ internal fun AppNavHost(
                     videoId = retainedVideoId,
                     retainedIds = retainedIds,
                     sessionRevision = accountState.revision,
-                    isActive = videoPageActive,
+                    isActive = videoPageActive && !imageViewerActive,
                 ) {
                     PlaybackHost(
                         playback = playback,
@@ -263,12 +272,14 @@ internal fun AppNavHost(
                         settings = playbackSettings,
                         videoPageActive = videoPageActive,
                         imageViewerActive = imageViewerActive,
+                        videoPageUnderImage = videoPageUnderImage,
                         videoPageCovered = !imageViewerActive && (
                             (!videoPageActive && backStack.any { it is VideoRoute }) ||
                                 viewportState.coveringPageKeys.isNotEmpty()
                             ),
                         modifier = Modifier.zIndex(
-                            if (playback.miniPlayer && !videoPageActive && !viewportState.navigatingPage) 2f else 0f,
+                            if (playback.miniPlayer && !videoPageActive && !videoPageUnderImage &&
+                                !viewportState.navigatingPage) 2f else 0f,
                         ),
                         bottomBarHeightPx = if (restoreOrigin == MainRoute) navigation.bottomBarHeightPx else 0,
                         onRestore = {
@@ -309,6 +320,7 @@ internal fun AppNavHost(
                             initialImage = viewportState.cards.origin?.takeIf { it.videoId == retainedVideoId }?.image,
                             onOpenProfile = { uid -> navigation.openFrom(route, ProfileRoute(uid)) },
                             onOpenTag = { id -> navigation.openFrom(route, TagRoute(id)) },
+                            onOpenImage = { navigation.openFrom(route, ImageViewerRoute(it)) },
                             onLogin = { navigation.openFrom(route, AuthRoute()) },
                             onBack = { popRoute(route) },
                             modifier = pageModifier,
