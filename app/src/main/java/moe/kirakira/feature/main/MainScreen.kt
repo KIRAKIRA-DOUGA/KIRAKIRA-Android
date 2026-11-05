@@ -4,7 +4,6 @@ import android.content.res.Configuration
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -14,7 +13,6 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -46,7 +44,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
@@ -59,8 +56,10 @@ import moe.kirakira.feature.search.SearchUiState
 import moe.kirakira.ui.components.AccountAvatar
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
+import moe.kirakira.ui.components.ContentStatusViewport
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
+import moe.kirakira.ui.components.FollowingLogo
 import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.ShadingIcon
 import moe.kirakira.ui.components.appTopAppBarColors
@@ -79,6 +78,7 @@ internal fun MainScreen(
     onOpenVideo: (Int) -> Unit = {},
     onOpenProfile: () -> Unit = {},
     onOpenHistory: () -> Unit = {},
+    onOpenFavorites: () -> Unit = {},
     profile: AccountProfile? = null,
     videos: ContentState<List<VideoSummary>> = ContentState(),
     onRefreshVideos: () -> Unit = {},
@@ -190,25 +190,28 @@ internal fun MainScreen(
                                 indicatorTopPadding = innerPadding.calculateTopPadding(),
                                 modifier = Modifier.fillMaxSize(),
                             ) {
-                                BoxWithConstraints(Modifier.fillMaxSize()) {
-                                    val statusHeight = (maxHeight - innerPadding.calculateTopPadding() - bottomBarPadding.calculateBottomPadding() - 32.dp)
-                                        .coerceAtLeast(0.dp)
+                                val listContentPadding = PaddingValues(
+                                    top = innerPadding.calculateTopPadding() + 16.dp,
+                                    bottom = bottomBarPadding.calculateBottomPadding() + 16.dp,
+                                    start = 16.dp,
+                                    end = 16.dp,
+                                )
+                                ContentStatusViewport(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = listContentPadding,
+                                    leadingContentHeight = 0.dp,
+                                ) { statusModifier ->
                                     LazyColumn(
                                         state = homeScrollState,
                                         modifier = Modifier.fillMaxSize().testTag("home_screen"),
-                                        contentPadding = PaddingValues(
-                                            top = innerPadding.calculateTopPadding() + 16.dp,
-                                            bottom = bottomBarPadding.calculateBottomPadding() + 16.dp,
-                                            start = 16.dp,
-                                            end = 16.dp,
-                                        ),
+                                        contentPadding = listContentPadding,
                                     ) {
                                         item(key = "status") {
                                             if (videos.error != null || videos.data.isNullOrEmpty()) {
                                                 ContentStatus(
                                                     videos.copy(loading = videos.loading && videos.data == null), onRefreshVideos,
                                                     Modifier.fillMaxWidth().then(
-                                                        if (videos.data.isNullOrEmpty()) Modifier.heightIn(min = statusHeight) else Modifier,
+                                                        if (videos.data.isNullOrEmpty()) statusModifier else Modifier,
                                                     ),
                                                     videos.data.isNullOrEmpty(),
                                                 )
@@ -235,7 +238,7 @@ internal fun MainScreen(
                                 state = ContentUnavailableState.EMPTY,
                                 title = stringResource(R.string.content_not_available_yet),
                                 description = null,
-                                iconRes = R.drawable.ic_symbol_person_add,
+                                icon = { FollowingLogo() },
                                 modifier = Modifier.fillMaxSize().testTag("following_screen"),
                             )
 
@@ -244,6 +247,7 @@ internal fun MainScreen(
                                 onOpenSettings = onOpenSettings,
                                 onOpenProfile = onOpenProfile,
                                 onOpenHistory = onOpenHistory,
+                                onOpenFavorites = onOpenFavorites,
                                 scrollState = meScrollState,
                                 contentPadding = PaddingValues(
                                     top = innerPadding.calculateTopPadding(),

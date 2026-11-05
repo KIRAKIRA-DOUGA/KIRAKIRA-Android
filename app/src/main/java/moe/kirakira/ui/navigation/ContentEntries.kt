@@ -13,6 +13,7 @@ import moe.kirakira.AppDependenciesViewModel
 import moe.kirakira.R
 import moe.kirakira.data.auth.SessionState
 import moe.kirakira.feature.auth.AuthRoute
+import moe.kirakira.feature.favorites.FavoritesPage
 import moe.kirakira.feature.follow.FollowListPage
 import moe.kirakira.feature.follow.FollowListViewModel
 import moe.kirakira.feature.history.HistoryPage
@@ -34,6 +35,11 @@ internal fun registerContentEntries(
     with(scope) {
         entry<VideoRoute>(metadata = mapOf(VIDEO_ZOOM_METADATA to true)) {
             Box(Modifier.fillMaxSize())
+        }
+        entry<FavoritesRoute> {
+            NavigationPage {
+                FavoritesPage(onBack = { navigation.popFrom(FavoritesRoute) })
+            }
         }
         entry<HistoryRoute> {
             NavigationPage {

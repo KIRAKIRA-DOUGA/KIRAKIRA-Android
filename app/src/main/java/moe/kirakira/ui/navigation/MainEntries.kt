@@ -36,6 +36,7 @@ internal fun registerMainEntries(
                         profile = accountState.activeProfile,
                         onOpenProfile = { navigation.openFrom(MainRoute, if (accountState.activeProfile == null) AuthRoute() else SelfProfileRoute) },
                         onOpenHistory = { navigation.openFrom(MainRoute, HistoryRoute) },
+                        onOpenFavorites = { navigation.openFrom(MainRoute, FavoritesRoute) },
                         onOpenSettings = { navigation.openFrom(MainRoute, SettingsRoute) },
                         onOpenVideo = { id ->
                             navigation.openFrom(MainRoute, VideoRoute(id))

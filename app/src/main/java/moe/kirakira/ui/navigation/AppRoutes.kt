@@ -17,6 +17,9 @@ internal data object MainRoute : NavKey
 internal data object HistoryRoute : NavKey
 
 @Serializable
+internal data object FavoritesRoute : NavKey
+
+@Serializable
 @SerialName("moe.kirakira.SettingsRoute")
 internal data object SettingsRoute : NavKey
 

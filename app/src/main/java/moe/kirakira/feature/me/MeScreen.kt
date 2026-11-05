@@ -25,16 +25,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
-import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.data.auth.AccountProfile
 import moe.kirakira.ui.components.AccountAvatar
+import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.ui.components.SegmentedMenuItem
+import moe.kirakira.ui.components.UsernameText
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
@@ -45,6 +45,7 @@ internal fun MeScreen(
     scrollState: ScrollState = rememberScrollState(),
     onOpenProfile: () -> Unit = {},
     onOpenHistory: () -> Unit = {},
+    onOpenFavorites: () -> Unit = {},
     profile: AccountProfile? = null,
     contentPadding: PaddingValues = PaddingValues(),
 ) {
@@ -78,6 +79,7 @@ internal fun MeScreen(
                 SegmentedMenuItem(
                     title = stringResource(R.string.me_favorites),
                     icon = R.drawable.ic_symbol_star,
+                    onClick = onOpenFavorites,
                     index = 1,
                     count = 2,
                 )
@@ -104,11 +106,7 @@ private fun ProfileListItem(
 ) {
     val supportingContent: (@Composable () -> Unit)? = profile?.username?.takeIf { it.isNotBlank() }?.let { username ->
         {
-            Text(
-                text = "@$username",
-                fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            UsernameText(username = username)
         }
     }
     SegmentedListItem(

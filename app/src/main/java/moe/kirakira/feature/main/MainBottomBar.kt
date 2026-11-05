@@ -38,6 +38,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -103,11 +104,11 @@ internal fun MainBottomBar(
     var pointerPressed by remember { mutableStateOf(false) }
     val indicatorPressProgress = animateFloatAsState(
         targetValue = if (pointerPressed || tabPressStates.any { it.value }) 1f else 0f,
-        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+        animationSpec = MaterialTheme.motionScheme.slowSpatialSpec(),
         label = "Navigation indicator press",
     )
     var pressedPosition by remember { mutableFloatStateOf(Float.NaN) }
-    // Pointer samples are consumed only by drawing; composition observes drag start/end instead.
+    // Pointer samples retarget the spring without recomposing the bar.
     val dragPosition = remember { mutableFloatStateOf(Float.NaN) }
     var isDragging by remember { mutableStateOf(false) }
     // Drag release and cancellation settle without starting a new Elastic click animation.
@@ -123,23 +124,27 @@ internal fun MainBottomBar(
     }
     val targetPosition = if (pressedPosition.isNaN()) destination.ordinal.toFloat() else pressedPosition
     LaunchedEffect(targetPosition, isDragging, dragSettlement, leadingEasing, trailingEasing) {
-        if (isDragging) return@LaunchedEffect
+        if (isDragging) {
+            val followSpec = spring<Float>(dampingRatio = 1f, stiffness = 1600f, visibilityThreshold = 0.001f)
+            coroutineScope {
+                snapshotFlow { dragPosition.floatValue }.collect { position ->
+                    if (!position.isNaN()) {
+                        // Animatable interrupts the previous target with its current position and velocity.
+                        launch { indicatorStart.animateTo(position, followSpec) }
+                        launch { indicatorEnd.animateTo(position, followSpec) }
+                    }
+                }
+            }
+            return@LaunchedEffect
+        }
 
         val settlement = dragSettlement
-        val handoffPosition = dragPosition.floatValue
-        if (!handoffPosition.isNaN()) {
-            // Keep drawing the final pointer sample until both animation edges own that position.
-            indicatorStart.snapTo(handoffPosition)
-            indicatorEnd.snapTo(handoffPosition)
-            if (isDragging) return@LaunchedEffect
-            dragPosition.floatValue = Float.NaN
-        }
         val stretch = settlement != destination
         if (indicatorStart.value != targetPosition || indicatorEnd.value != targetPosition) {
             val currentPosition = (indicatorStart.value + indicatorEnd.value) / 2f
             val forward = targetPosition >= currentPosition
             val duration = tabTransitionDurationMillis(abs(targetPosition - currentPosition))
-            val dragSpec = spring<Float>(dampingRatio = 1f, stiffness = 1000f, visibilityThreshold = 0.001f)
+            val dragSpec = spring<Float>(dampingRatio = 1f, stiffness = 600f, visibilityThreshold = 0.001f)
             coroutineScope {
                 launch {
                     indicatorStart.animateTo(
@@ -201,6 +206,7 @@ internal fun MainBottomBar(
                     positionFor(down.position.x)
                 }
                 dragSettlement = null
+                dragPosition.floatValue = Float.NaN
                 var dragging = false
                 var released = false
                 try {
@@ -287,15 +293,14 @@ internal fun MainBottomBar(
                         val foregroundPaint = Paint()
                         val mask = Path()
                         onDrawWithContent {
-                            val pointerPosition = dragPosition.floatValue
-                            val start = (if (pointerPosition.isNaN()) indicatorStart.value else pointerPosition)
+                            val start = indicatorStart.value
                                 .coerceIn(0f, AppDestination.entries.lastIndex.toFloat())
-                            val end = (if (pointerPosition.isNaN()) indicatorEnd.value else pointerPosition)
+                            val end = indicatorEnd.value
                                 .coerceIn(start, AppDestination.entries.lastIndex.toFloat())
                             val logicalStart = padding + start * itemWidth
                             val fullWidth = (end - start + 1f) * itemWidth
                             val pressProgress = indicatorPressProgress.value.coerceIn(0f, 1f)
-                            val width = fullWidth * (1f - 0.15f * pressProgress)
+                            val width = fullWidth * (1f - 0.1f * pressProgress)
                             val pressedHeight = height * (1f - 0.1f * pressProgress)
                             val top = padding + (height - pressedHeight) / 2f
                             val pressInset = (fullWidth - width) / 2f
