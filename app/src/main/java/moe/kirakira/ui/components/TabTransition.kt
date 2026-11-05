@@ -85,7 +85,7 @@ internal fun rememberTabReselectHandler(
 /** The indicator compresses around its center while the selected tab is held. */
 @Composable
 internal fun rememberTabIndicatorWidthScale(pressed: Boolean): State<Float> = animateFloatAsState(
-    targetValue = if (pressed) 0.85f else 1f,
+    targetValue = if (pressed) 0.7f else 1f,
     animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
     label = "Tab indicator press width",
 )

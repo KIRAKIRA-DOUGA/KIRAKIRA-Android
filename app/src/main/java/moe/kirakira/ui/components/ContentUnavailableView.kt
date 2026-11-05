@@ -80,6 +80,7 @@ fun ContentUnavailableView(
     primaryAction: ContentUnavailableAction? = null,
     secondaryAction: ContentUnavailableAction? = null,
     retryEnabled: Boolean = true,
+    icon: (@Composable () -> Unit)? = null,
 ) {
     require(onRetry == null || primaryAction == null) { "Use either onRetry or primaryAction" }
     val action = primaryAction ?: onRetry?.let {
@@ -106,7 +107,9 @@ fun ContentUnavailableView(
             verticalArrangement = Arrangement.spacedBy(if (media) 8.dp else 12.dp),
         ) {
             // Keep the action reachable even in the short, embedded player viewport.
-            if (showIcon) {
+            if (showIcon && icon != null) {
+                icon()
+            } else if (showIcon) {
                 Box(
                     modifier = Modifier.size(if (media) 48.dp else 64.dp),
                     contentAlignment = Alignment.Center,

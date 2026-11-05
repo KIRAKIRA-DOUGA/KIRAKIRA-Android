@@ -37,6 +37,6 @@ internal fun CharacterCount(
             style = style,
             color = color,
         )
-        Text(text = suffix, style = style, color = color)
+        Text(text = suffix, style = style.copy(fontFeatureSettings = "tnum"), color = color)
     }
 }

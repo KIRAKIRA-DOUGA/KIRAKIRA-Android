@@ -24,7 +24,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
-import org.xmlpull.v1.XmlPullParser
 
 internal enum class SlashIconType(
     @param:DrawableRes val visibleRes: Int,
@@ -99,14 +98,8 @@ internal fun AnimatedSlashIcon(
     val geometry = remember(resources, type) {
         fun readPath(@DrawableRes resource: Int): Path {
             val result = Path()
-            resources.getXml(resource).use { parser ->
-                while (parser.eventType != XmlPullParser.END_DOCUMENT) {
-                    if (parser.eventType == XmlPullParser.START_TAG && parser.name == "path") {
-                        val data = parser.getAttributeValue("http://schemas.android.com/apk/res/android", "pathData")
-                        result.addPath(PathParser().parsePathString(data).toPath())
-                    }
-                    parser.next()
-                }
+            readVectorPathData(resources, resource).forEach { data ->
+                result.addPath(PathParser().parsePathString(data).toPath())
             }
             result.transform(Matrix().apply { scale(24f / type.viewport, 24f / type.viewport) })
             return result

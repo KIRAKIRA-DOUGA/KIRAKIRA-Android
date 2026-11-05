@@ -40,7 +40,7 @@ internal fun AnimatedNumberText(
                     alignment = Alignment.CenterStart,
                 ),
             format = format,
-            style = style,
+            style = style.copy(fontFeatureSettings = "tnum"),
             color = color,
             animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
         )
@@ -67,11 +67,11 @@ internal fun AnimatedNumberText(
                 ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (label.startsWith("-")) Text("-", style = style, color = color)
+            if (label.startsWith("-")) Text("-", style = style.copy(fontFeatureSettings = "tnum"), color = color)
             NumberFlow(
                 value = value,
                 format = { format(it).removePrefix("-") },
-                style = style,
+                style = style.copy(fontFeatureSettings = "tnum"),
                 color = color,
                 animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
             )

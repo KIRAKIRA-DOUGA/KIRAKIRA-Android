@@ -52,15 +52,16 @@ private fun AnimatedCountTemplate(
     color: Color,
     maxLines: Int,
 ) {
+    val numberStyle = style.copy(fontFeatureSettings = "tnum")
     val locale = LocalConfiguration.current.locales[0]
     val format: (Long) -> String = { String.format(locale, "%d", it) }
     val label = String.format(locale, template, *values.map(format).toTypedArray())
     val textMeasurer = rememberTextMeasurer()
-    val width = textMeasurer.measure(label, style, softWrap = false, maxLines = 1).size.width
+    val width = textMeasurer.measure(label, numberStyle, softWrap = false, maxLines = 1).size.width
     BoxWithConstraints(modifier) {
         // Preserve wrapping for labels and single-line ellipsis for the constrained page toolbar.
         if (constraints.hasBoundedWidth && width > constraints.maxWidth) {
-            Text(label, style = style, color = color, maxLines = maxLines, overflow = TextOverflow.Ellipsis)
+            Text(label, style = numberStyle, color = color, maxLines = maxLines, overflow = TextOverflow.Ellipsis)
         } else {
             Row(
                 modifier = Modifier.clearAndSetSemantics { text = AnnotatedString(label) },
@@ -69,17 +70,17 @@ private fun AnimatedCountTemplate(
                 var offset = 0
                 for (match in countPlaceholder.findAll(template)) {
                     if (match.range.first > offset) {
-                        Text(template.substring(offset, match.range.first), style = style, color = color)
+                        Text(template.substring(offset, match.range.first), style = numberStyle, color = color)
                     }
                     AnimatedNumberText(
                         value = values[match.groupValues[1].toInt() - 1],
                         format = format,
-                        style = style,
+                        style = numberStyle,
                         color = color,
                     )
                     offset = match.range.last + 1
                 }
-                if (offset < template.length) Text(template.substring(offset), style = style, color = color)
+                if (offset < template.length) Text(template.substring(offset), style = numberStyle, color = color)
             }
         }
     }
