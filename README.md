@@ -2,61 +2,47 @@
 
 # KIRAKIRA Compose
 
-KIRAKIRA 的 Android 客户端，使用 **Kotlin + Jetpack Compose**。界面以 **Material 3 Expressive** 为基础，采用 **Material Design 2** 风格的经典强调色配色与高度阴影，并结合 **KIRAKIRA 特色的彩色阴影**；组件、形状、排版与动效沿用 Material 3 Expressive，图标采用官方 **Material Symbols Rounded**。
+KIRAKIRA 的 Android 客户端，使用 **Kotlin + Jetpack Compose** 构建。界面基于 **Material 3 Expressive**，搭配 Material Design 2 风格的经典强调色、高度阴影与 KIRAKIRA 特色彩色阴影，图标采用 **Material Symbols Rounded**。
 
-当前已接入 Rosales 账号 API，支持登录、注册、找回密码及本机多账号会话。首页视频、关键词／多标签搜索、作者资料、评论与弹幕接入真实数据，支持 Media3 播放、应用内小窗和系统画中画。
+## 主要功能
 
-## 当前功能
+- **浏览与搜索**：首页视频、关键词与多标签搜索、搜索历史、云端观看历史
+- **视频播放**：基于 Media3 的分 P 播放、全屏、应用内小窗与系统画中画，评论与弹幕的浏览和发布
+- **社区互动**：关注、赞踩、作者主页、关注／粉丝列表
+- **账号**：接入 Rosales 账号 API，支持登录、邀请码注册、找回密码、邮箱／TOTP 二步验证、本机多账号切换与系统密码管理器
+- **个人设置**：资料与头像编辑、隐私、账号安全、屏蔽规则、邀请码管理
+- **外观**：明暗模式、预设／系统／自定义强调色、毛玻璃应用栏，中英文界面
 
-| 功能 | 当前状态 |
-| --- | --- |
-| 主界面 | 首页、搜索、关注、我四个 Tab，悬浮底栏支持点击及按住拖动切换，保留切换动效和页面状态恢复；关注仍为占位内容 |
-| 视频搜索 | 关键词提交、输入框内标签与全屏多选确认、按账号保存本机搜索历史、网格／列表切换及返回结果的本地排序，支持刷新与失败重试 |
-| 历史记录 | 云端视频历史、标题／作者搜索、日期分组和进度展示，首 P 支持进度同步与自动续播 |
-| 视频页 | 真实视频详情与分 P 播放、全屏、应用内小窗和系统画中画，支持关注、赞踩、评论分页、弹幕叠加显示与评论／弹幕发布 |
-| 外观 | 明暗模式、统一经典强调色、预设／系统强调色／自定义颜色、毛玻璃应用栏与栏面阴影，设置持久保存 |
-| 账户与认证 | 密码登录、邮箱／TOTP 二步验证、四步邀请码注册、系统密码自动填充与保存、找回密码、本机会话保存、游客／多账号切换及登出 |
-| 用户主页与图片 | “我”展示真实账号资料；设置中可编辑完整资料、裁剪与上传头像；本人和作者主页支持关注／粉丝分页列表，头像可放大、保存或复制，作者作品来自 API |
-| 账号安全 | 修改邮箱与密码、邮箱二步验证、TOTP 绑定／解绑及一次性备用码与恢复码展示，使用 Material 3 Expressive 页面 |
-| 屏蔽与邀请 | 五类屏蔽／隐藏规则管理，邀请码统计、生成、筛选与复制，按账号接入真实 API |
-| 关于与开源组件 | AboutLibraries 组件列表、详情与离线许可证阅读 |
-| 语言与启动体验 | 中英文界面、跟随系统浅深色的品牌启动屏，以及遵循系统动画设置的启动过渡 |
-
-界面默认跟随系统语言，Android 13+ 可使用系统应用语言设置；用户发布内容保留原文。主题默认使用项目粉色，系统强调色为 Android 12+ 的可选颜色来源。
-
-外观、播放与弹幕显示设置、本机账号会话会持久保存；小窗与视频页共用播放会话，关闭小窗后停止播放；进程重建不自动恢复播放。历史记录与首 P 播放进度保存至云端；自己与作者的资料、视频均来自 API，收藏等入口及部分设置仍未接入业务。具体交互、保存范围和已知限制见[功能现状](docs/features.md)。
+“关注”Tab 与收藏等入口尚未接入业务。各页面的具体行为、保存范围与已知限制见[功能现状](docs/features.md)。
 
 ## 快速开始
 
-运行设备最低要求为 **Android API 27**。开发需要兼容当前工具链的 Android Studio、**JDK 25**，以及匹配 **compileSdk 37（minor API 2）** 的 Android SDK Platform。开发环境及配置来源见[开发指南](docs/development.md#开发环境)。
+运行需要 **Android 8.1（API 27）** 及以上。开发需要兼容当前工具链的 Android Studio、**JDK 25** 和 **compileSdk 37（minor API 2）** 的 SDK Platform，详见[开发环境](docs/development.md#开发环境)。
 
-1. 使用 Android Studio 打开项目根目录，配置 Gradle JDK，并安装所需 SDK。
-2. 同步 Gradle；首次同步需要下载 Gradle 与依赖，由 IDE 生成本机 `local.properties`，不要提交该文件。
-3. 连接启用 USB 调试的设备，或准备满足最低版本要求的模拟器，选择 `app` 运行配置运行。
+1. 用 Android Studio 打开项目根目录，配置 Gradle JDK 并同步。
+2. 连接设备或启动模拟器，选择 `app` 运行配置运行。
 
-也可从项目根目录构建 Debug APK：
+命令行构建 Debug APK（输出到 `app/build/outputs/apk/debug/`，Windows 使用 `gradlew.bat`）：
 
 ```sh
 ./gradlew :app:assembleDebug
 ```
 
-APK 输出到 `app/build/outputs/apk/debug/`。需要安装到设备时执行 `./gradlew :app:installDebug`，随后从设备桌面打开应用。Windows 使用 `gradlew.bat` 替换 `./gradlew`。
+API 默认连接 `https://rosales.kirakira.moe/`，可在构建时覆盖，见 [API 环境配置](docs/development.md#api-环境配置)。
 
-API 默认连接 `https://rosales.kirakira.moe/`，构建时可覆盖 HTTPS 地址，见[API 环境配置](docs/development.md#api-环境配置)。
+## 文档
 
-代码或构建变更默认只做 Debug 构建；纯文档修改只检查内容与链接。测试、Lint 和设备检查仅按用户明确要求执行，见[构建与检查](CONTRIBUTING.md#构建与检查)。
-
-## 文档导航
-
-| 文档 | 阅读用途 |
+| 文档 | 内容 |
 | --- | --- |
-| [功能现状](docs/features.md) | 各页面能做什么、状态保存与限制 |
-| [开发指南](docs/development.md) | 环境配置、运行安装、目录结构与可选检查命令 |
-| [实现索引](docs/implementation.md) | 导航、内容、媒体、主题、共享组件、认证会话与账号设置专题 |
-| [贡献指南](CONTRIBUTING.md) | 技术选型、代码与 UI 规范、依赖、检查及提交要求 |
-| [代理执行摘要](AGENTS.md) | 开发者与代码代理的执行约定及规范入口 |
-| [认证离线测试](docs/auth-testing.md) | 测试隔离、专项命令、适用范围与带日期的历史验证记录 |
+| [功能现状](docs/features.md) | 页面行为、状态保存与限制 |
+| [开发指南](docs/development.md) | 环境、命令、目录结构与可选检查 |
+| [实现索引](docs/implementation.md) | 导航、内容、媒体、主题、组件、认证与账号设置的实现专题 |
+| [贡献指南](CONTRIBUTING.md) | 技术选型、代码与 UI 规范、检查与提交要求 |
+| [AGENTS.md](AGENTS.md) | 代码代理执行摘要 |
+| [认证离线测试](docs/auth-testing.md) | 认证测试隔离、专项命令与历史验证记录 |
 
-参与开发前阅读贡献指南，启用 [.editorconfig](.editorconfig) 支持。使用 [PR 模板](.github/pull_request_template.md)记录变更原因与检查结果。
+参与开发前请阅读贡献指南，PR 使用[仓库模板](.github/pull_request_template.md)。
 
-第三方来源与维护记录：[Material Symbols](third_party/material-symbols/README.md)、[AOSP 页面转场](third_party/android-motion/README.md)、[Android 下拉刷新](third_party/android-refresh/README.md)、[Cerasus 颜色资源](third_party/cerasus-palettes/README.md)、[Cerasus 图标与动画](third_party/cerasus-icons/README.md)、[GitHub Logo](third_party/github/README.md)、[开源组件声明](third_party/aboutlibraries/README.md)。
+## 第三方资源
+
+[Material Symbols](third_party/material-symbols/README.md) · [AOSP 页面转场](third_party/android-motion/README.md) · [Android 下拉刷新](third_party/android-refresh/README.md) · [Cerasus 颜色资源](third_party/cerasus-palettes/README.md) · [Cerasus 图标与动画](third_party/cerasus-icons/README.md) · [GitHub Logo](third_party/github/README.md) · [开源组件声明](third_party/aboutlibraries/README.md)
