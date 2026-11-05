@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -35,6 +36,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import moe.kirakira.R
 import moe.kirakira.ui.components.ActionDialog
 import moe.kirakira.ui.components.CollapsibleTopAppBar
@@ -67,6 +69,8 @@ fun SettingsScreen(
     signedIn: Boolean = false,
     accountBusy: Boolean = false,
     onLogout: () -> Unit = {},
+    isActive: Boolean = true,
+    onSearchDestination: (String) -> Unit = {},
 ) {
     var confirmLogout by rememberSaveable(signedIn) { mutableStateOf(false) }
     if (confirmLogout && signedIn) {
@@ -97,6 +101,7 @@ fun SettingsScreen(
     }
     val scrollBehavior = rememberCollapsibleTopAppBarScrollBehavior()
     val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
     val layoutDirection = LocalLayoutDirection.current
 
     val personalSettings = remember {
@@ -125,20 +130,31 @@ fun SettingsScreen(
             .testTag("settings_screen"),
         containerColor = ThemeColorDefaults.settingsBackgroundColor(),
         topBar = {
-            Box {
-                ShadingIcon(
-                    icon = R.drawable.ic_symbol_settings,
-                    modifier = Modifier.matchParentSize(),
-                    rotating = true,
-                    endPadding = 0.dp,
-                    alignment = Alignment.BottomEnd,
-                    offset = DpOffset(32.dp, 32.dp),
-                )
-                CollapsibleTopAppBar(
-                    title = stringResource(R.string.me_settings),
-                    onBack = onBack,
-                    scrollBehavior = scrollBehavior,
-                    backButtonModifier = Modifier.testTag("settings_back"),
+            Column {
+                Box {
+                    ShadingIcon(
+                        icon = R.drawable.ic_symbol_settings,
+                        modifier = Modifier.matchParentSize(),
+                        rotating = true,
+                        endPadding = 0.dp,
+                        alignment = Alignment.BottomEnd,
+                        offset = DpOffset(32.dp, 32.dp),
+                    )
+                    CollapsibleTopAppBar(
+                        title = stringResource(R.string.me_settings),
+                        onBack = onBack,
+                        scrollBehavior = scrollBehavior,
+                        backButtonModifier = Modifier.testTag("settings_back"),
+                    )
+                }
+                SettingsSearchBar(
+                    signedIn = signedIn,
+                    isActive = isActive,
+                    onSelect = { entry ->
+                        if (entry.page == SettingsSearchPage.HOME) {
+                            scope.launch { listState.animateScrollToItem(if (signedIn) 2 else 1) }
+                        } else onSearchDestination(entry.id)
+                    },
                 )
             }
         },

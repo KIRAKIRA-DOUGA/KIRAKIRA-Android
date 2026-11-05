@@ -2,7 +2,6 @@ package moe.kirakira.data.profile
 
 import java.io.File
 import java.io.IOException
-import java.io.InterruptedIOException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.time.Duration.Companion.seconds
@@ -15,6 +14,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import moe.kirakira.core.image.isPublicMediaHttpUrl
 import moe.kirakira.core.network.ApiClient
 import moe.kirakira.core.network.ApiException
 import moe.kirakira.core.network.ApiFailure
@@ -37,6 +37,9 @@ internal class ProfileRepository(private val api: ApiClient, private val auth: A
     private var uploadedFile: File? = null
     private var uploadedId: String? = null
     private var remoteSaved = false
+    var saveUnconfirmed: Boolean = false
+        private set
+    private var submittedProfile: AccountProfile? = null
     private var refreshed: AccountProfile? = null
     var publishedRevision: Long? = null
         private set
@@ -48,6 +51,8 @@ internal class ProfileRepository(private val api: ApiClient, private val auth: A
         uploadedFile = null
         uploadedId = null
         remoteSaved = false
+        saveUnconfirmed = false
+        submittedProfile = null
         refreshed = null
         publishedRevision = null
         return guarded(request) { auth.fetchProfile(request) }
@@ -82,11 +87,32 @@ internal class ProfileRepository(private val api: ApiClient, private val auth: A
                         profile.labels,
                     ))
                 }
-                val result = api.post<MutationDto>("user/update/info", body.toString(), account.cookie())
-                if (!result.success) throw ApiException(ApiFailure.REJECTED)
+                submittedProfile = profile.copy(avatar = if (avatar != null) uploadedId else profile.avatar)
+                // A response can be lost after the server commits. Subsequent saves only reconcile.
                 remoteSaved = true
+                saveUnconfirmed = true
+                try {
+                    val result = api.post<MutationDto>("user/update/info", body.toString(), account.cookie())
+                    if (!result.success) throw ApiException(ApiFailure.REJECTED)
+                    saveUnconfirmed = false
+                } catch (error: ApiException) {
+                    if (!error.failure.isUncertainMutation) {
+                        remoteSaved = false
+                        saveUnconfirmed = false
+                        submittedProfile = null
+                    }
+                    throw error
+                }
             }
             val updated = refreshed ?: auth.fetchProfile(request).also { refreshed = it }
+            if (saveUnconfirmed) {
+                val expected = submittedProfile ?: throw ApiException(ApiFailure.INVALID_RESPONSE)
+                if (!matchesSubmittedProfile(expected, updated)) {
+                    refreshed = null
+                    throw ApiException(ApiFailure.INVALID_RESPONSE)
+                }
+                saveUnconfirmed = false
+            }
             checkCurrent(request)
             try {
                 auth.publishProfile(request, updated) { publishedRevision = it }
@@ -97,14 +123,13 @@ internal class ProfileRepository(private val api: ApiClient, private val auth: A
             // Publishing deliberately advances the revision; further requests use the new snapshot.
             snapshot = auth.requestSession()
             remoteSaved = false
+            submittedProfile = null
             refreshed = null
             uploadedFile = null
             uploadedId = null
             updated
         }
     }
-
-    suspend fun usernameAvailable(username: String): Boolean = auth.checkUsername(username)
 
     private fun checkCurrent(request: AuthRepository.RequestSession) {
         if (!auth.isCurrent(request)) throw CancellationException("Account changed")
@@ -126,8 +151,7 @@ internal class ProfileRepository(private val api: ApiClient, private val auth: A
 
     private suspend fun uploadAvatar(value: String, file: File) = withContext(Dispatchers.IO) {
         val url = value.toHttpUrlOrNull()?.takeIf {
-            it.isHttps && it.host == "upload.imagedelivery.net" &&
-                it.username.isEmpty() && it.password.isEmpty() && it.port == 443
+            isPublicMediaHttpUrl(it) && it.host == "upload.imagedelivery.net" && it.port == 443
         } ?: throw ApiException(ApiFailure.INVALID_RESPONSE)
         val request = Request.Builder().url(url).post(MultipartBody.Builder()
             .setType(MultipartBody.FORM)
@@ -139,7 +163,7 @@ internal class ProfileRepository(private val api: ApiClient, private val auth: A
             call.enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
                     continuation.resumeWithException(ApiException(
-                        if (e is InterruptedIOException) ApiFailure.TIMEOUT else ApiFailure.NETWORK))
+                        ApiFailure.fromIOException(e)))
                 }
 
                 override fun onResponse(call: Call, response: Response) {
@@ -152,7 +176,7 @@ internal class ProfileRepository(private val api: ApiClient, private val auth: A
                         }
                         continuation.resume(text)
                     } catch (error: IOException) {
-                        continuation.resumeWithException(ApiException(ApiFailure.NETWORK))
+                        continuation.resumeWithException(ApiException(ApiFailure.fromIOException(error)))
                     } catch (error: ApiException) {
                         continuation.resumeWithException(error)
                     }
@@ -169,6 +193,12 @@ internal class ProfileRepository(private val api: ApiClient, private val auth: A
             .retryOnConnectionFailure(false).build()
     }
 }
+
+private fun matchesSubmittedProfile(expected: AccountProfile, actual: AccountProfile): Boolean =
+    expected.username == actual.username && expected.nickname == actual.nickname &&
+        expected.signature == actual.signature && expected.gender == actual.gender &&
+        expected.birthday == actual.birthday && expected.labels == actual.labels &&
+        expected.avatar.orEmpty() == actual.avatar.orEmpty() && expected.banner.orEmpty() == actual.banner.orEmpty()
 
 @Serializable
 private data class UploadDto(

@@ -100,6 +100,30 @@ fun AppearanceScreen(
                 val colorColumns = themeCardColumns(contentWidth, 156.dp, fontScale, colorOptions.size)
                 val modeRows = remember(modes, modeColumns) { modes.chunked(modeColumns) }
                 val colorRows = remember(colorOptions, colorColumns) { colorOptions.chunked(colorColumns) }
+                val searchId = LocalSettingsSearchTarget.current?.entry?.id
+                val searchIndex = when {
+                    searchId == "appearance.brightness" -> 0
+                    searchId == "appearance.system" -> 1 + modes.indexOf(ThemeMode.SYSTEM) / modeColumns
+                    searchId == "appearance.light" -> 1 + modes.indexOf(ThemeMode.LIGHT) / modeColumns
+                    searchId == "appearance.dark" -> 1 + modes.indexOf(ThemeMode.DARK) / modeColumns
+                    searchId == "appearance.colors" -> 1 + modeRows.size
+                    searchId == "appearance.predictive_back" -> 2 + modeRows.size + colorRows.size
+                    else -> colorOptions.indexOfFirst { option ->
+                        when (option) {
+                            is AppearanceColorOption.Preset -> searchId == "appearance.color.${option.preset.name}"
+                            is AppearanceColorOption.SystemAccent -> searchId == "appearance.system_accent"
+                            AppearanceColorOption.Custom -> searchId == "appearance.custom"
+                        }
+                    }.takeIf { it >= 0 }?.let { 2 + modeRows.size + it / colorColumns }
+                }
+                val itemKeys = buildList {
+                    add("brightness_header")
+                    modeRows.forEach { add("brightness_${it.first().name}") }
+                    add("colors_header")
+                    colorRows.forEach { add("colors_${it.first().key}") }
+                    add("animations")
+                }
+                PrepareSettingsSearchList(listState, itemKeys, searchIndex?.let(itemKeys::getOrNull))
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
@@ -134,7 +158,7 @@ fun AppearanceScreen(
                                 icon = mode.iconRes(),
                                 selected = themeMode == mode,
                                 onClick = { onThemeModeChange(mode) },
-                                modifier = cardModifier,
+                                modifier = cardModifier.settingsSearchAnchor(stringResource(mode.titleRes)),
                             )
                         }
                     }
@@ -163,7 +187,7 @@ fun AppearanceScreen(
                                     selected = !usesSystemColors && !themeColors.useCustomColor &&
                                         themeColors.seedColorArgb == option.preset.color.toArgb(),
                                     onClick = { onThemeColorsChange(themeColors.selectPreset(option.preset)) },
-                                    modifier = cardModifier,
+                                    modifier = cardModifier.settingsSearchAnchor(stringResource(option.preset.titleRes)),
                                 )
                                 is AppearanceColorOption.SystemAccent -> ThemeColorSourceCard(
                                     title = stringResource(R.string.theme_color_system_accent),
@@ -171,7 +195,7 @@ fun AppearanceScreen(
                                     selected = usesSystemColors,
                                     onClick = { onThemeColorsChange(themeColors.selectSystemAccentColor()) },
                                     icon = R.drawable.ic_symbol_android,
-                                    modifier = cardModifier,
+                                    modifier = cardModifier.settingsSearchAnchor(stringResource(R.string.theme_color_system_accent)),
                                 )
                                 AppearanceColorOption.Custom -> ThemeColorSourceCard(
                                     title = stringResource(R.string.theme_color_custom),
@@ -179,7 +203,7 @@ fun AppearanceScreen(
                                     selected = !usesSystemColors && themeColors.useCustomColor,
                                     onClick = { showCustomColor = true },
                                     icon = R.drawable.ic_symbol_edit,
-                                    modifier = cardModifier,
+                                    modifier = cardModifier.settingsSearchAnchor(stringResource(R.string.theme_color_custom)),
                                 )
                             }
                         }

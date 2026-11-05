@@ -30,11 +30,11 @@ internal class SessionCodec {
         require(url.isHttps && url.username.isEmpty() && url.password.isEmpty() && url.query == null && url.fragment == null)
         require(state.accounts.map { it.profile.uuid }.distinct().size == state.accounts.size)
         state.accounts.forEach { account ->
-            require(account.profile.uuid.matches(Regex("[a-zA-Z0-9-]+")))
+            require(isValidSessionUuid(account.profile.uuid))
             require(account.profile.uid >= 0 && account.profile.email.isNotBlank())
-            account.userDataBootstrapHint?.let { require(it.matches(Regex("[a-zA-Z0-9_-]+"))) }
+            account.userDataBootstrapHint?.let { require(isValidBootstrapHint(it)) }
             account.token?.let { token ->
-                require(token.isNotBlank() && token.all { it.code in 0x21..0x7E && it != ';' && it != ',' })
+                require(isValidSessionToken(token))
             }
         }
         require(state.activeUuid == null || state.accounts.any {

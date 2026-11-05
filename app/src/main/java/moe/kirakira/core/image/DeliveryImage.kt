@@ -18,4 +18,7 @@ internal fun deliveryImageUrl(value: String?, pixelWidth: Int? = null): String? 
 internal fun publicMediaUrl(value: String): String? = publicMediaHttpUrl(value)?.toString()
 
 internal fun publicMediaHttpUrl(value: String): HttpUrl? = value.toHttpUrlOrNull()
-    ?.takeIf { it.isHttps && it.username.isEmpty() && it.password.isEmpty() }
+    ?.takeIf(::isPublicMediaHttpUrl)
+
+internal fun isPublicMediaHttpUrl(url: HttpUrl): Boolean =
+    url.isHttps && url.username.isEmpty() && url.password.isEmpty()

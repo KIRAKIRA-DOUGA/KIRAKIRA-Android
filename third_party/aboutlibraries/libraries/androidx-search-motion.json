@@ -1,0 +1,15 @@
+{
+  "uniqueId": "third-party:androidx-search-motion",
+  "name": "AndroidX search expansion layout",
+  "artifactVersion": "421e325e5b94",
+  "developers": [
+    {
+      "name": "The Android Open Source Project"
+    }
+  ],
+  "website": "https://android.googlesource.com/platform/frameworks/support/+/androidx-main/compose/material3/material3/src/commonMain/kotlin/androidx/compose/material3/SearchBar.kt",
+  "description": "Adapted ordinary FullScreenSearchBarLayout expansion geometry to an Activity-owned Compose layer using public SearchBarState and layout coordinates. Dialog-specific predictive-back geometry is not included. See third_party/android-search.",
+  "licenses": [
+    "kirakira-androidx-search-apache-2.0"
+  ]
+}

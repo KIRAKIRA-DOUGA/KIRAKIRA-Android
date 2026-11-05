@@ -98,6 +98,8 @@ internal data class SecuritySettingsState(
     val busy: Boolean = false,
     val page: SecurityPage = SecurityPage.OVERVIEW,
     val credentials: CredentialFlow = CredentialFlow.Idle,
+    val completionUncertain: Boolean = false,
+    val confirmAbandonCompletion: Boolean = false,
     val twoFactor: TwoFactorFlow = TwoFactorFlow.Manage(),
     val error: ApiFailure? = null,
     val validation: Int? = null,
@@ -133,7 +135,7 @@ internal data class SecuritySettingsState(
             is TwoFactorFlow.ConfirmTotp, is TwoFactorFlow.SaveCodes, is TwoFactorFlow.Checking -> true
         }
     }
-    val confirmDiscardCredentials: Boolean get() = when (val flow = credentials) {
+    val confirmDiscardCredentials: Boolean get() = confirmAbandonCompletion || when (val flow = credentials) {
         is CredentialFlow.EditEmail -> flow.confirmDiscard
         is CredentialFlow.EditPassword -> flow.confirmDiscard
         CredentialFlow.Idle, is CredentialFlow.VerifyEmail, is CredentialFlow.VerifyPassword,

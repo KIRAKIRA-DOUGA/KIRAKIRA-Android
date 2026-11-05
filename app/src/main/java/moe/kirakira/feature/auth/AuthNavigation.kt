@@ -26,10 +26,12 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import androidx.navigationevent.compose.rememberNavigationEventDispatcherOwner
 import kotlinx.coroutines.flow.first
+import moe.kirakira.data.auth.verificationMailLanguage
 import moe.kirakira.ui.navigation.ActivityNavDisplay
 import moe.kirakira.ui.navigation.LocalNavigationPageTransform
 import moe.kirakira.ui.navigation.NavigationPage
 import moe.kirakira.ui.navigation.NavigationPageTransform
+import moe.kirakira.ui.navigation.synchronizeNavigationPath
 
 @Composable
 internal fun AuthNavigation(
@@ -51,9 +53,7 @@ internal fun AuthNavigation(
         focusManager.clearFocus()
         // The validated business step determines the path; keep shared entries and their scroll state.
         val path = state.step.routePath()
-        val commonSize = backStack.zip(path).takeWhile { (current, next) -> current == next }.size
-        while (backStack.size > commonSize) backStack.removeLastOrNull()
-        backStack.addAll(path.drop(commonSize))
+        synchronizeNavigationPath(backStack, path)
     }
 
     fun back(from: AuthStep) {
@@ -73,6 +73,8 @@ internal fun AuthNavigation(
         ActivityNavDisplay(
             backStack = backStack,
             predictiveBackEnabled = predictiveBackEnabled,
+            canNavigateBack = { !viewModel.uiState.value.blocksBack },
+            onBackRequested = { !viewModel.uiState.value.blocksBack },
             onBack = { (backStack.lastOrNull() as? AuthStepRoute)?.let { back(it.step) } },
             modifier = modifier.background(MaterialTheme.colorScheme.surface),
             entryProvider = entryProvider {
@@ -119,7 +121,7 @@ private fun AuthStepPage(
     val keyboard = LocalSoftwareKeyboardController.current
     val uriHandler = LocalUriHandler.current
     val locale = LocalConfiguration.current.locales[0]
-    val language = if (locale.language == "zh") "zh-Hans-CN" else "en-US"
+    val language = verificationMailLanguage(locale)
     var passwordVisible by remember { mutableStateOf(false) }
     LaunchedEffect(currentStep) { passwordVisible = false }
     LaunchedEffect(currentStep, state.canEdit, state.focusRequestId, lifecycle) {

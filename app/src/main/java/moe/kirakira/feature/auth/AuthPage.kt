@@ -29,6 +29,7 @@ import moe.kirakira.core.credentials.PasswordSaveResult
 import moe.kirakira.core.credentials.PasswordSelection
 import moe.kirakira.core.credentials.passwordCredentialGateway
 import moe.kirakira.data.auth.AuthRepository
+import moe.kirakira.data.auth.verificationMailLanguage
 
 @Composable
 internal fun AuthPage(
@@ -65,7 +66,7 @@ internal fun AuthPage(
             }
         }
     }
-    val language = if (LocalConfiguration.current.locales[0].language == "zh") "zh-Hans-CN" else "en-US"
+    val language = verificationMailLanguage(LocalConfiguration.current.locales[0])
     LaunchedEffect(state.credentialOperation?.id, activity, isActive) {
         val operation = state.credentialOperation ?: return@LaunchedEffect
         if (!isActive || activity == null) return@LaunchedEffect

@@ -31,6 +31,7 @@ import moe.kirakira.data.auth.SecondFactor
 import moe.kirakira.data.security.SecurityStatus
 import moe.kirakira.feature.settings.SettingsRadioItem
 import moe.kirakira.feature.settings.SettingsSection
+import moe.kirakira.feature.settings.settingsSearchAnchor
 import moe.kirakira.ui.components.AccountFlowDefaults
 import moe.kirakira.ui.components.AccountFlowError
 import moe.kirakira.ui.components.AccountFlowFeedback
@@ -40,9 +41,8 @@ import moe.kirakira.ui.components.IconBadgeTone
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.cardColorShadow
 import moe.kirakira.ui.components.connectedListItemShapes
+import moe.kirakira.ui.components.dateOnlyText
 import moe.kirakira.ui.theme.semanticColors
-import java.text.DateFormat
-import java.util.Date
 
 @Composable
 internal fun SecurityOverview(state: SecuritySettingsState, email: String, onOpen: (SecurityStep) -> Unit) {
@@ -244,7 +244,7 @@ private fun TwoFactorEnabledCard(
                                 color = colors.onSuccess.copy(alpha = 0.8f),
                             )
                             Text(
-                                text = DateFormat.getDateInstance().format(Date(addedAt)),
+                                text = dateOnlyText(addedAt),
                                 style = MaterialTheme.typography.bodyLarge,
                             )
                         }
@@ -300,7 +300,7 @@ private fun SecurityItem(
     enabled: Boolean, busy: Boolean = false, onClick: () -> Unit,
 ) {
     SegmentedListItem(
-        onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth(),
+        onClick = onClick, enabled = enabled, modifier = Modifier.settingsSearchAnchor(title).fillMaxWidth(),
         shapes = connectedListItemShapes(index, count),
         leadingContent = {
             Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(24.dp))

@@ -42,9 +42,12 @@ internal class AuthRepository(
     private var pendingPasswordReset: PendingPasswordReset? = null
     private val _session = MutableStateFlow(SessionState())
     val session = _session.asStateFlow()
+    val needsInitialization: Boolean get() = stored == null
 
     fun hasPendingAuthentication(owner: AuthFlowOwner): Boolean = pendingAuthentication?.owner === owner
     fun hasPendingPasswordReset(owner: AuthFlowOwner): Boolean = pendingPasswordReset?.owner === owner
+    fun isPasswordResetConfirmed(owner: AuthFlowOwner): Boolean =
+        pendingPasswordReset?.takeIf { it.owner === owner }?.confirmed == true
 
     suspend fun initialize() = mutex.withLock {
         if (stored != null) return@withLock
@@ -53,7 +56,10 @@ internal class AuthRepository(
             publish()
             _session.update { it.copy(notice = store.migrationNotice) }
         } catch (error: ApiException) {
-            _session.value = SessionState(isLoading = false, error = error.failure)
+            // Recovery failures must not reuse revisions belonging to retired account requests.
+            _session.update {
+                SessionState(revision = it.revision, isLoading = false, error = error.failure)
+            }
         }
     }
 
@@ -184,6 +190,7 @@ internal class AuthRepository(
     }
 
     suspend fun finishAuthentication(owner: AuthFlowOwner) {
+        if (needsInitialization) initialize()
         val pending = pendingAuthentication?.takeIf { it.owner === owner } ?: throw ApiException(ApiFailure.REJECTED)
         try {
             saveAuthenticated(pending)
@@ -289,12 +296,21 @@ internal class AuthRepository(
 
     suspend fun resetPassword(email: String, password: String, code: String, owner: AuthFlowOwner) {
         requireStorage()
-        api.resetPassword(email, hashPassword(password), code)
-        pendingPasswordReset = PendingPasswordReset(email, owner)
+        val hash = hashPassword(password)
+        val pending = PendingPasswordReset(email, owner)
+        pendingPasswordReset = pending
+        try {
+            api.resetPassword(email, hash, code)
+            pending.confirmed = true
+        } catch (error: ApiException) {
+            if (!error.failure.isUncertainMutation && pendingPasswordReset === pending) pendingPasswordReset = null
+            throw error
+        }
         finishPasswordReset(owner)
     }
 
     suspend fun finishPasswordReset(owner: AuthFlowOwner) {
+        if (needsInitialization) initialize()
         val pending = pendingPasswordReset?.takeIf { it.owner === owner } ?: throw ApiException(ApiFailure.REJECTED)
         val email = pending.email
         mutex.withLock {
@@ -321,7 +337,12 @@ internal class AuthRepository(
 
     suspend fun resetLocalAccounts() = mutex.withLock {
         withContext(NonCancellable) {
-            store.reset()
+            try {
+                store.reset()
+            } catch (error: ApiException) {
+                invalidateUnconfirmedStorage(error)
+                throw error
+            }
             stored = StoredSessions(baseUrl = baseUrl)
             pendingAuthentication = null
             pendingPasswordReset = null
@@ -333,10 +354,23 @@ internal class AuthRepository(
         currentCoroutineContext().ensureActive()
         // Keep disk and the published active identity consistent even if an entry is popped during persistence.
         withContext(NonCancellable) {
-            store.write(next)
+            try {
+                store.write(next)
+            } catch (error: ApiException) {
+                invalidateUnconfirmedStorage(error)
+                throw error
+            }
             stored = next
             publish(onPublishing)
         }
+    }
+
+    private fun invalidateUnconfirmedStorage(error: ApiException) {
+        if (!store.requiresReload) return
+        stored = null
+        _session.value = SessionState(
+            revision = _session.value.revision + 1, isLoading = false, error = error.failure,
+        )
     }
 
     private fun publish(onPublishing: (Long) -> Unit = {}) {
@@ -373,5 +407,5 @@ internal class AuthRepository(
         val owner: AuthFlowOwner,
         var resolvedAccount: StoredAccount? = null,
     )
-    private class PendingPasswordReset(val email: String, val owner: AuthFlowOwner)
+    private class PendingPasswordReset(val email: String, val owner: AuthFlowOwner, var confirmed: Boolean = false)
 }

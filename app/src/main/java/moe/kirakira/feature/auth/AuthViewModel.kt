@@ -24,7 +24,9 @@ import moe.kirakira.core.network.ApiFailure
 import moe.kirakira.data.auth.AuthFlowOwner
 import moe.kirakira.data.auth.AuthRepository
 import moe.kirakira.data.auth.SecondFactor
+import moe.kirakira.data.auth.VerificationCodeFormat
 import moe.kirakira.data.auth.VerificationPurpose
+import moe.kirakira.data.auth.isValidAccountName
 import moe.kirakira.ui.components.messageRes
 
 internal class AuthViewModel(
@@ -183,7 +185,8 @@ internal class AuthViewModel(
 
     fun back(from: AuthStep) {
         val state = _uiState.value
-        if (state.step != from || state.submission in setOf(AuthSubmission.FINISHING, AuthSubmission.SUCCEEDED)) return
+        if (state.step != from || state.blocksBack ||
+            state.submission in setOf(AuthSubmission.FINISHING, AuthSubmission.SUCCEEDED)) return
         val previous = from.previousStep ?: return
         cancelRequest()
         pendingPassword = null
@@ -239,9 +242,9 @@ internal class AuthViewModel(
                 AuthStep.REGISTER_PROFILE -> {
                     val username = Normalizer.normalize(state.username, Normalizer.Form.NFC)
                     val nickname = Normalizer.normalize(state.nickname, Normalizer.Form.NFC)
-                    if (!isValidAuthName(username)) {
+                    if (!isValidAccountName(username)) {
                         fieldFail(AuthField.USERNAME, R.string.auth_name_invalid)
-                    } else if (!isValidAuthName(nickname)) {
+                    } else if (!isValidAccountName(nickname)) {
                         fieldFail(AuthField.NICKNAME, R.string.auth_name_invalid)
                     } else if (!repository.checkUsername(username)) {
                         fieldFail(AuthField.USERNAME, R.string.auth_username_taken)
@@ -304,8 +307,13 @@ internal class AuthViewModel(
                     complete()
                 }
                 AuthStep.SAVE_PASSWORD_RESET -> {
+                    val confirmed = repository.isPasswordResetConfirmed(flowOwner)
                     repository.finishPasswordReset(flowOwner)
-                    complete(passwordReset = true)
+                    if (confirmed) complete(passwordReset = true)
+                    else {
+                        releaseCredentials()
+                        _uiState.value = AuthUiState(email = email, noticeRes = R.string.security_password_unconfirmed)
+                    }
                 }
                 AuthStep.TOTP_HELP -> Unit
             }
@@ -353,7 +361,7 @@ internal class AuthViewModel(
     }
 
     private fun validEmailCode(): Boolean {
-        if (!_uiState.value.code.matches(Regex("[0-9]{6}"))) {
+        if (!VerificationCodeFormat.NUMERIC.isValid(_uiState.value.code)) {
             fieldFail(AuthField.CODE, R.string.auth_code_invalid)
             return false
         }
@@ -436,13 +444,24 @@ internal class AuthViewModel(
                 block()
             } catch (error: ApiException) {
                 if (generation != requestGeneration) return@launch
+                if (_uiState.value.step == AuthStep.REGISTER_VERIFY && error.failure.isUncertainMutation &&
+                    !repository.hasPendingAuthentication(flowOwner)) {
+                    releaseCredentials()
+                    _uiState.value = AuthUiState(
+                        email = _uiState.value.email, noticeRes = R.string.auth_registration_unconfirmed,
+                    )
+                    return@launch
+                }
                 if (repository.hasPendingAuthentication(flowOwner)) {
                     _uiState.update {
                         it.copy(step = AuthStep.SAVE_SESSION, password = "", confirmPassword = "", code = "")
                     }
                 } else if (repository.hasPendingPasswordReset(flowOwner)) {
+                    val unconfirmed = !repository.isPasswordResetConfirmed(flowOwner)
+                    if (unconfirmed) pendingPassword = null
                     _uiState.update {
-                        it.copy(step = AuthStep.SAVE_PASSWORD_RESET, password = "", confirmPassword = "", code = "")
+                        it.copy(step = AuthStep.SAVE_PASSWORD_RESET, password = "", confirmPassword = "", code = "",
+                            passwordResetUnconfirmed = unconfirmed)
                     }
                 }
                 if (!repository.hasPendingAuthentication(flowOwner) && !repository.hasPendingPasswordReset(flowOwner)) {

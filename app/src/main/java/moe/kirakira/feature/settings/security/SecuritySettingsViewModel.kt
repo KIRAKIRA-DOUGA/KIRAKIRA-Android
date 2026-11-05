@@ -11,14 +11,16 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import moe.kirakira.R
 import moe.kirakira.core.network.ApiException
-import moe.kirakira.core.network.ApiFailure
 import moe.kirakira.data.auth.SecondFactor
+import moe.kirakira.data.auth.VerificationCodeFormat
+import moe.kirakira.data.security.CredentialCompletion
 import moe.kirakira.data.security.SecurityEmailPurpose
 import moe.kirakira.data.security.SecurityRepository
 import moe.kirakira.data.security.SecurityStatus
@@ -34,15 +36,15 @@ internal class SecuritySettingsViewModel(private val repository: SecurityReposit
 
     init {
         viewModelScope.launch {
-            session.map { Triple(it.revision, it.isLoading, it.isBusy) }.distinctUntilChanged().collect { value ->
-                if (value.first == repository.publishedRevision) {
-                    revision = value.first
+            session.filter { !it.isLoading && !it.isBusy }.map { it.revision }.distinctUntilChanged().collect { value ->
+                if (value == repository.publishedRevision) {
+                    revision = value
                     _state.update { it.copy(revision = revision) }
                 } else {
                     request?.cancel()
                     factorMutation = null
                     repository.discard()
-                    revision = value.first
+                    revision = value
                     _state.value = SecuritySettingsState(revision = revision)
                     if (ready) refresh()
                 }
@@ -94,7 +96,7 @@ internal class SecuritySettingsViewModel(private val repository: SecurityReposit
         if (!ready || current.working || current.completionPending || current.statusPending || current.confirmDiscardCredentials) return
         val numericCode = current.page in setOf(SecurityPage.EMAIL, SecurityPage.PASSWORD) &&
             field in setOf(SecurityField.CODE, SecurityField.NEW_EMAIL_CODE)
-        val form = current.form.with(field, if (numericCode) value.filter { it in '0'..'9' }.take(6) else value)
+        val form = current.form.with(field, if (numericCode) VerificationCodeFormat.NUMERIC.filterInput(value).take(VerificationCodeFormat.NUMERIC.length) else value)
         val next = when (current.page) {
             SecurityPage.EMAIL, SecurityPage.PASSWORD -> {
                 val flow = when (current.credentials) {
@@ -207,7 +209,11 @@ internal class SecuritySettingsViewModel(private val repository: SecurityReposit
 
     fun requestBack(): Boolean {
         val current = _state.value
-        if (current.working || current.completionPending) return false
+        if (current.working) return false
+        if (current.completionPending) {
+            if (current.completionUncertain) _state.update { it.copy(confirmAbandonCompletion = true) }
+            return false
+        }
         when (current.page) {
             SecurityPage.OVERVIEW -> return true
             SecurityPage.EMAIL, SecurityPage.PASSWORD -> backCredentials(current.credentials)
@@ -250,6 +256,10 @@ internal class SecuritySettingsViewModel(private val repository: SecurityReposit
 
     fun cancelDiscardCredentials() {
         val current = _state.value
+        if (current.confirmAbandonCompletion) {
+            _state.update { it.copy(confirmAbandonCompletion = false) }
+            return
+        }
         val flow = when (val previous = current.credentials) {
             is CredentialFlow.EditEmail -> CredentialFlow.EditEmail(previous.form)
             is CredentialFlow.EditPassword -> CredentialFlow.EditPassword(previous.form)
@@ -261,11 +271,13 @@ internal class SecuritySettingsViewModel(private val repository: SecurityReposit
 
     fun discardCredentials() {
         if (!ready || _state.value.working || !_state.value.confirmDiscardCredentials) return
+        if (_state.value.confirmAbandonCompletion) repository.discard()
         leaveCredentials()
     }
 
     private fun leaveCredentials() {
         _state.update { it.copy(page = SecurityPage.OVERVIEW, credentials = CredentialFlow.Idle,
+            completionUncertain = false, confirmAbandonCompletion = false,
             fieldErrors = emptyMap(), validation = null, error = null, message = null) }
         refresh()
     }
@@ -317,6 +329,7 @@ internal class SecuritySettingsViewModel(private val repository: SecurityReposit
         }
         _state.update { it.copy(
             credentials = if (repository.needsCompletion) current.credentials.forSync() else CredentialFlow.Idle,
+            completionUncertain = repository.completionUncertain,
             twoFactor = flow, loading = false, busy = false,
             status = it.status.takeIf { pendingMutation == null },
             page = if (repository.needsCompletion) it.page else SecurityPage.OVERVIEW,
@@ -482,7 +495,7 @@ internal class SecuritySettingsViewModel(private val repository: SecurityReposit
     private fun disableFactor(factor: SecondFactor, form: SecurityForm, mutation: TwoFactorMutation) {
         val password = form[SecurityField.PASSWORD]
         val code = form[SecurityField.CODE].trim().uppercase()
-        val validCode = if (factor == SecondFactor.EMAIL) sixDigits(code) else code.matches(Regex("[A-Z0-9]{6}"))
+        val validCode = if (factor == SecondFactor.EMAIL) sixDigits(code) else VerificationCodeFormat.BACKUP.isValid(code)
         if (password.isEmpty() || !validCode) { validation(R.string.security_fields_invalid); return }
         runOperation(mutation = mutation) {
             repository.disable(revision, factor, password, code)
@@ -529,16 +542,21 @@ internal class SecuritySettingsViewModel(private val repository: SecurityReposit
         val page = _state.value.page
         val email = session.value.activeProfile?.email.orEmpty()
         runOperation {
-            repository.finishCompletion()
-            completeCredentials(if (page == SecurityPage.PASSWORD) R.string.security_password_changed
-                else R.string.security_email_changed, email.takeIf { page == SecurityPage.PASSWORD })
+            when (repository.finishCompletion()) {
+                CredentialCompletion.Confirmed -> completeCredentials(
+                    if (page == SecurityPage.PASSWORD) R.string.security_password_changed else R.string.security_email_changed,
+                    email.takeIf { page == SecurityPage.PASSWORD },
+                )
+                CredentialCompletion.PasswordUnconfirmed -> completeCredentials(R.string.security_password_unconfirmed, email)
+            }
         }
     }
 
     private fun completeCredentials(message: Int, loginEmail: String? = null) {
         revision = session.value.revision
         _state.update { it.copy(revision = revision, page = SecurityPage.OVERVIEW, credentials = CredentialFlow.Idle,
-            fieldErrors = emptyMap(), validation = null, message = message, loginEmail = loginEmail) }
+            completionUncertain = false, fieldErrors = emptyMap(), validation = null,
+            message = message, loginEmail = loginEmail) }
     }
 
     private fun completeFactor(status: SecurityStatus, message: Int? = null, notice: Int? = null, draft: TotpDraft? = null) {
@@ -571,10 +589,11 @@ internal class SecuritySettingsViewModel(private val repository: SecurityReposit
                 _state.update {
                     if (loading && !error.failure.retainsContent) {
                         it.copy(status = null, error = error.failure)
-                    } else if (mutation != null && error.failure.isUncertainMutation()) {
+                    } else if (mutation != null && error.failure.isUncertainMutation) {
                         it.copy(status = null, twoFactor = TwoFactorFlow.Checking(mutation), error = error.failure)
                     } else {
                         it.copy(error = error.failure,
+                            completionUncertain = repository.completionUncertain,
                             credentials = if (repository.needsCompletion) it.credentials.forSync() else it.credentials)
                     }
                 }
@@ -594,10 +613,4 @@ internal class SecuritySettingsViewModel(private val repository: SecurityReposit
     }
 }
 
-private fun ApiFailure.isUncertainMutation(): Boolean = when (this) {
-    ApiFailure.NETWORK, ApiFailure.TIMEOUT, ApiFailure.SERVER, ApiFailure.INVALID_RESPONSE -> true
-    ApiFailure.REJECTED, ApiFailure.CONTENT_UNAVAILABLE, ApiFailure.SESSION_EXPIRED, ApiFailure.RATE_LIMITED, ApiFailure.DAILY_LIMIT,
-    ApiFailure.STORAGE, ApiFailure.STORAGE_FULL, ApiFailure.STORAGE_DATA -> false
-}
-
-private fun sixDigits(value: String): Boolean = value.matches(Regex("[0-9]{6}"))
+private fun sixDigits(value: String): Boolean = VerificationCodeFormat.NUMERIC.isValid(value)

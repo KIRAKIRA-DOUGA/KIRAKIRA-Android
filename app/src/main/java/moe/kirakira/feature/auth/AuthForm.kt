@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import moe.kirakira.R
+import moe.kirakira.data.auth.VerificationCodeFormat
 import moe.kirakira.ui.components.AccountFlowDefaults
 import moe.kirakira.ui.components.AccountFlowSection
 import moe.kirakira.ui.components.FilledTextField
@@ -136,7 +138,7 @@ internal fun AuthForm(
             }
             AuthStep.LOGIN_EMAIL, AuthStep.LOGIN_TOTP, AuthStep.REGISTER_VERIFY, AuthStep.RESET_PASSWORD -> {
                 var recoveryInput by remember { mutableStateOf(false) }
-                val useRecoveryInput = state.step == AuthStep.LOGIN_TOTP && (recoveryInput || state.code.length > 6)
+                val useRecoveryInput = state.step == AuthStep.LOGIN_TOTP && (recoveryInput || state.code.length > VerificationCodeFormat.BACKUP.length)
                 val focusManager = LocalFocusManager.current
                 Column(verticalArrangement = Arrangement.spacedBy(AccountFlowDefaults.SectionSpacing)) {
                     if (state.step == AuthStep.RESET_PASSWORD) {
@@ -188,6 +190,7 @@ internal fun AuthForm(
                                         } else {
                                             stringResource(R.string.auth_resend)
                                         },
+                                        style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"),
                                     )
                                 }
                             }

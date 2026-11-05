@@ -83,7 +83,8 @@ internal fun AuthScreen(
         AuthStep.RESET_PASSWORD -> R.string.auth_reset_description
         AuthStep.TOTP_HELP -> R.string.auth_totp_recovery_description
         AuthStep.SAVE_SESSION -> R.string.auth_save_session_description
-        AuthStep.SAVE_PASSWORD_RESET -> R.string.auth_finish_reset_description
+        AuthStep.SAVE_PASSWORD_RESET -> if (state.passwordResetUnconfirmed) R.string.security_password_unconfirmed
+            else R.string.auth_finish_reset_description
     }
     val submitLabel = when (state.step) {
         AuthStep.LOGIN, AuthStep.LOGIN_EMAIL, AuthStep.LOGIN_TOTP -> R.string.auth_sign_in_button
@@ -115,7 +116,7 @@ internal fun AuthScreen(
     AccountFlowScaffold(
         icon = stepIcon,
         iconSize = if (state.step == AuthStep.LOGIN) 40.dp else 32.dp,
-        onBack = onBack.takeIf { state.step != AuthStep.LOGIN },
+        onBack = onBack.takeIf { state.step != AuthStep.LOGIN && !state.blocksBack },
         backButtonModifier = Modifier.testTag("auth_back"),
         modifier = modifier.testTag("auth_${state.step.name}"),
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -124,7 +125,11 @@ internal fun AuthScreen(
                 AccountFlowActionBar {
                     AccountFlowSubmitButton(
                         label = stringResource(
-                            if (state.submission == AuthSubmission.FAILED) R.string.auth_retry else submitLabel,
+                            when {
+                                state.passwordResetUnconfirmed -> R.string.security_sign_in_again
+                                state.submission == AuthSubmission.FAILED -> R.string.auth_retry
+                                else -> submitLabel
+                            },
                         ),
                         onClick = onSubmit,
                         enabled = state.canSubmit,

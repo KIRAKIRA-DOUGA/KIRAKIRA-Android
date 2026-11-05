@@ -20,10 +20,12 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import androidx.navigationevent.compose.rememberNavigationEventDispatcherOwner
 import moe.kirakira.data.auth.SecondFactor
+import moe.kirakira.data.auth.verificationMailLanguage
 import moe.kirakira.ui.navigation.ActivityNavDisplay
 import moe.kirakira.ui.navigation.LocalNavigationPageTransform
 import moe.kirakira.ui.navigation.NavigationPage
 import moe.kirakira.ui.navigation.NavigationPageTransform
+import moe.kirakira.ui.navigation.synchronizeNavigationPath
 
 @Composable
 internal fun SecuritySettingsNavigation(
@@ -48,9 +50,7 @@ internal fun SecuritySettingsNavigation(
         focus.clearFocus()
         keyboard?.hide()
         val path = state.step.routePath()
-        val commonSize = backStack.zip(path).takeWhile { (current, next) -> current == next }.size
-        while (backStack.size > commonSize) backStack.removeLastOrNull()
-        backStack.addAll(path.drop(commonSize))
+        synchronizeNavigationPath(backStack, path)
     }
 
     fun isCurrent(step: SecurityStep): Boolean = isActive &&
@@ -138,7 +138,7 @@ private fun SecurityStepPage(
         else -> snapshot
     }
     val autofill = LocalAutofillManager.current
-    val language = if (LocalConfiguration.current.locales[0].language == "zh") "zh-Hans-CN" else "en-US"
+    val language = verificationMailLanguage(LocalConfiguration.current.locales[0])
 
     fun whenCurrent(action: () -> Unit) {
         val current = model.state.value

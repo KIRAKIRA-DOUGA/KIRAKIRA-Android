@@ -45,7 +45,11 @@ internal fun ProfileEditorPage(model: ProfileEditorViewModel, onBack: () -> Unit
         onDismissRequest = model::dismissDiscard,
         icon = { Icon(painterResource(R.drawable.ic_symbol_edit), contentDescription = null) },
         title = { Text(stringResource(R.string.profile_discard_title)) },
-        text = { Text(stringResource(if (state.completionOnly) R.string.profile_saved_pending else R.string.profile_discard_message)) },
+        text = { Text(stringResource(when {
+            state.saveUnconfirmed -> R.string.write_leave_confirmation_message
+            state.completionOnly -> R.string.profile_saved_pending
+            else -> R.string.profile_discard_message
+        })) },
         actions = {
             ShadowButton(
                 onClick = onBack,

@@ -1,5 +1,7 @@
 package moe.kirakira.ui.navigation
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalAutofillManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -20,6 +22,9 @@ import moe.kirakira.feature.settings.LicensesScreen
 import moe.kirakira.feature.settings.PlaybackSettingsScreen
 import moe.kirakira.feature.settings.PlaybackSettingsViewModel
 import moe.kirakira.feature.settings.SettingsScreen
+import moe.kirakira.feature.settings.SettingsSearchPage
+import moe.kirakira.feature.settings.SettingsSearchTargetProvider
+import moe.kirakira.feature.settings.isVisible
 import moe.kirakira.feature.settings.management.BlockingOverviewPage
 import moe.kirakira.feature.settings.management.BlockingOverviewViewModel
 import moe.kirakira.feature.settings.management.InvitationsPage
@@ -32,6 +37,7 @@ import moe.kirakira.feature.settings.profile.ProfileEditorPage
 import moe.kirakira.feature.settings.profile.ProfileEditorViewModel
 import moe.kirakira.feature.settings.security.SecuritySettingsPage
 import moe.kirakira.feature.settings.security.SecuritySettingsViewModel
+import moe.kirakira.feature.settings.settingsSearchCatalog
 import moe.kirakira.ui.theme.ThemeColorSettings
 import moe.kirakira.ui.theme.ThemeMode
 
@@ -54,7 +60,169 @@ internal fun registerSettingsEntries(
 ) {
     val contentRepository = dependencies?.content
     val settingsRepository = dependencies?.settings
+    val renderSettingsDestination: @Composable (NavKey, NavKey) -> Unit = { currentRoute, destination ->
+        when (destination) {
+            ProfileEditorRoute -> {
+                NavigationPage {
+                    if (dependencies != null) {
+                        val context = LocalContext.current
+                        val model = viewModel {
+                            ProfileEditorViewModel(dependencies.createProfileRepository(), context)
+                        }
+                        RegisterNavigationBackGuard(
+                            navigation = navigation,
+                            route = currentRoute,
+                            canNavigateBack = { model.canNavigateBack },
+                            requestBack = model::requestBack,
+                        )
+                        ProfileEditorPage(
+                            model = model,
+                            onBack = { navigation.popFrom(currentRoute) },
+                            onLogin = { navigation.openFrom(currentRoute, AuthRoute()) },
+                        )
+                    }
+                }
+            }
+            PrivacySettingsRoute -> {
+                NavigationPage {
+                    if (settingsRepository != null) {
+                        val model = viewModel { PrivacySettingsViewModel(settingsRepository) }
+                        RegisterNavigationBackGuard(
+                            navigation = navigation,
+                            route = currentRoute,
+                            canNavigateBack = { model.canNavigateBack },
+                            requestBack = model::requestBack,
+                        )
+                        PrivacySettingsPage(
+                            model = model,
+                            onBack = { navigation.popFrom(currentRoute) },
+                            onLogin = { navigation.openFrom(currentRoute, AuthRoute()) },
+                        )
+                    }
+                }
+            }
+            SecuritySettingsRoute -> {
+                NavigationPage {
+                    if (dependencies != null) {
+                        val model = viewModel { SecuritySettingsViewModel(dependencies.createSecurityRepository()) }
+                        val autofill = LocalAutofillManager.current
+                        RegisterNavigationBackGuard(
+                            navigation = navigation,
+                            route = currentRoute,
+                            canNavigateBack = { model.canNavigateBack },
+                            requestBack = {
+                                autofill?.cancel()
+                                model.requestBack()
+                            },
+                        )
+                        SecuritySettingsPage(
+                            model = model,
+                            isActive = navigation.backStack.lastOrNull() == currentRoute,
+                            predictiveBackEnabled = predictiveBackEnabled,
+                            onBack = { navigation.popFrom(currentRoute) },
+                            onLogin = { email ->
+                                navigation.openFrom(currentRoute, AuthRoute(email))
+                            },
+                        )
+                    }
+                }
+            }
+            BlockingOverviewRoute -> {
+                NavigationPage {
+                    if (settingsRepository != null) BlockingOverviewPage(
+                        model = viewModel { BlockingOverviewViewModel(settingsRepository) },
+                        onBack = { navigation.popFrom(currentRoute) },
+                        onLogin = { navigation.openFrom(currentRoute, AuthRoute()) },
+                        onCategory = { navigation.openFrom(currentRoute, RuleManagementRoute(it)) },
+                    )
+                }
+            }
+            InvitationsRoute -> {
+                NavigationPage {
+                    if (settingsRepository != null) InvitationsPage(
+                        model = viewModel { InvitationsViewModel(settingsRepository) },
+                        onBack = { navigation.popFrom(currentRoute) },
+                        onLogin = { navigation.openFrom(currentRoute, AuthRoute()) },
+                    )
+                }
+            }
+            AboutRoute -> {
+                NavigationPage {
+                    AboutScreen(
+                        onNavigateToLicenses = { navigation.openFrom(currentRoute, LicensesRoute) },
+                        onNavigateToComponentTest = { navigation.openFrom(currentRoute, ComponentTestRoute) },
+                        onBack = { navigation.popFrom(currentRoute) },
+                    )
+                }
+            }
+            DanmakuSettingsRoute -> {
+                NavigationPage {
+                    DanmakuSettingsScreen(
+                        settings = danmakuSettings,
+                        onChange = { danmakuSettingsModel?.update(it) },
+                        onBack = { navigation.popFrom(currentRoute) },
+                    )
+                }
+            }
+            PlaybackSettingsRoute -> {
+                NavigationPage {
+                    PlaybackSettingsScreen(
+                        settings = playbackSettings,
+                        onOutsideAppMiniPlayerChange = { playbackSettingsModel?.setOutsideAppMiniPlayer(it) },
+                        onInAppMiniPlayerChange = { playbackSettingsModel?.setInAppMiniPlayer(it) },
+                        onAutoplayChange = { playbackSettingsModel?.setAutoplay(it) },
+                        onBack = { navigation.popFrom(currentRoute) },
+                    )
+                }
+            }
+            AppearanceRoute -> {
+                NavigationPage {
+                    AppearanceScreen(
+                        themeMode = themeMode,
+                        onThemeModeChange = onThemeModeChange,
+                        themeColors = themeColors,
+                        onThemeColorsChange = onThemeColorsChange,
+                        predictiveBackEnabled = predictiveBackEnabled,
+                        onPredictiveBackEnabledChange = onPredictiveBackEnabledChange,
+                        onBack = { navigation.popFrom(currentRoute) },
+                    )
+                }
+            }
+            else -> Unit
+        }
+    }
     with(scope) {
+        entry<SettingsSearchTargetRoute> { route ->
+            val target = settingsSearchCatalog.firstOrNull { it.id == route.entryId }
+            val visible = target?.isVisible(
+                accountState.activeProfile != null || accountState.isLoading,
+            ) == true
+            LaunchedEffect(visible) {
+                if (!visible) navigation.popFrom(route)
+            }
+            if (target != null && visible) SettingsSearchTargetProvider(
+                entry = target,
+                ready = when (target.page) {
+                    SettingsSearchPage.PLAYBACK -> playbackSettings != null
+                    SettingsSearchPage.DANMAKU -> danmakuSettings != null
+                    else -> true
+                },
+            ) {
+                val destination = when (target.page) {
+                    SettingsSearchPage.PROFILE -> ProfileEditorRoute
+                    SettingsSearchPage.PRIVACY -> PrivacySettingsRoute
+                    SettingsSearchPage.SECURITY -> SecuritySettingsRoute
+                    SettingsSearchPage.BLOCKING -> BlockingOverviewRoute
+                    SettingsSearchPage.INVITATIONS -> InvitationsRoute
+                    SettingsSearchPage.ABOUT -> AboutRoute
+                    SettingsSearchPage.DANMAKU -> DanmakuSettingsRoute
+                    SettingsSearchPage.PLAYBACK -> PlaybackSettingsRoute
+                    SettingsSearchPage.APPEARANCE -> AppearanceRoute
+                    SettingsSearchPage.ACCOUNT, SettingsSearchPage.HOME -> null
+                }
+                if (destination != null) renderSettingsDestination(route, destination)
+            }
+        }
         entry<SettingsRoute> {
             NavigationPage {
                 SettingsScreen(
@@ -69,6 +237,16 @@ internal fun registerSettingsEntries(
                     signedIn = accountState.activeProfile != null,
                     accountBusy = accountState.isBusy || accountState.isLoading,
                     onLogout = onLogout,
+                    isActive = navigation.backStack.lastOrNull() == SettingsRoute,
+                    onSearchDestination = { id ->
+                        val entry = settingsSearchCatalog.firstOrNull { it.id == id }
+                        if (entry != null && entry.isVisible(accountState.activeProfile != null)) {
+                            navigation.openFrom(
+                                SettingsRoute,
+                                if (entry.page == SettingsSearchPage.ACCOUNT) AccountSwitchRoute else SettingsSearchTargetRoute(id),
+                            )
+                        }
+                    },
                     onBack = { navigation.popFrom(SettingsRoute) },
                     onNavigateToAbout = { navigation.openFrom(SettingsRoute, AboutRoute) },
                     onNavigateToAppearance = { navigation.openFrom(SettingsRoute, AppearanceRoute) },
@@ -76,79 +254,10 @@ internal fun registerSettingsEntries(
                 )
             }
         }
-        entry<ProfileEditorRoute> {
-            NavigationPage {
-                if (dependencies != null) {
-                    val context = LocalContext.current
-                    val model = viewModel {
-                        ProfileEditorViewModel(dependencies.createProfileRepository(), context)
-                    }
-                    RegisterNavigationBackGuard(
-                        navigation = navigation,
-                        route = ProfileEditorRoute,
-                        canNavigateBack = { model.canNavigateBack },
-                        requestBack = model::requestBack,
-                    )
-                    ProfileEditorPage(model,
-                        onBack = { navigation.popFrom(ProfileEditorRoute) },
-                        onLogin = { navigation.openFrom(ProfileEditorRoute, AuthRoute()) })
-                }
-            }
-        }
-        entry<PrivacySettingsRoute> {
-            NavigationPage {
-                if (settingsRepository != null) {
-                    val model = viewModel { PrivacySettingsViewModel(settingsRepository) }
-                    RegisterNavigationBackGuard(
-                        navigation = navigation,
-                        route = PrivacySettingsRoute,
-                        canNavigateBack = { model.canNavigateBack },
-                        requestBack = model::requestBack,
-                    )
-                    PrivacySettingsPage(
-                        model = model,
-                        onBack = { navigation.popFrom(PrivacySettingsRoute) },
-                        onLogin = { navigation.openFrom(PrivacySettingsRoute, AuthRoute()) },
-                    )
-                }
-            }
-        }
-        entry<SecuritySettingsRoute> {
-            NavigationPage {
-                if (dependencies != null) {
-                    val model = viewModel { SecuritySettingsViewModel(dependencies.createSecurityRepository()) }
-                    val autofill = LocalAutofillManager.current
-                    RegisterNavigationBackGuard(
-                        navigation = navigation,
-                        route = SecuritySettingsRoute,
-                        canNavigateBack = { model.canNavigateBack },
-                        requestBack = {
-                            autofill?.cancel()
-                            model.requestBack()
-                        },
-                    )
-                    SecuritySettingsPage(
-                        model = model,
-                        isActive = navigation.backStack.lastOrNull() == SecuritySettingsRoute,
-                        predictiveBackEnabled = predictiveBackEnabled,
-                        onBack = { navigation.popFrom(SecuritySettingsRoute) },
-                        onLogin = { email ->
-                            navigation.openFrom(SecuritySettingsRoute, AuthRoute(email))
-                        },
-                    )
-                }
-            }
-        }
-        entry<BlockingOverviewRoute> {
-            NavigationPage {
-                if (settingsRepository != null) BlockingOverviewPage(
-                    model = viewModel { BlockingOverviewViewModel(settingsRepository) },
-                    onBack = { navigation.popFrom(BlockingOverviewRoute) },
-                    onLogin = { navigation.openFrom(BlockingOverviewRoute, AuthRoute()) },
-                    onCategory = { navigation.openFrom(BlockingOverviewRoute, RuleManagementRoute(it)) },
-                )
-            }
-        }
+        entry<ProfileEditorRoute> { route -> renderSettingsDestination(route, route) }
+        entry<PrivacySettingsRoute> { route -> renderSettingsDestination(route, route) }
+        entry<SecuritySettingsRoute> { route -> renderSettingsDestination(route, route) }
+        entry<BlockingOverviewRoute> { route -> renderSettingsDestination(route, route) }
         entry<RuleManagementRoute> { route ->
             NavigationPage {
                 if (settingsRepository != null && contentRepository != null) RuleManagementPage(
@@ -158,24 +267,8 @@ internal fun registerSettingsEntries(
                 )
             }
         }
-        entry<InvitationsRoute> {
-            NavigationPage {
-                if (settingsRepository != null) InvitationsPage(
-                    model = viewModel { InvitationsViewModel(settingsRepository) },
-                    onBack = { navigation.popFrom(InvitationsRoute) },
-                    onLogin = { navigation.openFrom(InvitationsRoute, AuthRoute()) },
-                )
-            }
-        }
-        entry<AboutRoute> {
-            NavigationPage {
-                AboutScreen(
-                    onNavigateToLicenses = { navigation.openFrom(AboutRoute, LicensesRoute) },
-                    onNavigateToComponentTest = { navigation.openFrom(AboutRoute, ComponentTestRoute) },
-                    onBack = { navigation.popFrom(AboutRoute) },
-                )
-            }
-        }
+        entry<InvitationsRoute> { route -> renderSettingsDestination(route, route) }
+        entry<AboutRoute> { route -> renderSettingsDestination(route, route) }
         entry<ComponentTestRoute> {
             NavigationPage {
                 ComponentTestScreen(
@@ -192,39 +285,9 @@ internal fun registerSettingsEntries(
                 )
             }
         }
-        entry<DanmakuSettingsRoute> {
-            NavigationPage {
-                DanmakuSettingsScreen(
-                    settings = danmakuSettings,
-                    onChange = { danmakuSettingsModel?.update(it) },
-                    onBack = { navigation.popFrom(DanmakuSettingsRoute) },
-                )
-            }
-        }
-        entry<PlaybackSettingsRoute> {
-            NavigationPage {
-                PlaybackSettingsScreen(
-                    settings = playbackSettings,
-                    onOutsideAppMiniPlayerChange = { playbackSettingsModel?.setOutsideAppMiniPlayer(it) },
-                    onInAppMiniPlayerChange = { playbackSettingsModel?.setInAppMiniPlayer(it) },
-                    onAutoplayChange = { playbackSettingsModel?.setAutoplay(it) },
-                    onBack = { navigation.popFrom(PlaybackSettingsRoute) },
-                )
-            }
-        }
-        entry<AppearanceRoute> {
-            NavigationPage {
-                AppearanceScreen(
-                    themeMode = themeMode,
-                    onThemeModeChange = onThemeModeChange,
-                    themeColors = themeColors,
-                    onThemeColorsChange = onThemeColorsChange,
-                    predictiveBackEnabled = predictiveBackEnabled,
-                    onPredictiveBackEnabledChange = onPredictiveBackEnabledChange,
-                    onBack = { navigation.popFrom(AppearanceRoute) },
-                )
-            }
-        }
+        entry<DanmakuSettingsRoute> { route -> renderSettingsDestination(route, route) }
+        entry<PlaybackSettingsRoute> { route -> renderSettingsDestination(route, route) }
+        entry<AppearanceRoute> { route -> renderSettingsDestination(route, route) }
         entry<LicensesRoute> {
             NavigationPage {
                 LicensesScreen(

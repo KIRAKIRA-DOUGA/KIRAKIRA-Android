@@ -73,6 +73,9 @@
     <string name="security_email_2fa_enabled">Email verification enabled</string>
     <string name="security_2fa_disabled">Two-step verification disabled</string>
     <string name="security_completion_pending">Your change was saved on the server. Retry to finish updating this device.</string>
+    <string name="security_email_unconfirmed">The email change could not be confirmed. Check your current email before trying again.</string>
+    <string name="security_password_unconfirmed">The password change could not be confirmed. Sign in again; your new password may already be active.</string>
+    <string name="security_sign_in_again">Sign in again</string>
     <string name="security_fields_invalid">Enter your password and valid verification codes</string>
     <string name="security_code_invalid">Enter the six-digit authenticator or email code</string>
     <string name="security_same_email">New email must differ from your current email</string>
@@ -114,7 +117,7 @@
     <string name="profile_discard">Leave</string>
     <string name="profile_keep_editing">Stay</string>
     <string name="profile_image_failed">Could not open or crop this image. Try another image.</string>
-    <string name="profile_name_invalid">Use 1–20 supported characters, with no leading, trailing or repeated separators</string>
+    <string name="profile_name_invalid">Use 1–20 supported characters, with no leading, trailing or repeated spaces</string>
     <string name="profile_bio_invalid">Bio must be 200 characters or fewer</string>
     <string name="character_count">%1$s / %2$d</string>
     <string name="app_name" translatable="false">KIRAKIRA</string>
@@ -262,6 +265,8 @@
     <string name="video_download">Download</string>
     <string name="video_share">Share</string>
     <string name="video_more">More</string>
+    <string name="video_view_cover">View cover</string>
+    <string name="video_cover_description">Cover of %1$s</string>
     <string name="video_action_unavailable">This action is coming soon</string>
     <string name="video_action_count">%1$s, %2$d</string>
     <string name="animated_count">%1$s</string>
@@ -314,6 +319,7 @@
     <string name="image_storage_denied">Storage permission is needed to save images on this Android version</string>
     <string name="image_open_settings">Settings</string>
     <string name="profile_view_avatar">View %1$s’s avatar</string>
+    <string name="profile_view_banner">View %1$s’s banner</string>
     <string name="follow_list_following_title">Following</string>
     <string name="follow_list_followers_title">Followers</string>
     <string name="follow_list_following_empty">No following yet</string>
@@ -565,4 +571,19 @@
     <string name="profile_unhidden">User unhidden</string>
     <string name="share">Share</string>
     <string name="share_unavailable">Unable to open sharing</string>
+    <string name="auth_registration_unconfirmed">Registration could not be confirmed. Your account may already exist. Try signing in with this email.</string>
+    <string name="write_leave_confirmation_title">Stop checking?</string>
+    <string name="write_leave_confirmation_message">The change may still take effect. Leaving will not cancel it. Check your current information before making another change.</string>
+    <string name="profile_save_unconfirmed">The profile change could not be confirmed. Check its status before editing again.</string>
+    <string name="publication_unconfirmed_title">Sending result unconfirmed</string>
+    <string name="publication_unconfirmed_message">Your message may already have been published. Check the latest content first. Sending again may create a duplicate.</string>
+    <string name="publication_check">Check latest content</string>
+    <string name="publication_resend">Send again</string>
+    <string name="invitation_creation_unconfirmed">The invitation may have been created. Refresh the list to check.</string>
+    <string name="management_change_unconfirmed">The change could not be confirmed. Refresh the rules to check.</string>
+    <string name="invitation_creation_unconfirmed_title">Creation result unconfirmed</string>
+    <string name="invitation_creation_retry_message">The invitation may already have been created. Check the list first. Generating again may create another invitation.</string>
+    <string name="invitation_generate_again">Generate again</string>
+    <string name="settings_search">Search settings</string>
+    <string name="settings_search_empty">No matching settings</string>
 </resources>

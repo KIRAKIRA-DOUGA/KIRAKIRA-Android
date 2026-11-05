@@ -30,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
@@ -56,14 +57,17 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import moe.kirakira.R
 import moe.kirakira.data.settings.Invitation
+import moe.kirakira.ui.components.ActionDialog
 import moe.kirakira.ui.components.AnimatedNumberText
 import moe.kirakira.ui.components.ConnectedLazyColumn
+import moe.kirakira.ui.components.ContentStatusViewport
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.IconBadgeTone
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.LazyListScrollbar
+import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.cardColorShadow
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.theme.KIRAKIRATheme
@@ -74,8 +78,34 @@ internal fun InvitationsPage(model: InvitationsViewModel, onBack: () -> Unit, on
     val busy by model.busy.collectAsStateWithLifecycle()
     val message by model.message.collectAsStateWithLifecycle()
     val session by model.session.collectAsStateWithLifecycle()
+    val confirmCreation by model.creationConfirmation.collectAsStateWithLifecycle()
     InvitationsScreen(state, session.activeProfile != null && !session.isBusy, busy, message, session.revision,
         onBack, onLogin, model::refresh, model::create, model::dismissMessage)
+    if (confirmCreation && session.activeProfile != null && !session.isBusy) {
+        InvitationRetryDialog(busy || state.loading, model::dismissCreation, model::refresh, model::confirmCreation)
+    }
+}
+
+@Composable
+private fun InvitationRetryDialog(
+    busy: Boolean,
+    onDismiss: () -> Unit,
+    onCheck: () -> Unit,
+    onCreate: () -> Unit,
+) {
+    ActionDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.invitation_creation_unconfirmed_title)) },
+        text = { Text(stringResource(R.string.invitation_creation_retry_message)) },
+        actions = {
+            ShadowButton(onClick = { onDismiss(); onCheck() }, enabled = !busy) {
+                Text(stringResource(R.string.security_check_status))
+            }
+            TextButton(onClick = onCreate, enabled = !busy) {
+                Text(stringResource(R.string.invitation_generate_again))
+            }
+        },
+    )
 }
 
 @Composable
@@ -232,14 +262,21 @@ private fun InvitationList(
     }
     // The pager is shifted down by the expanded statistics; reserve that same space
     // in both the list viewport and scrollbar so their bottom stays on screen.
-    Box(Modifier.fillMaxSize().padding(bottom = obscuredBottom)) {
+    ContentStatusViewport(
+        modifier = Modifier.fillMaxSize().padding(bottom = obscuredBottom),
+        contentPadding = contentPadding,
+    ) { statusModifier ->
         ConnectedLazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = contentPadding,
         ) {
-            if (loaded && invitations.isEmpty()) item {
-                ManagementEmpty(R.drawable.ic_symbol_confirmation_number, stringResource(R.string.invitation_empty))
+            if (loaded && invitations.isEmpty() && error == null) item {
+                ManagementEmpty(
+                    R.drawable.ic_symbol_confirmation_number,
+                    stringResource(R.string.invitation_empty),
+                    statusModifier,
+                )
             }
             connectedItemsIndexed("invitations", invitations, key = { _, code -> code.code }) { index, invitation ->
                 SegmentedListItem(
@@ -266,7 +303,10 @@ private fun InvitationList(
             if (error != null) item {
                 ContentUnavailableView(
                     state = ContentUnavailableState.ERROR,
-                    modifier = Modifier.padding(top = 8.dp),
+                    modifier = Modifier.fillMaxWidth().then(
+                        if (invitations.isEmpty()) statusModifier
+                        else Modifier.padding(top = 8.dp),
+                    ),
                     description = stringResource(error),
                     onRetry = onRefresh,
                     presentation = ContentUnavailablePresentation.INLINE,

@@ -1,16 +1,8 @@
 package moe.kirakira.feature.settings.security
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
-import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SnackbarHost
@@ -22,21 +14,20 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import moe.kirakira.R
 import moe.kirakira.data.auth.SecondFactor
-import moe.kirakira.feature.settings.SettingsDefaults
+import moe.kirakira.feature.settings.SettingsColumn
 import moe.kirakira.feature.settings.SettingsErrorCard
 import moe.kirakira.feature.settings.SettingsScaffold
 import moe.kirakira.ui.components.ActionDialog
+import moe.kirakira.ui.components.ContentLoadingView
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentUnavailableAction
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
-import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.messageRes
 
@@ -63,7 +54,6 @@ internal fun SecuritySettingsScreen(
     step: SecurityStep = state.step,
     isActive: Boolean = true,
 ) {
-    val direction = LocalLayoutDirection.current
     val snackbar = remember { SnackbarHostState() }
     val message = state.message?.let { stringResource(it) }
     LaunchedEffect(message, isActive) {
@@ -83,17 +73,12 @@ internal fun SecuritySettingsScreen(
                 isRefreshing = email != null && state.loading && state.status != null,
                 onRefresh = onRefresh,
                 enabled = isActive && email != null && !sessionBusy && !state.busy && state.canRefresh,
-                modifier = Modifier.fillMaxSize().consumeWindowInsets(padding),
+                modifier = Modifier.fillMaxSize(),
                 indicatorTopPadding = padding.calculateTopPadding(),
             ) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                     when {
-                        sessionBusy || (state.loading && state.status == null && !state.statusPending) -> Box(
-                            modifier = Modifier.fillMaxSize().padding(padding),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            IndeterminateCircularProgressIndicator()
-                        }
+                        sessionBusy || (state.loading && state.status == null && !state.statusPending) -> ContentLoadingView(modifier = Modifier.fillMaxSize().padding(padding))
                         email == null -> ContentUnavailableView(
                             state = ContentUnavailableState.EMPTY,
                             modifier = Modifier.padding(padding),
@@ -105,19 +90,7 @@ internal fun SecuritySettingsScreen(
                                 stringResource(R.string.management_login), onLogin,
                             ),
                         )
-                        else -> Column(
-                            modifier = Modifier
-                                .widthIn(max = SettingsDefaults.MaxContentWidth)
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                                .padding(
-                                    start = padding.calculateStartPadding(direction) + SettingsDefaults.HorizontalPadding,
-                                    end = padding.calculateEndPadding(direction) + SettingsDefaults.HorizontalPadding,
-                                    top = padding.calculateTopPadding() + SettingsDefaults.TopPadding,
-                                    bottom = padding.calculateBottomPadding() + SettingsDefaults.BottomPadding,
-                                ),
-                            verticalArrangement = Arrangement.spacedBy(SettingsDefaults.SectionSpacing),
-                        ) {
+                        else -> SettingsColumn(padding = padding) {
                             when {
                                 state.status != null || state.statusPending -> {
                                     SecurityOverview(state, email, onOpen)
@@ -179,8 +152,10 @@ internal fun SecuritySettingsScreen(
         ActionDialog(
             onDismissRequest = onCancelDiscardCredentials,
             icon = { Icon(painterResource(R.drawable.ic_symbol_lock), contentDescription = null) },
-            title = { Text(stringResource(R.string.security_leave_changes_title)) },
-            text = { Text(stringResource(R.string.profile_discard_message)) },
+            title = { Text(stringResource(if (state.confirmAbandonCompletion) R.string.write_leave_confirmation_title
+                else R.string.security_leave_changes_title)) },
+            text = { Text(stringResource(if (state.confirmAbandonCompletion) R.string.write_leave_confirmation_message
+                else R.string.profile_discard_message)) },
             actions = {
                 ShadowButton(
                     onClick = onDiscardCredentials,

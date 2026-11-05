@@ -52,14 +52,14 @@ internal class StoredAccount(
     val userDataBootstrapHint: String? = null,
 ) {
     fun homeCookie(): String? = userDataBootstrapHint?.let { hint ->
-        require(hint.matches(Regex("[a-zA-Z0-9_-]+")))
+        require(isValidBootstrapHint(hint))
         "uuid=${profile.uuid}; uid=${profile.uid}; user-data-bootstrap-hint=$hint"
     }
 
     fun cookie(): String {
         val value = token ?: throw moe.kirakira.core.network.ApiException(ApiFailure.SESSION_EXPIRED)
-        require(value.all { it.code in 0x21..0x7E && it != ';' && it != ',' })
-        require(profile.uuid.matches(Regex("[a-zA-Z0-9-]+")))
+        require(isValidSessionToken(value))
+        require(isValidSessionUuid(profile.uuid))
         return "uuid=${profile.uuid}; uid=${profile.uid}; token=$value"
     }
 }

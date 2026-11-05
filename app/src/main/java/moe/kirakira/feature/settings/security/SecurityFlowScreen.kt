@@ -1,7 +1,6 @@
 package moe.kirakira.feature.settings.security
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -15,7 +14,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.res.stringResource
@@ -32,11 +30,11 @@ import moe.kirakira.ui.components.AccountFlowProgress
 import moe.kirakira.ui.components.AccountFlowScaffold
 import moe.kirakira.ui.components.AccountFlowSection
 import moe.kirakira.ui.components.AccountFlowSubmitButton
+import moe.kirakira.ui.components.ContentLoadingView
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
-import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.messageRes
 
 @Composable
@@ -86,12 +84,7 @@ internal fun SecurityFlowScreen(
         },
     ) { padding, scrollState ->
         when {
-            sessionBusy || (state.loading && state.status == null && !state.statusPending) -> Box(
-                modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding),
-                contentAlignment = Alignment.Center,
-            ) {
-                IndeterminateCircularProgressIndicator()
-            }
+            sessionBusy || (state.loading && state.status == null && !state.statusPending) -> ContentLoadingView(modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding))
             email == null -> ContentUnavailableView(
                 state = ContentUnavailableState.EMPTY,
                 modifier = Modifier.padding(padding).consumeWindowInsets(padding),
@@ -170,7 +163,14 @@ private fun SecurityFlow(
         Spacer(Modifier.height(AccountFlowDefaults.HeaderSpacing))
         Column(verticalArrangement = Arrangement.spacedBy(AccountFlowDefaults.FieldSpacing)) {
             if (state.completionPending) {
-                Text(stringResource(R.string.security_completion_pending), style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    stringResource(when {
+                        !state.completionUncertain -> R.string.security_completion_pending
+                        state.page == SecurityPage.EMAIL -> R.string.security_email_unconfirmed
+                        else -> R.string.security_password_unconfirmed
+                    }),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
             } else when (step) {
                 SecurityStep.TWO_FACTOR -> TwoFactorManagement(state, email, isActive, onSelectFactor)
                 SecurityStep.EMAIL -> SecurityTextField(
@@ -277,6 +277,8 @@ private fun SecuritySubmitButton(
     AccountFlowSubmitButton(
         label = stringResource(
             when {
+                state.completionPending && state.completionUncertain ->
+                    if (state.page == SecurityPage.PASSWORD) R.string.security_sign_in_again else R.string.security_check_status
                 state.completionPending -> R.string.settings_retry_sync
                 step == SecurityStep.TWO_FACTOR -> when (state.status?.factor) {
                     SecondFactor.EMAIL -> R.string.security_disable_email_title
@@ -309,6 +311,7 @@ private fun SecuritySubmitButton(
         modifier = modifier,
         destructive = destructive,
         actionDescription = when {
+            state.completionUncertain -> null
             state.completionPending -> stringResource(R.string.profile_finish_save)
             step == SecurityStep.SECRETS -> stringResource(R.string.security_done)
             else -> null

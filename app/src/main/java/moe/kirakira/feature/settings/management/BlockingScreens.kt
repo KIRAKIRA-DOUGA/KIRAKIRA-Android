@@ -30,9 +30,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -44,19 +49,22 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import java.text.DateFormat
-import java.util.Date
 import moe.kirakira.R
 import moe.kirakira.data.settings.RuleCategory
 import moe.kirakira.data.settings.RuleEntry
 import moe.kirakira.data.settings.RulePage
 import moe.kirakira.data.settings.RuleTag
+import moe.kirakira.feature.settings.LocalSettingsSearchTarget
 import moe.kirakira.feature.settings.SettingsDefaults
 import moe.kirakira.feature.settings.SettingsSectionHeader
+import moe.kirakira.feature.settings.settingsSearchAnchor
 import moe.kirakira.ui.components.AccountAvatar
 import moe.kirakira.ui.components.AnimatedCountLabel
 import moe.kirakira.ui.components.AnimatedNumberText
 import moe.kirakira.ui.components.CharacterCount
+import moe.kirakira.ui.components.ContentUnavailablePresentation
+import moe.kirakira.ui.components.ContentUnavailableState
+import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.ui.components.FilledTextField
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
@@ -64,6 +72,7 @@ import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.ShadowFilledTonalButton
 import moe.kirakira.ui.components.ShadowFloatingActionButton
 import moe.kirakira.ui.components.connectedListItemShapes
+import moe.kirakira.ui.components.dateOnlyText
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 @Composable
@@ -96,12 +105,20 @@ internal fun BlockingOverviewScreen(
         onLogin = onLogin,
         onRefresh = onRefresh,
         modifier = modifier,
+        searchItemKey = when (LocalSettingsSearchTarget.current?.entry?.id) {
+            "blocking.users", "blocking.hidden" -> "categories-${R.string.management_people}"
+            "blocking.tags", "blocking.keywords", "blocking.regex" -> "categories-${R.string.management_content}"
+            else -> null
+        },
+        searchItemKeys = listOf(R.string.management_people, R.string.management_content).flatMap {
+            listOf("header-$it", "categories-$it", "spacer-$it")
+        },
     ) {
         listOf(
             R.string.management_people to listOf(RuleCategory.BLOCK, RuleCategory.HIDE),
             R.string.management_content to listOf(RuleCategory.TAG, RuleCategory.KEYWORD, RuleCategory.REGEX),
         ).forEach { (title, categories) ->
-            item {
+            item("header-$title") {
                 SettingsSectionHeader(stringResource(title), modifier = Modifier.padding(bottom = 8.dp))
             }
             item("categories-$title") {
@@ -109,6 +126,7 @@ internal fun BlockingOverviewScreen(
                     categories.forEachIndexed { index, category ->
                         SegmentedListItem(
                             onClick = { onCategory(category) },
+                            modifier = Modifier.settingsSearchAnchor(stringResource(category.titleRes())),
                             shapes = connectedListItemShapes(index, categories.size),
                             leadingContent = {
                                 Icon(
@@ -137,7 +155,7 @@ internal fun BlockingOverviewScreen(
                     }
                 }
             }
-            item { Spacer(Modifier.height(16.dp)) }
+            item("spacer-$title") { Spacer(Modifier.height(16.dp)) }
         }
     }
 }
@@ -176,10 +194,13 @@ internal fun RuleManagementScreen(
     modifier: Modifier = Modifier,
 ) {
     val language = LocalConfiguration.current.locales[0].toLanguageTag()
+    val density = LocalDensity.current
+    var countHeight by remember { mutableIntStateOf(0) }
     ManagementFrame(
         title = stringResource(category.titleRes()), signedIn = signedIn, loading = state.loading,
         shadingIcon = category.iconRes(),
-        loaded = state.data != null, error = state.error, onBack = onBack, onLogin = onLogin,
+        loaded = state.data != null, error = null, onBack = onBack, onLogin = onLogin,
+        leadingContentHeight = with(density) { if (state.data != null) countHeight.toDp() else 0.dp },
         onRefresh = onRefresh, modifier = modifier, appending = state.appending,
         message = message, onDismissMessage = onDismissMessage,
         onRetry = if (state.appending) onMore else onRefresh,
@@ -194,7 +215,7 @@ internal fun RuleManagementScreen(
                 )
             }
         },
-    ) {
+    ) { statusModifier ->
         val page = state.data
         if (page != null) {
             item {
@@ -202,6 +223,7 @@ internal fun RuleManagementScreen(
                     count = page.total.toLong(),
                     template = pluralStringResource(R.plurals.management_rule_count, page.total),
                     modifier = Modifier
+                        .onSizeChanged { countHeight = it.height }
                         .padding(horizontal = SettingsDefaults.HorizontalPadding)
                         .padding(bottom = 8.dp)
                         .semantics { heading() },
@@ -209,7 +231,13 @@ internal fun RuleManagementScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            if (page.entries.isEmpty()) item { ManagementEmpty(category.iconRes(), stringResource(R.string.management_no_rules)) }
+            if (page.entries.isEmpty() && state.error == null) item {
+                ManagementEmpty(
+                    category.iconRes(),
+                    stringResource(R.string.management_no_rules),
+                    statusModifier,
+                )
+            }
             connectedItemsIndexed(
                 groupKey = category.name,
                 items = page.entries,
@@ -228,7 +256,7 @@ internal fun RuleManagementScreen(
                         Column {
                             if (user && entry.uid != null) Text(stringResource(R.string.management_uid, entry.uid))
                             entry.tag?.originalName()?.takeIf { it != label }?.let { Text(it) }
-                            Text(DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(entry.createdAt)))
+                            Text(dateOnlyText(entry.createdAt))
                         }
                     },
                     trailingContent = {
@@ -249,6 +277,20 @@ internal fun RuleManagementScreen(
                         Text(stringResource(R.string.management_load_more))
                     }
                 }
+            }
+        }
+        state.error?.let { error ->
+            item("error") {
+                ContentUnavailableView(
+                    state = ContentUnavailableState.ERROR,
+                    modifier = Modifier.fillMaxWidth().then(
+                        if (page?.entries.isNullOrEmpty()) statusModifier
+                        else Modifier.padding(top = 8.dp),
+                    ),
+                    description = stringResource(error),
+                    onRetry = if (state.appending) onMore else onRefresh,
+                    presentation = ContentUnavailablePresentation.INLINE,
+                )
             }
         }
     }

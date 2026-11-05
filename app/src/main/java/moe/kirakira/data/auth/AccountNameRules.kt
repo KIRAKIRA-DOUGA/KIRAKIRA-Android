@@ -1,4 +1,4 @@
-package moe.kirakira.feature.auth
+package moe.kirakira.data.auth
 
 // Character policy from Cerasus assets/pomsky/username.pom; its inputs allow 20 UTF-16 code units.
 private const val EXTRA_NAME_CHARACTERS = "-_〇﨎﨏﨑﨓﨔﨟﨡﨣﨤﨧﨨﨩ー " +
@@ -8,7 +8,7 @@ private const val EXTRA_NAME_CHARACTERS = "-_〇﨎﨏﨑﨓﨔﨟﨡﨣﨤﨧�
 private val excludedNameCodePoints =
     "㬵䶺𦢫胐脁䑃䶻䶼𫜶䶽𦛩䐠䏓肦胊𱼋脧膧𦙿𣍷𦝲𦠈𦠅㬺𱢹䎛𠑗𤈎𧺯𠓲𤦼𣟃𦡦𤯒".codePoints().toArray().toSet()
 
-internal fun isValidAuthName(value: String): Boolean =
+internal fun isValidAccountName(value: String): Boolean =
     value.isNotBlank() && value.length <= 20 && value == value.trim() && "  " !in value &&
         value.codePoints().toArray().all { code ->
             code !in excludedNameCodePoints && (

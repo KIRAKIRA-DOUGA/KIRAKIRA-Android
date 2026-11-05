@@ -105,7 +105,7 @@ internal class AuthApi(private val client: ApiClient) {
             labels = profile.label.orEmpty(),
         )
         return StoredAccount(updated, account.token, userDataBootstrapHint =
-            profile.userDataBootstrapHint.validHint() ?: account.userDataBootstrapHint)
+            profile.userDataBootstrapHint?.takeIf(::isValidBootstrapHint) ?: account.userDataBootstrapHint)
     }
 }
 
@@ -175,12 +175,12 @@ private class LoginDto(
     fun account(email: String): StoredAccount {
         if (isCoolingDown) throw ApiException(ApiFailure.RATE_LIMITED)
         if (!success) throw ApiException(ApiFailure.REJECTED)
-        if (uuid.isNullOrBlank() || uid == null || uid < 0 || token.isNullOrBlank() ||
-            !uuid.matches(Regex("[a-zA-Z0-9-]+")) ||
-            token.any { it.code !in 0x21..0x7E || it == ';' || it == ',' }
+        if (uuid == null || uid == null || uid < 0 || token == null ||
+            !isValidSessionUuid(uuid) ||
+            !isValidSessionToken(token)
         ) throw ApiException(ApiFailure.INVALID_RESPONSE)
         return StoredAccount(AccountProfile(uuid, uid, email), token,
-            userDataBootstrapHint = userDataBootstrapHint.validHint())
+            userDataBootstrapHint = userDataBootstrapHint?.takeIf(::isValidBootstrapHint))
     }
 }
 
@@ -202,5 +202,3 @@ private class ProfileDto(
     val label: List<ProfileLabel>? = null,
     val userDataBootstrapHint: String? = null,
 )
-
-private fun String?.validHint(): String? = this?.takeIf { it.matches(Regex("[a-zA-Z0-9_-]+")) }

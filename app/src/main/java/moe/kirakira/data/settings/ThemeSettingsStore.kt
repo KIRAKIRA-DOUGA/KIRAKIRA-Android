@@ -4,29 +4,32 @@ import android.content.Context
 import androidx.core.content.edit
 
 internal data class StoredThemeColors(
-    val useSystemColors: Boolean,
+    val useSystemColors: Boolean = false,
     val seedColorArgb: Int,
     val customColorArgb: Int,
-    val useCustomColor: Boolean,
+    val useCustomColor: Boolean = false,
 )
 
 internal data class StoredThemeSettings(
-    val mode: String,
+    val mode: String = "SYSTEM",
     val colors: StoredThemeColors,
-    val predictiveBackEnabled: Boolean,
+    val predictiveBackEnabled: Boolean = false,
 )
 
 internal class ThemeSettingsStore(context: Context) {
     private val preferences by lazy {
-        context.applicationContext.getSharedPreferences("kirakira_settings", Context.MODE_PRIVATE)
+        settingsPreferences(context)
     }
 
     fun read(defaultColorArgb: Int, presetMigrations: Map<Int, Int>): StoredThemeSettings {
+        val defaults = StoredThemeSettings(
+            colors = StoredThemeColors(seedColorArgb = defaultColorArgb, customColorArgb = defaultColorArgb),
+        )
         val colors = StoredThemeColors(
-            useSystemColors = preferences.getBoolean("theme_system_colors", false),
-            seedColorArgb = preferences.getInt("theme_seed_color", defaultColorArgb) or 0xFF000000.toInt(),
-            customColorArgb = preferences.getInt("theme_custom_color", defaultColorArgb) or 0xFF000000.toInt(),
-            useCustomColor = preferences.getBoolean("theme_use_custom_color", false),
+            useSystemColors = preferences.getBoolean("theme_system_colors", defaults.colors.useSystemColors),
+            seedColorArgb = preferences.getInt("theme_seed_color", defaults.colors.seedColorArgb) or 0xFF000000.toInt(),
+            customColorArgb = preferences.getInt("theme_custom_color", defaults.colors.customColorArgb) or 0xFF000000.toInt(),
+            useCustomColor = preferences.getBoolean("theme_use_custom_color", defaults.colors.useCustomColor),
         )
         // Migrate only the stored manual preset, including when wallpaper colors are active.
         val migratedSeed = if (colors.useCustomColor) null else presetMigrations[colors.seedColorArgb]
@@ -35,9 +38,9 @@ internal class ThemeSettingsStore(context: Context) {
             colors.copy(seedColorArgb = migratedSeed)
         }
         return StoredThemeSettings(
-            mode = preferences.getString("theme_mode", "SYSTEM") ?: "SYSTEM",
+            mode = preferences.getString("theme_mode", defaults.mode) ?: defaults.mode,
             colors = migratedColors,
-            predictiveBackEnabled = preferences.getBoolean("predictive_back_enabled", false),
+            predictiveBackEnabled = preferences.getBoolean("predictive_back_enabled", defaults.predictiveBackEnabled),
         )
     }
 

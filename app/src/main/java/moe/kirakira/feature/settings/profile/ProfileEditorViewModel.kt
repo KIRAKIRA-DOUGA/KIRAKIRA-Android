@@ -19,6 +19,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import moe.kirakira.R
@@ -26,6 +27,7 @@ import moe.kirakira.core.network.ApiException
 import moe.kirakira.core.network.ApiFailure
 import moe.kirakira.data.auth.AccountProfile
 import moe.kirakira.data.auth.ProfileLabel
+import moe.kirakira.data.auth.isValidAccountName
 import moe.kirakira.data.profile.ProfileRepository
 
 internal data class ProfileEditorState(
@@ -36,6 +38,7 @@ internal data class ProfileEditorState(
     val error: ApiFailure? = null,
     val message: Int? = null,
     val completionOnly: Boolean = false,
+    val saveUnconfirmed: Boolean = false,
     val avatar: File? = null,
     val cropSource: File? = null,
     val cropOutput: File? = null,
@@ -182,8 +185,8 @@ internal class ProfileEditorViewModel(
             signature = nfc(draft.signature), gender = nfc(draft.gender),
             labels = draft.labels.map { it.copy(labelName = nfc(it.labelName)) })
         val errors = buildMap {
-            if (!validProfileName(normalized.username)) put("username", R.string.profile_name_invalid)
-            if (!validProfileName(normalized.nickname)) {
+            if (!isValidAccountName(normalized.username)) put("username", R.string.profile_name_invalid)
+            if (!isValidAccountName(normalized.nickname)) {
                 put("nickname", R.string.profile_name_invalid)
             }
             if (normalized.signature.length > 200) put("signature", R.string.profile_bio_invalid)
@@ -195,12 +198,6 @@ internal class ProfileEditorViewModel(
         _state.update { it.copy(busy = true, error = null, message = null, fieldErrors = emptyMap()) }
         task = viewModelScope.launch {
             try {
-                if (!state.completionOnly && normalized.username != state.original?.username &&
-                    !repository.usernameAvailable(normalized.username)) {
-                    _state.update { it.copy(fieldErrors = mapOf("username" to R.string.auth_username_taken),
-                        message = R.string.auth_username_taken) }
-                    return@launch
-                }
                 val updated = repository.save(normalized, state.avatar)
                 currentCoroutineContext().ensureActive()
                 revision = repository.session.value.revision
@@ -208,9 +205,11 @@ internal class ProfileEditorViewModel(
                     message = R.string.profile_saved)
                 cleanup()
             } catch (error: ApiException) {
-                _state.update { it.copy(error = error.failure, completionOnly = repository.needsCompletion) }
+                currentCoroutineContext().ensureActive()
+                _state.update { it.copy(error = error.failure, completionOnly = repository.needsCompletion,
+                    saveUnconfirmed = repository.saveUnconfirmed) }
             } finally {
-                _state.update { it.copy(busy = false) }
+                if (currentCoroutineContext().isActive) _state.update { it.copy(busy = false) }
             }
         }
     }
@@ -390,8 +389,3 @@ internal class ProfileEditorViewModel(
 }
 
 private fun nfc(value: String): String = Normalizer.normalize(value, Normalizer.Form.NFC)
-
-// Match Rosales ValidTool.validateNameField, including its boundary and separator restrictions.
-private val profileNamePattern = Regex("^(?![\\s_-])(?!.*[\\s_-]{2})[a-zA-Z0-9\\-\\uAC00-\\uD7AF\\u3040-\\u30FF\\u4E00-\\u9FAF\\u00C0-\\u1EF9_\\s]+(?<![\\s_-])$")
-private fun validProfileName(value: String): Boolean = value.length in 1..20 &&
-    value == value.trim() && !value.contains("  ") && profileNamePattern.matches(value)

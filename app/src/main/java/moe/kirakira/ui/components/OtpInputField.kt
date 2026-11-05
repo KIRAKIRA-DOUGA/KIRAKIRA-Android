@@ -52,8 +52,12 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import moe.kirakira.data.auth.VerificationCodeFormat
 
-internal enum class OtpInputType { NUMERIC, ALPHANUMERIC }
+internal enum class OtpInputType(val format: VerificationCodeFormat) {
+    NUMERIC(VerificationCodeFormat.NUMERIC),
+    ALPHANUMERIC(VerificationCodeFormat.BACKUP),
+}
 
 /** Six visual cells share one editor, preserving paste, deletion, selection, and IME behavior. */
 @Composable
@@ -81,7 +85,7 @@ internal fun OtpInputField(
         selection.start.coerceIn(0, value.length),
         selection.end.coerceIn(0, value.length),
     )
-    val activeCell = editorSelection.min.coerceAtMost(5)
+    val activeCell = editorSelection.min.coerceAtMost(inputType.format.length - 1)
     val cursorColor = if (error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
     val cursorAlpha = if (enabled && isFocused) {
         key(value, editorSelection) {
@@ -131,13 +135,11 @@ internal fun OtpInputField(
         BasicTextField(
             value = TextFieldValue(value, editorSelection),
             onValueChange = { edited ->
-                val code = edited.text.uppercase().filter {
-                    it in '0'..'9' || (inputType == OtpInputType.ALPHANUMERIC && it in 'A'..'Z')
-                }
-                if (code.length == 24 && onRecoveryCodePaste != null) {
+                val code = inputType.format.filterInput(edited.text)
+                if (VerificationCodeFormat.RECOVERY.isValid(code) && onRecoveryCodePaste != null) {
                     onRecoveryCodePaste(code)
                 } else {
-                    val next = code.take(6)
+                    val next = code.take(inputType.format.length)
                     selection = TextRange(
                         edited.selection.start.coerceIn(0, next.length),
                         edited.selection.end.coerceIn(0, next.length),
@@ -184,7 +186,7 @@ internal fun OtpInputField(
                             .clearAndSetSemantics { },
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        repeat(6) { index ->
+                        repeat(inputType.format.length) { index ->
                             val character = value.getOrNull(index)?.toString().orEmpty()
                             Box(
                                 modifier = Modifier

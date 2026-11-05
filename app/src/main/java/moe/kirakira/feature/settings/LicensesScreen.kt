@@ -49,10 +49,10 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import moe.kirakira.R
+import moe.kirakira.ui.components.ContentLoadingView
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.FrostedScaffold
-import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.ShadingIcon
 import moe.kirakira.ui.components.appTopAppBarColors
 import moe.kirakira.ui.theme.KIRAKIRATheme
@@ -178,9 +178,7 @@ internal fun LicensesContent(
                     contentAlignment = Alignment.Center,
                 ) {
                     when (state) {
-                        LicensesUiState.Loading -> {
-                            IndeterminateCircularProgressIndicator()
-                        }
+                        LicensesUiState.Loading -> ContentLoadingView()
 
                         LicensesUiState.Failed -> ContentUnavailableView(
                             state = ContentUnavailableState.ERROR,

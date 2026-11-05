@@ -73,13 +73,11 @@ internal class AccountSettingsRepository(private val api: ApiClient, private val
             }
             PrivacySaveResult.Confirmed(settings)
         } catch (error: ApiException) {
-            val uncertain = when (error.failure) {
-                ApiFailure.NETWORK, ApiFailure.TIMEOUT, ApiFailure.SERVER, ApiFailure.INVALID_RESPONSE -> true
-                ApiFailure.REJECTED, ApiFailure.CONTENT_UNAVAILABLE, ApiFailure.SESSION_EXPIRED, ApiFailure.RATE_LIMITED,
-                ApiFailure.DAILY_LIMIT, ApiFailure.STORAGE, ApiFailure.STORAGE_FULL,
-                ApiFailure.STORAGE_DATA -> false
+            if (updateAccepted || error.failure.isUncertainMutation) {
+                PrivacySaveResult.Unconfirmed(error.failure)
+            } else {
+                throw error
             }
-            if (updateAccepted || uncertain) PrivacySaveResult.Unconfirmed(error.failure) else throw error
         }
     }
 
@@ -107,19 +105,27 @@ internal class AccountSettingsRepository(private val api: ApiClient, private val
         }
 
     suspend fun changeRule(category: RuleCategory, value: String, remove: Boolean, revision: Long) {
-        request(revision) { cookie ->
-            val body = buildJsonObject {
-                when (category) {
-                    RuleCategory.BLOCK, RuleCategory.HIDE, RuleCategory.TAG ->
-                        put(category.field, value.toLongOrNull()?.takeIf { it > 0 } ?: throw ApiException(ApiFailure.REJECTED))
-                    else -> put(category.field, value)
-                }
-            }.toString()
-            val path = "block/${if (remove) "delete/" else ""}${category.endpoint}"
-            val result = if (remove) api.delete<MutationDto>(path, body, cookie)
-                else api.post<MutationDto>(path, body, cookie)
-            if (result.unsafeRegex) throw UnsafeRuleException()
-            checkSuccess(result.success)
+        try {
+            request(revision) { cookie ->
+                val body = buildJsonObject {
+                    when (category) {
+                        RuleCategory.BLOCK, RuleCategory.HIDE, RuleCategory.TAG ->
+                            put(category.field, value.toLongOrNull()?.takeIf { it > 0 } ?: throw ApiException(ApiFailure.REJECTED))
+                        else -> put(category.field, value)
+                    }
+                }.toString()
+                val path = "block/${if (remove) "delete/" else ""}${category.endpoint}"
+                val result = if (remove) api.delete<MutationDto>(path, body, cookie)
+                    else api.post<MutationDto>(path, body, cookie)
+                if (result.unsafeRegex) throw UnsafeRuleException()
+                checkSuccess(result.success)
+            }
+        } catch (error: ApiException) {
+            if (error.failure.isUncertainMutation && session.value.revision == revision) {
+                _ruleVersion.update { it + 1 }
+                _ruleChanges.emit(RuleChange(category, value, remove, revision, confirmed = false))
+            }
+            throw error
         }
         _ruleVersion.update { it + 1 }
         _ruleChanges.emit(RuleChange(category, value, remove, revision))
@@ -145,7 +151,13 @@ internal class AccountSettingsRepository(private val api: ApiClient, private val
     }
 }
 
-internal data class RuleChange(val category: RuleCategory, val value: String, val remove: Boolean, val revision: Long)
+internal data class RuleChange(
+    val category: RuleCategory,
+    val value: String,
+    val remove: Boolean,
+    val revision: Long,
+    val confirmed: Boolean = true,
+)
 
 private fun checkSuccess(success: Boolean) { if (!success) throw ApiException(ApiFailure.REJECTED) }
 private fun invalidResponse(): Nothing = throw ApiException(ApiFailure.INVALID_RESPONSE)

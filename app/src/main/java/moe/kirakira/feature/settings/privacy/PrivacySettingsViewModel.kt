@@ -8,6 +8,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
@@ -49,9 +50,10 @@ internal class PrivacySettingsViewModel(private val repository: AccountSettingsR
 
     init {
         viewModelScope.launch {
-            session.map { Triple(it.revision, it.isLoading, it.isBusy) }.distinctUntilChanged().collect {
+            // Keep confirmed values and in-flight saves while the same account is temporarily busy.
+            session.filter { !it.isLoading && !it.isBusy }.map { it.revision }.distinctUntilChanged().collect {
                 request?.cancel()
-                revision = session.value.revision
+                revision = it
                 _state.value = PrivacySettingsState(revision = revision)
                 if (ready) refresh()
             }

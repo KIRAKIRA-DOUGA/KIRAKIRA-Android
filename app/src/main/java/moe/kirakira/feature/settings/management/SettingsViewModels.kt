@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import moe.kirakira.R
@@ -58,8 +59,9 @@ internal abstract class SettingsViewModel(protected val repository: AccountSetti
 
     protected fun observe(reset: () -> Unit, refresh: () -> Unit) {
         viewModelScope.launch {
-            session.map { Triple(it.revision, it.isLoading, it.isBusy) }.distinctUntilChanged().collect {
-                revision = session.value.revision
+            // Temporary session operations do not retire confirmed data or cancel account writes.
+            session.filter { !it.isLoading && !it.isBusy }.map { it.revision }.distinctUntilChanged().collect {
+                revision = it
                 tasks.cancelCurrent()
                 busyState.value = false
                 messageState.value = null
@@ -170,7 +172,10 @@ internal class RuleManagementViewModel(
                 }
                 val profile = _editor.value.profile
                 if (profile != null) change(profile.uid.toString(), false)
-                else editorTask { expected -> _editor.value = _editor.value.copy(profile = content.profile(uid, expected)) }
+                else editorTask { expected ->
+                    val details = content.profileDetails(uid, expected)
+                    _editor.value = _editor.value.copy(profile = details.profile ?: PublicProfile(uid, uid.toString()))
+                }
             }
             RuleCategory.TAG -> {
                 if (value.isBlank()) return
@@ -213,6 +218,7 @@ internal class RuleManagementViewModel(
         _editor.value = _editor.value.copy(error = null)
         task { expected ->
             var changed = false
+            var uncertain = false
             try {
                 repository.changeRule(category, value, remove, expected)
                 changed = true
@@ -229,11 +235,13 @@ internal class RuleManagementViewModel(
             } catch (_: UnsafeRuleException) {
                 _editor.value = _editor.value.copy(error = R.string.management_unsafe_regex)
             } catch (error: ApiException) {
-                if (remove) report(error) else _editor.value = _editor.value.copy(error = error.failure.messageRes())
+                uncertain = error.failure.isUncertainMutation
+                val message = if (uncertain) R.string.management_change_unconfirmed else error.failure.messageRes()
+                if (remove) messageState.value = message else _editor.value = _editor.value.copy(error = message)
             } finally {
                 if (expected == revision) {
                     busyState.value = false
-                    if (changed) refresh()
+                    if (changed || uncertain) refresh()
                 }
             }
         }
@@ -243,11 +251,21 @@ internal class RuleManagementViewModel(
 internal class InvitationsViewModel(repository: AccountSettingsRepository) : SettingsViewModel(repository) {
     private val _invitations = MutableStateFlow(SettingsLoad<List<Invitation>>())
     val invitations = _invitations.asStateFlow()
+    private val _confirmCreation = MutableStateFlow(false)
+    val creationConfirmation = _confirmCreation.asStateFlow()
+    private var unconfirmedCodes: Set<String>? = null
     private var read: Job? = null
     // Preserve a confirmed generation if the following read fails or is briefly stale.
     private val generated = mutableMapOf<String, Invitation>()
 
-    init { observe({ generated.clear(); _invitations.value = SettingsLoad() }, ::refresh) }
+    init {
+        observe({
+            generated.clear()
+            unconfirmedCodes = null
+            _confirmCreation.value = false
+            _invitations.value = SettingsLoad()
+        }, ::refresh)
+    }
 
     fun refresh() {
         if (!ready || busyState.value) return
@@ -256,6 +274,9 @@ internal class InvitationsViewModel(repository: AccountSettingsRepository) : Set
         read = task { expected ->
             try {
                 val result = repository.invitations(expected)
+                unconfirmedCodes?.let { before ->
+                    if (result.any { it.code !in before }) unconfirmedCodes = null
+                }
                 result.forEach { generated.remove(it.code) }
                 _invitations.value = SettingsLoad((result + generated.values).distinctBy { it.code })
             } catch (error: ApiException) {
@@ -270,15 +291,40 @@ internal class InvitationsViewModel(repository: AccountSettingsRepository) : Set
 
     fun create() {
         if (!ready || busyState.value) return
+        if (unconfirmedCodes != null) {
+            _confirmCreation.value = true
+            return
+        }
+        createInvitation()
+    }
+
+    fun dismissCreation() { _confirmCreation.value = false }
+
+    fun confirmCreation() {
+        if (!_confirmCreation.value || !ready || busyState.value) return
+        dismissCreation()
+        createInvitation()
+    }
+
+    private fun createInvitation() {
+        if (!ready || busyState.value) return
+        if (_invitations.value.loading) return
+        if (_invitations.value.error != null) {
+            refresh()
+            return
+        }
         read?.cancel()
         _invitations.value = _invitations.value.copy(loading = false)
         busyState.value = true
+        val previousCodes = _invitations.value.data.orEmpty().map { it.code }.toSet()
         task { expected ->
             var created = false
+            var uncertain = false
             try {
                 when (val result = repository.createInvitation(expected)) {
                     InvitationCreation.CoolingDown -> messageState.value = R.string.invitation_cooling_down
                     is InvitationCreation.Created -> {
+                        unconfirmedCodes = null
                         generated[result.invitation.code] = result.invitation
                         _invitations.value = SettingsLoad(
                             (_invitations.value.data.orEmpty() + result.invitation).distinctBy { it.code },
@@ -287,11 +333,14 @@ internal class InvitationsViewModel(repository: AccountSettingsRepository) : Set
                         created = true
                     }
                 }
-            } catch (error: ApiException) { report(error) }
-            finally {
+            } catch (error: ApiException) {
+                uncertain = error.failure.isUncertainMutation
+                if (uncertain) unconfirmedCodes = previousCodes
+                messageState.value = if (uncertain) R.string.invitation_creation_unconfirmed else error.failure.messageRes()
+            } finally {
                 if (expected == revision) {
                     busyState.value = false
-                    if (created) refresh()
+                    if (created || uncertain) refresh()
                 }
             }
         }

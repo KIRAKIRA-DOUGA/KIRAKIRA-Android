@@ -59,7 +59,6 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpOffset
@@ -74,6 +73,7 @@ import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.ShadingIcon
 import moe.kirakira.ui.components.ShadowRadioButton
+import moe.kirakira.ui.components.UsernameText
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.theme.KIRAKIRATheme
@@ -324,24 +324,33 @@ private fun AccountRow(
                 },
             ) { subtitle ->
                 if (subtitle != null) {
-                    val isUsername = subtitle == account.handle
-                    Text(
-                        text = subtitle,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        fontFamily = if (isUsername) FontFamily.Monospace else FontFamily.Default,
-                        color = if (isUsername || subtitle == stringResource(R.string.account_needs_login)) {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        } else {
-                            MaterialTheme.colorScheme.primary
-                        },
-                        modifier = when {
-                            subtitle != supportingText -> Modifier.clearAndSetSemantics { }
-                            operationType == SessionOperationType.REMOVE ->
-                                Modifier.testTag("account_status_${account.id}")
-                            else -> Modifier
-                        },
-                    )
+                    val subtitleModifier = when {
+                        subtitle != supportingText -> Modifier.clearAndSetSemantics { }
+                        operationType == SessionOperationType.REMOVE ->
+                            Modifier.testTag("account_status_${account.id}")
+                        else -> Modifier
+                    }
+                    if (subtitle == account.handle) {
+                        // AccountItem.handle is already formatted for display.
+                        UsernameText(
+                            username = subtitle.removePrefix("@"),
+                            modifier = subtitleModifier,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    } else {
+                        Text(
+                            text = subtitle,
+                            modifier = subtitleModifier,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = if (subtitle == stringResource(R.string.account_needs_login)) {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.primary
+                            },
+                        )
+                    }
                 }
             }
         }

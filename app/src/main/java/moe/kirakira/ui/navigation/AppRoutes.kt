@@ -92,3 +92,7 @@ internal data class RuleManagementRoute(val category: moe.kirakira.data.settings
 
 @Serializable
 internal data object InvitationsRoute : NavKey
+
+/** Static settings directory identity; no account or form values enter this route. */
+@Serializable
+internal data class SettingsSearchTargetRoute(val entryId: String) : NavKey

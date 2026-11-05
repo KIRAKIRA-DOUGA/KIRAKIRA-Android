@@ -45,12 +45,12 @@ import dev.chrisbanes.haze.rememberHazeState
 import moe.kirakira.R
 import moe.kirakira.ui.components.CollapsingHeaderBackground
 import moe.kirakira.ui.components.CollapsingTabLayout
+import moe.kirakira.ui.components.ContentLoadingView
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentUnavailableAction
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
-import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.PagerTabRow
 import moe.kirakira.ui.components.ShadingIcon
 import moe.kirakira.ui.components.appTopAppBarColors
@@ -158,9 +158,7 @@ internal fun InvitationsScaffold(
                         primaryAction = ContentUnavailableAction(stringResource(R.string.management_login), onLogin),
                     )
                 } else if (!showContent) {
-                    Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                        IndeterminateCircularProgressIndicator()
-                    }
+                    ContentLoadingView(modifier = Modifier.fillMaxSize().padding(padding))
                 } else {
                     Box(
                         Modifier.align(Alignment.TopCenter)

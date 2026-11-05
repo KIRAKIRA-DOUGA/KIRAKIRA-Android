@@ -73,6 +73,9 @@
     <string name="security_email_2fa_enabled">已启用邮箱验证</string>
     <string name="security_2fa_disabled">已关闭二步验证</string>
     <string name="security_completion_pending">修改已在服务器保存，请重试完成本机同步</string>
+    <string name="security_email_unconfirmed">邮箱修改结果尚未确认，请先核对当前邮箱再尝试修改</string>
+    <string name="security_password_unconfirmed">密码修改结果尚未确认，请重新登录，新密码可能已经生效</string>
+    <string name="security_sign_in_again">重新登录</string>
     <string name="security_fields_invalid">请输入密码和有效的验证码</string>
     <string name="security_code_invalid">请输入六位验证器或邮箱验证码</string>
     <string name="security_same_email">新邮箱不能与当前邮箱相同</string>
@@ -114,7 +117,7 @@
     <string name="profile_discard">离开</string>
     <string name="profile_keep_editing">留下</string>
     <string name="profile_image_failed">无法打开或裁剪这张图片，请尝试其他图片</string>
-    <string name="profile_name_invalid">请输入 1–20 个支持的字符，分隔符不能位于首尾或连续出现</string>
+    <string name="profile_name_invalid">请输入 1–20 个支持的字符，空格不能位于首尾或连续出现</string>
     <string name="profile_bio_invalid">简介不能超过 200 个字符</string>
     <string name="character_count">%1$s / %2$d</string>
     <string name="nav_home">首页</string>
@@ -139,7 +142,7 @@
     <string name="search_choose_tags">选择标签</string>
     <string name="search_close_tags">关闭标签选择</string>
     <string name="search_remove_tag">移除标签：%1$s</string>
-    <string name="search_videos_empty">没有匹配的视频</string>
+    <string name="search_videos_empty">未找到相关视频</string>
     <string name="search_tags_empty">没有匹配的标签</string>
     <string name="search_sort_default">默认顺序</string>
     <string name="search_sort_upload_date">上传时间</string>
@@ -257,6 +260,8 @@
     <string name="video_download">下载</string>
     <string name="video_share">分享</string>
     <string name="video_more">更多</string>
+    <string name="video_view_cover">查看封面</string>
+    <string name="video_cover_description">%1$s的封面</string>
     <string name="video_action_unavailable">此功能待接入</string>
     <string name="video_action_count">%1$s，%2$d</string>
     <string name="animated_count">%1$s</string>
@@ -307,6 +312,7 @@
     <string name="image_storage_denied">此 Android 版本需要存储权限才能保存图片</string>
     <string name="image_open_settings">设置</string>
     <string name="profile_view_avatar">查看%1$s的头像</string>
+    <string name="profile_view_banner">查看%1$s的封面</string>
     <string name="follow_list_following_title">关注</string>
     <string name="follow_list_followers_title">粉丝</string>
     <string name="follow_list_following_empty">暂无关注</string>
@@ -537,7 +543,7 @@
     <string name="history_search">搜索历史记录</string>
     <string name="history_sign_in">登录后查看历史记录</string>
     <string name="history_empty">暂无历史记录</string>
-    <string name="history_no_results">没有匹配的历史记录</string>
+    <string name="history_no_results">未找到相关历史记录</string>
     <string name="history_watched_at">上次观看于 %1$s</string>
     <string name="history_position_duration">%1$s / %2$s</string>
     <string name="history_playback_position">播放进度：%1$s</string>
@@ -557,4 +563,19 @@
     <string name="profile_unhidden">已取消隐藏</string>
     <string name="share">分享</string>
     <string name="share_unavailable">无法打开系统分享</string>
+    <string name="auth_registration_unconfirmed">注册结果尚未确认，账号可能已经创建，请尝试使用此邮箱登录</string>
+    <string name="write_leave_confirmation_title">停止核对？</string>
+    <string name="write_leave_confirmation_message">修改仍可能生效，离开不会撤销它。再次修改前请核对当前信息。</string>
+    <string name="profile_save_unconfirmed">资料修改结果尚未确认，请先检查状态再继续编辑</string>
+    <string name="publication_unconfirmed_title">发送结果尚未确认</string>
+    <string name="publication_unconfirmed_message">内容可能已经发布，请先查看最新内容。再次发送可能产生重复内容。</string>
+    <string name="publication_check">查看最新内容</string>
+    <string name="publication_resend">再次发送</string>
+    <string name="invitation_creation_unconfirmed">邀请码可能已经生成，请刷新列表核对</string>
+    <string name="management_change_unconfirmed">操作结果尚未确认，请刷新核对规则</string>
+    <string name="invitation_creation_unconfirmed_title">生成结果尚未确认</string>
+    <string name="invitation_creation_retry_message">邀请码可能已经生成，请先核对列表。再次生成可能创建另一个邀请码。</string>
+    <string name="invitation_generate_again">再次生成</string>
+    <string name="settings_search">搜索设置</string>
+    <string name="settings_search_empty">未找到相关设置</string>
 </resources>

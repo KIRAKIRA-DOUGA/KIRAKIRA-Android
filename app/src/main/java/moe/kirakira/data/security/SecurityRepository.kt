@@ -13,8 +13,14 @@ import moe.kirakira.core.network.ApiException
 import moe.kirakira.core.network.ApiFailure
 import moe.kirakira.data.auth.AuthRepository
 import moe.kirakira.data.auth.SecondFactor
+import moe.kirakira.data.auth.VerificationCodeFormat
 
 internal data class SecurityStatus(val factor: SecondFactor, val totpCreationDateTime: Long? = null)
+
+internal sealed interface CredentialCompletion {
+    data object Confirmed : CredentialCompletion
+    data object PasswordUnconfirmed : CredentialCompletion
+}
 
 // Plain classes avoid generated toString() methods containing secrets.
 internal class TotpSetup(val uri: String, val secret: String)
@@ -38,6 +44,7 @@ internal class SecurityRepository(private val api: ApiClient, private val auth: 
         private set
     private var pending: Completion? = null
     val needsCompletion: Boolean get() = pending != null
+    val completionUncertain: Boolean get() = pending?.confirmed == false
     fun resendSeconds(email: String): Int = auth.resendSeconds(email)
     fun discard() { pending = null; publishedRevision = null }
 
@@ -83,8 +90,9 @@ internal class SecurityRepository(private val api: ApiClient, private val auth: 
                 put("changeEmailVerificationCode", currentCode)
                 put("changeEmailNewEmailVerificationCode", newCode)
             }.toString()
-            api.post<MutationDto>("user/update/email", body, account.cookie()).requireSuccess()
-            pending = Completion(snapshot, email)
+            submitCredentialChange(Completion(snapshot, email)) {
+                api.post<MutationDto>("user/update/email", body, account.cookie()).requireSuccess()
+            }
         }
         finishCompletion()
     }
@@ -99,24 +107,44 @@ internal class SecurityRepository(private val api: ApiClient, private val auth: 
                 put("newPasswordHash", newHash)
                 put("verificationCode", code)
             }.toString()
-            api.post<MutationDto>("user/update/password", body, snapshot.requiredAccount().cookie()).requireSuccess()
-            pending = Completion(snapshot)
+            submitCredentialChange(Completion(snapshot)) {
+                api.post<MutationDto>("user/update/password", body, snapshot.requiredAccount().cookie()).requireSuccess()
+            }
         }
         finishCompletion()
     }
 
-    suspend fun finishCompletion() {
-        val completion = pending ?: return
+    private suspend fun submitCredentialChange(completion: Completion, write: suspend () -> Unit) {
+        // Mark the request before suspension: cancellation can also lose a successful server response.
+        pending = completion
+        try {
+            write()
+            completion.confirmed = true
+        } catch (error: ApiException) {
+            if (!error.failure.isUncertainMutation && pending === completion) pending = null
+            throw error
+        }
+    }
+
+    suspend fun finishCompletion(): CredentialCompletion {
+        val completion = pending ?: throw ApiException(ApiFailure.REJECTED)
         val snapshot = completion.snapshot
         checkCurrent(snapshot)
-        val profile = if (completion.email != null) auth.fetchProfile(snapshot).also {
-            if (!it.email.equals(completion.email, ignoreCase = true)) invalid()
+        val profile = if (completion.email != null) {
+            auth.withRequestSession(snapshot.revision) { auth.fetchProfile(snapshot) }
         } else null
+        val result = when {
+            profile != null && profile.email.equals(completion.email, ignoreCase = true) -> CredentialCompletion.Confirmed
+            profile != null -> invalid()
+            completion.confirmed -> CredentialCompletion.Confirmed
+            else -> CredentialCompletion.PasswordUnconfirmed
+        }
         try {
             val onPublishing: (Long) -> Unit = { publishedRevision = it }
             if (profile == null) auth.removeRequestSession(snapshot, onPublishing)
             else auth.publishProfile(snapshot, profile, onPublishing)
             pending = null
+            return result
         } catch (error: Exception) {
             publishedRevision = null
             throw error
@@ -166,7 +194,7 @@ internal class SecurityRepository(private val api: ApiClient, private val auth: 
         val codes = result?.backupCode
         val recovery = result?.recoveryCode
         if (codes == null || recovery == null || codes.size != 5 || codes.distinct().size != 5 ||
-            codes.any { !it.matches(Regex("[A-Z0-9]{6}")) } || !recovery.matches(Regex("[A-Z0-9]{24}"))) {
+            codes.any { !VerificationCodeFormat.BACKUP.isValid(it) } || !VerificationCodeFormat.RECOVERY.isValid(recovery)) {
             TotpConfirmation.CodesUnavailable
         } else {
             TotpConfirmation.CodesAvailable(TotpSecrets(codes, recovery))
@@ -177,7 +205,11 @@ internal class SecurityRepository(private val api: ApiClient, private val auth: 
         if (!auth.isCurrent(snapshot)) throw CancellationException("Account changed")
     }
 
-    private class Completion(val snapshot: AuthRepository.RequestSession, val email: String? = null)
+    private class Completion(
+        val snapshot: AuthRepository.RequestSession,
+        val email: String? = null,
+        var confirmed: Boolean = false,
+    )
 }
 
 @Serializable private class StatusDto(val success: Boolean, val have2FA: Boolean? = null,

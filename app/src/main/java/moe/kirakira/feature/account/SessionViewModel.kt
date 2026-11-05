@@ -54,17 +54,20 @@ internal class SessionViewModel(
         repository.dismissNotice()
     }
 
-    fun retry() = runOperation(retryTarget, retryOperation ?: {
-        repository.initialize()
-        state.value.activeUuid?.let { uuid ->
-            repository.setOperation(SessionOperation(SessionOperationType.INITIALIZE, uuid))
-            // Keep startup validation retryable even if rejection removes the active identity.
-            retryTarget = SessionOperation(SessionOperationType.SWITCH, uuid)
-            retryOperation = { repository.select(uuid) }
-            repository.select(uuid)
-        }
-        Unit
-    })
+    fun retry() = runOperation(
+        if (repository.needsInitialization) SessionOperation(SessionOperationType.INITIALIZE) else retryTarget,
+        retryOperation.takeUnless { repository.needsInitialization } ?: {
+            repository.initialize()
+            state.value.activeUuid?.let { uuid ->
+                repository.setOperation(SessionOperation(SessionOperationType.INITIALIZE, uuid))
+                // Keep startup validation retryable even if rejection removes the active identity.
+                retryTarget = SessionOperation(SessionOperationType.SWITCH, uuid)
+                retryOperation = { repository.select(uuid) }
+                repository.select(uuid)
+            }
+            Unit
+        },
+    )
 
     private suspend fun clearProviderSession() {
         try {

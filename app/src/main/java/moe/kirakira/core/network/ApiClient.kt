@@ -27,6 +27,19 @@ internal enum class ApiFailure(val isStorageFailure: Boolean = false) {
     /** Read failures preserve confirmed data unless access or the owning session is explicitly lost. */
     val retainsContent: Boolean
         get() = this != CONTENT_UNAVAILABLE && this != SESSION_EXPIRED
+
+    /** A failed mutation may already have reached the server; callers own reconciliation. */
+    val isUncertainMutation: Boolean
+        get() = when (this) {
+            NETWORK, TIMEOUT, SERVER, INVALID_RESPONSE -> true
+            REJECTED, CONTENT_UNAVAILABLE, SESSION_EXPIRED, RATE_LIMITED, DAILY_LIMIT,
+            STORAGE, STORAGE_FULL, STORAGE_DATA -> false
+        }
+
+    companion object {
+        fun fromIOException(error: IOException): ApiFailure =
+            if (error is InterruptedIOException) TIMEOUT else NETWORK
+    }
 }
 
 /** Sanitized failures never contain URLs, request bodies, credentials, or backend messages. */
@@ -83,7 +96,7 @@ internal class ApiClient(
             continuation.invokeOnCancellation { call.cancel() }
             call.enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
-                    val failure = if (e is InterruptedIOException) ApiFailure.TIMEOUT else ApiFailure.NETWORK
+                    val failure = ApiFailure.fromIOException(e)
                     continuation.resumeWithException(ApiException(failure))
                 }
 
@@ -109,7 +122,7 @@ internal class ApiClient(
                     } catch (error: ApiException) {
                         continuation.resumeWithException(error)
                     } catch (error: IOException) {
-                        val failure = if (error is InterruptedIOException) ApiFailure.TIMEOUT else ApiFailure.NETWORK
+                        val failure = ApiFailure.fromIOException(error)
                         continuation.resumeWithException(ApiException(failure))
                     }
                 }

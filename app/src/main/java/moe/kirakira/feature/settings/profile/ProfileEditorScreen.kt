@@ -61,14 +61,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -78,8 +76,6 @@ import coil3.compose.AsyncImage
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 import moe.kirakira.R
 import moe.kirakira.data.auth.AccountProfile
 import moe.kirakira.feature.settings.SettingsColumn
@@ -87,8 +83,10 @@ import moe.kirakira.feature.settings.SettingsErrorCard
 import moe.kirakira.feature.settings.SettingsFormCard
 import moe.kirakira.feature.settings.SettingsScaffold
 import moe.kirakira.feature.settings.SettingsSection
+import moe.kirakira.feature.settings.settingsSearchAnchor
 import moe.kirakira.ui.components.AccountAvatar
 import moe.kirakira.ui.components.CharacterCount
+import moe.kirakira.ui.components.ContentLoadingView
 import moe.kirakira.ui.components.ContentUnavailableAction
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
@@ -96,7 +94,9 @@ import moe.kirakira.ui.components.ExpressiveMenuPopup
 import moe.kirakira.ui.components.FilledTextField
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.ShadowFilledIconButton
+import moe.kirakira.ui.components.UsernameText
 import moe.kirakira.ui.components.connectedListItemShapes
+import moe.kirakira.ui.components.dateOnlyText
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorDefaults
@@ -116,9 +116,13 @@ internal fun ProfileEditorScreen(
     snackbar: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     val saveLabel = stringResource(
-        if (state.completionOnly) R.string.settings_retry_sync else R.string.profile_save,
+        when {
+            state.saveUnconfirmed -> R.string.security_check_status
+            state.completionOnly -> R.string.settings_retry_sync
+            else -> R.string.profile_save
+        },
     )
-    val saveDescription = if (state.completionOnly) stringResource(R.string.profile_finish_save) else null
+    val saveDescription = if (state.completionOnly && !state.saveUnconfirmed) stringResource(R.string.profile_finish_save) else null
     val workingDescription = stringResource(R.string.auth_working)
     SettingsScaffold(
         title = stringResource(R.string.settings_profile),
@@ -151,11 +155,7 @@ internal fun ProfileEditorScreen(
         },
     ) { padding ->
         when {
-            state.loading && state.draft == null -> Box(
-                Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center,
-            ) {
-                IndeterminateCircularProgressIndicator()
-            }
+            state.loading && state.draft == null -> ContentLoadingView(modifier = Modifier.fillMaxSize().padding(padding))
             state.draft == null && state.error != null -> ContentUnavailableView(
                 ContentUnavailableState.ERROR, description = stringResource(state.error.messageRes()), onRetry = onRetry,
                 modifier = Modifier.padding(padding),
@@ -170,7 +170,11 @@ internal fun ProfileEditorScreen(
             else -> SettingsColumn(padding = padding) {
                 ProfileIdentity(state, onPickAvatar)
                 if (state.error != null) SettingsErrorCard(stringResource(
-                    if (state.completionOnly) R.string.profile_saved_pending else state.error.messageRes()))
+                    when {
+                        state.saveUnconfirmed -> R.string.profile_save_unconfirmed
+                        state.completionOnly -> R.string.profile_saved_pending
+                        else -> state.error.messageRes()
+                    }))
                 SettingsSection {
                     SettingsFormCard {
                         ProfileTextField(state, "username", state.draft.username,
@@ -195,7 +199,8 @@ private fun ProfileIdentity(state: ProfileEditorState, onPick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val ring = ThemeColorDefaults.settingsBackgroundColor()
     val bannerShape = MaterialTheme.shapes.extraLarge
-    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(Modifier.settingsSearchAnchor(stringResource(R.string.profile_edit_avatar)).fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.fillMaxWidth().height(BannerHeight + AvatarSize / 2)) {
             Image(
                 painter = painterResource(R.drawable.profile_banner_placeholder),
@@ -236,11 +241,14 @@ private fun ProfileIdentity(state: ProfileEditorState, onPick: () -> Unit) {
         Text(draft.nickname.ifBlank { draft.username }.ifBlank { stringResource(R.string.settings_profile) },
             Modifier.padding(horizontal = 8.dp), style = MaterialTheme.typography.headlineSmall,
             textAlign = TextAlign.Center, maxLines = 3, overflow = TextOverflow.Ellipsis)
-        if (draft.username.isNotBlank()) Text("@${draft.username}",
-            Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-            style = MaterialTheme.typography.bodyMedium, fontFamily = FontFamily.Monospace,
-            color = scheme.onSurfaceVariant, textAlign = TextAlign.Center,
-            maxLines = 2, overflow = TextOverflow.Ellipsis)
+        UsernameText(
+            username = draft.username,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -256,7 +264,7 @@ private fun ProfileTextField(
     val error = state.fieldErrors[field]
     FilledTextField(
         value = value, onValueChange = { onEdit(field, it) },
-        modifier = Modifier.fillMaxWidth(), enabled = state.editable,
+        modifier = Modifier.settingsSearchAnchor(label).fillMaxWidth(), enabled = state.editable,
         label = { Text(label) }, leadingIcon = { ProfileIcon(icon) },
         singleLine = !multiline, minLines = if (multiline) 3 else 1, maxLines = if (multiline) 6 else 1,
         errorMessage = error?.let { stringResource(it) },
@@ -276,7 +284,6 @@ private fun PersonalInformation(state: ProfileEditorState, onEdit: (String, Stri
     var showBirthday by remember { mutableStateOf(false) }
     var showGender by remember { mutableStateOf(false) }
     val birthday = runCatching { LocalDate.parse(draft.birthday) }.getOrNull()
-    val locale = LocalConfiguration.current.locales[0]
     val genderValues = listOf("", "male", "female", "other")
     val genderLabels = listOf(R.string.profile_not_set, R.string.profile_male, R.string.profile_female, R.string.profile_other)
     val genderItemColors = MenuDefaults.selectableItemColors(
@@ -294,10 +301,11 @@ private fun PersonalInformation(state: ProfileEditorState, onEdit: (String, Stri
         SegmentedListItem(
             onClick = { showBirthday = true }, enabled = state.editable,
             shapes = connectedListItemShapes(0, 2),
+            modifier = Modifier.settingsSearchAnchor(stringResource(R.string.profile_birthday)),
             leadingContent = { ProfileListIcon(R.drawable.ic_symbol_calendar_today) },
             supportingContent = {
                 Text(
-                    birthday?.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale))
+                    birthday?.let { dateOnlyText(it) }
                         ?: draft.birthday.ifBlank { stringResource(R.string.profile_not_set) },
                 )
             },
@@ -307,6 +315,7 @@ private fun PersonalInformation(state: ProfileEditorState, onEdit: (String, Stri
         SegmentedListItem(
             onClick = { showGender = true }, enabled = state.editable,
             shapes = connectedListItemShapes(1, 2),
+            modifier = Modifier.settingsSearchAnchor(stringResource(R.string.profile_gender)),
             leadingContent = { ProfileListIcon(R.drawable.ic_symbol_person) },
             supportingContent = {
                 Text(
@@ -405,7 +414,8 @@ private fun ProfileLabels(state: ProfileEditorState, onAdd: (String) -> Unit, on
         FilledTextField(
             value = input,
             onValueChange = { onEdit("labelInput", it) },
-            modifier = Modifier.fillMaxWidth(), enabled = state.editable,
+            modifier = Modifier.settingsSearchAnchor(stringResource(R.string.profile_add_label)).fillMaxWidth(),
+            enabled = state.editable,
             label = { Text(stringResource(R.string.profile_add_label)) }, singleLine = true,
             leadingIcon = { ProfileIcon(R.drawable.ic_symbol_label) },
             trailingIcon = { IconButton(onClick = ::add, enabled = state.editable && input.isNotBlank()) {

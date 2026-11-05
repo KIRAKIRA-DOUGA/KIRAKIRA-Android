@@ -29,12 +29,15 @@ internal data class AuthUiState(
     val focusRequestId: Long = 0,
     val credentialOperation: AuthCredentialOperation? = null,
     val submission: AuthSubmission = AuthSubmission.IDLE,
+    val passwordResetUnconfirmed: Boolean = false,
     @param:StringRes val errorRes: Int? = null,
     @param:StringRes val noticeRes: Int? = null,
 ) {
     override fun toString(): String = "AuthUiState(step=$step, submission=$submission)"
 
     val isSubmitting: Boolean get() = submission == AuthSubmission.SUBMITTING
+    val blocksBack: Boolean get() = passwordResetUnconfirmed ||
+        (isSubmitting && step in setOf(AuthStep.REGISTER_VERIFY, AuthStep.RESET_PASSWORD))
     val canEdit: Boolean get() = !isSubmitting && submission != AuthSubmission.SUCCEEDED &&
         submission != AuthSubmission.FINISHING && credentialOperation !is AuthCredentialOperation.Save
     val canSubmit: Boolean get() = canEdit && when (step) {

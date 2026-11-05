@@ -26,6 +26,8 @@ internal class SessionStore(
     private val codec = SessionCodec()
     private val mutex = Mutex()
     private var writable = false
+    override var requiresReload: Boolean = false
+        private set
 
     override var migrationNotice: SessionNotice? = null
         private set
@@ -45,6 +47,7 @@ internal class SessionStore(
                         bytes.fill(0)
                     }
                     writable = true
+                    requiresReload = false
                     return@withContext forCurrentBackend(state)
                 }
 
@@ -108,6 +111,7 @@ internal class SessionStore(
     override suspend fun reset() = mutex.withLock {
         withContext(Dispatchers.IO) {
             writable = false
+            requiresReload = true
             migrationNotice = null
             sessionStorageOperation {
                 deleteFiles(legacyFile)
@@ -135,11 +139,15 @@ internal class SessionStore(
                 throw error
             }
             // finishWrite closes the transaction. A subsequent verification failure must not roll it back.
+            writable = false
+            requiresReload = true
             file.finishWrite(output)
             // AtomicFile may only log a rename failure. Verify via the same recovery path as startup.
             val committed = readFile(file)
             try {
                 check(committed.contentEquals(bytes))
+                writable = true
+                requiresReload = false
             } finally {
                 committed.fill(0)
             }

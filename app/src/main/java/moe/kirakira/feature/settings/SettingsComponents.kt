@@ -190,7 +190,10 @@ internal fun SettingsPage(
 /** Section header style shared by settings pages and LazyColumn-based management pages. */
 @Composable
 internal fun SettingsSectionHeader(title: String, modifier: Modifier = Modifier) {
-    SectionHeader(title = title, modifier = modifier.padding(horizontal = SettingsDefaults.HorizontalPadding))
+    SectionHeader(
+        title = title,
+        modifier = modifier.settingsSearchAnchor(title).padding(horizontal = SettingsDefaults.HorizontalPadding),
+    )
 }
 
 /** Keeps the section's spacing, heading semantics, color and typography for dynamic titles. */
@@ -245,7 +248,7 @@ internal fun SettingsItem(
     if (onClick == null) {
         SegmentedListItem(
             shapes = shapes,
-            modifier = modifier.fillMaxWidth(),
+            modifier = modifier.settingsSearchAnchor(title).fillMaxWidth(),
             enabled = enabled,
             leadingContent = leading,
             trailingContent = trailing,
@@ -257,7 +260,7 @@ internal fun SettingsItem(
             onClick = onClick,
             interactionSource = interactionSource,
             shapes = shapes,
-            modifier = modifier.fillMaxWidth(),
+            modifier = modifier.settingsSearchAnchor(title).fillMaxWidth(),
             enabled = enabled,
             leadingContent = leading,
             trailingContent = trailing,
@@ -335,6 +338,7 @@ internal fun SettingsMasterSwitchItem(
         enabled = enabled,
         shapes = connectedListItemShapes(index = 0, count = 1),
         modifier = modifier
+            .settingsSearchAnchor(title)
             .fillMaxWidth()
             .semantics { role = Role.Switch },
         leadingContent = icon?.let {
@@ -402,7 +406,7 @@ internal fun SettingsSliderItem(
     SideEffect { slider.value = value.toFloat() }
     SegmentedListItem(
         shapes = connectedListItemShapes(index, count),
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.settingsSearchAnchor(title).fillMaxWidth(),
         enabled = enabled,
         leadingContent = icon?.let {
             { Icon(painterResource(it), contentDescription = null, modifier = Modifier.size(24.dp)) }
@@ -416,7 +420,7 @@ internal fun SettingsSliderItem(
                 Text(title, modifier = Modifier.weight(1f))
                 Text(
                     valueLabel,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
                 )
             }
         },

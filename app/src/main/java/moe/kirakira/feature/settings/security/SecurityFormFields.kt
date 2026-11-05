@@ -3,6 +3,7 @@ package moe.kirakira.feature.settings.security
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -185,6 +186,7 @@ internal fun SecurityCodeField(
                     Text(
                         if (cooldown > 0) stringResource(R.string.auth_resend_countdown, cooldown)
                         else stringResource(R.string.auth_resend),
+                        style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"),
                     )
                 }
             }

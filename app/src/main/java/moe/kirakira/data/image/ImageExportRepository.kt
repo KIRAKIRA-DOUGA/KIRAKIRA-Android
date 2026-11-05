@@ -15,12 +15,15 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.UUID
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlin.time.Duration.Companion.days
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import moe.kirakira.core.image.isPublicMediaHttpUrl
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.HttpUrl
@@ -28,8 +31,6 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 internal class ImageExportRepository(
     private val context: Context,
@@ -154,8 +155,7 @@ internal class ImageExportRepository(
                             if (response.code in 300..399) {
                                 check(redirectCount < MAX_REDIRECTS)
                                 val location = response.header("Location")?.let(url::resolve)
-                                check(location != null && location.isHttps &&
-                                    location.username.isEmpty() && location.password.isEmpty())
+                                check(location != null && isPublicMediaHttpUrl(location))
                                 location
                             } else {
                                 check(response.isSuccessful)

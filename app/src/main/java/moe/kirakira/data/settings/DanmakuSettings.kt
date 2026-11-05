@@ -21,9 +21,9 @@ internal data class DanmakuSettings(
     }
 
     fun normalized() = copy(
-        opacityPercent = opacityPercent.coerceIn(10, 100) / 5 * 5,
-        fontScalePercent = fontScalePercent.coerceIn(50, 200) / 5 * 5,
-        areaPercent = areaPercent.coerceIn(25, 100) / 25 * 25,
-        speedTenths = speedTenths.coerceIn(5, 20),
+        opacityPercent = DanmakuSettingRanges.opacity.normalize(opacityPercent),
+        fontScalePercent = DanmakuSettingRanges.fontScale.normalize(fontScalePercent),
+        areaPercent = DanmakuSettingRanges.area.normalize(areaPercent),
+        speedTenths = DanmakuSettingRanges.speed.normalize(speedTenths),
     )
 }

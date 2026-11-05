@@ -9,7 +9,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -67,8 +66,10 @@ import moe.kirakira.feature.settings.SettingsColumn
 import moe.kirakira.feature.settings.SettingsScaffold
 import moe.kirakira.feature.settings.SettingsSection
 import moe.kirakira.feature.settings.SettingsSectionHeader
+import moe.kirakira.feature.settings.settingsSearchAnchor
 import moe.kirakira.ui.components.ActionDialog
 import moe.kirakira.ui.components.ConnectedListGroup
+import moe.kirakira.ui.components.ContentLoadingView
 import moe.kirakira.ui.components.ContentUnavailableAction
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
@@ -175,9 +176,7 @@ internal fun PrivacySettingsScreen(
     ) { padding ->
         val initialLoading = sessionBusy || (state.loading && state.original == null)
         if (initialLoading) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                IndeterminateCircularProgressIndicator()
-            }
+            ContentLoadingView(modifier = Modifier.fillMaxSize().padding(padding))
         } else if (!signedIn) {
             ContentUnavailableView(
                 state = ContentUnavailableState.EMPTY,
@@ -324,6 +323,7 @@ private fun PrivacyGroup(
                 enabled = state.editable,
                 shapes = connectedListItemShapes(index, items.size),
                 modifier = Modifier
+                    .settingsSearchAnchor(stringResource(item.titleRes()))
                     .fillMaxWidth()
                     .semantics { stateDescription = label },
                 leadingContent = {
