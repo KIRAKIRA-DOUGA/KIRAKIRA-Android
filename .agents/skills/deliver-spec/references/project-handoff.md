@@ -24,8 +24,9 @@ handoff or take over a Project claim.
    required live prerequisite is unknown.
 2. Accept the verified handoff as authority for continuing in-scope implementation,
    tests and repairs in this checkout. Require no per-file or per-stage permission
-   packets. Follow [Evidence and review](evidence-and-review.md) for routine
-   corrections, conditional early review and evidence reuse. Material changes
+   packets. Follow [Evidence and review](evidence-and-review.md) for
+   checkpoint feedback, validation cadence, routine corrections, conditional
+   early review and evidence reuse. Material changes
    return to the controller for the appropriate decision; `--auto` cannot expand
    scope or grants. For a supplied integration amendment, verify its effective
    contract and retained candidate under that reference. Preserve owners, work,
@@ -37,6 +38,9 @@ handoff or take over a Project claim.
    independence, isolation or specialist investigation, fit descendants within
    actual spare Project capacity, and preserve controller scheduling priority.
    Reuse the existing delivery record for ownership and acceptance evidence.
+   For a handoff whose active plan is a controller fast-path revision, apply
+   the [fast path](fast-path.md) and return its escalation packet to the
+   controller as soon as a condition fails.
 4. Before any push, satisfy the Project's
    [review contracts](../../run-github-project/references/review-contracts.md).
    Give the single independent reviewer the
@@ -50,8 +54,11 @@ handoff or take over a Project claim.
 5. Reuse the supplied branch and verified PR. After review, push and reconcile
    the exact head; create one draft PR only for a nonempty integrated diff.
    Use `Fixes #<ticket>` for `closing-keyword`, or a non-closing issue link for
-   `close-after-merge`. Mark ready and verify that state when applicable checks
-   and reviews cover the final head. For an empty diff, return `no-change` and
+   `close-after-merge`. Apply [PR review timing](pr-review-timing.md) to start
+   applicable external review while CI runs, preferring verified draft review and otherwise
+   permitting earlier PR readiness. Verify that state separately from delivery
+   `ready`, which requires all required checks, reviews and finding dispositions
+   applicable to the final head. For an empty diff, return `no-change` and
    verification evidence for controller reconciliation.
 6. Use `shepherd` for feedback and PR operations, with code repairs through
    the implementation owner, coordinating any necessary reassignment only after
@@ -64,11 +71,13 @@ handoff or take over a Project claim.
    passes; resume the same context when actionable. Remote waiting consumes
    no active-agent capacity.
 7. Return `ready`, `pending`, `blocked`, or `no-change` with exact evidence.
-   The controller alone claims, assigns, changes labels/Project Status, records
+   `pending` names only remote or controller-owned gates; never return while a
+   reviewer or helper you launched is still running. The controller alone
+   claims, assigns, changes labels/Project Status, records
    [ticket pauses](../../run-github-project/references/authority-and-pauses.md),
    manages capacity, merges, closes issues, and reconciles terminal state.
    Return missing grants and material decisions to that controller even when
-   its invocation includes `--auto-merge`.
+   its invocation has merge permission.
 
 ## Finish Gate
 

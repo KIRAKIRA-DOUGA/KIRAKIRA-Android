@@ -28,46 +28,37 @@ branch, and let the compiler prove closed-domain coverage.
 3. Use a guard only on a subject `when`, after a primary condition, when the
    extra predicate belongs to that branch and an unguarded branch still handles
    the primary condition. Put the guarded branch first. Split comma-separated
-   conditions instead of guarding one of them.
+   conditions instead of guarding one of them. Guards are stable from Kotlin
+   2.2. Honor an explicit `languageVersion` setting; otherwise the project's
+   Kotlin version in its build file or version catalog is enough to confirm
+   support, so do not decline a guard for lack of further proof.
 4. For a closed enum, Boolean, sealed type, or nullable closed type, name every
    case and omit `else`. Match objects by value and class/data-class subtypes
-   with `is`. When a data-bearing sealed case is collapsed by a catch-all, show
-   the branch-level use in the review:
+   with `is`. If the input is an open server/platform value or needs real
+   fallback/logging, keep `else`. Give each data-bearing subtype, including one
+   a catch-all collapses, its own `is` branch. When its data affects the
+   mapping or its safe handling, the finding or change must show the
+   smart-cast member access, even if the public value stays constant:
 
    ```kotlin
    is Outcome.Failed -> safeFailureLabel(outcome.reason)
    ```
 
-   The `is` check smart-casts `outcome`, so the branch can use `reason` without
-   a cast. The helper name is illustrative; choose a safe mapping for the
-   caller contract. Do not replace this branch-level explanation with a note
-   that unspecified callers can inspect the original result. If the input is
-   an open server/platform value or needs real fallback/logging, keep `else`.
+   The `is` check smart-casts `outcome`, so the branch uses `reason` without a
+   cast; the helper name is illustrative. Naming cases alone, or sending callers
+   to inspect the original value, is not complete branch guidance. When the
+   data does not affect the result, keep the current value in that `is` branch;
+   do not invent a use of the data.
 5. Use an early return only when it removes invalid or nullable state from the
    main path. Keep nesting that expresses cleanup, transaction, or error
    handling.
 6. Verify smart casts still work without `as`, `!!`, mutable temporaries, or
    duplicate casts. If they do not, keep the original shape or take a smaller
    refactor.
-7. Compile and test. On failure, return to the smallest applicable earlier step
-   or retain the prior shape. In a review of a closed sealed mapping, when a
-   data-bearing subtype affects the mapping or its safe handling, put the typed
-   branch and member access in the finding itself, not only in analysis or as a
-   general note to add explicit cases. Use this pseudocode template with the
-   actual subtype and payload member substituted:
-
-   ```kotlin
-   is <DataSubtype> -> map(result.<payload>)
-   ```
-
-   This is a template, not literal Kotlin: the `is` test smart-casts `result`,
-   and the member access shows how the branch uses its payload. If the public
-   value stays generic, state how the branch handles the detail or why it is
-   deliberately discarded. Naming cases alone or sending callers to inspect the
-   original value is not complete branch guidance. Apply this only to closed,
-   data-bearing cases; retain `else` for open-world values or real fallbacks.
-   Finish when the subject, fallbacks, and relevant branch data are obvious to a
-   reader and the resulting shape is easier to scan.
+7. Compile and test with the project's own build tool; in a Gradle project use
+   the [Gradle run](../gradle-run/SKILL.md) workflow, never raw Gradle. On failure, return to the smallest applicable earlier step
+   or retain the prior shape. Finish when the subject, fallbacks, and relevant
+   branch data are obvious to a reader and the resulting shape is easier to scan.
 
 ## Recipes
 

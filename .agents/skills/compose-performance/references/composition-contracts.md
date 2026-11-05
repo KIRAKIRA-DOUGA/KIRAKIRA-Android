@@ -11,7 +11,11 @@ The restriction concerns operations on the composer, not whether the value is
 backed by mutable snapshot state. Reading `State.value` after a read-only
 `CompositionLocal.current` access is still a read; do not report that read alone
 as a contract violation. Check for a composer write, a non-read-only composable
-call, or an effect before recommending removal of the annotation.
+call, or an effect before recommending removal of the annotation. In a
+correctness review, a provider the code never needs, or a mutable default it
+never writes, is at most a noted risk; do not recommend provider, default,
+visibility, naming, or test changes for it. A provider the code does require
+(for example a `CompositionLocal` whose default throws) is a real defect.
 
 Add the annotation only when every composable call in the body is itself
 read-only, or the body only reads values such as `LocalFoo.current` and performs

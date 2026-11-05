@@ -6,15 +6,31 @@ the selected mode retains its approval, authority and finish gates.
 
 ## Implementation and validation
 
-1. Apply [Behavioral review and repair](behavioral-review.md) for demonstrated
-   boundary failures, review coverage accounts, external-review convergence and
+1. Apply [Behavioral review and repair](behavioral-review.md) for implementation
+   checkpoints, batched findings, immediate interruptions, demonstrated boundary
+   failures, review coverage accounts, external-review convergence and
    browser failure diagnostics. It owns those rules; keep their evidence in the
    delivery record below.
-2. Run affected checks while developing a slice. Run every required full check
+2. Select affected tests from the changed contract and its existing consumers,
+   not only edited files or new tests. For shared structures, inspect field
+   inventories and projections such as comparison/reuse keys, serialization and
+   caches, and find existing structural-audit tests (for example, field-count or
+   completeness checks). Include the affected tests in focused validation and
+   record the selection rationale in the delivery record. Run meaningful
+   affected tests and applicable build, type and lint checks during implementation
+   and bounded repairs. Run every required full check
    on meaningful integrated delivery candidates, including mandatory repository
    and provider validation. Repeat checks only when changes invalidate evidence,
    impact cannot be bounded, or an explicit repository/provider rule requires it.
-   A controller handoff cannot escalate this into full checks per slice commit.
+   A commit, handoff or acceptance step alone does not require a full rerun.
+   When the PR's required CI checks run the same full suite on the pushed
+   head, do not duplicate it locally: push after affected checks and independent
+   review, and use CI results on that exact head before delivery acceptance or
+   merge. Apply [PR review timing](pr-review-timing.md) for concurrent external
+   review, verified draft support and earlier readiness, including when CI only
+   starts after leaving draft. Run the full suite locally when a repository or
+   provider rule requires it, or run checks CI cannot supply, such as device,
+   benchmark or credentialed checks.
 3. Reuse one concise delivery record with requirements/source pointers, scope,
    base and candidate identity, check results/log links, findings and blockers.
    Do not create temporary packets or acceptance receipts for each transition.
@@ -32,15 +48,20 @@ the selected mode retains its approval, authority and finish gates.
    compare each evidence record's inputs and scope with the current candidate.
    Retain only demonstrably unaffected compatible evidence, recording why it
    still applies and which head it actually tested. Mark affected evidence
-   invalid and renew it; unknown impact also requires renewal. Do not relabel
+   invalid and renew it at the affected scope; broaden when impact cannot be
+   bounded or an explicit rule requires it. One invalidated check does not
+   automatically invalidate other checks or review contracts. Do not relabel
    an old result as a current-head run, or replace a mandatory full check with
    a collection of focused passes. Keep prior valid coverage distinct from
    outstanding checks and reviews.
 5. Before push or acceptance, bind the combined evidence to the exact final
    clean head and recheck the selected mode's authority, native dependencies,
-   qualification and CI requirements. Failed/unknown required checks,
-   unresolved actionable findings, stale authority or insufficient coverage
-   hold the operation. Evidence reuse never renews a grant or consumes fewer
+   qualification and CI requirements. Full-suite evidence supplied by CI binds
+   at delivery acceptance or merge, not push or PR readiness for review.
+   Failed/unknown pre-push checks, unresolved actionable findings, stale authority
+   or insufficient local review coverage hold push; missing required CI or
+   external review holds acceptance and merge under PR review timing. Evidence
+   reuse never renews a grant or consumes fewer
    recorded repair attempts merely because the base changed.
 
 ## Testing and corrections
