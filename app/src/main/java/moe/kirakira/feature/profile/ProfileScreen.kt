@@ -4,7 +4,6 @@ import android.os.Build
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -15,7 +14,6 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
@@ -66,9 +64,11 @@ import moe.kirakira.ui.components.CollapsingHeaderBackground
 import moe.kirakira.ui.components.CollapsingTabLayout
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
+import moe.kirakira.ui.components.ContentStatusViewport
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
+import moe.kirakira.ui.components.FavoritesLogo
 import moe.kirakira.ui.components.LocalNumberAnimationIdentity
 import moe.kirakira.ui.components.PagerTabRow
 import moe.kirakira.ui.components.appTopAppBarColors
@@ -77,6 +77,8 @@ import moe.kirakira.ui.components.rememberCollapsingTabState
 import moe.kirakira.ui.components.video.VideoCardLayout
 import moe.kirakira.ui.components.video.VideoCardRow
 import moe.kirakira.ui.content.ContentState
+import moe.kirakira.ui.navigation.imageSharedBounds
+import moe.kirakira.ui.navigation.rememberImageContentScale
 import moe.kirakira.ui.theme.ThemeColorDefaults
 
 @Composable
@@ -95,6 +97,7 @@ internal fun ProfileScreen(
     onOpenFollowList: (FollowListKind) -> Unit,
     actions: @Composable (Boolean, HazeState) -> Unit,
     onOpenAvatar: () -> Unit,
+    onOpenBanner: () -> Unit,
     onOpenVideo: (Int) -> Unit,
     onBack: () -> Unit,
     onRetry: () -> Unit,
@@ -176,10 +179,7 @@ internal fun ProfileScreen(
                         .widthIn(max = 640.dp)
                         .fillMaxSize(),
                 ) {
-                    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                        val pagerHeight = (
-                            maxHeight - innerPadding.calculateTopPadding() - with(density) { tabRowHeight.toDp() }
-                            ).coerceAtLeast(0.dp)
+                    Box(modifier = Modifier.fillMaxSize()) {
                         CollapsingTabLayout(
                             state = headerState,
                             topPadding = innerPadding.calculateTopPadding(),
@@ -199,7 +199,7 @@ internal fun ProfileScreen(
                                                 else Modifier,
                                             ),
                                     ) {
-                                        ProfileCover(coverHeight) { headerState.offset }
+                                        ProfileCover(state, coverHeight) { headerState.offset }
                                     }
                                 }
                             },
@@ -214,6 +214,7 @@ internal fun ProfileScreen(
                                             onEditProfile = onEditProfile,
                                             onOpenFollowList = onOpenFollowList,
                                             onOpenAvatar = onOpenAvatar,
+                                            onOpenBanner = onOpenBanner,
                                             modifier = Modifier.fillMaxWidth(),
                                             coverRemainderHeight = (coverHeight - innerPadding.calculateTopPadding()).coerceAtLeast(
                                                 0.dp,
@@ -269,75 +270,80 @@ internal fun ProfileScreen(
                                 key = { ProfileTab.entries[it].name },
                             ) { page ->
                                 val tab = ProfileTab.entries[page]
-                                val statusHeight =
-                                    (pagerHeight - innerPadding.calculateBottomPadding()).coerceAtLeast(0.dp)
-                                if (tab == ProfileTab.VIDEOS) {
-                                    LazyColumn(
-                                        state = videosListState,
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentPadding = PaddingValues(
-                                            top = topContentPadding,
-                                            bottom = innerPadding.calculateBottomPadding(),
-                                        ),
-                                    ) {
-                                        if (videos.error != null || videos.data.isNullOrEmpty()) {
-                                            item(key = "profile_videos_status") {
-                                                ContentStatus(
-                                                    videos.copy(loading = videos.loading && videos.data == null),
-                                                    onRetry,
-                                                    Modifier
+                                val listContentPadding = PaddingValues(
+                                    top = topContentPadding,
+                                    bottom = innerPadding.calculateBottomPadding(),
+                                )
+                                ContentStatusViewport(
+                                    modifier = Modifier.fillMaxSize().padding(
+                                        bottom = with(density) {
+                                            (headerState.headerHeight - headerState.offset).toDp()
+                                        },
+                                    ),
+                                    contentPadding = listContentPadding,
+                                ) { statusModifier ->
+                                    if (tab == ProfileTab.VIDEOS) {
+                                        LazyColumn(
+                                            state = videosListState,
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentPadding = listContentPadding,
+                                        ) {
+                                            if (videos.error != null || videos.data.isNullOrEmpty()) {
+                                                item(key = "profile_videos_status") {
+                                                    ContentStatus(
+                                                        videos.copy(loading = videos.loading && videos.data == null),
+                                                        onRetry,
+                                                        Modifier
+                                                            .fillMaxWidth()
+                                                            .then(
+                                                                if (videos.data.isNullOrEmpty()) statusModifier else Modifier,
+                                                            ),
+                                                        videos.data.isNullOrEmpty(),
+                                                    )
+                                                }
+                                            }
+                                            itemsIndexed(
+                                                items = videoRows,
+                                                key = { _, row -> "profile_video_row_${row.first().id}" },
+                                            ) { index, row ->
+                                                Box(
+                                                    modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .then(
-                                                            if (videos.data.isNullOrEmpty()) Modifier.heightIn(min = statusHeight) else Modifier,
+                                                        .padding(
+                                                            start = 16.dp,
+                                                            end = 16.dp,
+                                                            top = if (index == 0) 16.dp else 12.dp,
+                                                            bottom = if (index == videoRows.lastIndex) 16.dp else 0.dp,
                                                         ),
-                                                    videos.data.isNullOrEmpty(),
-                                                )
+                                                ) {
+                                                    VideoCardRow(
+                                                        videos = row,
+                                                        layout = videoCardLayout,
+                                                        onOpenVideo = onOpenVideo,
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        showUploader = false,
+                                                    )
+                                                }
                                             }
                                         }
-                                        itemsIndexed(
-                                            items = videoRows,
-                                            key = { _, row -> "profile_video_row_${row.first().id}" },
-                                        ) { index, row ->
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(
-                                                        start = 16.dp,
-                                                        end = 16.dp,
-                                                        top = if (index == 0) 16.dp else 12.dp,
-                                                        bottom = if (index == videoRows.lastIndex) 16.dp else 0.dp,
-                                                    ),
-                                            ) {
-                                                VideoCardRow(
-                                                    videos = row,
-                                                    layout = videoCardLayout,
-                                                    onOpenVideo = onOpenVideo,
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    showUploader = false,
+                                    } else {
+                                        LazyColumn(
+                                            state = collectionsListState,
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentPadding = listContentPadding,
+                                        ) {
+                                            item(key = "profile_collections_empty") {
+                                                ContentUnavailableView(
+                                                    state = ContentUnavailableState.EMPTY,
+                                                    title = stringResource(R.string.content_not_available_yet),
+                                                    description = null,
+                                                    icon = { FavoritesLogo() },
+                                                    presentation = ContentUnavailablePresentation.INLINE,
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .then(statusModifier),
                                                 )
                                             }
-                                        }
-                                    }
-                                } else {
-                                    LazyColumn(
-                                        state = collectionsListState,
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentPadding = PaddingValues(
-                                            top = topContentPadding,
-                                            bottom = innerPadding.calculateBottomPadding(),
-                                        ),
-                                    ) {
-                                        item(key = "profile_collections_empty") {
-                                            ContentUnavailableView(
-                                                state = ContentUnavailableState.EMPTY,
-                                                title = stringResource(R.string.content_not_available_yet),
-                                                description = null,
-                                                iconRes = R.drawable.ic_symbol_star,
-                                                presentation = ContentUnavailablePresentation.INLINE,
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .heightIn(min = statusHeight),
-                                            )
                                         }
                                     }
                                 }
@@ -371,7 +377,7 @@ internal fun ProfileTopBarIconButton(
 }
 
 @Composable
-private fun ProfileCover(height: Dp, offset: () -> Float) {
+private fun ProfileCover(state: ProfileUiState, height: Dp, offset: () -> Float) {
     val background = ThemeColorDefaults.pageBackgroundColor()
     val scrimHeight = with(LocalDensity.current) { (height - 48.dp).toPx() }
     Box(
@@ -383,8 +389,15 @@ private fun ProfileCover(height: Dp, offset: () -> Float) {
         Image(
             painter = painterResource(R.drawable.profile_banner_placeholder),
             contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.matchParentSize(),
+            contentScale = rememberImageContentScale(state.bannerKey, restingContentScale = ContentScale.Crop),
+            modifier = Modifier
+                .matchParentSize()
+                .imageSharedBounds(
+                    state.bannerKey,
+                    viewer = false,
+                    circularSource = false,
+                    sourceContentScale = ContentScale.Crop,
+                ),
         )
         // Keep the gradient stationary as the photo scrolls beneath the system icons.
         Box(

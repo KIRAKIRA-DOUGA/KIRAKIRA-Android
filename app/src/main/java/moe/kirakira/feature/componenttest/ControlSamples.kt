@@ -15,6 +15,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Slider
@@ -74,10 +75,10 @@ internal fun SelectionSamples(
                 }
             }
         }
-        Text("连续滑块 ${(state.progress * 100).roundToInt()}%")
+        Text("连续滑块 ${(state.progress * 100).roundToInt()}%", style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"))
         SampleSlider(value = state.progress, onValueChange = { onChange(state.copy(progress = it)) },
             modifier = Modifier.semantics { contentDescription = "连续滑块" })
-        Text("分段滑块 ${(state.stepped * 100).roundToInt()}%")
+        Text("分段滑块 ${(state.stepped * 100).roundToInt()}%", style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"))
         SampleSlider(value = state.stepped, onValueChange = { onChange(state.copy(stepped = it)) }, steps = 3,
             modifier = Modifier.semantics { contentDescription = "分段滑块" })
     }
@@ -125,7 +126,7 @@ internal fun ProgressSamples(progress: Float, onProgressChange: (Float) -> Unit,
             IndeterminateCircularProgressIndicator(Modifier.size(20.dp).semantics { contentDescription = "刷新加载" },
                 strokeWidth = 2.5.dp)
         }
-        Text("确定进度 ${(progress * 100).roundToInt()}%")
+        Text("确定进度 ${(progress * 100).roundToInt()}%", style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"))
         CircularProgressIndicator(progress = { progress }, modifier = Modifier.size(40.dp))
         LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
         SampleSlider(value = progress, onValueChange = onProgressChange,

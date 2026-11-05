@@ -2,14 +2,12 @@ package moe.kirakira.feature.follow
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -32,7 +30,6 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -43,11 +40,13 @@ import moe.kirakira.data.content.FollowListUser
 import moe.kirakira.ui.components.AccountAvatar
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
+import moe.kirakira.ui.components.ContentStatusViewport
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.UsernameText
 import moe.kirakira.ui.components.appTopAppBarColors
 import moe.kirakira.ui.components.messageRes
 
@@ -115,20 +114,23 @@ internal fun FollowListScreen(
                 .fillMaxSize()
                 .consumeWindowInsets(padding),
         ) {
-            BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                val statusHeight = (maxHeight - padding.calculateTopPadding() -
-                    padding.calculateBottomPadding() - 32.dp).coerceAtLeast(0.dp)
+            val listContentPadding = PaddingValues(
+                start = padding.calculateStartPadding(direction),
+                end = padding.calculateEndPadding(direction),
+                top = padding.calculateTopPadding() + 8.dp,
+                bottom = padding.calculateBottomPadding() + 24.dp,
+            )
+            ContentStatusViewport(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = listContentPadding,
+                leadingContentHeight = 0.dp,
+            ) { statusModifier ->
                 LazyColumn(
                     state = list,
                     modifier = Modifier
                         .widthIn(max = 840.dp)
                         .fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        start = padding.calculateStartPadding(direction),
-                        end = padding.calculateEndPadding(direction),
-                        top = padding.calculateTopPadding() + 8.dp,
-                        bottom = padding.calculateBottomPadding() + 24.dp,
-                    ),
+                    contentPadding = listContentPadding,
                 ) {
                     if (content.data == null) {
                         item(key = "status", contentType = "status") {
@@ -137,7 +139,7 @@ internal fun FollowListScreen(
                                 onRetry = onRefresh,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .heightIn(min = statusHeight),
+                                    .then(statusModifier),
                             )
                         }
                     } else if (users.isEmpty()) {
@@ -149,7 +151,7 @@ internal fun FollowListScreen(
                                 iconRes = R.drawable.ic_symbol_person,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .heightIn(min = statusHeight),
+                                    .then(statusModifier),
                                 presentation = ContentUnavailablePresentation.INLINE,
                             )
                         }
@@ -219,10 +221,8 @@ private fun FollowListUserRow(
         leadingContent = { AccountAvatar(user.avatar, size = 48.dp) },
         supportingContent = if (user.username.isNotBlank()) {
             {
-                Text(
-                    "@${user.username}",
-                    fontFamily = FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                UsernameText(
+                    username = user.username,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )

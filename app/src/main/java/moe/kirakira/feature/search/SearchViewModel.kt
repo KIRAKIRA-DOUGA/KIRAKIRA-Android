@@ -103,6 +103,7 @@ internal class SearchViewModel(
     private var tagJob: Job? = null
     private var videoVersion = 0L
     private var tagVersion = 0L
+    private var candidateQuery: String? = null
 
     init {
         observeAccount({
@@ -110,6 +111,7 @@ internal class SearchViewModel(
             tagVersion++
             videoJob = null
             tagJob = null
+            candidateQuery = null
             _state.value = SearchUiState(
                 ready = true, accountRevision = revision, generation = _state.value.generation + 1,
             )
@@ -289,6 +291,7 @@ internal class SearchViewModel(
     private fun closeTags() {
         tagJob?.cancel()
         tagVersion++
+        candidateQuery = null
         _state.value = _state.value.copy(pickerOpen = false, draftTags = emptyList(), candidates = ContentState())
     }
 
@@ -297,9 +300,13 @@ internal class SearchViewModel(
         val version = ++tagVersion
         val expected = revision
         val query = _state.value.tagQuery.trim()
-        _state.value = _state.value.copy(candidates = ContentState())
-        if (!_state.value.pickerOpen || query.isEmpty()) return
-        _state.value = _state.value.copy(candidates = ContentState(loading = true))
+        val previous = _state.value.candidates.data.takeIf { candidateQuery == query }
+        candidateQuery = query
+        if (!_state.value.pickerOpen || query.isEmpty()) {
+            _state.value = _state.value.copy(candidates = ContentState())
+            return
+        }
+        _state.value = _state.value.copy(candidates = ContentState(data = previous, loading = true))
         tagJob = launchTask {
             if (debounce) delay(500.milliseconds)
             try {
@@ -309,7 +316,7 @@ internal class SearchViewModel(
                 }
             } catch (error: ApiException) {
                 if (expected == session.value.revision && version == tagVersion) {
-                    _state.value = _state.value.copy(candidates = ContentState(error = error.failure))
+                    _state.value = _state.value.copy(candidates = _state.value.candidates.readFailed(error.failure))
                 }
             }
         }

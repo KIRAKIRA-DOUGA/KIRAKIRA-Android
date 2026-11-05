@@ -56,7 +56,31 @@ Material 3 单独使用公开 Expressive 主题与分段列表 API 的版本，�
 
 ### Compose 布局预览
 
-在 Android Studio 打开预览文件，切换到 **Design** 或 **Split** 并刷新 Preview：
+需要按用户要求检查预览时，优先用已安装的 [Android CLI](https://developer.android.com/tools/agents/android-cli) 在宿主机独立渲染 PNG，不需要运行 Android Studio、Computer Use、设备或模拟器，也不需要新增截图测试插件。从仓库根目录执行：
+
+```sh
+android preview render :app \
+  --fqn=moe.kirakira.ui.components.HistorySearchLogoKt.HistorySearchLogoPreview \
+  --fqn=moe.kirakira.ui.components.HistorySearchLogoKt.HistorySearchLogoDarkPreview \
+  --format=json \
+  --output=/tmp/history-clock-previews \
+  -- --console=plain --no-scan
+```
+
+命令编译目标并返回生成图片的绝对路径；具体参数见 [Preview render](https://developer.android.com/tools/agents/android-cli/commands/preview_render)。实际打开浅深色 PNG 核对外观，命令成功不代替视觉确认。
+
+较旧的 CLI 可借用运行中的 Android Studio 渲染器：
+
+```sh
+android studio render-compose-preview \
+  app/src/main/java/moe/kirakira/ui/components/HistorySearchLogo.kt \
+  HistorySearchLogoPreview \
+  --output-image-file=/tmp/history-clock-light.png
+```
+
+兼容入口中，将 composable 名改为 `HistorySearchLogoDarkPreview` 可导出深色预览；存在多个 Studio 项目时，用 `--project` 指定项目绝对路径。该入口可能返回 IDE 旧缓存；代码发生可见变化而图片仍相同时，等待 IDE 完成更新后重新导出，并实际查看生成图片。两个入口只渲染指定预览，不新增基线比较或自动测试；预览检查仍须遵循[构建与检查](../CONTRIBUTING.md#构建与检查)的用户授权约定。
+
+也可在 Android Studio 打开预览文件，切换到 **Design** 或 **Split** 并刷新 Preview：
 
 - [AuthPreview.kt](../app/src/main/java/moe/kirakira/feature/auth/AuthPreview.kt) 的 `AuthStepPreview` 覆盖认证各步骤。
 - [SecuritySettingsPreview.kt](../app/src/main/java/moe/kirakira/feature/settings/security/SecuritySettingsPreview.kt) 的 `SecurityStepPreview` 覆盖修改邮箱、密码及二步验证各步骤；`TwoFactorEnabledPreview` 分别展示邮箱验证和身份验证器已开启的管理页，`SecuritySettingsPreview` 保留游客态预览。

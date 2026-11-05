@@ -8,6 +8,7 @@ internal data class ProfileUiState(
     val followerCount: Int? = null,
     val busy: Boolean = false,
     val avatarKey: String? = null,
+    val bannerKey: String? = null,
 ) {
     val isSelf get() = profile.isSelf
     val following get() = profile.following

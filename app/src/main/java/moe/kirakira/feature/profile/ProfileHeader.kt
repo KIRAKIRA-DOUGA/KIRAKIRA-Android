@@ -32,7 +32,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -44,6 +43,7 @@ import moe.kirakira.ui.components.AnimatedCountLabel
 import moe.kirakira.ui.components.ExpandableText
 import moe.kirakira.ui.components.FollowButton
 import moe.kirakira.ui.components.ShadowButton
+import moe.kirakira.ui.components.UsernameText
 import moe.kirakira.ui.navigation.LocalImageSharedScope
 import moe.kirakira.ui.navigation.imageSharedBounds
 import moe.kirakira.ui.theme.ThemeColorDefaults
@@ -74,21 +74,30 @@ internal fun ProfileHeader(
     onEditProfile: () -> Unit,
     onOpenFollowList: (FollowListKind) -> Unit,
     onOpenAvatar: () -> Unit,
+    onOpenBanner: () -> Unit,
     modifier: Modifier = Modifier,
     coverRemainderHeight: Dp = 96.dp,
 ) {
     val profile = state.profile
     val name = profile.name.ifBlank { stringResource(R.string.content_unknown_author) }
-    val username = profile.username.takeIf { it.isNotBlank() }?.let { "@$it" }
     val bio = profile.signature.takeIf { it.isNotBlank() }
     val background = ThemeColorDefaults.pageBackgroundColor()
     val avatarDescription = stringResource(R.string.profile_view_avatar, name)
+    val bannerDescription = stringResource(R.string.profile_view_banner, name)
     Column(modifier) {
         Box(
             Modifier
                 .fillMaxWidth()
                 .height(coverRemainderHeight + 56.dp),
         ) {
+            // The image is in the scrolling background; keep its hit target in the header.
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(coverRemainderHeight)
+                    .clickable(onClickLabel = bannerDescription, onClick = onOpenBanner)
+                    .semantics { contentDescription = bannerDescription },
+            )
             Box(
                 Modifier
                     .align(Alignment.BottomCenter)
@@ -144,13 +153,11 @@ internal fun ProfileHeader(
                         modifier = Modifier.semantics { heading() },
                     )
                 }
-                if (username != null) {
+                if (profile.username.isNotBlank()) {
                     SelectionContainer {
-                        Text(
-                            text = username,
+                        UsernameText(
+                            username = profile.username,
                             style = MaterialTheme.typography.bodyMedium,
-                            fontFamily = FontFamily.Monospace,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }

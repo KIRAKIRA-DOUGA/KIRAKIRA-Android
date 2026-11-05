@@ -17,9 +17,9 @@ import moe.kirakira.core.network.ApiClient
 import moe.kirakira.core.network.ApiException
 import moe.kirakira.core.network.ApiFailure
 import moe.kirakira.data.auth.AuthRepository
-import moe.kirakira.data.auth.SessionOperationType
 import moe.kirakira.data.auth.SessionState
 import moe.kirakira.data.auth.StoredAccount
+import moe.kirakira.data.auth.isReadyForContent
 import moe.kirakira.data.content.VideoSummary
 import moe.kirakira.data.content.secondsToMilliseconds
 
@@ -63,7 +63,7 @@ internal class HistoryRepository(
 
     private fun requireRevision(revision: Long) {
         syncSession(session.value)
-        if (session.value.revision != revision || !session.value.readyForHistory) {
+        if (session.value.revision != revision || !session.value.isReadyForContent) {
             throw CancellationException("Account changed")
         }
     }
@@ -134,7 +134,7 @@ internal class HistoryRepository(
 
     fun enqueue(videoId: Int, positionMs: Long, revision: Long) {
         syncSession(session.value)
-        if (session.value.revision != revision || !session.value.readyForHistory ||
+        if (session.value.revision != revision || !session.value.isReadyForContent ||
             session.value.activeUuid == null || videoId <= 0 || positionMs < 0) return
         pending[videoId] = positionMs / 1000 * 1000
         if (writer?.isActive == true) return
@@ -183,9 +183,6 @@ internal class HistoryRepository(
         return auth.withRequestSession(revision) { snapshot -> block(snapshot.requiredAccount()) }
     }
 }
-
-private val SessionState.readyForHistory: Boolean
-    get() = !isLoading && operation?.type != SessionOperationType.INITIALIZE
 
 @Serializable
 private data class HistoryResponse(val success: Boolean, val result: List<HistoryDto>? = null)

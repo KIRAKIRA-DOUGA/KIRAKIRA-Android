@@ -7,13 +7,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -62,7 +60,9 @@ import moe.kirakira.data.content.VideoTag
 import moe.kirakira.ui.components.AnimatedCountLabel
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
+import moe.kirakira.ui.components.ContentStatusViewport
 import moe.kirakira.ui.components.FrostedScaffold
+import moe.kirakira.ui.components.SearchVideosEmptyLogo
 import moe.kirakira.ui.components.video.VideoCardRow
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
@@ -124,6 +124,7 @@ private fun SearchScreenContent(
     val rows = remember(videos, state.layout) { videos.chunked(state.layout.columns) }
     val density = LocalDensity.current
     var headerHeightPx by remember { mutableIntStateOf(0) }
+    var historyErrorHeightPx by remember { mutableIntStateOf(0) }
     ContentPullToRefresh(
         isRefreshing = !state.pickerOpen && state.videos.loading && state.videos.data != null,
         onRefresh = { onEvent(SearchEvent.Refresh) },
@@ -131,10 +132,17 @@ private fun SearchScreenContent(
         enabled = state.ready && !state.pickerOpen && state.submitted != null && !state.videos.loading,
         indicatorTopPadding = contentPadding.calculateTopPadding(),
     ) {
-        BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-            val headerHeight = with(density) { headerHeightPx.toDp() }
-            val statusHeight = (maxHeight - contentPadding.calculateTopPadding() -
-                contentPadding.calculateBottomPadding() - headerHeight - 36.dp).coerceAtLeast(120.dp)
+        val listContentPadding = PaddingValues(
+            start = 16.dp, end = 16.dp, top = contentPadding.calculateTopPadding() + 8.dp,
+            bottom = contentPadding.calculateBottomPadding() + 16.dp,
+        )
+        ContentStatusViewport(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = listContentPadding,
+            leadingContentHeight = with(density) {
+                (headerHeightPx + if (state.historyError) historyErrorHeightPx else 0).toDp()
+            } + if (state.historyError) 24.dp else 12.dp,
+        ) { statusModifier ->
             AnimatedVisibility(
                 visible = state.submitted == null,
                 enter = fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()) +
@@ -147,15 +155,16 @@ private fun SearchScreenContent(
             if (state.submitted != null) LazyColumn(
                 state = listState,
                 modifier = Modifier.widthIn(max = 840.dp).fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = 16.dp, end = 16.dp, top = contentPadding.calculateTopPadding() + 8.dp,
-                    bottom = contentPadding.calculateBottomPadding() + 16.dp,
-                ),
+                contentPadding = listContentPadding,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 if (state.historyError) item("history-error") {
-                    SearchHistoryError(onEvent, canDismiss = state.historyLoaded)
+                    SearchHistoryError(
+                        onEvent,
+                        modifier = Modifier.onSizeChanged { historyErrorHeightPx = it.height },
+                        canDismiss = state.historyLoaded,
+                    )
                 }
                 item("search-header") {
                     Row(
@@ -172,10 +181,12 @@ private fun SearchScreenContent(
                             state.videos.copy(loading = state.videos.loading && state.videos.data == null),
                             onRetry = { onEvent(SearchEvent.Refresh) },
                             modifier = Modifier.fillMaxWidth().then(
-                                if (state.videos.data.isNullOrEmpty()) Modifier.heightIn(min = statusHeight) else Modifier,
+                                if (state.videos.data.isNullOrEmpty()) statusModifier else Modifier,
                             ),
                             empty = state.videos.data.isNullOrEmpty(),
                             emptyTitle = stringResource(R.string.search_videos_empty),
+                            emptyDescription = null,
+                            emptyIcon = { SearchVideosEmptyLogo() },
                             emptyIconRes = R.drawable.ic_symbol_search,
                         )
                     }

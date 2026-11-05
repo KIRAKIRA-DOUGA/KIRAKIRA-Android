@@ -2,7 +2,6 @@ package moe.kirakira.feature.tag
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,7 +10,6 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,13 +27,17 @@ import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -52,10 +54,11 @@ import moe.kirakira.data.content.VideoTag
 import moe.kirakira.ui.components.AnimatedCountLabel
 import moe.kirakira.ui.components.CollapsibleTopAppBar
 import moe.kirakira.ui.components.ConnectedLazyColumn
+import moe.kirakira.ui.components.ContentLoadingView
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
+import moe.kirakira.ui.components.ContentStatusViewport
 import moe.kirakira.ui.components.FrostedScaffold
-import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.components.video.VideoCardLayout
@@ -96,6 +99,10 @@ internal fun TagScreen(
     var showNames by rememberSaveable(tagId, sessionRevision) { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val rows = videos.data.orEmpty().chunked(layout.columns)
+    val density = LocalDensity.current
+    var identityHeight by remember { mutableIntStateOf(0) }
+    var tagStatusHeight by remember { mutableIntStateOf(0) }
+    var countHeight by remember { mutableIntStateOf(0) }
     FrostedScaffold(
         modifier = modifier.nestedScroll(scroll.nestedScrollConnection),
         topBar = {
@@ -112,28 +119,35 @@ internal fun TagScreen(
             indicatorTopPadding = padding.calculateTopPadding(),
             modifier = Modifier.fillMaxSize().consumeWindowInsets(padding),
         ) {
+            val listContentPadding = PaddingValues(
+                start = padding.calculateStartPadding(direction) + 20.dp,
+                end = padding.calculateEndPadding(direction) + 20.dp,
+                top = padding.calculateTopPadding() + 28.dp,
+                bottom = padding.calculateBottomPadding() + 24.dp,
+            )
             val initialLoading = tag.loading && tag.data == null && videos.loading && videos.data == null
             if (initialLoading) {
-                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                    IndeterminateCircularProgressIndicator()
-                }
+                ContentLoadingView(modifier = Modifier.fillMaxSize().padding(listContentPadding))
             } else {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                val showTagStatus = tag.error != null || value == null
+                val headerHeight = with(density) {
+                    (identityHeight + countHeight + if (showTagStatus) tagStatusHeight else 0).toDp()
+                }
+                ContentStatusViewport(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = listContentPadding,
+                    leadingContentHeight = headerHeight + if (showTagStatus) 48.dp else 32.dp,
+                ) { statusModifier ->
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.widthIn(max = 840.dp).fillMaxSize(),
-                        contentPadding = PaddingValues(
-                            start = padding.calculateStartPadding(direction) + 20.dp,
-                            end = padding.calculateEndPadding(direction) + 20.dp,
-                            top = padding.calculateTopPadding() + 28.dp,
-                            bottom = padding.calculateBottomPadding() + 24.dp,
-                        ),
+                        contentPadding = listContentPadding,
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         item("identity") {
                             Column(
-                                Modifier.fillMaxWidth().animateContentSize(),
+                                Modifier.fillMaxWidth().onSizeChanged { identityHeight = it.height }.animateContentSize(),
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
                                 Text(name, style = MaterialTheme.typography.headlineLarge,
@@ -144,9 +158,9 @@ internal fun TagScreen(
                                 }
                             }
                         }
-                        if (tag.error != null || value == null) item("tag-status") {
+                        if (showTagStatus) item("tag-status") {
                             ContentStatus(tag.copy(loading = tag.loading && tag.data == null), onRetryTag,
-                                Modifier.fillMaxWidth(), emptyTitle = stringResource(R.string.tag_not_found),
+                                Modifier.fillMaxWidth().onSizeChanged { tagStatusHeight = it.height }, emptyTitle = stringResource(R.string.tag_not_found),
                                 emptyIconRes = R.drawable.ic_symbol_label, empty = tag.data != null && value == null)
                         }
                         item("count") {
@@ -156,7 +170,7 @@ internal fun TagScreen(
                                     text = stringResource(R.string.tag_related_videos),
                                     style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.fillMaxWidth().semantics { heading() },
+                                    modifier = Modifier.fillMaxWidth().onSizeChanged { countHeight = it.height }.semantics { heading() },
                                 )
                             } else {
                                 AnimatedCountLabel(
@@ -164,13 +178,15 @@ internal fun TagScreen(
                                     template = pluralStringResource(R.plurals.tag_video_count, count),
                                     style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.fillMaxWidth().semantics { heading() },
+                                    modifier = Modifier.fillMaxWidth().onSizeChanged { countHeight = it.height }.semantics { heading() },
                                 )
                             }
                         }
                         if (videos.error != null || videos.data.isNullOrEmpty()) item("video-status") {
                             ContentStatus(videos.copy(loading = videos.loading && videos.data == null), onRetryVideos,
-                                Modifier.fillMaxWidth().heightIn(min = 180.dp), empty = videos.data.isNullOrEmpty(),
+                                Modifier.fillMaxWidth().then(
+                                    if (videos.data.isNullOrEmpty()) statusModifier else Modifier,
+                                ), empty = videos.data.isNullOrEmpty(),
                                 emptyTitle = stringResource(R.string.tag_videos_empty),
                                 emptyIconRes = R.drawable.ic_symbol_video_library)
                         }

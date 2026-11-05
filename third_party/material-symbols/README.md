@@ -165,3 +165,11 @@
 `feature/player/VolumeIconMorph.kt` 的音量形变读取上述官方 `volume_up` 路径，缓存扬声器及两条声波轮廓，通过扬声器水平位移和声波轮廓缩放连接零／低／高音量；扬声器保持实心，静止端点对应 `volume_mute`、`volume_down`、`volume_up` 的几何，不使用带斜线的静音图标。中间帧为应用定义的路径变换，保留原有许可，支持 RTL 镜像。
 
 双击跳转反馈复用现有官方 Material Symbols Rounded `fast_forward`／`fast_rewind` 资源，解析并缓存资源中两个箭头的原始轮廓，以错开时序的短距离独立位移、共享位移、轻微缩放和透明度脉冲提供动效；快速连点合并待播装饰脉冲，当前动画自然收尾后续接，不改动图标轮廓，没有新增图标资源或许可来源。
+
+## 视频封面菜单
+
+- [`image`](https://github.com/google/material-design-icons/blob/master/symbols/android/image/materialsymbolsrounded/image_24px.xml)：视频省略菜单的「查看封面」。使用官方 Rounded、24dp、wght 400、GRAD 0、FILL 0，保留原始路径，移除 theme tint，整理缩进并增加来源注释。
+
+## 经典搜索插画轮廓
+
+`ui/components/SearchEmptyLogos.kt` 的放大镜复用同一 Google 仓库中经典 [Material Icons search 的 24px SVG](https://github.com/google/material-design-icons/blob/master/src/action/search/materialicons/24px.svg)，沿用本目录 Apache 2.0 许可。保留原始轮廓路径和宽高比例，等比缩放、平移后填入浅灰镜片，另加应用自定义的深灰配色、1dp 纸边、2dp 投影与轻扫动画；它是空状态插画，不替换普通界面的 Rounded 系统图标。

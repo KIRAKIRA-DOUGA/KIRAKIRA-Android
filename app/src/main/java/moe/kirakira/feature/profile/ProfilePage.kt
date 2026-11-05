@@ -172,6 +172,7 @@ internal fun ProfilePage(
         value.copy(isSelf = value.uid == session.activeProfile?.uid),
         stats.data?.following, stats.data?.followers, busy || details.loading || details.error != null,
         avatarKey = "profile/$sourceInstanceId/$avatarIdentity",
+        bannerKey = "profile/$sourceInstanceId/banner",
     )
     val pager = rememberPagerState(pageCount = { ProfileTab.entries.size })
     val videosListState = rememberLazyListState()
@@ -216,6 +217,18 @@ internal fun ProfilePage(
                     ),
                 )
             }
+        },
+        onOpenBanner = {
+            val source = ImageSource.Resource(R.drawable.profile_banner_placeholder)
+            onOpenImage(
+                ViewerImage(
+                    source = source,
+                    description = resources.getString(R.string.profile_view_banner, value.name),
+                    fileName = "banner_${value.uid}",
+                    sharedKey = state.bannerKey,
+                    thumbnail = source,
+                ),
+            )
         },
         onOpenVideo = onOpenVideo, onBack = onBack, onRetry = model::refresh,
         isRefreshing = (profile.loading || videos.loading || stats.loading) &&
