@@ -92,8 +92,10 @@ internal class CommentListLoader(
     fun jump(page: Int) {
         if (!ready) return
         val target = page.coerceAtLeast(1)
-        if (mutableState.value.pages[target]?.comments?.isNotEmpty() == true &&
-            mutableState.value.updatingPages.isEmpty()
+        val request = CommentRequest(target, CommentOperation.JUMP)
+        val current = mutableState.value
+        if (current.loading && failedRequest == request) return
+        if (current.pages[target]?.comments?.isNotEmpty() == true && current.updatingPages.isEmpty()
         ) {
             cancelRequests()
             mutableState.value = mutableState.value.copy(
@@ -102,7 +104,7 @@ internal class CommentListLoader(
             )
             return
         }
-        replace(CommentRequest(target, CommentOperation.JUMP))
+        replace(request)
     }
 
     private fun replace(request: CommentRequest) {
