@@ -69,6 +69,9 @@ internal fun PageSearchBar(
     maxContentWidth: Dp = 640.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    StatusBarScrollToTopPauseEffect(
+        isActive && (state.currentValue != SearchBarValue.Collapsed || state.targetValue != SearchBarValue.Collapsed),
+    )
     LaunchedEffect(enabled) {
         if (!enabled) state.animateToCollapsed()
     }
@@ -153,6 +156,7 @@ internal fun PageSearchOverlay(
         if (!enabled) state.animateToCollapsed()
     }
     if (state.currentValue == SearchBarValue.Collapsed && state.targetValue == SearchBarValue.Collapsed) return
+    StatusBarScrollToTopPauseEffect(paused = isActive)
     val scope = rememberCoroutineScope()
     val requester = remember { FocusRequester() }
     val focus = LocalFocusManager.current

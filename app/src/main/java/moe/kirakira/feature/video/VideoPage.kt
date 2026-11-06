@@ -65,8 +65,8 @@ import moe.kirakira.core.image.deliveryImageUrl
 import moe.kirakira.core.share.shareContent
 import moe.kirakira.core.share.videoShareUrl
 import moe.kirakira.data.content.ContentRepository
-import moe.kirakira.data.image.ImageSource
 import moe.kirakira.data.history.HistoryRepository
+import moe.kirakira.data.image.ImageSource
 import moe.kirakira.data.settings.AccountSettingsRepository
 import moe.kirakira.data.settings.DanmakuSettings
 import moe.kirakira.data.settings.PlaybackSettings
@@ -77,6 +77,7 @@ import moe.kirakira.feature.player.PlaybackViewModel
 import moe.kirakira.feature.player.PlaybackViewportState
 import moe.kirakira.feature.player.PlayerUiState
 import moe.kirakira.feature.player.VideoPlayer
+import moe.kirakira.ui.components.StatusBarScrollToTopPauseEffect
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.components.video.rememberVideoZoomPlaceholder
 
@@ -150,6 +151,7 @@ internal fun VideoPage(
     var windowFullscreen by remember { mutableStateOf(false) }
     var fullscreenInlineLayout by remember { mutableStateOf<InlinePlayerLayout?>(null) }
     val detailsInteractive = isActive && !pip && !fullscreen && !windowFullscreen
+    StatusBarScrollToTopPauseEffect(paused = isActive && !detailsInteractive)
     if (publicationRetry != null && detailsInteractive) {
         PublicationRetryDialog(
             busy, model::dismissPublicationRetry, model::checkPublication, model::confirmPublicationRetry,

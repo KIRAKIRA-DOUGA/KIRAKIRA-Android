@@ -396,3 +396,17 @@ TOTP 页面把二维码与打开验证器操作放在同一区域，密钥与复
 入场时保留底栏关注点击的脉冲节奏：中心、内圈、外圈相隔 70ms 启动，各自在 90ms 达到 1.22／1.14／1.10 倍、190ms 回收到 0.95／0.97／0.98 倍、300ms 回到原尺寸，总时长 440ms。各纸层以共同圆心 `(480, 480)` 缩放，纸底静止，底边与投影共用图层，逐帧状态仅在图层及绘制阶段读取。每次进入组合播放一次，不循环；关闭系统动画及静态预览显示终态。图形无独立语义，保留“暂未开放”标题，无辅助小字；关注业务仍为占位。
 
 `FollowingLogoPreview` 与 `FollowingLogoDarkPreview` 在实际主题 `Surface` 上展示固定终态；`FollowingLogoMotionPreview` 用同一脉冲 AnimationSpec 在 0／90／160／230／440ms 固定采样。通过 Android CLI 独立渲染以上预览检查同心、投影重叠和动画峰值留白，不访问网络或账号状态，不新增截图基线。预览命令见[Compose 布局预览](../development.md#compose-布局预览)。
+
+## 系统状态栏回顶
+
+`StatusBarScrollToTopHost` 在应用导航之上创建 Activity 生命周期绑定的 `StatusBarScrollToTopBridge`。页面通过内部 `StatusBarScrollToTopEffect` 注册现有 `LazyListState`／`ScrollState`，也可提供身份、可回顶条件和挂起回调；`DisposableEffect` 配对注册与清理，最新条件和回调通过 `rememberUpdatedState` 读取，`snapshotFlow` 只同步启用及可回顶条件的变化，不逐像素镜像原生滚动位置。取消异常继续传播，不修改业务数据或触发刷新。
+
+Xiaomi／Redmi／POCO 宿主在 Compose View 下方安装透明、可见、同尺寸的原生 `ScrollView`，以真实滚动范围和 100px 非零哨兵表达可回顶状态。子 View 的内容高度通过 `minimumHeight` 提供，确保在 `ScrollView` 的纵向无界测量下仍形成真实滚动范围。代理不接收触摸与焦点、不显示滚动条，不进入无障碍子树；自身布局和状态同步不转发事件。系统将代理滚回零时，统一分发到当前 Compose 目标。目标或可用状态改变时替换代理，取消旧原生动画；请求期间不重新武装，旧请求的完成结果不能影响新目标。该路线参考 [status_bar_scroll_to_top 的原生实现](https://github.com/HBWuChang/status_bar_scroll_to_top/blob/main/android/src/main/java/com/xiebian/statusbar_scroll_to_top/StatusBarScrollToTopPlugin.java)及其 [HyperOS 3 验证记录](https://github.com/HBWuChang/status_bar_scroll_to_top/blob/main/VALIDATION.md)，参考项目的验证不等同于本客户端的 Compose 实机验收。
+
+OPPO／OnePlus／realme 前台动态监听 `com.oplus.clicktop` 与 `com.color.clicktop`；华为／荣耀兼容 Android 的系统监听 `com.huawei.intent.action.CLICK_STATUSBAR`，并要求发送方具有 `huawei.permission.CLICK_STATUSBAR_BROADCAST`。使用 `ContextCompat.RECEIVER_EXPORTED` 接收系统其他进程发送的事件，后台注销；不在 Manifest 常驻注册，不请求用户权限，不反射厂商私有 API。系统不提供入口或拒绝广播注册时保持原有滚动能力。
+
+导航 Scene 通过 `LocalStatusBarScrollToTopEnabled` 限制为转场结束后的当前可交互页面，嵌套导航同时继承外层条件。主界面、资料与邀请码分页只启用当前且停止切换的页签，保留的视频正文额外遵循 `isActive`、全屏及画中画条件。失焦自动暂停；`StatusBarScrollToTopPauseEffect` 为同窗口弹层保留最高优先级但不可滚动的目标，避免事件穿透到正文。一般正文优先于独立标题，确有内部滚动的页面级空／错误内容优先处理自身滚动；同一时刻仅运行一个回顶任务。
+
+`StatusBarScrollToTopHeader` 为正文提供标题／封面展开动作，也覆盖只有标题折叠的情况。`SettingsColumn`、`AccountFlowScaffold` 集中接入自己的滚动状态；独立列表在状态所有者处注册。`SmoothScrollToTop` 为状态栏、底栏和页内 Tab 重复点击提供共享的 `LazyListState`、`LazyGridState` 与 `ScrollState.smoothScrollToTop` 入口。统一使用 `tween` 与 `FastOutSlowInEasing`，基础时长 600ms，每个视口距离增加 100ms，最多按六个视口计入，最长 1200ms；仅标题折叠时使用 600ms。正文与可折叠标题／封面由同一个进度逐帧驱动，标题位移通过既有 `nestedScrollConnection.onPostScroll` 应用。普通正文按剩余像素距离滚动，Lazy 列表与网格通过公开 `LazyLayoutScrollScope` 随实际布局更新剩余距离，从当前位置连续接近顶部，只在动画结束时对齐首项；已在顶部的内容不启动动画。页面或页签失活、窗口失焦、后台及正文拖动都会取消整段任务。`CollapsibleTopAppBar` 在指针 Initial 阶段观察标题区域的按下事件，立即注册最高优先级的暂停目标，取消当前回顶；该观察不消费事件。标题拖动由 Foundation 的纵向 `draggable` 接管，并通过 Material 滚动行为的 `onPostFling` 完成惯性与吸附，整个拖动和收尾期间维持暂停。新一轮拖动取消旧收尾并接续暂停，组件移除时清理暂停目标。官方顶栏继续按同一 `TopAppBarState` 渲染布局和标题。底栏与页签重复点击共用同一缓动与时长计算，并保留原有的当前列表选择及标题／封面状态规则。
+
+厂商实机验收仍待完成：深列表与仅标题折叠、当前页签独占、重复点击、拖动打断、各类弹层暂停、导航返回、后台恢复，以及全屏与画中画。分别记录设备和系统版本，不将 Debug 构建成功视为这些行为已验证。

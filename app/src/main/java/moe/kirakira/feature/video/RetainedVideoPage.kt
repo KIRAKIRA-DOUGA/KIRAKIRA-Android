@@ -16,6 +16,7 @@ import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.rememberLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import moe.kirakira.ui.components.LocalStatusBarScrollToTopEnabled
 
 /** Stores survive Activity recreation; only retained route/session identities keep their models. */
 internal class RetainedVideoPageViewModel : ViewModel() {
@@ -66,6 +67,7 @@ internal fun RetainedVideoPage(
         CompositionLocalProvider(
             LocalViewModelStoreOwner provides owner,
             LocalLifecycleOwner provides lifecycleOwner,
+            LocalStatusBarScrollToTopEnabled provides isActive,
         ) {
             savedStates.SaveableStateProvider(videoId) { content() }
         }

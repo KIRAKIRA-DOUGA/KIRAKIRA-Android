@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
@@ -23,6 +24,7 @@ import moe.kirakira.R
 import moe.kirakira.feature.settings.SettingsDefaults
 import moe.kirakira.feature.settings.SettingsScaffold
 import moe.kirakira.ui.components.ConnectedListGroup
+import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.components.connectedListItemShapes
 
 @Serializable
@@ -46,9 +48,12 @@ internal fun ComponentTestScreen(
         shadingIcon = R.drawable.ic_symbol_palette,
         modifier = modifier,
     ) { padding ->
+        val listState = rememberLazyListState()
+        StatusBarScrollToTopEffect(listState)
         val direction = LocalLayoutDirection.current
         Box(Modifier.fillMaxSize().consumeWindowInsets(padding), contentAlignment = Alignment.TopCenter) {
             LazyColumn(
+                state = listState,
                 modifier = Modifier.widthIn(max = SettingsDefaults.MaxContentWidth).fillMaxSize(),
                 contentPadding = PaddingValues(
                     start = padding.calculateStartPadding(direction) + SettingsDefaults.HorizontalPadding,

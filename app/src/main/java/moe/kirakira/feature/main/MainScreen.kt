@@ -3,6 +3,7 @@ package moe.kirakira.feature.main
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterExitState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -27,6 +28,7 @@ import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,10 +63,13 @@ import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.FollowingLogo
 import moe.kirakira.ui.components.FrostedScaffold
+import moe.kirakira.ui.components.LocalStatusBarScrollToTopEnabled
 import moe.kirakira.ui.components.ShadingIcon
+import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.components.appTopAppBarColors
 import moe.kirakira.ui.components.dismissKeyboardOnBlankTap
 import moe.kirakira.ui.components.rememberTabReselectHandler
+import moe.kirakira.ui.components.smoothScrollToTop
 import moe.kirakira.ui.components.video.VideoCardLayout
 import moe.kirakira.ui.components.video.VideoCardRow
 import moe.kirakira.ui.content.ContentState
@@ -99,9 +104,9 @@ internal fun MainScreen(
     var searchScrollToTop by remember { mutableStateOf<(suspend () -> Unit)?>(null) }
     val reselectTab = rememberTabReselectHandler { page ->
         when (AppDestination.entries[page]) {
-            AppDestination.HOME -> homeScrollState.animateScrollToItem(0)
+            AppDestination.HOME -> homeScrollState.smoothScrollToTop()
             AppDestination.SEARCH -> searchScrollToTop?.invoke()
-            AppDestination.ME -> meScrollState.animateScrollTo(0)
+            AppDestination.ME -> meScrollState.smoothScrollToTop()
             AppDestination.FOLLOWING -> Unit
         }
     }
@@ -150,113 +155,126 @@ internal fun MainScreen(
             label = "Main tab transition",
         ) { page ->
             tabStateHolder.SaveableStateProvider(page.name) {
-                FrostedScaffold(
-                    modifier = Modifier.fillMaxSize().dismissKeyboardOnBlankTap(
-                        enabled = page == AppDestination.SEARCH && destination == page,
-                    ),
-                    containerColor = ThemeColorDefaults.pageBackgroundColor(),
-                    contentWindowInsets = ScaffoldDefaults.contentWindowInsets.only(
-                        WindowInsetsSides.Top + WindowInsetsSides.Horizontal,
-                    ),
-                    topBar = {
-                        MainTopBar(
-                            avatar = profile?.avatar,
-                            destination = page,
-                            onOpenMe = {
-                                reselectTab(null)
-                                destination = AppDestination.ME
-                            },
-                            searchTopBar = searchTopBar,
-                        )
-                    },
-                ) { innerPadding ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(
-                                top = if (page == AppDestination.FOLLOWING) innerPadding.calculateTopPadding() else 0.dp,
-                                start = innerPadding.calculateStartPadding(layoutDirection),
-                                end = innerPadding.calculateEndPadding(layoutDirection),
-                                bottom = if (page != AppDestination.FOLLOWING) {
-                                    0.dp
-                                } else {
-                                    bottomBarPadding.calculateBottomPadding()
+                CompositionLocalProvider(
+                    LocalStatusBarScrollToTopEnabled provides (
+                        LocalStatusBarScrollToTopEnabled.current && page == destination &&
+                            transition.currentState == EnterExitState.Visible &&
+                            transition.targetState == EnterExitState.Visible && !transition.isRunning
+                        ),
+                ) {
+                    when (page) {
+                        AppDestination.HOME -> StatusBarScrollToTopEffect(homeScrollState)
+                        AppDestination.ME -> StatusBarScrollToTopEffect(meScrollState)
+                        AppDestination.SEARCH, AppDestination.FOLLOWING -> Unit
+                    }
+                    FrostedScaffold(
+                        modifier = Modifier.fillMaxSize().dismissKeyboardOnBlankTap(
+                            enabled = page == AppDestination.SEARCH && destination == page,
+                        ),
+                        containerColor = ThemeColorDefaults.pageBackgroundColor(),
+                        contentWindowInsets = ScaffoldDefaults.contentWindowInsets.only(
+                            WindowInsetsSides.Top + WindowInsetsSides.Horizontal,
+                        ),
+                        topBar = {
+                            MainTopBar(
+                                avatar = profile?.avatar,
+                                destination = page,
+                                onOpenMe = {
+                                    reselectTab(null)
+                                    destination = AppDestination.ME
                                 },
+                                searchTopBar = searchTopBar,
                             )
-                            .consumeWindowInsets(innerPadding)
-                            .consumeWindowInsets(bottomBarPadding),
-                    ) {
-                        when (page) {
-                            AppDestination.HOME -> ContentPullToRefresh(
-                                isRefreshing = videos.loading && videos.data != null,
-                                onRefresh = onRefreshVideos,
-                                indicatorTopPadding = innerPadding.calculateTopPadding(),
-                                modifier = Modifier.fillMaxSize(),
-                            ) {
-                                val listContentPadding = PaddingValues(
-                                    top = innerPadding.calculateTopPadding() + 16.dp,
-                                    bottom = bottomBarPadding.calculateBottomPadding() + 16.dp,
-                                    start = 16.dp,
-                                    end = 16.dp,
+                        },
+                    ) { innerPadding ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(
+                                    top = if (page == AppDestination.FOLLOWING) innerPadding.calculateTopPadding() else 0.dp,
+                                    start = innerPadding.calculateStartPadding(layoutDirection),
+                                    end = innerPadding.calculateEndPadding(layoutDirection),
+                                    bottom = if (page != AppDestination.FOLLOWING) {
+                                        0.dp
+                                    } else {
+                                        bottomBarPadding.calculateBottomPadding()
+                                    },
                                 )
-                                ContentStatusViewport(
+                                .consumeWindowInsets(innerPadding)
+                                .consumeWindowInsets(bottomBarPadding),
+                        ) {
+                            when (page) {
+                                AppDestination.HOME -> ContentPullToRefresh(
+                                    isRefreshing = videos.loading && videos.data != null,
+                                    onRefresh = onRefreshVideos,
+                                    indicatorTopPadding = innerPadding.calculateTopPadding(),
                                     modifier = Modifier.fillMaxSize(),
-                                    contentPadding = listContentPadding,
-                                    leadingContentHeight = 0.dp,
-                                ) { statusModifier ->
-                                    LazyColumn(
-                                        state = homeScrollState,
-                                        modifier = Modifier.fillMaxSize().testTag("home_screen"),
+                                ) {
+                                    val listContentPadding = PaddingValues(
+                                        top = innerPadding.calculateTopPadding() + 16.dp,
+                                        bottom = bottomBarPadding.calculateBottomPadding() + 16.dp,
+                                        start = 16.dp,
+                                        end = 16.dp,
+                                    )
+                                    ContentStatusViewport(
+                                        modifier = Modifier.fillMaxSize(),
                                         contentPadding = listContentPadding,
-                                    ) {
-                                        item(key = "status") {
-                                            if (videos.error != null || videos.data.isNullOrEmpty()) {
-                                                ContentStatus(
-                                                    videos.copy(loading = videos.loading && videos.data == null), onRefreshVideos,
-                                                    Modifier.fillMaxWidth().then(
-                                                        if (videos.data.isNullOrEmpty()) statusModifier else Modifier,
-                                                    ),
-                                                    videos.data.isNullOrEmpty(),
-                                                )
+                                        leadingContentHeight = 0.dp,
+                                    ) { statusModifier ->
+                                        LazyColumn(
+                                            state = homeScrollState,
+                                            modifier = Modifier.fillMaxSize().testTag("home_screen"),
+                                            contentPadding = listContentPadding,
+                                        ) {
+                                            item(key = "status") {
+                                                if (videos.error != null || videos.data.isNullOrEmpty()) {
+                                                    ContentStatus(
+                                                        videos.copy(loading = videos.loading && videos.data == null), onRefreshVideos,
+                                                        Modifier.fillMaxWidth().then(
+                                                            if (videos.data.isNullOrEmpty()) statusModifier else Modifier,
+                                                        ),
+                                                        videos.data.isNullOrEmpty(),
+                                                    )
+                                                }
                                             }
-                                        }
-                                        items(videos.data.orEmpty().chunked(videosLayout.columns), key = { it.first().id }) { row ->
-                                            Box(Modifier.fillMaxWidth().padding(bottom = 12.dp), contentAlignment = Alignment.TopCenter) {
-                                                VideoCardRow(row, videosLayout, onOpenVideo,
-                                                    Modifier.widthIn(max = 840.dp).fillMaxWidth())
+                                            items(videos.data.orEmpty().chunked(videosLayout.columns), key = { it.first().id }) { row ->
+                                                Box(Modifier.fillMaxWidth().padding(bottom = 12.dp), contentAlignment = Alignment.TopCenter) {
+                                                    VideoCardRow(row, videosLayout, onOpenVideo,
+                                                        Modifier.widthIn(max = 840.dp).fillMaxWidth())
+                                                }
                                             }
                                         }
                                     }
                                 }
+
+                                AppDestination.SEARCH -> searchContent(
+                                    PaddingValues(
+                                        top = innerPadding.calculateTopPadding(),
+                                        bottom = bottomBarPadding.calculateBottomPadding(),
+                                    ),
+                                    registerSearchScrollToTop,
+                                )
+                                AppDestination.FOLLOWING -> ContentUnavailableView(
+                                    state = ContentUnavailableState.EMPTY,
+                                    title = stringResource(R.string.content_not_available_yet),
+                                    description = null,
+                                    icon = { FollowingLogo() },
+                                    modifier = Modifier.fillMaxSize().testTag("following_screen"),
+                                )
+
+                                AppDestination.ME -> MeScreen(
+                                    profile = profile,
+                                    onOpenSettings = onOpenSettings,
+                                    onOpenProfile = onOpenProfile,
+                                    onOpenHistory = onOpenHistory,
+                                    onOpenFavorites = onOpenFavorites,
+                                    scrollState = meScrollState,
+                                    contentPadding = PaddingValues(
+                                        top = innerPadding.calculateTopPadding(),
+                                        bottom = bottomBarPadding.calculateBottomPadding(),
+                                    ),
+                                )
                             }
-
-                            AppDestination.SEARCH -> searchContent(
-                                PaddingValues(
-                                    top = innerPadding.calculateTopPadding(),
-                                    bottom = bottomBarPadding.calculateBottomPadding(),
-                                ),
-                                registerSearchScrollToTop,
-                            )
-                            AppDestination.FOLLOWING -> ContentUnavailableView(
-                                state = ContentUnavailableState.EMPTY,
-                                title = stringResource(R.string.content_not_available_yet),
-                                description = null,
-                                icon = { FollowingLogo() },
-                                modifier = Modifier.fillMaxSize().testTag("following_screen"),
-                            )
-
-                            AppDestination.ME -> MeScreen(
-                                profile = profile,
-                                onOpenSettings = onOpenSettings,
-                                onOpenProfile = onOpenProfile,
-                                onOpenHistory = onOpenHistory,
-                                onOpenFavorites = onOpenFavorites,
-                                scrollState = meScrollState,
-                                contentPadding = PaddingValues(
-                                    top = innerPadding.calculateTopPadding(),
-                                    bottom = bottomBarPadding.calculateBottomPadding(),
-                                ),
-                            )
                         }
                     }
                 }

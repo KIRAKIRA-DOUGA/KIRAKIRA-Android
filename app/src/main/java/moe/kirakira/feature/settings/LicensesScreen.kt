@@ -54,6 +54,7 @@ import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.ShadingIcon
+import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.components.appTopAppBarColors
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
@@ -101,6 +102,7 @@ internal fun LicensesContent(
     val listState = rememberLazyListState()
     val layoutDirection = LocalLayoutDirection.current
     var sheetLibraryId by rememberSaveable { mutableStateOf<String?>(null) }
+    StatusBarScrollToTopEffect(listState, enabled = sheetLibraryId == null)
 
     FrostedScaffold(
         modifier = modifier

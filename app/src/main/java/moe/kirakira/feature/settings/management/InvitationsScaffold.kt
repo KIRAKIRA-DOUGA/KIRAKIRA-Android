@@ -22,6 +22,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -51,8 +52,10 @@ import moe.kirakira.ui.components.ContentUnavailableAction
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
+import moe.kirakira.ui.components.LocalStatusBarScrollToTopEnabled
 import moe.kirakira.ui.components.PagerTabRow
 import moe.kirakira.ui.components.ShadingIcon
+import moe.kirakira.ui.components.StatusBarScrollToTopHeader
 import moe.kirakira.ui.components.appTopAppBarColors
 import moe.kirakira.ui.components.frostedBarBackground
 import moe.kirakira.ui.components.rememberCollapsingTabState
@@ -212,16 +215,25 @@ internal fun InvitationsScaffold(
                                         } else Modifier,
                                     ),
                             ) { page ->
-                                content(
-                                    page,
-                                    PaddingValues(
-                                        start = 16.dp,
-                                        end = 16.dp,
-                                        top = topContentPadding + 16.dp,
-                                        bottom = padding.calculateBottomPadding() + 24.dp,
-                                    ),
-                                    with(density) { (headerState.headerHeight - headerState.offset).toDp() },
-                                )
+                                CompositionLocalProvider(
+                                    LocalStatusBarScrollToTopEnabled provides (
+                                        LocalStatusBarScrollToTopEnabled.current &&
+                                            page == pagerState.currentPage && !pagerState.isScrollInProgress
+                                        ),
+                                ) {
+                                    StatusBarScrollToTopHeader(headerState) {
+                                        content(
+                                            page,
+                                            PaddingValues(
+                                                start = 16.dp,
+                                                end = 16.dp,
+                                                top = topContentPadding + 16.dp,
+                                                bottom = padding.calculateBottomPadding() + 24.dp,
+                                            ),
+                                            with(density) { (headerState.headerHeight - headerState.offset).toDp() },
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

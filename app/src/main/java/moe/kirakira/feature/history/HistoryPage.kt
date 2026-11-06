@@ -33,6 +33,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SearchBarValue
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -91,6 +92,7 @@ import moe.kirakira.ui.components.HistorySearchLogo
 import moe.kirakira.ui.components.PageSearchBarAnchor
 import moe.kirakira.ui.components.PageSearchOverlay
 import moe.kirakira.ui.components.ShadingIcon
+import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.components.UsernameText
 import moe.kirakira.ui.components.dateOnlyText
 import moe.kirakira.ui.components.messageRes
@@ -160,6 +162,12 @@ internal fun HistoryScreen(
     var pageOrigin by remember { mutableStateOf(Offset.Zero) }
     val pageList = rememberLazyListState()
     val searchList = rememberLazyListState()
+    StatusBarScrollToTopEffect(
+        pageList,
+        enabled = isActive && searchState.currentValue == SearchBarValue.Collapsed &&
+            searchState.targetValue == SearchBarValue.Collapsed,
+        scrollBehavior = scroll,
+    )
     val currentQuery by rememberUpdatedState(query)
     val currentOnQueryChange by rememberUpdatedState(onQueryChange)
     LaunchedEffect(query) {

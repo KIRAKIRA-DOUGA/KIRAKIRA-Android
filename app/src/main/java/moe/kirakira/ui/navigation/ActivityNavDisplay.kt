@@ -55,8 +55,9 @@ import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import androidx.navigation3.ui.NavDisplay
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
-import moe.kirakira.feature.player.PlaybackViewportState
 import moe.kirakira.feature.player.PlaybackNavigationPage
+import moe.kirakira.feature.player.PlaybackViewportState
+import moe.kirakira.ui.components.LocalStatusBarScrollToTopEnabled
 import moe.kirakira.ui.components.video.LocalVideoZoomOwner
 import moe.kirakira.ui.components.windowCornerRadius
 
@@ -328,7 +329,14 @@ private data class ActivityScene<T : Any>(
             (!imageScene || (
                 lifecycleState == Lifecycle.State.RESUMED && visibility.currentState == EnterExitState.Visible
                 ))
-        CompositionLocalProvider(LocalLifecycleOwner provides owner) {
+        val parentScrollToTopEnabled = LocalStatusBarScrollToTopEnabled.current
+        CompositionLocalProvider(
+            LocalLifecycleOwner provides owner,
+            LocalStatusBarScrollToTopEnabled provides (
+                parentScrollToTopEnabled && interactive && lifecycleState == Lifecycle.State.RESUMED &&
+                    visibility.currentState == EnterExitState.Visible && !visibility.isRunning
+                ),
+        ) {
             Box(
                 Modifier
                     .fillMaxSize()

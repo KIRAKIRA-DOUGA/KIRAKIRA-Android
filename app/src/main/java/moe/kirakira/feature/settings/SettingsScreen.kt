@@ -46,6 +46,7 @@ import moe.kirakira.ui.components.SectionHeader
 import moe.kirakira.ui.components.SegmentedMenuItem
 import moe.kirakira.ui.components.ShadingIcon
 import moe.kirakira.ui.components.ShadowButton
+import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorDefaults
@@ -101,6 +102,7 @@ fun SettingsScreen(
     }
     val scrollBehavior = rememberCollapsibleTopAppBarScrollBehavior()
     val listState = rememberLazyListState()
+    StatusBarScrollToTopEffect(listState, enabled = isActive, scrollBehavior = scrollBehavior)
     val scope = rememberCoroutineScope()
     val layoutDirection = LocalLayoutDirection.current
 

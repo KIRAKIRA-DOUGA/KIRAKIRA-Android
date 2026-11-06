@@ -34,11 +34,13 @@ fun CollapsibleTopAppBar(
     backButtonModifier: Modifier = Modifier,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
+    // Render the shared offset while the modifier owns the drag and its completion.
+    val layoutScrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(scrollBehavior.state)
     LargeFlexibleTopAppBar(
         title = { Text(title, fontWeight = FontWeight.Bold) },
-        modifier = modifier,
+        modifier = if (scrollBehavior.isPinned) modifier else modifier.dragCollapsibleTopAppBar(scrollBehavior),
         expandedHeight = CollapsibleTopAppBarExpandedHeight,
-        scrollBehavior = scrollBehavior,
+        scrollBehavior = layoutScrollBehavior,
         navigationIcon = {
             IconButton(onClick = onBack, modifier = backButtonModifier) {
                 Icon(

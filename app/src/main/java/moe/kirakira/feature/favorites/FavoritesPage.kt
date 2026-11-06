@@ -20,6 +20,7 @@ import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.FavoritesLogo
 import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.ShadingIcon
+import moe.kirakira.ui.components.StatusBarScrollToTopHeader
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
@@ -45,13 +46,15 @@ internal fun FavoritesPage(onBack: () -> Unit, modifier: Modifier = Modifier) {
             }
         },
     ) { padding ->
-        ContentUnavailableView(
-            state = ContentUnavailableState.EMPTY,
-            modifier = Modifier.padding(padding).consumeWindowInsets(padding),
-            title = stringResource(R.string.content_not_available_yet),
-            description = null,
-            icon = { FavoritesLogo() },
-        )
+        StatusBarScrollToTopHeader(scroll) {
+            ContentUnavailableView(
+                state = ContentUnavailableState.EMPTY,
+                modifier = Modifier.padding(padding).consumeWindowInsets(padding),
+                title = stringResource(R.string.content_not_available_yet),
+                description = null,
+                icon = { FavoritesLogo() },
+            )
+        }
     }
 }
 

@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.floor
 import moe.kirakira.R
+import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorSettings
 import moe.kirakira.ui.theme.ThemeMode
@@ -86,6 +87,7 @@ fun AppearanceScreen(
         modifier = modifier.testTag("appearance_screen"),
         backButtonModifier = Modifier.testTag("appearance_back"),
     ) { padding ->
+        StatusBarScrollToTopEffect(listState, enabled = !showCustomColor)
         val start = padding.calculateStartPadding(direction) + SettingsDefaults.HorizontalPadding
         val end = padding.calculateEndPadding(direction) + SettingsDefaults.HorizontalPadding
         Box(

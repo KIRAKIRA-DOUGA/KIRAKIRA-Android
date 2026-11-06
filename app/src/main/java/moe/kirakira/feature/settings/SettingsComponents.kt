@@ -68,6 +68,8 @@ import moe.kirakira.ui.components.SectionHeader
 import moe.kirakira.ui.components.ShadingIcon
 import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.ShadowRadioButton
+import moe.kirakira.ui.components.StatusBarScrollToTopEffect
+import moe.kirakira.ui.components.StatusBarScrollToTopHeader
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.theme.KIRAKIRATheme
@@ -128,7 +130,7 @@ internal fun SettingsScaffold(
         snackbarHost = snackbarHost,
         bottomBar = bottomBar,
         floatingActionButton = floatingActionButton,
-        content = content,
+        content = { padding -> StatusBarScrollToTopHeader(scrollBehavior) { content(padding) } },
     )
 }
 
@@ -143,6 +145,8 @@ internal fun SettingsColumn(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val direction = LocalLayoutDirection.current
+    val scrollState = rememberScrollState()
+    StatusBarScrollToTopEffect(scrollState)
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -153,7 +157,7 @@ internal fun SettingsColumn(
             modifier = Modifier
                 .widthIn(max = SettingsDefaults.MaxContentWidth)
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .padding(
                     start = padding.calculateStartPadding(direction) + SettingsDefaults.HorizontalPadding,
                     end = padding.calculateEndPadding(direction) + SettingsDefaults.HorizontalPadding,

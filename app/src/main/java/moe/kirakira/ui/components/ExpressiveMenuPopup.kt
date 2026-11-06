@@ -35,6 +35,7 @@ fun ExpressiveMenuPopup(
     val visibility = remember { MutableTransitionState(false) }
     visibility.targetState = expanded
     if (!visibility.currentState && !visibility.targetState) return
+    StatusBarScrollToTopPauseEffect()
 
     val positionProvider = MenuDefaults.rememberDropdownMenuPopupPositionProvider(MenuAnchorPosition.Below)
     val transition = rememberTransition(visibility, label = "expressiveMenu")

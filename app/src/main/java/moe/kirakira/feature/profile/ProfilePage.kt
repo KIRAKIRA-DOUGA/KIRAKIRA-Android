@@ -46,6 +46,7 @@ import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.appTopAppBarColors
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.components.rememberTabChangeHandler
+import moe.kirakira.ui.components.smoothScrollToTop
 import moe.kirakira.ui.content.ContentState
 import okio.ByteString.Companion.encodeUtf8
 
@@ -179,7 +180,7 @@ internal fun ProfilePage(
     val collectionsListState = rememberLazyListState()
     val onTabChange = rememberTabChangeHandler(pager, onTabReselect = { page ->
         val listState = if (ProfileTab.entries[page] == ProfileTab.VIDEOS) videosListState else collectionsListState
-        listState.animateScrollToItem(0)
+        listState.smoothScrollToTop()
     })
     var expanded by rememberSaveable(session.revision) { mutableStateOf(false) }
     ProfileScreen(

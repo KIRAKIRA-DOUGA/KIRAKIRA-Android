@@ -73,6 +73,7 @@ import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.ShadingIcon
 import moe.kirakira.ui.components.ShadowRadioButton
+import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.components.UsernameText
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
@@ -97,6 +98,7 @@ internal fun AccountSwitchScreen(
     val layoutDirection = LocalLayoutDirection.current
     var swipedAccountId by remember { mutableStateOf<String?>(null) }
     val scrollState = rememberScrollState()
+    StatusBarScrollToTopEffect(scrollState, scrollBehavior = scrollBehavior)
     val motion = MaterialTheme.motionScheme
     val addContainerColor by animateColorAsState(
         targetValue = if (editing) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)

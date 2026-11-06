@@ -30,6 +30,7 @@ import moe.kirakira.feature.settings.DanmakuSettingsContent
 import moe.kirakira.feature.settings.PlaybackSettingsContent
 import moe.kirakira.ui.components.PagerTabRow
 import moe.kirakira.ui.components.rememberTabChangeHandler
+import moe.kirakira.ui.components.smoothScrollToTop
 
 @Composable
 internal fun PlayerPreferencesContent(
@@ -45,7 +46,7 @@ internal fun PlayerPreferencesContent(
     val playbackScroll = rememberScrollState()
     val danmakuScroll = rememberScrollState()
     val changeTab = rememberTabChangeHandler(pagerState, onTabReselect = { page ->
-        (if (page == 0) playbackScroll else danmakuScroll).animateScrollTo(0)
+        (if (page == 0) playbackScroll else danmakuScroll).smoothScrollToTop()
     })
     val titles = listOf(stringResource(R.string.player_settings_playback), stringResource(R.string.settings_danmaku))
     // Constrain content only: the sheet needs full window constraints to calculate its bottom anchor.

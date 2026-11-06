@@ -59,6 +59,7 @@ import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.ContentStatusViewport
 import moe.kirakira.ui.components.FrostedScaffold
+import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.components.video.VideoCardLayout
@@ -98,6 +99,12 @@ internal fun TagScreen(
     val scroll = rememberCollapsibleTopAppBarScrollBehavior()
     var showNames by rememberSaveable(tagId, sessionRevision) { mutableStateOf(false) }
     val listState = rememberLazyListState()
+    StatusBarScrollToTopEffect(
+        listState,
+        enabled = !showNames,
+        scrollBehavior = scroll,
+        scrollContentAvailable = !(tag.loading && tag.data == null && videos.loading && videos.data == null),
+    )
     val rows = videos.data.orEmpty().chunked(layout.columns)
     val density = LocalDensity.current
     var identityHeight by remember { mutableIntStateOf(0) }

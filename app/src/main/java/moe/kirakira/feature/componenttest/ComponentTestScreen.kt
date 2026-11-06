@@ -49,6 +49,7 @@ import kotlinx.coroutines.launch
 import moe.kirakira.R
 import moe.kirakira.feature.settings.SettingsDefaults
 import moe.kirakira.feature.settings.SettingsScaffold
+import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 
 internal data class ComponentSelection(
     val toggled: Boolean = false,
@@ -166,6 +167,7 @@ private fun ComponentTestContent(
         actions = { TextButton(onClick = onReset) { Text("重置") } },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
+        StatusBarScrollToTopEffect(listState, enabled = overlay == null)
         val direction = LocalLayoutDirection.current
         Box(Modifier.fillMaxSize().consumeWindowInsets(padding), contentAlignment = Alignment.TopCenter) {
             LazyColumn(

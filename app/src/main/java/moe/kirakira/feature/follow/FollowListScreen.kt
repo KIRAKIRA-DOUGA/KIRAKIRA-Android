@@ -46,6 +46,7 @@ import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.components.UsernameText
 import moe.kirakira.ui.components.appTopAppBarColors
 import moe.kirakira.ui.components.messageRes
@@ -64,6 +65,7 @@ internal fun FollowListScreen(
     isActive: Boolean = true,
 ) {
     val list = rememberLazyListState()
+    StatusBarScrollToTopEffect(list, enabled = isActive)
     val direction = LocalLayoutDirection.current
     val content = state.content
     val users = content.data.orEmpty()

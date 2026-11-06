@@ -3,6 +3,7 @@ package moe.kirakira.ui.components
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.foundation.gestures.scrollable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
@@ -34,6 +35,7 @@ import kotlin.math.roundToInt
 import moe.kirakira.ui.theme.BarShadowElevation
 
 internal class CollapsingTabState(initialOffset: Float = 0f) {
+    internal val interactionSource = MutableInteractionSource()
     private var savedOffset by mutableFloatStateOf(initialOffset)
     internal var headerHeight by mutableIntStateOf(0)
     val offset: Float get() = savedOffset.coerceIn(0f, headerHeight.toFloat())
@@ -92,7 +94,12 @@ internal fun CollapsingTabLayout(
                     Box(
                         Modifier
                             .fillMaxWidth()
-                            .scrollable(state.scrollableState, Orientation.Vertical, reverseDirection = true)
+                            .scrollable(
+                                state.scrollableState,
+                                Orientation.Vertical,
+                                reverseDirection = true,
+                                interactionSource = state.interactionSource,
+                            )
                             .onSizeChanged { state.headerHeight = it.height }
                             .graphicsLayer { alpha = if (state.isCollapsed) 0f else 1f },
                     ) {
@@ -104,6 +111,7 @@ internal fun CollapsingTabLayout(
                             Orientation.Vertical,
                             enabled = !state.isCollapsed,
                             reverseDirection = true,
+                            interactionSource = state.interactionSource,
                         ),
                     ) {
                         tabs()

@@ -97,10 +97,13 @@ import moe.kirakira.ui.components.FollowButton
 import moe.kirakira.ui.components.LazyListScrollbar
 import moe.kirakira.ui.components.LocalNumberAnimationIdentity
 import moe.kirakira.ui.components.PagerTabRow
+import moe.kirakira.ui.components.StatusBarScrollToTopEffect
+import moe.kirakira.ui.components.StatusBarScrollToTopPauseEffect
 import moe.kirakira.ui.components.UsernameText
 import moe.kirakira.ui.components.frostedBarBackground
 import moe.kirakira.ui.components.rememberMorphingButtonShape
 import moe.kirakira.ui.components.rememberTabChangeHandler
+import moe.kirakira.ui.components.smoothScrollToTop
 import moe.kirakira.ui.components.video.categoryText
 import moe.kirakira.ui.components.video.dateText
 import moe.kirakira.ui.components.video.durationText
@@ -173,6 +176,16 @@ internal fun VideoScreen(
     val introductionListState = rememberLazyListState()
     val commentsListState = rememberLazyListState()
     val danmakuListState = rememberLazyListState()
+    val activeListState = when (VideoTab.entries[pager.currentPage]) {
+        VideoTab.INTRODUCTION -> introductionListState
+        VideoTab.COMMENTS -> commentsListState
+        VideoTab.DANMAKU -> danmakuListState
+    }
+    StatusBarScrollToTopEffect(
+        activeListState,
+        enabled = isActive && !kaomojiPanelOpen && !pager.isScrollInProgress,
+    )
+    StatusBarScrollToTopPauseEffect(paused = isActive && kaomojiPanelOpen)
     val showDanmakuScrollbar by remember(danmakuListState) {
         derivedStateOf { danmakuListState.canScrollBackward || danmakuListState.canScrollForward }
     }
@@ -182,7 +195,7 @@ internal fun VideoScreen(
             VideoTab.COMMENTS -> commentsListState
             VideoTab.DANMAKU -> danmakuListState
         }
-        listState.animateScrollToItem(0)
+        listState.smoothScrollToTop()
     })
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current

@@ -11,6 +11,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import moe.kirakira.data.auth.SessionState
 import moe.kirakira.feature.account.SessionViewModel
+import moe.kirakira.ui.components.StatusBarScrollToTopHost
 import moe.kirakira.ui.navigation.AppNavHost
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorSettings
@@ -35,26 +36,28 @@ fun KIRAKIRAApp(
     }
     val accountState = sessionViewModel?.state?.collectAsStateWithLifecycle()?.value ?: SessionState(isLoading = false)
 
-    AppNavHost(
-        themeMode = themeMode,
-        onThemeModeChange = onThemeModeChange,
-        themeColors = themeColors,
-        onThemeColorsChange = onThemeColorsChange,
-        predictiveBackEnabled = predictiveBackEnabled,
-        onPredictiveBackEnabledChange = onPredictiveBackEnabledChange,
-        onVideoPageActiveChange = onVideoPageActiveChange,
-        onImageViewerActiveChange = onImageViewerActiveChange,
-        accountState = accountState,
-        dependencies = dependencies,
-        onSelectAccount = { sessionViewModel?.select(it) },
-        onRemoveAccount = { sessionViewModel?.remove(it) },
-        onLogout = { sessionViewModel?.logout() },
-        onResetLocalAccounts = { sessionViewModel?.resetLocalAccounts() },
-        onRetrySession = { sessionViewModel?.retry() },
-        onDismissSessionError = { sessionViewModel?.dismissError() },
-        onDismissSessionNotice = { sessionViewModel?.dismissNotice() },
-        modifier = modifier,
-    )
+    StatusBarScrollToTopHost {
+        AppNavHost(
+            themeMode = themeMode,
+            onThemeModeChange = onThemeModeChange,
+            themeColors = themeColors,
+            onThemeColorsChange = onThemeColorsChange,
+            predictiveBackEnabled = predictiveBackEnabled,
+            onPredictiveBackEnabledChange = onPredictiveBackEnabledChange,
+            onVideoPageActiveChange = onVideoPageActiveChange,
+            onImageViewerActiveChange = onImageViewerActiveChange,
+            accountState = accountState,
+            dependencies = dependencies,
+            onSelectAccount = { sessionViewModel?.select(it) },
+            onRemoveAccount = { sessionViewModel?.remove(it) },
+            onLogout = { sessionViewModel?.logout() },
+            onResetLocalAccounts = { sessionViewModel?.resetLocalAccounts() },
+            onRetrySession = { sessionViewModel?.retry() },
+            onDismissSessionError = { sessionViewModel?.dismissError() },
+            onDismissSessionNotice = { sessionViewModel?.dismissNotice() },
+            modifier = modifier,
+        )
+    }
 }
 
 @Preview(name = "English", locale = "en", showBackground = true)

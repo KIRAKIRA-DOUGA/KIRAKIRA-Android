@@ -90,6 +90,7 @@ internal fun AccountFlowScaffold(
     content: @Composable (PaddingValues, ScrollState) -> Unit,
 ) {
     val scrollState = rememberScrollState()
+    StatusBarScrollToTopEffect(scrollState)
     val isScrolled by remember(scrollState) { derivedStateOf { scrollState.value > 0 } }
     FrostedScaffold(
         modifier = modifier

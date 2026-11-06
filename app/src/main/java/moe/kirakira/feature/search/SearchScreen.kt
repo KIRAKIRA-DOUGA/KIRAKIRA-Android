@@ -63,6 +63,8 @@ import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.ContentStatusViewport
 import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.SearchVideosEmptyLogo
+import moe.kirakira.ui.components.StatusBarScrollToTopEffect
+import moe.kirakira.ui.components.smoothScrollToTop
 import moe.kirakira.ui.components.video.VideoCardRow
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
@@ -105,12 +107,13 @@ private fun SearchScreenContent(
     val historyListState = rememberLazyListState()
     val activeListState by rememberUpdatedState(if (state.submitted == null) historyListState else listState)
     val scrollToTop: suspend () -> Unit = remember {
-        { activeListState.animateScrollToItem(0) }
+        { activeListState.smoothScrollToTop() }
     }
     DisposableEffect(onScrollToTopActionChange, scrollToTop, activeListState) {
         onScrollToTopActionChange(scrollToTop)
         onDispose { onScrollToTopActionChange(null) }
     }
+    StatusBarScrollToTopEffect(activeListState, enabled = !state.pickerOpen)
     val currentEvent by rememberUpdatedState(onEvent)
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }

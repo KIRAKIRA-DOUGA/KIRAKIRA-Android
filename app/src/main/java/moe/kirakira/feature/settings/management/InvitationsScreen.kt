@@ -68,8 +68,10 @@ import moe.kirakira.ui.components.IconBadgeTone
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.LazyListScrollbar
 import moe.kirakira.ui.components.ShadowButton
+import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.components.cardColorShadow
 import moe.kirakira.ui.components.connectedListItemShapes
+import moe.kirakira.ui.components.smoothScrollToTop
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 @Composable
@@ -141,9 +143,10 @@ internal fun InvitationsScreen(
             onRefresh = onRefresh,
             onDismissMessage = { if (copyMessage != null) copyMessage = null else onDismissMessage() },
             modifier = modifier,
-            onTabReselect = { page -> listStates[page].animateScrollToItem(0) },
+            onTabReselect = { page -> listStates[page].smoothScrollToTop() },
             header = { InvitationStatistics(state, busy, accountRevision, onCreate) },
         ) { page, padding, obscuredBottom ->
+            StatusBarScrollToTopEffect(listStates[page])
             val visible = codes.filter { page == 0 || (if (page == 1) !it.used else it.used) }
                 .sortedWith(compareBy<Invitation> { it.used }.thenByDescending { it.createdAt })
             InvitationList(

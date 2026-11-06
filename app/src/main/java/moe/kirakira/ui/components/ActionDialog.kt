@@ -26,6 +26,7 @@ internal fun ActionDialog(
     text: (@Composable () -> Unit)? = null,
     actions: @Composable () -> Unit,
 ) {
+    StatusBarScrollToTopPauseEffect()
     AlertDialog(
         onDismissRequest = onDismissRequest,
         modifier = modifier,

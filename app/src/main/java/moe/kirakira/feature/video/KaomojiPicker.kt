@@ -42,6 +42,7 @@ import moe.kirakira.R
 import moe.kirakira.data.kaomoji.kaomojiCatalog
 import moe.kirakira.ui.components.PagerTabRow
 import moe.kirakira.ui.components.rememberTabChangeHandler
+import moe.kirakira.ui.components.smoothScrollToTop
 import moe.kirakira.ui.components.windowCornerRadius
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
@@ -76,7 +77,7 @@ internal fun KaomojiPicker(
     val gridStates = categoryIds.map { rememberLazyGridState() }
     val changeTab = rememberTabChangeHandler(pagerState, onTabReselect = { page ->
         val entries = if (categoryIds[page] == "recent") recent else kaomojiCatalog[categoryIds[page]].orEmpty()
-        if (entries.isNotEmpty()) gridStates[page].animateScrollToItem(0)
+        if (entries.isNotEmpty()) gridStates[page].smoothScrollToTop()
     })
     LaunchedEffect(pagerState.currentPage) {
         onCategory(categoryIds[pagerState.currentPage])

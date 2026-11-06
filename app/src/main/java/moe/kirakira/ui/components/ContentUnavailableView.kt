@@ -97,12 +97,14 @@ fun ContentUnavailableView(
         contentAlignment = Alignment.Center,
     ) {
         val scroll = !inline && constraints.hasBoundedHeight
+        val scrollState = rememberScrollState()
+        if (scroll && !media) StatusBarScrollToTopFallbackEffect(scrollState)
         val showIcon = !media || maxHeight >= 180.dp
         Column(
             modifier = Modifier
                 .widthIn(max = 360.dp)
                 .fillMaxWidth()
-                .then(if (scroll) Modifier.verticalScroll(rememberScrollState()) else Modifier),
+                .then(if (scroll) Modifier.verticalScroll(scrollState) else Modifier),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(if (media) 8.dp else 12.dp),
         ) {

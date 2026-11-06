@@ -71,6 +71,8 @@ import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.FavoritesLogo
 import moe.kirakira.ui.components.LocalNumberAnimationIdentity
 import moe.kirakira.ui.components.PagerTabRow
+import moe.kirakira.ui.components.StatusBarScrollToTopEffect
+import moe.kirakira.ui.components.StatusBarScrollToTopHeader
 import moe.kirakira.ui.components.appTopAppBarColors
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.components.rememberCollapsingTabState
@@ -112,6 +114,12 @@ internal fun ProfileScreen(
     val background = ThemeColorDefaults.pageBackgroundColor()
     val coverHeight = 160.dp + WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val headerState = rememberCollapsingTabState()
+    StatusBarScrollToTopHeader(headerState, enabled = !pagerState.isScrollInProgress) {
+        StatusBarScrollToTopEffect(
+            if (pagerState.currentPage == ProfileTab.VIDEOS.ordinal) videosListState else collectionsListState,
+            enabled = !pagerState.isScrollInProgress,
+        )
+    }
     val tabsPinned = headerState.isCollapsed
     var tabRowHeight by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current

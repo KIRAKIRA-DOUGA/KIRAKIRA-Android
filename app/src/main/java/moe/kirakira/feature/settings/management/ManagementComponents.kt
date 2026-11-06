@@ -46,6 +46,7 @@ import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.IconBadge
 import moe.kirakira.ui.components.IconBadgeTone
 import moe.kirakira.ui.components.ShadingIcon
+import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.theme.ThemeColorDefaults
 
@@ -102,6 +103,11 @@ internal fun ManagementFrame(
     val scrollBehavior = rememberCollapsibleTopAppBarScrollBehavior()
     val direction = LocalLayoutDirection.current
     val listState = rememberLazyListState()
+    StatusBarScrollToTopEffect(
+        listState,
+        scrollBehavior = scrollBehavior,
+        scrollContentAvailable = signedIn && (loaded || !loading),
+    )
     val snackbar = remember { SnackbarHostState() }
     val messageText = message?.let { stringResource(it) }
     LaunchedEffect(messageText) {
