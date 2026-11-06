@@ -224,7 +224,10 @@ internal fun VideoPage(
         isBackEnabled = isActive && fullscreenActive && !pip,
         onBackCompleted = { requestFullscreen(false) },
     )
-    Box(modifier.fillMaxSize()) {
+    Box(
+        modifier.fillMaxSize()
+            .dismissComposersOnOutsideTap(commentComposer, danmakuComposer, enabled = detailsInteractive),
+    ) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             contentWindowInsets = WindowInsets.safeDrawing,

@@ -110,6 +110,8 @@ ViewModel 从第 1 页开始，每页 50 条，保留后端顺序并按 UID 去�
 
 两页的 Tab 通过共享 [PagerTabRow](../../app/src/main/java/moe/kirakira/ui/components/PagerTabRow.kt) 使用官方 `PrimaryTabRow`，颜文字分类通过同一组件使用 `PrimaryScrollableTabRow`；组件统一选中／未选中内容色、[PagerTabIndicator](../../app/src/main/java/moe/kirakira/ui/components/PagerTabIndicator.kt) 与空分隔线，调用方保留 Pager 状态、标题、点击事件及背景／布局修饰符。
 
+评论与弹幕共用 `ContentComposer`，在各自 `ComposerState` 中保留仅供事件读取的输入焦点、发送行及颜文字面板布局坐标；这些运行时引用不保存，组件离开组合时释放。`VideoPage` 根容器通过 `dismissComposersOnOutsideTap` 在指针 Initial 阶段观察外部短按，使用窗口坐标排除发送行和颜文字面板，忽略超过触摸阈值的移动、长按、多指手势和系统取消事件。外部点击关闭面板、清除焦点并隐藏键盘，不消费指针事件，不改动正文、光标或分类；页面非交互态时停用。
+
 颜文字面板展开使用与官方 `BottomSheet` 弹出相同的主题 `defaultSpatialSpec` 弹簧，收起沿用相同的空间弹簧；不叠加淡入淡出，避免透明度过渡改变可见节奏。高度限制放在面板内容上，动画外层不以展开高度设置上限，避免 `expandVertically` 的逐帧尺寸约束截断弹簧超调；实际回弹空间仍受页面可用高度限制。
 
 颜文字条目不添加横向滚动，使用 `TextAutoSize.StepBased` 在单元格宽度约束内缩小字号，字号范围最低至 1sp，保证长条目完整显示。网格内左右拖动交给分类 Pager；面板打开期间，外层视频 Pager 关闭手势分页并使用空的页面嵌套滚动连接，保留顶部 Tab 点击切换，让越界位移留给分类 Pager 的原生 overscroll，而不带动视频 Tab。分类 Pager 在首尾类别继续拖动时显示系统边缘反馈（Android 12 起为拉伸，旧系统为边缘光晕）；分类 Pager 与网格使用组件默认的 overscroll 效果，网格保留纵向滚动及上下边界的原生拉伸反馈。

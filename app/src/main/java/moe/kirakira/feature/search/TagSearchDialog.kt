@@ -65,9 +65,10 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
+import kotlin.math.roundToInt
 import moe.kirakira.R
 import moe.kirakira.ui.components.FrostedScaffold
-import kotlin.math.roundToInt
+import moe.kirakira.ui.components.dismissKeyboardOnBlankTap
 
 @Composable
 internal fun TagSearchDialog(
@@ -215,7 +216,8 @@ private fun TagSearchDialogContent(
     FrostedScaffold(
         modifier = modifier
             .fillMaxSize()
-            .imePadding(),
+            .imePadding()
+            .dismissKeyboardOnBlankTap(),
         containerColor = if (state.candidates.data.isNullOrEmpty()) {
             MaterialTheme.colorScheme.surface
         } else MaterialTheme.colorScheme.surfaceContainerLow,

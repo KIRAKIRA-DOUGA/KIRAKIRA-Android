@@ -271,6 +271,8 @@ FrostedScaffold(
 
 ### 可复用的顶栏搜索
 
+共享 [`dismissKeyboardOnBlankTap`](../../app/src/main/java/moe/kirakira/ui/components/KeyboardDismissal.kt) 在指针 Final 阶段观察未被控件消费的短按，排除输入框与按钮已处理的点击，以及滚动、拖动、长按和多指手势；只清除焦点并隐藏键盘，不消费事件或修改文本。视频搜索在对应主界面页面接入，标签选择器与资料编辑在各自页面根容器接入，历史搜索在活动搜索层接入。设置搜索在 Dialog 内的结果列接入，确保读取该窗口的焦点管理器与键盘控制器；点击空白仅收键盘，保留搜索展开状态和结果。此行为由各页面显式启用，普通输入组件与认证表单不自动继承。
+
 [`PageSearchBarAnchor`](../../app/src/main/java/moe/kirakira/ui/components/PageSearchBar.kt) 供设置与历史页放在可折叠大标题下，接收页面拥有的 `TextFieldState`、`SearchBarState`、提示文案、可用状态及最大内容宽度。使用官方 `SearchBar` 和共享的官方 `SearchBarDefaults.InputField`，不访问 ViewModel 或 Repository；数据过滤与结果列表由页面管理。
 
 搜索胶囊左右保留 16dp，顶部无额外内边距、底部 12dp；默认上限为 640dp，历史页按既有列表宽度传入 840dp。大标题负责顶端系统安全区，搜索栏仅处理横向安全区。收起容器使用 `surfaceContainerLow`，全屏展开使用 `surface`，不显示内容分隔线；毛玻璃和栏面投影由外部 `FrostedScaffold` 管理。

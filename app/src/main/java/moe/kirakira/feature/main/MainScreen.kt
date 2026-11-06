@@ -63,6 +63,7 @@ import moe.kirakira.ui.components.FollowingLogo
 import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.ShadingIcon
 import moe.kirakira.ui.components.appTopAppBarColors
+import moe.kirakira.ui.components.dismissKeyboardOnBlankTap
 import moe.kirakira.ui.components.rememberTabReselectHandler
 import moe.kirakira.ui.components.video.VideoCardLayout
 import moe.kirakira.ui.components.video.VideoCardRow
@@ -150,7 +151,9 @@ internal fun MainScreen(
         ) { page ->
             tabStateHolder.SaveableStateProvider(page.name) {
                 FrostedScaffold(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().dismissKeyboardOnBlankTap(
+                        enabled = page == AppDestination.SEARCH && destination == page,
+                    ),
                     containerColor = ThemeColorDefaults.pageBackgroundColor(),
                     contentWindowInsets = ScaffoldDefaults.contentWindowInsets.only(
                         WindowInsetsSides.Top + WindowInsetsSides.Horizontal,

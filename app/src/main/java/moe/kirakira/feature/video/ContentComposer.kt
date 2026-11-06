@@ -35,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -58,6 +59,8 @@ import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -126,6 +129,11 @@ internal class ComposerState {
     var editor by mutableStateOf(TextFieldValue())
     var category by mutableStateOf("happy")
     var panelOpen by mutableStateOf(false)
+
+    // Event-only observations; neither layout coordinates nor focus belong in saved editing state.
+    var inputFocused = false
+    var inputCoordinates: LayoutCoordinates? = null
+    var panelCoordinates: LayoutCoordinates? = null
 }
 
 @Composable
@@ -208,6 +216,13 @@ internal fun ContentComposer(
     val shadowElevation = 4.dp
     val inputDescription = stringResource(label)
     val requester = remember { FocusRequester() }
+    DisposableEffect(state) {
+        onDispose {
+            state.inputFocused = false
+            state.inputCoordinates = null
+            state.panelCoordinates = null
+        }
+    }
     var tooLong by remember(state) { mutableStateOf(false) }
     // The ViewModel owns text; selection/composition stay local. External clears must win.
     val field = if (state.editor.text == draft) state.editor else TextFieldValue(draft, TextRange(draft.length))
@@ -308,6 +323,7 @@ internal fun ContentComposer(
                 modifier = Modifier
                     .widthIn(max = 640.dp)
                     .fillMaxWidth()
+                    .onGloballyPositioned { state.inputCoordinates = it }
                     .onSizeChanged { inputHeight = it.height },
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.Bottom,
@@ -335,7 +351,10 @@ internal fun ContentComposer(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .focusRequester(requester)
-                                .onFocusChanged { if (it.isFocused) state.panelOpen = false }
+                                .onFocusChanged {
+                                    state.inputFocused = it.isFocused
+                                    if (it.isFocused) state.panelOpen = false
+                                }
                                 .semantics { contentDescription = inputDescription },
                             placeholder = { Text(inputDescription, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                             enabled = enabled,
@@ -404,7 +423,8 @@ internal fun ContentComposer(
                     modifier = Modifier
                         .padding(top = 8.dp)
                         .fillMaxWidth()
-                        .height(panelContentHeight + bottomPadding),
+                        .height(panelContentHeight + bottomPadding)
+                        .onGloballyPositioned { state.panelCoordinates = it },
                     enabled = panelVisible && !busy,
                     contentPadding = PaddingValues(start = startPadding, end = endPadding, bottom = bottomPadding),
                 )

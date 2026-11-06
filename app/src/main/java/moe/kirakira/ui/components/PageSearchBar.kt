@@ -3,6 +3,7 @@
 package moe.kirakira.ui.components
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -81,7 +82,10 @@ internal fun PageSearchBar(
         ),
         tonalElevation = 0.dp,
         shadowElevation = 0.dp,
-        content = content,
+        content = {
+            // Resolve focus and keyboard controllers inside the search dialog's own composition.
+            Column(Modifier.fillMaxSize().dismissKeyboardOnBlankTap(), content = content)
+        },
     )
 }
 
@@ -197,7 +201,7 @@ internal fun PageSearchOverlay(
                 enabled = enabled,
             )
         },
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize().dismissKeyboardOnBlankTap(enabled = isActive && enabled),
         content = content,
     )
 }

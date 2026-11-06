@@ -97,6 +97,7 @@ import moe.kirakira.ui.components.ShadowFilledIconButton
 import moe.kirakira.ui.components.UsernameText
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.dateOnlyText
+import moe.kirakira.ui.components.dismissKeyboardOnBlankTap
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorDefaults
@@ -128,7 +129,7 @@ internal fun ProfileEditorScreen(
         title = stringResource(R.string.settings_profile),
         onBack = onBack,
         shadingIcon = R.drawable.ic_symbol_badge,
-        modifier = modifier,
+        modifier = modifier.dismissKeyboardOnBlankTap(),
         imePadding = true,
         snackbarHost = { SnackbarHost(snackbar) },
         actions = {
