@@ -82,6 +82,8 @@ ViewModel 分离关键词草稿、所选标签和已提交条件。视频读取�
 
 评论通过 `CommentListLoader` 保存连续页区间，继续使用服务端每页 20 条的 API。`CommentPages` 将分页数据与排序、展开、去重后的条目绑定，仅页数据变化时重建；加载、错误与定位状态的复制复用同一份派生数据。分页请求用 `CommentRequest` 与 `CommentOperation` 明确区分跳转、刷新、末页、向前、向后和页内更新，失败重试保存原请求，不组合多个操作布尔参数。各页合并后按评论 ID 去重并保留所属页；`snapshotFlow` 在可见评论距离已加载区间边缘不超过 3 条时请求相邻页，同页请求去重，空页或首末页停止对应方向加载。上下加载具有独立状态和显式失败重试，不自动重复失败请求。列表使用稳定评论 key；向前插入时额外按旧可见评论及像素偏移保持锚点，避免顶部计数或状态条目成为锚点后引起跳动。翻页器页码来自逻辑滚动锚点之后的首条可见评论，忽略仅处于顶部 contentPadding 中的上一页尾项；自动加载不发出定位事件。跳转使用下一次测量定位，确认目标 key 已出现在新列表布局后才消费请求并恢复相邻页加载；显式跳转使用可消费的定位请求，已加载页直接定位，其他页成功后重建窗口。请求代次和账号版本共同拒绝过期响应，跳转、刷新及账号切换取消失效请求。
 
+评论 Tab 重选和系统状态栏共用回顶操作。第 1 页已加载且没有待处理的跳转时，复用 `smoothScrollToTop` 滚到评论数量标题。回顶需要跨页或取代其他待处理的跳转时，交由 `CommentListLoader.jump(1)` 取消旧请求并定位，避免向前补页恢复旧锚点。加载中的同一跳页请求去重。
+
 评论下拉刷新仅在第 1 页已加载且滚动处于顶部时启用（空列表同样允许）；中间页的上边缘只用于前页加载。刷新成功后重建第 1 页，失败保留原内容；局部赞踩只重读所属页，保留其他页和阅读位置，重读期间禁用该页互动。发布成功后根据最新总数读取末页并定位，回传评论已出现在列表时隐藏发布回显。首页、视频当前标签页、弹幕和作者资料继续使用 Material 3 `PullToRefreshBox`；共享包装器的 `enabled` 默认保持开启。加载与错误状态独立于现有内容，不使用演示数据回填，错误状态提供重试按钮。
 
 ## 关注与粉丝列表
@@ -128,7 +130,7 @@ ViewModel 从第 1 页开始，每页 50 条，保留后端顺序并按 UID 去�
 
 视频页的 `VideoContentLayout` 使用同一个 `Layout` 承载分页 Column、顶部共享背景与 Tab 前景三个同级节点，按此顺序绘制：分页内容在最下层，背景覆盖经过栏后的滚动内容，Tab 文字、指示器与触摸区域位于背景之上。测量时先测量播放器下方剩余空间内的 Tab，以当前 placeable 高度确定背景下沿，再测量分页和背景；背景高度为播放器高度与实测 Tab 高度之和，限制在视口范围内，零尺寸不绘制。背景复用 `frostedBarBackground(hazeState = …, shadowElevation = BarShadowElevation)`，统一承载透明度和 elevation，并在播放器占位区域绘制黑底；Tab 不再有独立背景投影。实际播放器、原生视频表面与控件仍由常驻播放器节点独立绘制，不参与背景模糊或透明度处理。分页位置、列表留白及刷新避让继续使用原有 Tab 高度状态，不新增坐标回调或尺寸状态。
 
-点击切页共用 [rememberTabChangeHandler](../../app/src/main/java/moe/kirakira/ui/components/TabTransition.kt)，取消上一次点击启动的滚动任务后从当前 Pager 位置转向新目标。 Pager 停稳后重复点击当前页时调用可选的挂起回调 `onTabReselect`，不再启动横向切页；切页途中仍按原有转向逻辑处理。共享 `rememberTabReselectHandler` 在组合协程作用域内取消前一次回顶任务并执行最新操作，切换目标页时取消回顶。视频页三组列表状态由 `VideoScreen` 持有，用户主页复用各 Tab 独立列表，播放器设置复用独立 `ScrollState`，颜文字按分类持有网格状态；回顶分别调用 `animateScrollToItem(0)` 或 `animateScrollTo(0)`，用户手动滚动可中断。用户主页不滚动外层资料列表。
+点击切页共用 [rememberTabChangeHandler](../../app/src/main/java/moe/kirakira/ui/components/TabTransition.kt)，取消上一次点击启动的滚动任务后从当前 Pager 位置转向新目标。 Pager 停稳后重复点击当前页时调用可选的挂起回调 `onTabReselect`，不再启动横向切页；切页途中仍按原有转向逻辑处理。共享 `rememberTabReselectHandler` 在组合协程作用域内取消前一次回顶任务并执行最新操作，切换目标页时取消回顶。视频页三组列表状态由 `VideoScreen` 持有，用户主页复用各 Tab 独立列表，播放器设置复用独立 `ScrollState`，颜文字按分类持有网格状态；列表回顶复用 `smoothScrollToTop`，用户手动滚动可中断动画。评论跨页回顶使用上文的分页定位流程。用户主页不滚动外层资料列表。
 
 滚动与图片查看器复用 [EmphasizedEasing](../../app/src/main/java/moe/kirakira/ui/components/EmphasizedEasing.kt) 提供的 [Material 3 emphasized easing](https://github.com/material-components/material-components-android/blob/master/docs/theming/Motion.md#curves-easing--duration) 双段路径：API 28+ 读取路径相同的公开系统资源 `fast_out_extra_slow_in`，API 27 使用 Compose `PathEasing` 兼容。
 

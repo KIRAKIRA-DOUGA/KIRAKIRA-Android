@@ -6,6 +6,7 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -176,27 +177,15 @@ internal fun VideoScreen(
     val introductionListState = rememberLazyListState()
     val commentsListState = rememberLazyListState()
     val danmakuListState = rememberLazyListState()
-    val activeListState = when (VideoTab.entries[pager.currentPage]) {
+    val currentTab = VideoTab.entries[pager.currentPage]
+    val activeListState = when (currentTab) {
         VideoTab.INTRODUCTION -> introductionListState
         VideoTab.COMMENTS -> commentsListState
         VideoTab.DANMAKU -> danmakuListState
     }
-    StatusBarScrollToTopEffect(
-        activeListState,
-        enabled = isActive && !kaomojiPanelOpen && !pager.isScrollInProgress,
-    )
-    StatusBarScrollToTopPauseEffect(paused = isActive && kaomojiPanelOpen)
     val showDanmakuScrollbar by remember(danmakuListState) {
         derivedStateOf { danmakuListState.canScrollBackward || danmakuListState.canScrollForward }
     }
-    val changeTab = rememberTabChangeHandler(pager, onTabReselect = { page ->
-        val listState = when (VideoTab.entries[page]) {
-            VideoTab.INTRODUCTION -> introductionListState
-            VideoTab.COMMENTS -> commentsListState
-            VideoTab.DANMAKU -> danmakuListState
-        }
-        listState.smoothScrollToTop()
-    })
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     LaunchedEffect(pager.currentPage) {
@@ -225,6 +214,41 @@ internal fun VideoScreen(
         refreshing = commentsRefreshing,
         error = visibleComments.error.takeIf { commentsRefreshing },
     ) else visibleComments
+    val commentTopNeedsPageJump = comments.pages.isNotEmpty() && (
+        comments.firstPage > 1 || (comments.location?.page ?: 1) > 1 || (comments.loading && !comments.refreshing)
+    )
+    val commentsGoingToFirstPage = comments.refreshing || comments.location?.page == 1
+    suspend fun scrollCommentsToTop() {
+        if (commentsGoingToFirstPage) return
+        if (commentTopNeedsPageJump) {
+            // An explicit jump supersedes edge loading and uses the new page's list layout.
+            onCommentsPage(1)
+        } else {
+            commentsListState.smoothScrollToTop()
+        }
+    }
+    val statusBarScrollEnabled = isActive && !kaomojiPanelOpen && !pager.isScrollInProgress
+    if (currentTab == VideoTab.COMMENTS) {
+        val dragging by commentsListState.interactionSource.collectIsDraggedAsState()
+        StatusBarScrollToTopEffect(
+            identity = commentsListState,
+            canScrollToTop = {
+                !commentsGoingToFirstPage && (commentTopNeedsPageJump || commentsListState.canScrollBackward)
+            },
+            enabled = statusBarScrollEnabled && !dragging,
+            onScrollToTop = ::scrollCommentsToTop,
+        )
+    } else {
+        StatusBarScrollToTopEffect(activeListState, enabled = statusBarScrollEnabled)
+    }
+    StatusBarScrollToTopPauseEffect(paused = isActive && kaomojiPanelOpen)
+    val changeTab = rememberTabChangeHandler(pager, onTabReselect = { page ->
+        when (VideoTab.entries[page]) {
+            VideoTab.INTRODUCTION -> introductionListState.smoothScrollToTop()
+            VideoTab.COMMENTS -> scrollCommentsToTop()
+            VideoTab.DANMAKU -> danmakuListState.smoothScrollToTop()
+        }
+    })
     val posted = state.posted.takeUnless { accessBlocked }
     val danmaku = if (accessBlocked) state.danmaku.copy(data = null) else state.danmaku
     val danmakuRefreshing = checkingAccess && state.access.refreshingTab == VideoTab.DANMAKU
