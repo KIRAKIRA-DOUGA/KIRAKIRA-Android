@@ -50,9 +50,9 @@
 
 资料编辑通过 `SettingsScaffold.actions` 在顶栏右侧放置官方 `TextButton`，保留保存标签、加载语义与重试同步入口；未保存返回保护仍由 `ProfileEditorViewModel` 管理。隐私选择直接交给 `PrivacySettingsViewModel` 提交，不组合底部应用栏；重置及保存反馈位于顶栏尾侧。两页继续使用 `SettingsColumn`，底部系统内边距随内容滚动，宿主处理 IME，Snackbar 交由 Scaffold 管理。头像裁剪保留原底部旋转与 `SettingsPrimaryButton` 完成布局。
 
-`SettingsScaffold` 保留可选 `bottomBar` 插槽，直接交给 `FrostedScaffold` 内的官方 Scaffold；需要固定底部操作的设置表单可使用 [SettingsActionBar](../../app/src/main/java/moe/kirakira/feature/settings/SettingsComponents.kt)。认证与账号安全流程使用 `AccountFlowActionBar` 和固定底部通栏按钮。两类操作区共用 `FormActionBar`，由调用方决定内容宽度与按钮排列。
+`SettingsScaffold` 保留可选 `bottomBar` 插槽，直接交给 `FrostedScaffold` 内的官方 Scaffold。认证与账号安全流程通过 `AccountFlowActionBar` 复用 `FormActionBar`，承载固定底部通栏按钮。
 
-操作区以 `surface` 铺满宽度，根 `Surface` 通过 `shadowElevation = BarShadowElevation` 绘制固定 4dp 原生阴影，按钮可用、禁用及加载状态均保留底栏阴影。`SettingsActionBar` 内部居中限制在设置页 640dp 内容区域，四周留出 16dp；账号流程使用自身的 480dp 内容上限与 24dp 横向留白。主按钮通过 `fillMaxWidth` 占满区域内可用宽度。
+账号流程操作区以 `surface` 铺满宽度，根 `Surface` 通过 `shadowElevation = BarShadowElevation` 绘制固定 4dp 原生阴影，按钮可用、禁用及加载状态均保留底栏阴影。内容居中限制在 480dp，横向留白 24dp；主按钮通过 `fillMaxWidth` 占满区域内可用宽度。
 
 `ShadowButton` 使用 `ButtonDefaults.MediumContainerHeight` 及同高度的 `shapesFor`、`contentPaddingFor` 和 `textStyleFor`，默认仅显示单行文字，加载时使用 Material 3 `ButtonDefaults.iconSizeFor(height)` 尺寸／2dp 的圆形加载器，前景继承当前按钮内容色。普通操作沿用 `primary/onPrimary`，安全停用为 `error/onError`；保留本项目共享双层彩色阴影和禁用时无阴影的规则，这是相对 [Material 官方默认实心样式](https://m3.material.io/components/buttons/guidelines)的定制。
 

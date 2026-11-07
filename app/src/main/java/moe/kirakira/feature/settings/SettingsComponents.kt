@@ -25,9 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -35,7 +33,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSliderState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -43,25 +40,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import moe.kirakira.R
 import moe.kirakira.ui.components.CollapsibleTopAppBar
 import moe.kirakira.ui.components.ConnectedListGroup
-import moe.kirakira.ui.components.FormActionBar
 import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.SectionHeader
@@ -72,7 +64,6 @@ import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.components.StatusBarScrollToTopHeader
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
-import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorDefaults
 
 /** Shared spacing for settings subpages so every page lines up with the settings list. */
@@ -198,19 +189,6 @@ internal fun SettingsSectionHeader(title: String, modifier: Modifier = Modifier)
         title = title,
         modifier = modifier.settingsSearchAnchor(title).padding(horizontal = SettingsDefaults.HorizontalPadding),
     )
-}
-
-/** Keeps the section's spacing, heading semantics, color and typography for dynamic titles. */
-@Composable
-internal fun SettingsSectionHeader(
-    modifier: Modifier = Modifier,
-    titleContent: @Composable () -> Unit,
-) {
-    Box(modifier.padding(horizontal = SettingsDefaults.HorizontalPadding).semantics { heading() }) {
-        CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.primary) {
-            ProvideTextStyle(MaterialTheme.typography.labelMedium, content = titleContent)
-        }
-    }
 }
 
 /** Group of connected rows with an optional title. */
@@ -517,71 +495,5 @@ internal fun SettingsPrimaryButton(
         contentPadding = ButtonDefaults.contentPaddingFor(height, hasStartIcon = icon != null || busy),
     ) {
         PrimaryButtonContent(icon, label, busy)
-    }
-}
-
-/**
- * Full-width form action placed in [SettingsScaffold]'s bottom bar. Scaffold measures its height for
- * scroll padding and Snackbar placement; the parent handles IME padding before these system insets.
- */
-@Composable
-internal fun SettingsActionBar(
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    busy: Boolean = false,
-    colors: ButtonColors = ButtonDefaults.buttonColors(),
-    actionDescription: String? = null,
-) {
-    val height = ButtonDefaults.MediumContainerHeight
-    val workingDescription = if (busy) stringResource(R.string.auth_working) else null
-    FormActionBar(modifier) {
-        Box(
-            modifier = Modifier
-                .widthIn(max = SettingsDefaults.MaxContentWidth)
-                .fillMaxWidth()
-                .padding(
-                    horizontal = SettingsDefaults.HorizontalPadding,
-                    vertical = SettingsDefaults.BottomPadding,
-                ),
-        ) {
-            ShadowButton(
-                onClick = onClick,
-                enabled = enabled && !busy,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = height)
-                    .semantics {
-                        actionDescription?.let { contentDescription = it }
-                        workingDescription?.let { stateDescription = it }
-                    },
-                shapes = ButtonDefaults.shapesFor(height),
-                colors = colors,
-                contentPadding = ButtonDefaults.contentPaddingFor(height, hasStartIcon = busy),
-            ) {
-                if (busy) {
-                    IndeterminateCircularProgressIndicator(
-                        modifier = Modifier
-                            .size(ButtonDefaults.iconSizeFor(height))
-                            .clearAndSetSemantics {},
-                        color = LocalContentColor.current,
-                        strokeWidth = 2.dp,
-                    )
-                    Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(height)))
-                }
-                Text(label, style = ButtonDefaults.textStyleFor(height), maxLines = 1, softWrap = false)
-            }
-        }
-    }
-}
-
-@Preview(name = "Settings action · English", widthDp = 320)
-@Preview(name = "Settings action · Large text", widthDp = 320, fontScale = 2f)
-@Preview(name = "Settings action · Chinese", widthDp = 320, fontScale = 2f, locale = "zh")
-@Composable
-private fun SettingsActionBarPreview() {
-    KIRAKIRATheme {
-        SettingsActionBar(label = stringResource(R.string.security_confirm), onClick = {})
     }
 }
