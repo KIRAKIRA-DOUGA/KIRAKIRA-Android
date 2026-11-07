@@ -22,8 +22,10 @@
 | 账号、认证、资料与隐私表单 | `AccountFlowScaffold`、`FilledTextField`、`PasswordTextField`、`OtpInputField` | [账号表单与保存](CONTRIBUTING.md#账号表单与保存) |
 | 加载、刷新与错误 | `IndeterminateCircularProgressIndicator`、`ContentPullToRefresh`、`ContentUnavailableView`、Snackbar（禁止 Toast） | [加载与刷新](CONTRIBUTING.md#加载与刷新) |
 | 应用栏与滚动 | `FrostedScaffold` | [毛玻璃应用栏](CONTRIBUTING.md#毛玻璃应用栏) |
-| 图标、用户名、文案 | Material Symbols Rounded、`@username`；中英文字符串同步 | [图标与用户名](CONTRIBUTING.md#图标与用户名)、[文案、本地化与无障碍](CONTRIBUTING.md#文案本地化与无障碍) |
+| 图标、用户名、文案 | 优先使用 Cerasus 图标、`@username`；中英文字符串同步 | [图标与用户名](CONTRIBUTING.md#图标与用户名)、[文案、本地化与无障碍](CONTRIBUTING.md#文案本地化与无障碍) |
 | 配色 | `rememberSeedColorScheme`、`MaterialTheme.colorScheme` | [主题配色约束](CONTRIBUTING.md#主题配色约束) |
+
+Chip 使用官方 Material 3 组件，外观统一为 Material Design 2 风格的无描边胶囊、灰色普通背景和中性图标，选中时保留强调色实底；具体颜色见[主题配色约束](CONTRIBUTING.md#主题配色约束)。
 
 ## 认证、API 与敏感材料
 

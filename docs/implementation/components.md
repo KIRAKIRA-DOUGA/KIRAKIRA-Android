@@ -98,7 +98,7 @@ ConnectedLazyColumn(state = listState, contentPadding = PaddingValues(16.dp)) {
 
 共享 [ContentPullToRefresh](../../app/src/main/java/moe/kirakira/ui/components/ContentPullToRefresh.kt) 保留官方 `PullToRefreshBox` 的状态、手势与阈值，通过 `PullToRefreshDefaults.IndicatorBox` 绘制白色圆形容器，浅深模式保持一致。容器使用官方内置的 `PullToRefreshDefaults.Elevation` 高度阴影，与容器共享位移和顶部裁剪，未拉动且不刷新时由官方宿主关闭投影。外层不额外添加阴影 Modifier，避免容器隐藏后顶部仍残留圆形阴影；这一约束同样适用于没有实时模糊的 Android 8.1–11。内部圆弧使用 `primary`、20dp 外径、2.5dp 线宽、透明轨道与 `StrokeCap.Round`。
 
-拉动反馈依据 [Material 2 Android swipe-to-refresh](https://m2.material.io/design/platform-guidance/android-swipe-to-refresh.html) 和 AndroidX Material `PullRefreshIndicator` 的计算方式：跳过前 40% 拉动距离，后续逐步增长至最大 80% 圆弧；超出阈值时使用有上限的非线性张力，使旋转逐渐减缓，而不是在阈值处填满整圈。未达阈值时透明度为 30%，达阈值后以 300ms 线性补间增至 100%，拖回时反向恢复。箭头基于官方 Rounded `chevron_right` 的中心线绘制，沿圆弧末端切线旋转并按拉动进度缩放路径长度，与圆弧共用固定 2.5dp 的圆角描边，避免缩放填充图标时箭头变细；不绘制旧版实心三角箭头。仅该绘制区域固定 LTR，确保 RTL 下仍顺时针旋转。
+拉动反馈依据 [Material 2 Android swipe-to-refresh](https://m2.material.io/design/platform-guidance/android-swipe-to-refresh.html) 和 AndroidX Material `PullRefreshIndicator` 的计算方式：跳过前 40% 拉动距离，后续逐步增长至最大 80% 圆弧；超出阈值时使用有上限的非线性张力，使旋转逐渐减缓，而不是在阈值处填满整圈。未达阈值时透明度为 30%，达阈值后以 300ms 线性补间增至 100%，拖回时反向恢复。箭头采用 MD2 的 10 × 5dp 实心三角比例，圆化三个角并按拉动进度等比缩放，沿圆弧末端切线指向刷新方向。仅该绘制区域固定 LTR，确保 RTL 下仍顺时针旋转。
 
 拉动阶段的圆弧与箭头先以不透明颜色绘制到同一 `Canvas.saveLayer`，合成后统一应用阈值透明度，避免交叠处变深。局部图层边界向外扩展，容纳圆弧外的箭头，不包含白色容器及阴影。
 
@@ -202,14 +202,14 @@ internal fun Modifier.contentDescriptionWhenEnabled(enabled: Boolean, descriptio
 
 `icon` 接收现有 Drawable 资源，`endPadding` 默认为 16dp，`alignment` 默认为 `Alignment.CenterEnd`，`offset` 默认为 `DpOffset.Zero`。对齐同时用于图标在宿主内的定位及不受约束的尺寸布局，`offset.x` 的正值沿布局方向向末端移动，`offset.y` 的正值向下移动。首页传入 `logo_kirakira` 并保留 72dp 末端留白避让头像，使用默认对齐和偏移。
 
-设置与历史页指定 `Alignment.BottomEnd`、`endPadding = 0.dp` 和 `DpOffset(32.dp, 32.dp)`，让图标向末端及底部各溢出 32dp，由组件边界裁切。底纹随顶栏实际高度始终贴住底边，下拉展开后也保持底部定位。设置首页使用 `ic_symbol_settings` 并开启旋转；历史页使用 `ic_symbol_history`，保持默认静止状态。历史底纹与普通大标题栏一起放在搜索栏上方；全屏搜索覆盖页面，收起后恢复普通顶栏。
+设置与历史页指定 `Alignment.BottomEnd`、`endPadding = 0.dp` 和 `DpOffset(32.dp, 32.dp)`，让图标向末端及底部各溢出 32dp，由组件边界裁切。底纹随顶栏实际高度始终贴住底边，下拉展开后也保持底部定位。设置首页使用 Cerasus 的 `ic_icon_settings` 并开启旋转。历史页使用同源的 `ic_icon_history`，保持默认静止状态。历史底纹与普通大标题栏一起放在搜索栏上方；全屏搜索覆盖页面，收起后恢复普通顶栏。
 
-使用 `SettingsScaffold` 的设置子页面沿用这一右下角定位，但传入页面自身的现有图标且保持静止：外观使用 `ic_symbol_palette`，播放使用 `ic_symbol_play_circle`，弹幕使用 `ic_custom_danmaku`，关于使用 `ic_symbol_info`，资料使用 `ic_symbol_badge`，隐私使用 `ic_symbol_shield`，安全使用 `ic_symbol_lock`。管理页的共享 `ManagementFrame` 接收同一图标参数，屏蔽总览使用 `ic_symbol_block`，屏蔽分类详情使用 `RuleCategory.iconRes()`，邀请码使用 `ic_symbol_confirmation_number`；账户切换和许可证独立包裹顶栏，分别使用 `ic_symbol_switch_account` 与 `ic_symbol_description`。头像裁剪页是独立的图片编辑顶栏，不绘制该底纹。
+使用 `SettingsScaffold` 的设置子页面沿用这一右下角定位，但传入页面自身的现有图标且保持静止：外观使用 `ic_icon_palette`，播放使用 `ic_icon_play`，弹幕使用 `ic_custom_danmaku`，关于使用 `ic_icon_info`，资料使用 `ic_icon_badge`，隐私使用 `ic_icon_shield`，安全使用 `ic_icon_lock`。管理页的共享 `ManagementFrame` 接收同一图标参数，屏蔽总览使用 `ic_icon_block`，屏蔽分类详情使用 `RuleCategory.iconRes()`，邀请码使用 `ic_icon_gift`；账户切换和许可证独立包裹顶栏，分别使用 `ic_symbol_switch_account` 与 `ic_icon_file`。头像裁剪页是独立的图片编辑顶栏，不绘制该底纹。
 
 ```kotlin
 Box {
     ShadingIcon(
-        icon = R.drawable.ic_symbol_settings,
+        icon = R.drawable.ic_icon_settings,
         modifier = Modifier.matchParentSize(),
         rotating = true,
         endPadding = 0.dp,
@@ -275,7 +275,9 @@ FrostedScaffold(
 
 [`PageSearchBarAnchor`](../../app/src/main/java/moe/kirakira/ui/components/PageSearchBar.kt) 供设置与历史页放在可折叠大标题下，接收页面拥有的 `TextFieldState`、`SearchBarState`、提示文案、可用状态及最大内容宽度。使用官方 `SearchBar` 和共享的官方 `SearchBarDefaults.InputField`，不访问 ViewModel 或 Repository；数据过滤与结果列表由页面管理。
 
-搜索胶囊左右保留 16dp，顶部无额外内边距、底部 12dp；默认上限为 640dp，历史页按既有列表宽度传入 840dp。大标题负责顶端系统安全区，搜索栏仅处理横向安全区。收起容器使用 `surfaceContainerLow`，全屏展开使用 `surface`，不显示内容分隔线；毛玻璃和栏面投影由外部 `FrostedScaffold` 管理。
+搜索胶囊左右保留 16dp，顶部无额外内边距、底部 12dp；默认上限为 640dp，历史页按既有列表宽度传入 840dp。大标题负责顶端系统安全区，搜索栏仅处理横向安全区。收起容器使用 `surfaceContainerLow`，全屏展开使用 `surface`，不显示内容分隔线；毛玻璃和栏面投影由外部 `FrostedScaffold` 管理。主搜索的关键词框、已选标签框及标签选择器共用 [`SearchFieldContainer`](../../app/src/main/java/moe/kirakira/feature/search/QuerySearchBar.kt)，背景同样显式使用 `surfaceContainerLow`，与历史和设置的搜索胶囊保持一致，并随浅深主题切换。
+
+主搜索的 `QuerySearchBar` 左侧沿用官方示例的普通 `Icon`，不承担提交操作、不按输入是否为空切换禁用态，颜色继承 `SearchBarDefaults.InputField` 的默认前置图标配色，与历史和设置搜索的放大镜一致。关键词通过键盘搜索键提交，空白输入与重复请求仍由 ViewModel 处理；右侧清空按钮保留默认尾部图标配色及原有清空行为。
 
 设置页的 `PageSearchBar` 组合搜索胶囊和官方 `ExpandedFullScreenSearchBar` Dialog。历史页通过 `PageSearchOverlay` 将搜索内容直接放在页面根布局的上层，与视频宿主共用 Activity 窗口；视频入栈时保持搜索层挂载，`isActive` 只管理焦点与局部返回，不决定是否显示搜索层。其 `PageSearchOverlayLayout` 移植官方普通展开／收回的几何插值，胶囊实际边界仅在测量阶段读取，位置、尺寸、圆角和内容淡入同步遵循官方 `SearchBarState` 进度；不再用整页淡入代替胶囊展开。没有截图复制、额外持久化或跨窗口转场，来源及局部返回适配见 [AndroidX 搜索布局说明](../../third_party/android-search/README.md)。
 
@@ -283,7 +285,7 @@ FrostedScaffold(
 
 ### 搜索空结果图形
 
-主搜索使用 [`SearchEmptyLogos.kt`](../../app/src/main/java/moe/kirakira/ui/components/SearchEmptyLogos.kt) 中的两幅 Compose 矢量插画：`SearchHistoryEmptyLogo` 复用缩至 102dp 的 `HistorySearchLogo`，前景叠加深灰色放大镜，`SearchVideosEmptyLogo` 按用户提供的红色胶片参考图绘制：4:3 圆角纸片，上半深红、下半亮红，两侧各四个圆角镂空孔，不绘制播放三角，前景保留深灰色放大镜。孔洞通过路径差集贯穿纸片，随页面背景显示。两者共用 `SearchPaperMagnifier`，镜片使用单一中性浅灰色 `#EEEEEE`，不绘制高光、反光斜面或透明玻璃效果；镜框、窄颈和方头斜柄采用 Google 经典 Material Icons `search` 的原始路径比例，在镜片内孔补入纯色纸层后整体等比放大为连续纸片，统一使用深灰色 `#616161` 正面、`#424242` 的 1dp 底边及一层 2dp 原生投影，避免接合处重复投影和底边叠加。两者沿用收藏、历史和设置图形的经典 Material 剪纸风格，使用固定插画配色、128dp 画布、胶片卡 2dp／放大镜 1dp 深色底边及分层原生投影，不引入位图。仅挂载在主搜索空历史与已提交搜索的空结果分支，加载和失败保留原有提示。两幅图案均不整体旋转或缩放；视频卡保持静止，历史时钟保留自身回拨动画，放大镜沿左上方轻扫后回到原位，最大水平／垂直位移为 24dp／8dp。扫动采用相同的 1 秒快起慢收曲线驱动半正弦路径，只播放一次，不循环、不淡入；进度仅在图层读取，镜框、镜片、手柄及投影同步移动，系统关闭动画及静态预览直接显示终态。
+主搜索使用 [`SearchEmptyLogos.kt`](../../app/src/main/java/moe/kirakira/ui/components/SearchEmptyLogos.kt) 中的两幅 Compose 矢量插画：`SearchHistoryEmptyLogo` 复用缩至 102dp 的 `HistorySearchLogo`，前景叠加深灰色放大镜，`SearchVideosEmptyLogo` 按用户提供的红色胶片参考图绘制：4:3 圆角纸片，上半深红、下半亮红，两侧各四个圆角镂空孔，不绘制播放三角，前景保留深灰色放大镜。孔洞通过路径差集贯穿纸片，随页面背景显示。两者共用 `SearchPaperMagnifier`，镜片使用单一中性浅灰色 `#EEEEEE`，不绘制高光、反光斜面或透明玻璃效果；镜框与圆角斜柄采用 Google 经典 Material Icons `search` 的原始路径比例，在镜片内孔补入纯色纸层后整体等比放大为连续纸片，统一使用深灰色 `#616161` 正面、`#424242` 的 1dp 底边及一层 2dp 原生投影，避免接合处重复投影和底边叠加。两者沿用收藏、历史和设置图形的经典 Material 剪纸风格，使用固定插画配色、128dp 画布、胶片卡 2dp／放大镜 1dp 深色底边及分层原生投影，不引入位图。仅挂载在主搜索空历史与已提交搜索的空结果分支，加载和失败保留原有提示。两幅图案均不整体旋转或缩放；视频卡保持静止，历史时钟保留自身回拨动画，放大镜沿左上方轻扫后回到原位，最大水平／垂直位移为 24dp／8dp。扫动采用相同的 1 秒快起慢收曲线驱动半正弦路径，只播放一次，不循环、不淡入；进度仅在图层读取，镜框、镜片、手柄及投影同步移动，系统关闭动画及静态预览直接显示终态。
 
 设置搜索的 `SettingsSearchLogo` 保留 Cerasus 齿轮图形与转动动画，配色取自用户提供的 Android L `Settings.png`：齿轮 `#688491`、长阴影 `#546A74`，内环依次为 `#92A6B0`、`#D2DADE` 和 `#AAFFEC`，中心圆使用同一薄荷绿 `#AAFFEC`；浅深主题均使用该固定插画配色。历史搜索的 [`HistorySearchLogo`](../../app/src/main/java/moe/kirakira/ui/components/HistorySearchLogo.kt) 参考用户提供的 Android L Clock 与青色回溯时钟插画，用 Compose 圆形、线段与计算路径绘制钟盘和宽箭头。整体为 128dp，所有图层共用 512 × 512 画布和 `(256, 256)` 中心；表盘半径为 202，箭带内外半径为 192／244，带宽 13dp；箭头头部的内外基点分别延伸到半径 144／292，其中心半径 218 与环带中心一致，避免头部偏在环带内侧。头部与弧带使用同一条连续闭合轮廓；绘制复用路径缓冲区，投影轮廓随同一进度更新。
 
@@ -323,7 +325,7 @@ FrostedScaffold(
 
 [PasswordTextField](../../app/src/main/java/moe/kirakira/ui/components/PasswordTextField.kt) 在 `FilledTextField` 上统一密码遮蔽、显隐按钮和错误图标排列。登录、注册密码及确认密码、重置密码和账号安全表单均复用该组件；调用方保留现有自动填充语义、IME 动作与焦点目标，并持有仅存内存的显隐状态。提交禁用或页面失活时遮蔽密码，注册确认密码和重置密码不再缺少显隐入口。
 
-字段错误态复用内部 `TextFieldErrorIcon(modifier)`，绘制 24dp 官方 Material Symbols Rounded `error` 的 FILL 1 资源并使用主题 `error` 色，原有空心资源继续保留。普通字段通过 `trailingIcon` 显示；带显隐按钮的密码框在同一行显示错误图标与原按钮，间隔 8dp，保留按钮的点击与键盘语义。图标的 `contentDescription` 为 `null`，无独立点击、背景或阴影，错误说明仍由输入框 supporting text 提供，沿用官方间距并避免重复播报。登录／注册密码及重置密码的新密码字段均绑定现有 `fieldErrors[AuthField.PASSWORD]`；安全表单继续使用 `fieldErrors[SecurityField]`。正常状态不生成错误图标或错误说明占位，不改变校验、焦点与显隐状态的所有权。现有预览提供单字段、多字段及密码显示时的错误态，并配置中英文、浅深主题、320dp 窄屏和两倍字体；这些配置不代表已完成设备或截图验证。
+字段错误态复用内部 `TextFieldErrorIcon(modifier)`，以 24dp 绘制共享的 Cerasus `ic_icon_error`，使用主题 `error` 色。普通字段通过 `trailingIcon` 显示；带显隐按钮的密码框在同一行显示错误图标与原按钮，间隔 8dp，保留按钮的点击与键盘语义。图标的 `contentDescription` 为 `null`，无独立点击、背景或阴影，错误说明仍由输入框 supporting text 提供，沿用官方间距并避免重复播报。登录／注册密码及重置密码的新密码字段均绑定现有 `fieldErrors[AuthField.PASSWORD]`；安全表单继续使用 `fieldErrors[SecurityField]`。正常状态不生成错误图标或错误说明占位，不改变校验、焦点与显隐状态的所有权。现有预览提供单字段、多字段及密码显示时的错误态，并配置中英文、浅深主题、320dp 窄屏和两倍字体；这些配置不代表已完成设备或截图验证。
 
 [AccountFlowFeedback](../../app/src/main/java/moe/kirakira/ui/components/AccountFlowFeedback.kt) 在组合内保留非敏感提示文字，供退出动画完成前绘制；`Transition<Boolean>` 仅管理显示状态，业务错误仍由页面传入。页面级提示使用淡入淡出与纵向展开／收缩，关联留白放在内容插槽中一同过渡。`textFieldSupportingError` 在字段错误退出完成后返回空插槽，输入框通过 `animateContentSize` 平滑调整整体高度，恢复官方正常高度；退出中的提示清除语义，保留当前字段校验及焦点逻辑。所有过渡使用主题 `motionScheme`，遵循系统动画缩放。`accountFlowCodeTextStyle` 为认证与安全验证码以及代码展示提供统一等宽样式，参数遵循[账号表单规范](../../CONTRIBUTING.md#账号表单与保存)。
 
@@ -337,7 +339,7 @@ TOTP 页面把二维码与打开验证器操作放在同一区域，密钥与复
 
 [DestructiveActions](../../app/src/main/java/moe/kirakira/ui/components/DestructiveActions.kt) 提供共用危险配色。实心按钮通过 `ShadowButton(destructive = true)` 使用主题 `error/onError`，覆盖登出、移除／清除账号、舍弃内容、隐私重置及关闭／解绑验证；该语义优先于调用方的 `colors`。安全流程由 `AccountFlowSubmitButton.destructive` 传递，加载时沿用原有禁用与进度反馈。`DestructiveTextButton` 保持官方平面文字按钮，菜单项继续使用 `SegmentedMenuItem.destructive`；取消、普通重试及禁用颜色保留 Material 默认值。
 
-[DestructiveDecoration](../../app/src/main/java/moe/kirakira/ui/components/DestructiveDecoration.kt) 在可用危险实心按钮的内容后方绘制五个 Rounded close 图标。横向起点为容器宽度的 0%、20%、50%、60%、80%，基础尺寸为 36、24、48、16、32dp，默认缩放 1.5 倍；每个图形以 4 秒线性周期从自身高度的 +150% 移至 −150%，中点透明度为 0.4、两端为 0，依次延迟 1.6 秒启动。悬停使用 1 秒回弹过渡，缩放至 2 倍并旋转 90°；触屏继续沿用官方按压反馈。装饰使用与按钮实际可见表面同尺寸的独立绘制节点，文字单独测量且保留原布局；五个图形共用固定尺寸的矢量栅格缓存，仅通过画布缩放产生大小差异，避免同帧反复改写缓存造成图形截断。由官方表面裁剪到与投影共用的动画轮廓，不占布局空间、不添加语义，也不改变内容内边距与点击区域。逐帧状态仅在绘制阶段读取；禁用、加载或系统动画缩放为零时不组合循环动画。来源与移植差异见 [Cerasus 图标与动画](../../third_party/cerasus-icons/README.md#危险按钮装饰)。
+[DestructiveDecoration](../../app/src/main/java/moe/kirakira/ui/components/DestructiveDecoration.kt) 在可用危险实心按钮的内容后方绘制五个 Cerasus `close` 图标。横向起点为容器宽度的 0%、20%、50%、60%、80%，基础尺寸为 36、24、48、16、32dp，默认缩放 1.5 倍；每个图形以 4 秒线性周期从自身高度的 +150% 移至 −150%，中点透明度为 0.4、两端为 0，依次延迟 1.6 秒启动。悬停使用 1 秒回弹过渡，缩放至 2 倍并旋转 90°；触屏继续沿用官方按压反馈。装饰使用与按钮实际可见表面同尺寸的独立绘制节点，文字单独测量且保留原布局；五个图形共用固定尺寸的矢量栅格缓存，仅通过画布缩放产生大小差异，避免同帧反复改写缓存造成图形截断。由官方表面裁剪到与投影共用的动画轮廓，不占布局空间、不添加语义，也不改变内容内边距与点击区域。逐帧状态仅在绘制阶段读取；禁用、加载或系统动画缩放为零时不组合循环动画。来源与移植差异见 [Cerasus 图标与动画](../../third_party/cerasus-icons/README.md#危险按钮装饰)。
 
 ## 用户名展示
 
@@ -387,7 +389,7 @@ TOTP 页面把二维码与打开验证器操作放在同一区域，密钥与复
 
 ### 收藏剪纸图形
 
-[`FavoritesLogo`](../../app/src/main/java/moe/kirakira/ui/components/FavoritesLogo.kt) 按本次视觉要求使用经典 Material Design Icons 的实心 `star` 五角星轮廓，作为默认 Rounded 图标规则的插画例外。图形为 128dp，使用 24 × 24 坐标；黄色正面叠加右侧折面，底层轮廓下移 2dp 绘制深黄色底边，完整轮廓使用 4dp 原生投影。配色固定为浅黄 `#FFEE58`、黄 `#FDD835` 和深黄 `#F9A825`，浅深主题一致，不引入位图。入场时由 -72° 旋转到正向，同时从 72% 放大到原尺寸；共用历史／设置图标的 1 秒 `CubicBezierEasing(0.1, 0.9, 0.2, 1)` 快起慢收曲线，只播放一次，不淡入。旋转、缩放、底边与投影使用同一图层，逐帧进度仅在 `graphicsLayer` 读取；关闭系统动画及静态预览直接显示终态。
+[`FavoritesLogo`](../../app/src/main/java/moe/kirakira/ui/components/FavoritesLogo.kt) 复用 Cerasus 的 `ic_icon_star` 五角星轮廓。图形为 128dp，使用 24 × 24 坐标；黄色正面叠加右侧折面，底层轮廓下移 2dp 绘制深黄色底边，完整轮廓使用 4dp 原生投影。配色固定为浅黄 `#FFEE58`、黄 `#FDD835` 和深黄 `#F9A825`，浅深主题一致，不引入位图。入场时由 -72° 旋转到正向，同时从 72% 放大到原尺寸；共用历史／设置图标的 1 秒 `CubicBezierEasing(0.1, 0.9, 0.2, 1)` 快起慢收曲线，只播放一次，不淡入。旋转、缩放、底边与投影使用同一图层，逐帧进度仅在 `graphicsLayer` 读取；关闭系统动画及静态预览直接显示终态。
 
 ### 关注剪纸图形
 

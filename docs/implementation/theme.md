@@ -38,7 +38,7 @@
 
 [ClassicAccentColorScheme](../../app/src/main/java/moe/kirakira/ui/theme/ClassicAccentColorScheme.kt) 从灰阶角色构建经典强调色，并将 `secondaryContainer` 和 `onSecondaryContainer` 映射到同色主色容器与配套前景。默认 Slider、RangeSlider 的未经过轨道自动采用强调色调，活动圆点采用同一容器色；使用次要容器的导航指示器同样着色，不添加组件专用配色接口。
 
-可选择的 `FilterChip` 与搜索已选标签的 `InputChip` 在调用处直接使用官方 `filterChipColors`／`inputChipColors`，将 `selectedContainerColor` 映射到当前主题 `primary`，`selectedLabelColor`、`selectedLeadingIconColor` 与 `selectedTrailingIconColor` 映射到 `onPrimary`；其他颜色、禁用状态、形状与边框保留官方默认。搜索、播放速度、视频分 P、弹幕样式与邀请码筛选共用此规则，无需更改次要容器角色或新增组件配色封装。
+Chip 保留官方 Material 3 组件及其尺寸、排版和交互，通过公开参数提供 Material Design 2 风格外观：`shape = CircleShape`、`border = null`；普通／未选中背景为 `surfaceContainerHigh`，文字为 `onSurface`，前后图标为中性的 `onSurfaceVariant`。`FilterChipDefaults.filterChipColors` 的 `iconColor` 同时设置两端图标；`InputChipDefaults.inputChipColors` 分别设置 `leadingIconColor` 与 `trailingIconColor`；`AssistChip` 和 `SuggestionChip` 使用各自官方配色 API 的图标参数。可选择的 `FilterChip` 与 `InputChip` 保留项目现有的选中实色：`selectedContainerColor` 为当前主题 `primary`，`selectedLabelColor`、`selectedLeadingIconColor` 与 `selectedTrailingIconColor` 为 `onPrimary`；禁用配色保留官方默认。搜索模式与已选标签、播放速度、视频分 P 和标签、弹幕样式、资料标签及组件展示页共用此规则，搜索历史的只读标签容器同步胶囊轮廓与灰底。配色直接在调用处配置，无需更改主题语义角色或新增组件配色封装。
 
 `MainBottomBar` 将选中图标与文字映射到 `primary`，覆盖整个按钮的选中胶囊映射到 `primaryContainer`。主题统一通过 `LocalTonalElevationEnabled` 关闭色调高度叠加，`surfaceTint` 与 `surface` 同色，避免直接计算高度色时重新染色。原色保留、`onPrimary` 对比度阈值、组件配色接口与视觉取舍统一见[主题配色约束](../../CONTRIBUTING.md#主题配色约束)。
 
@@ -118,7 +118,7 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 
 [VideoScreen](../../app/src/main/java/moe/kirakira/feature/video/VideoScreen.kt) 的下载、分享、更多按钮直接使用官方 `FilledTonalIconButton`，在调用处通过 `IconButtonDefaults.filledTonalIconButtonColors` 将容器与前景设为 `surfaceContainer/onSurfaceVariant`，与未选中的赞踩 `ToggleButton` 一致；不接入共享投影，所有交互及禁用状态均无阴影。整排按钮固定按压轮廓，赞踩与收藏按钮单独插值选中形状，并将当前轮廓同时用于官方组件的静止、按压和选中形状，保留选中动画与配色反馈。
 
-`ShadowFloatingActionButton` 默认使用 `CircleShape` 与主题 `primary` 背景，`contentColorFor(containerColor)` 为默认背景匹配 `onPrimary` 前景，与实心按钮配色一致。保留官方 FAB 尺寸及显式覆盖形状、背景和前景的参数；当前规则管理页直接继承默认值，仅显示本地化无障碍描述的 Material Symbols Rounded `add` 加号。
+`ShadowFloatingActionButton` 默认使用 `CircleShape` 与主题 `primary` 背景，`contentColorFor(containerColor)` 为默认背景匹配 `onPrimary` 前景，与实心按钮配色一致。保留官方 FAB 尺寸及显式覆盖形状、背景和前景的参数；当前规则管理页直接继承默认值，仅显示本地化无障碍描述的 Cerasus `add` 加号。
 
 共享交互源驱动投影和形状。普通按钮静止／按压／悬停或聚焦使用 2dp／8dp／4dp 等效高度，FAB 使用 6dp／12dp／8dp；按下 120ms、松开或取消 180ms，无弹跳，系统动画设置由 Compose 处理。普通按钮和 FAB 禁用时立即移除投影，优先于按压、悬停与聚焦；FAB 通过封装的 `enabled` 参数同时阻止操作并声明禁用语义。四类普通共享按钮默认使用官方 Expressive `shapes`，静止和按压形状通过公开 `Interpolatable` API 与主题 `defaultEffectsSpec` 插值，同一动画形状用于按钮轮廓、投影和装饰裁剪；固定轮廓例外提供相同的两种形状并跳过插值。选择按钮继续使用主题 `fastSpatialSpec`。形变和阴影分别管理，固定轮廓不关闭原有动态阴影；场景规则与接入见[按钮按压轮廓](components.md#按钮按压轮廓)，不访问 Material 3 内部 API。
 

@@ -53,9 +53,11 @@ Navigation 3 的 `rememberDecoratedNavEntries` 按返回栈缓存入口，不因
 
 [MainScreen](../../app/src/main/java/moe/kirakira/feature/main/MainScreen.kt) 将四个 Tab 作为主界面内的局部状态，未建立独立返回栈。Tab 切换复用[普通 Activity 转场](../../third_party/android-motion/README.md#普通-activity-转场)的位移、时长、系统缓动与淡入淡出参数，按排列顺序决定方向，RTL 布局镜像处理；首页头像跳转“我”使用同一套动画。
 
-底栏图标动画与页面切换独立：首页与“我”在 300ms 内从描边连续形变为官方 Filled 造型，并轻微收缩后回弹，取消选中时反向恢复；搜索轻摆并缩放回弹；关注在 440ms 内完成由内向外扩散并回弹。图标动画不使用透明度渐变，重复点击当前 Tab 不重播，首次显示与状态恢复直接呈现最终形态，快速切换从当前进度转向新状态，并遵循系统动画时长设置。
+底栏图标动画与页面切换独立，节奏参考用户提供的 Play Store 录屏，以短促收拢、展开和衰减回弹为主；未选中仍保持现有 filled 样式，首页与“我”在动画期间也保持 Cerasus 实心轮廓。形体动效由 [TabIconMotion](../../app/src/main/java/moe/kirakira/feature/main/TabIconMotion.kt) 统一驱动：每次新选中把线性时钟从 0 推进到 1，各属性的关键帧经 Catmull-Rom 切线的三次 Hermite 样条插值，曲线连续穿过关键帧，终点回到恒等姿态；取消选中时冻结时钟，并在 180ms 内把振幅衰减为 0，让当前姿态平滑归位。快速重新选中尚未归位的图标时，先用 70ms 收起残余形变，再从恒等姿态启动新一轮。变换在 `graphicsLayer` 或 Canvas 绘制阶段读取，不触发逐帧重组。
 
-图标来源、路径对应、形变适配及搜索／关注的缩放和延迟参数统一见 [Material Symbols 说明](../../third_party/material-symbols/README.md#底栏图标形变)。
+首页（400ms）以底部为轴做反向宽高形变：先展宽至 114%、压低至 84%，再收窄至 88%、拉高至 114%，伴随最多 0.9dp 上抬，落下后轻压回弹。搜索（420ms）以手柄圆头中心（原始 960 画布的 `(784, 784)`）为旋转与缩放支点，先缩至 88%、再展开至 111%，从后仰 12° 到前摆 7° 后衰减停稳，形成握住手柄摆动的效果。首页与搜索作用于整幅图标，采用较小的形变与位移幅度，以接近右侧分层动画的视觉强度。「我」（460ms）由 [PersonTabIcon](../../app/src/main/java/moe/kirakira/feature/main/PersonTabIcon.kt) 从原矢量读取头部与身体两个轮廓：身体先收窄至 82%、拉高至 122%，再展宽至 122%、压低至 82%；头部稍后跟随，宽度在 68%–118%、高度在 86%–126% 之间变化，附加最多 1dp 的上下位移，最终准确恢复原始路径。关注（460ms）以信号中心为轴，中心／内圈／外圈分别延迟 0／46／92ms，先收至 82%，再展开至 140%／120%／113%，各自回弹归位。不绘制粒子、波纹等额外图形，不使用透明度渐变。重复点击当前 Tab 不重播，首次显示与状态恢复直接呈现最终形态，全部动画遵循系统动画时长设置。
+
+图标来源与适配见 [Cerasus 首页与个人图标](../../third_party/cerasus-icons/README.md#底栏首页与个人图标)和 [Material Symbols 搜索与关注图标](../../third_party/material-symbols/README.md#底栏图标形变)。
 
 ## 启动器图标
 

@@ -74,7 +74,7 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 
 禁用或加载期间不得触发按压形变；加载按钮通过已有禁用条件阻止重复操作。按压仅改变轮廓，不额外缩放或位移，不改变布局尺寸、触摸区域或业务状态；表面、投影与装饰裁剪共用当前轮廓和交互源。关注、选择及播放状态本身的图标／形状动效继续保留，固定按压轮廓不取消这些状态反馈。共享参数及固定轮廓例外的接入见[按钮按压轮廓](docs/implementation/components.md#按钮按压轮廓)。
 
-- 表达「添加」的悬浮操作按钮（FAB）通过共享 `ShadowFloatingActionButton` 封装官方 `FloatingActionButton`，默认使用 `CircleShape`、`MaterialTheme.colorScheme.primary` 背景与配套 `onPrimary` 前景；允许显式覆盖形状和颜色，前景默认通过 `contentColorFor(containerColor)` 匹配。仅显示 Material Symbols Rounded `add` 加号，不在图标右侧重复显示「添加」文字，不使用带文字的扩展 FAB。保留官方尺寸、本地化的「添加」无障碍描述、标准触摸目标与操作期间的禁用语义。
+- 表达「添加」的悬浮操作按钮（FAB）通过共享 `ShadowFloatingActionButton` 封装官方 `FloatingActionButton`，默认使用 `CircleShape`、`MaterialTheme.colorScheme.primary` 背景与配套 `onPrimary` 前景；允许显式覆盖形状和颜色，前景默认通过 `contentColorFor(containerColor)` 匹配。仅显示 Cerasus `add` 加号，不在图标右侧重复显示「添加」文字，不使用带文字的扩展 FAB。保留官方尺寸、本地化的「添加」无障碍描述、标准触摸目标与操作期间的禁用语义。
 - 实心按钮统一使用 `ShadowButtons` 中的共享封装，内部保留官方填充／浅色填充按钮、实心图标按钮与 FAB。交互高度、时序与强度见下表；默认禁用时无阴影。使用双层 `dropShadow`，模糊、偏移和扩张采用 Material 官方双层阴影参数，按现有交互高度在官方 elevation level 间插值。彩色投影取实际容器色，不透明度为显式例外：彩色与中性色的双层强度按下表固定，不随交互状态改变；中性色使用黑色，两类均乘以容器透明度。形变与阴影共用动画形状及交互源，不叠加原生投影或外层投影，不改变触摸区域、布局尺寸和业务状态。文字、描边与裸图标按钮保持平面，不提供阴影开关或持久化偏好。
 
   评论／弹幕输入框与发送按钮是高度规则的例外：所有交互及禁用状态均固定为 4dp。输入框、禁用按钮及中性色容器的可用发送按钮使用系统原生 elevation 阴影，沿用平台默认配色与光照强度；彩色容器的可用发送按钮使用共享双层投影，阴影取实际容器色。发送按钮禁用时使用不透明灰色容器与图标，发送条件和官方禁用语义保持原有逻辑。参数来源及接入方式见[按钮动态阴影](docs/implementation/theme.md#按钮动态阴影)。
@@ -123,7 +123,7 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 
   不以整组 `Surface` 模拟列表项。静态占位使用无 `onClick` 的重载；无副标题时传入空的 `supportingContent`，不要提供空内容 lambda。
 - 设置页中，普通开关仅通过 Switch 表达开启状态，整行背景和形状不随开启状态变化；整行点击切换状态，并提供 `Role.Switch` 与 `toggleableState` 语义；连接列表场景使用 `SegmentedListItem` 的 `onClick` 重载，尾部 Switch 的 `onCheckedChange` 为 `null`，保留禁用状态和官方按压反馈。仅功能总开关（如「显示弹幕」）使用 `checked` 重载保留整行强调样式；「应用内小窗播放」「应用外小窗播放」「自动播放」和各弹幕模式均属于普通开关。
-- 普通应用内对话框复用 `ActionDialog`，标题居中；图标为可选插槽，提供时使用顶部居中的 Material Symbols Rounded 裸图标，不加底纹，省略时不保留占位，装饰图标不重复朗读标题。操作按钮根据当前可用宽度、语言和字体大小自适应排列：包含内边距与最小尺寸的单行所需总宽度及间距放得下时横向靠右、主操作位于末端，否则整组纵向全宽、主操作在前；不按操作数量、字符数或业务场景固定排列。按钮间距 8dp、文字居中，纵向允许随字体和文案换行增高，不截断或固定高度；主操作复用 `ShadowButton`，次操作使用平面文字按钮，危险实心／文字操作复用共享危险配色。关闭／取消放在末尾，日期选择器保留官方结构。接入说明见[普通对话框](docs/implementation/components.md#普通对话框)。
+- 普通应用内对话框复用 `ActionDialog`，标题居中；图标为可选插槽，提供时使用顶部居中的裸图标，不加底纹，省略时不保留占位，装饰图标不重复朗读标题。操作按钮根据当前可用宽度、语言和字体大小自适应排列：包含内边距与最小尺寸的单行所需总宽度及间距放得下时横向靠右、主操作位于末端，否则整组纵向全宽、主操作在前；不按操作数量、字符数或业务场景固定排列。按钮间距 8dp、文字居中，纵向允许随字体和文案换行增高，不截断或固定高度；主操作复用 `ShadowButton`，次操作使用平面文字按钮，危险实心／文字操作复用共享危险配色。关闭／取消放在末尾，日期选择器保留官方结构。接入说明见[普通对话框](docs/implementation/components.md#普通对话框)。
 - 普通对话框、底部 Sheet、下拉菜单、日期选择和开源组件详情弹层的背景按当前内容决定：包含至少一个连接列表条目时保留现有灰色，业务 Sheet 使用 `surfaceContainerLow`；没有连接条目时使用 `surface`，浅色为白色，深色跟随主题。调用处根据实际条目和当前子页直接选择颜色，不探测组件树，不新增配色包装、动画或持久化设置。空列表、首次无数据加载与错误占位使用 `surface`；刷新保留已有条目时仍用灰色，滚动出可视区域不改变背景。日期选择器内外容器同步设置背景，第三方详情使用公开颜色参数；列表项、输入框、选中态与媒体查看器保留各自语义配色，接入说明见[弹层背景](docs/implementation/theme.md#弹层背景)。
 - 普通设置列表前后图标使用裸露的 24dp 图标（包括尾部箭头与列表内操作图标），继承官方列表内容颜色，不默认添加花形背景或裁切容器；危险操作使用主题错误色，禁用样式遵循列表组件。MaterialShapes 图标容器仅用于随状态切换形状的表达（如隐私可见性、邀请码使用状态）与独立大图标展示（如安全状态横幅、流程图标和邀请码统计）。
 
@@ -140,7 +140,7 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 
   仅保留必要的后果、限制、状态和错误提示，无提示时不预留间距。主操作放在 `bottomBar` 的 `AccountFlowActionBar` 中，占满与正文对齐的内容宽度，底栏纵向留白为 16dp；复用 `FormActionBar` 的固定 4dp 原生 elevation 阴影，按钮使用官方 Medium 尺寸配套 API 和共享双层彩色阴影。关闭／解绑使用危险操作颜色，加载时保留标签的测量空间并显示圆形进度指示器。发送验证码、复制及打开验证器等辅助操作留在对应内容旁。靠边文字按钮复用 `FormTextButton` 的官方内边距与外向 `offset`，使标签与正文边缘对齐，保留点击区域及反馈；末端操作换行后仍靠末端对齐。
 
-  字段错误在输入框尾部显示 24dp Material Symbols Rounded `error`（FILL 1、主题 `error` 色），说明使用官方 supporting text；登录、注册、重置密码和账号安全表单的密码输入复用 `PasswordTextField`，密码显隐按钮与错误图标并排，相隔 8dp。显隐状态只存流程内存，提交或页面失活后恢复遮蔽。错误图标仅作装饰，不可点击、无背景或阴影，不独立提供无障碍描述。全局错误使用错误色文字与无障碍播报；二维码与一次性代码保留专用展示。宿主统一处理 IME 避让，底栏负责系统安全区域，其实测高度放入滚动内容底部 padding，Snackbar 避让底栏和键盘。安全首页保留设置布局；二步验证管理页未开启时先单选验证方式再点击底部“继续”，默认不预选，创建绑定在主按钮内显示加载反馈，已开启时显示当前方式与底部关闭／解绑按钮。
+  字段错误在输入框尾部显示 24dp Cerasus `error`（主题 `error` 色），说明使用官方 supporting text；登录、注册、重置密码和账号安全表单的密码输入复用 `PasswordTextField`，密码显隐按钮与错误图标并排，相隔 8dp。显隐状态只存流程内存，提交或页面失活后恢复遮蔽。错误图标仅作装饰，不可点击、无背景或阴影，不独立提供无障碍描述。全局错误使用错误色文字与无障碍播报；二维码与一次性代码保留专用展示。宿主统一处理 IME 避让，底栏负责系统安全区域，其实测高度放入滚动内容底部 padding，Snackbar 避让底栏和键盘。安全首页保留设置布局；二步验证管理页未开启时先单选验证方式再点击底部“继续”，默认不预选，创建绑定在主按钮内显示加载反馈，已开启时显示当前方式与底部关闭／解绑按钮。
 
   返回保护和敏感材料处理沿用各流程；接入说明见[分步输入与系统凭据](docs/implementation/auth.md#分步输入与系统凭据)。
 
@@ -148,8 +148,8 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 
 ### 图标与用户名
 
-- 图标采用官方 **Material Symbols**，默认统一为 **Rounded、24dp 资源画布、wght 400、GRAD 0、FILL 0**；实际显示尺寸按组件规范设置，Expressive 列表前后图标使用 24dp，按钮、工具栏、FAB 和输入框遵循各自组件尺寸。选中状态如使用填充图标应保持其他参数一致。按需导入 Android VectorDrawable，不打包完整字体或旧版 `material-icons-extended`。
-- 必要时可自行绘制相同风格的图标：保持 24dp 画布、相近视觉重量、圆角和光学对齐，检查浅深色与小尺寸可读性，在 PR 中说明缺少合适标准图标的原因。官方资源使用 `ic_symbol_<name>`，自绘资源使用 `ic_custom_<name>`，保留来源及许可证记录于 `third_party/`。不得混用 SF Symbols、旧版 Material Icons 或不一致的描边风格。参见 [Material Symbols 指南](https://developers.google.com/fonts/docs/material_symbols)。
+- 界面图标优先复用 Cerasus 中用途对应的资源，命名为 `ic_icon_<name>`，按需导入 Android VectorDrawable。实际尺寸按组件规范设置，Expressive 列表前后图标使用 24dp。底栏「首页」与「我」在选中、未选中及动画期间均保留 Cerasus 实心轮廓，新选中时通过形体回弹反馈。
+- 本地适配使用 `ic_custom_<name>`，保持相近视觉重量、圆角和光学对齐。缺少同用途资源时可沿用已有 `ic_symbol_<name>`。图标来源、适配和许可分别见 [Cerasus 记录](third_party/cerasus-icons/README.md#常用操作与箭头)及 [Material Symbols 保留资源](third_party/material-symbols/README.md#保留的界面图标)。
 - 独立展示用户名（username）时统一使用 `@username`、`FontFamily.Monospace` 等宽字体和 `MaterialTheme.colorScheme.onSurfaceVariant` 次要文字颜色，字号沿用所在组件的排版层级；适用于个人主页、“我”、视频页上传者、评论作者、历史记录作者、关注／粉丝列表及资料预览。空白 username 不展示文字行。`@` 仅在展示层添加，输入框、存储及 API 参数保留原始 username；昵称或显示名称回退使用 username 时仍沿用名称样式，不套用独立 username 样式。
 
 ### 文案、本地化与无障碍
@@ -170,7 +170,7 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 - 无确定进度的加载统一复用 `IndeterminateCircularProgressIndicator`，封装官方 Material 2 `CircularProgressIndicator` 的不确定进度重载；这是 Material 3 Expressive 界面中的加载器例外，不引入 Material 2 主题，不使用 Expressive 形变加载器或 Material 3 圆形加载动画。圆弧端点固定使用 `StrokeCap.Round`，轨道透明，默认颜色来自当前 Material 3 主题 `primary`，媒体区域保留白色。
 - 加载器尺寸按场景适配：普通页面、图片及分页加载和播放器中央缓冲为 40dp、官方默认 4dp 线宽；文字按钮内使用 Material 3 `ButtonDefaults.iconSizeFor(height)`、2dp 线宽，`height` 与按钮规格一致，默认小按钮使用 `ButtonDefaults.MinHeight`；图标按钮、账号行与小窗播放按钮为 24dp、2dp 线宽；下拉刷新内部采用 Material 2 原始刷新尺寸 20dp、2.5dp 线宽，保留 40dp 白色圆形容器。保留按钮触摸目标、账号行固定占位及原有无障碍语义。
 
-  下拉刷新保留官方手势、白色圆形容器与固定阴影；拉动阶段按 Material 2 Android swipe-to-refresh 的旋转、圆弧增长、透明度阈值与超拉阻尼反馈，箭头复用 Material Symbols Rounded，不使用线性填满整圈的确定进度加载器。刷新阶段复用不确定进度组件，结束时保留旋转图形缩小淡出，不重新显示拉动箭头；两阶段均为圆角端点。有可量化进度的其他加载可使用确定进度指示器。
+  下拉刷新保留官方手势、白色圆形容器与固定阴影；拉动阶段按 Material 2 Android swipe-to-refresh 的旋转、圆弧增长、透明度阈值与超拉阻尼反馈，箭头采用 MD2 的实心三角比例并圆化三个角，不使用线性填满整圈的确定进度加载器。刷新阶段复用不确定进度组件，结束时保留旋转图形缩小淡出，不重新显示拉动箭头；两阶段均为圆角端点。有可量化进度的其他加载可使用确定进度指示器。
 - 区分首次加载与刷新：已有内容刷新时保留内容与布局，不在列表顶部额外插入占位的加载指示器，避免条目位移；下拉刷新统一由 `ContentPullToRefresh` 的覆盖式指示器反馈，不与列表内加载指示器重复显示。已加载的空结果也属于已有状态，刷新时保留空状态及其占位，不临时隐藏或替换为列表内加载指示器。首次无数据加载及相邻分页加载仍可在对应区域显示加载状态。检查调用 `ContentStatus` 时传入的 `loading`，不要直接把刷新状态映射为列表内加载状态。
 
 ### 毛玻璃应用栏
@@ -223,7 +223,7 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 - 所有颜色统一使用 Material Design 2 风格的经典强调色与中性表面，默认项目粉色，系统强调色默认关闭；不提供配色算法选择。主题、色板与选色器统一使用 `rememberSeedColorScheme` 生成完整语义颜色，不能只替换 `primary`；错误等语义颜色保留必要区分，形状、排版与动效沿用 Material 3 Expressive。
 - 系统强调色作为主题色板中的一个选项，仅在 Android 12+ 显示，与应用主题共用 `systemAccentColor` 读取系统强调色，卡片使用 Android 机器人图标；只提供原色来源，浅深模式均使用经典方案。选择系统强调色不覆盖手动或自定义色值，系统颜色资源变化后重新读取。
 - 经典强调色在浅深模式均保留不透明原色为 `primary`，完整生成主色容器、反色与固定色角色，次要容器与主色容器共用强调色调及配套前景，使默认 Slider 的未经过轨道和导航指示器统一着色，其余次要／第三色角色维持灰阶；主界面 NavigationBar 的普通前景使用 `onSurface`，选中胶囊覆盖的图标与文字像素使用 `primary`，胶囊背景在浅色主题使用 5% 不透明度的 `scrim`，深色主题使用 10% 不透明度的 `onSurface`，通过当前主题表面与前景的明度关系选择，兼容应用手动明暗模式；栏面底色浅色纯白、深色深灰，普通应用栏叠加共享毛玻璃背景，关闭色调高度叠加以免重新染色。
-- 项目内可选择的 `FilterChip` 与 `InputChip` 在可用且选中时统一使用 `primary` 背景，文字及前后图标使用 `onPrimary`。调用处直接通过官方 `FilterChipDefaults.filterChipColors` 或 `InputChipDefaults.inputChipColors` 配置选中颜色，随当前主题色变化；未选中、禁用配色及边框、形状、布局和交互沿用官方默认，不新增配色包装或偏好。
+- Chip 作为组件形状的明确例外，采用 Material Design 2 风格的胶囊轮廓：官方 `FilterChip`、`InputChip`、`AssistChip`、`SuggestionChip` 统一使用 `CircleShape`、无描边，普通／未选中背景为 `surfaceContainerHigh`，文字为 `onSurface`，前后图标为中性的 `onSurfaceVariant`。可选择的 Chip 在可用且选中时保留项目的 `primary` 实色背景，文字及前后图标使用 `onPrimary`；搜索历史中的只读标签采用相同的普通外观。调用处直接通过官方配色 API 配置，随当前主题变化；禁用配色、尺寸、排版、布局与交互沿用 Material 3 默认，不新增组件或配色包装、阴影或偏好。
 - 经典方案的 `onPrimary` 在主题生成阶段采用白色优先规则：白色与原色的对比达到 2.5:1 时使用白色，否则使用黑色。Switch 滑块与填充按钮文字直接继承该角色；此视觉取舍不保证按钮文字达到 4.5:1。
 - 普通输入框与验证码格统一使用 Material 3 filled 样式，聚焦、未聚焦、禁用及错误状态的背景使用 `surfaceContainerLow`，容器叠加一层参考 Cerasus 的固定中性内阴影：主题 `scrim`，浅色 6%／深色 12% 不透明度，模糊半径 4dp、向下偏移 4dp、扩张 0dp，圆角与容器一致；明暗根据当前主题表面与前景的明度关系判断，阴影仅在背景之上、文字及底线之下绘制，不覆盖 supporting text。普通输入框的未聚焦底线使用较淡的 `outlineVariant`，验证码格不绘制底线，其余配色保持官方默认。普通输入框复用 `FilledTextField`，默认配色、large 圆角和错误尺寸过渡由组件提供，不在调用处重复配置；验证码格复用 `FilledTextFieldDefaults` 的配色与 `FilledTextFieldContainer` 的内阴影，底层保留官方容器 API 并将聚焦与未聚焦指示线高度设为 0dp；普通输入框的聚焦与未聚焦底部指示线统一为 2dp，参考 Cerasus `TextBox` 的 2px 底线；搜索栏和评论／弹幕编辑器保留专用容器配色与阴影。普通 TextButton、RadioButton 及输入框的其余颜色使用官方默认配色；危险操作遵循共享危险样式。主色文字、选中标签与指示线直接引用 `MaterialTheme.colorScheme.primary`，不逐组件计算对比度或调整明度，接受极浅／极深选色时前景对比不足。
 - `ThemeColorDefaults` 只提供栏面颜色、普通页面背景和设置页面背景三个接口；对比度与 HCT 工具仅作为主题生成器的私有实现。底栏选中指示器及第三方组件需映射不同角色时直接使用 `ColorScheme`，不新增组件专用配色函数或包装组件。

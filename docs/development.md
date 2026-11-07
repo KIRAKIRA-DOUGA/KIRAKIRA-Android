@@ -139,7 +139,7 @@ app/src/main/
 │           ├── AppNavHost.kt # 统一转场、返回保护与播放协调
 │           ├── AppNavigationState.kt # 组合内导航协调状态
 │           └── *Entries.kt   # 按功能拆分的页面注册
-├── res/                     # 英文 / 中文字符串、Material Symbols、系统配置
+├── res/                     # 英文 / 中文字符串、图标、系统配置
 └── AndroidManifest.xml
 app/src/test/                 # 本机单元测试
 app/src/androidTest/          # Android 与 Compose UI 测试
@@ -149,4 +149,4 @@ docs/                        # 功能、开发、实现索引和认证专项指�
 └── validation/              # 带日期与验证范围的历史记录
 ```
 
-后续功能继续按 `feature/<name>/` 组织，详细边界见[贡献指南](../CONTRIBUTING.md#技术选型与架构)。官方图标来源与许可见 [Material Symbols 记录](../third_party/material-symbols/README.md)。
+后续功能继续按 `feature/<name>/` 组织，详细边界见[贡献指南](../CONTRIBUTING.md#技术选型与架构)。图标来源与许可见 [Cerasus 记录](../third_party/cerasus-icons/README.md)与 [Material Symbols 保留资源](../third_party/material-symbols/README.md)。

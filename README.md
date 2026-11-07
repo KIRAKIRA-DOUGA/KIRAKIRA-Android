@@ -2,7 +2,7 @@
 
 # KIRAKIRA Compose
 
-KIRAKIRA 的 Android 客户端，使用 **Kotlin + Jetpack Compose** 构建。界面基于 **Material 3 Expressive**，搭配 Material Design 2 风格的经典强调色、高度阴影与 KIRAKIRA 特色彩色阴影，图标采用 **Material Symbols Rounded**。
+KIRAKIRA 的 Android 客户端，使用 **Kotlin + Jetpack Compose** 构建。界面基于 **Material 3 Expressive**，搭配 Material Design 2 风格的经典强调色、高度阴影与 KIRAKIRA 特色彩色阴影，界面图标优先采用 **Cerasus** 的同用途资源。
 
 ## 主要功能
 

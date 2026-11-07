@@ -52,6 +52,8 @@
 
 `AccountSwitchPage` 将非空 username 转为展示用的 `@用户名`，与 `needsLogin` 状态分别传给账号行；用户名使用等宽字体与次要文字色，邮箱继续用于重新登录预填。`AccountSwitchScreen` 在账号行内持有编辑和副标题的 `Transition`，通过 `AnimatedContent` 复用主题的空间及淡入淡出动效，退出中的文字和控件清除无障碍语义，删除按钮仅在当前编辑模式可用。普通账号始终保留 `SwipeToRemoveAccount` 容器，编辑或忙碌时通过 `enabled` 停用手势及侧滑操作，避免切换编辑模式时重建整行；已有侧滑偏移平滑收回。添加账号图标使用主题颜色过渡。
 
+侧滑时，账号行下方绘制与页面同色的不透明 `surfaceContainer` 背景，遮住条目移开后露出的组内投影，分组圆角外侧仍显示 1dp 投影。侧滑删除按钮通过 `ShadowButton.previewEnabledAppearance` 在露出、停稳与收回时使用同一套主题错误色、装饰和阴影，透明度随侧滑距离变化。账号行停稳在露出位置后，按钮才可点击，并向无障碍服务提供包含账号名的移除标签。完整侧滑和点击按钮均进入移除确认。
+
 参考：[官方密码接入](https://developer.android.com/identity/passwords)、[Compose Autofill](https://developer.android.com/develop/ui/compose/text/autofill)、[Credentials 版本记录](https://developer.android.com/jetpack/androidx/releases/credentials)。
 
 注册与资料编辑的用户名、昵称校验共用 `data/auth/AccountNameRules.kt`，字符范围来自 Cerasus 的 `assets/pomsky/username.pom`，并保留最多 20 个 UTF-16 单元及空格限制；最终提交仍接受 Rosales 的现有校验结果。

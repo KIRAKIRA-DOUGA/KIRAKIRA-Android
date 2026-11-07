@@ -32,7 +32,7 @@
 
 `PlaybackSettings` 模型与 `PlaybackSettingsStore` 位于 `data/settings/`；`PlaybackSettingsViewModel` 通过该存储封装异步读取 `kirakira_settings` 的 `playback_in_app_mini_player`、`playback_outside_app_mini_player`（均默认 true）与 `playback_autoplay`（默认 false），使用 SharedPreferences apply 异步落盘。不迁移旧画中画开关。应用级状态经导航传入视频页与播放设置页，不绑定账号。
 
-`VideoPlayer` 接收播放状态、Media3 画面实例和事件回调，不持有 ViewModel。返回按钮和控制栏共享显隐状态与三秒计时器；缓冲、失败、进度交互、设置面板及触摸探索阻止自动隐藏，暂停与结束状态同样支持轻触显隐和三秒自动隐藏。控件使用主题效果动效，退出动画期间禁用交互并清除语义。控制层以黑色渐变遮罩衬托白色图标和文字，播放／暂停按钮居中，使用 60% 不透明度的黑色圆形容器和 Rounded FILL 1 白色图标，加载时同一 64dp 圆形容器内改为 40dp 白色 Material 2 圆角圆形加载器，不提供播放点击动作；底部不再使用主题 Surface。
+`VideoPlayer` 接收播放状态、Media3 画面实例和事件回调，不持有 ViewModel。返回按钮和控制栏共享显隐状态与三秒计时器；缓冲、失败、进度交互、设置面板及触摸探索阻止自动隐藏，暂停与结束状态同样支持轻触显隐和三秒自动隐藏。控件使用主题效果动效，退出动画期间禁用交互并清除语义。控制层以黑色渐变遮罩衬托白色图标和文字，播放／暂停按钮居中，使用 60% 不透明度的黑色圆形容器和 Cerasus 白色图标，加载时同一 64dp 圆形容器内改为 40dp 白色 Material 2 圆角圆形加载器，不提供播放点击动作；底部不再使用主题 Surface。
 
 Slider 使用官方 `SliderDefaults.Thumb`（16dp 等宽高，保留默认按压／拖动形变），以两层 `SliderDefaults.Track` 显示缓冲和已播放位置；上层未播放轨道透明，底层只绘制、不添加交互或语义。两层使用相同圆头尺寸，保留官方定位手势与无障碍语义。`PlaybackViewModel` 在 Media3 事件及现有 500ms 进度轮询中读取 `bufferedPosition`，按有效时长限制范围；未知时长与播放器释放时显示零缓冲，不持久化缓冲位置。
 
@@ -67,21 +67,22 @@ Slider 使用官方 `SliderDefaults.Thumb`（16dp 等宽高，保留默认按压
 
 ### 播放器控制与设置
 
+`PlayerTimeLabel` 以已播／剩余模式驱动同一个 `Transition`。负号用 `AnimatedVisibility` 横向展开或收起并淡入淡出，时间数字用 `AnimatedContent` 交叉淡化并过渡宽度，总时长跟随布局移动。尺寸和透明度分别使用主题 `fastSpatialSpec` 和 `fastEffectsSpec`。播放位置和拖动预览只更新文字，无障碍读取当前模式的完整时间标签。未知时长和续播提示直接显示普通文本。
+
 `PlaybackSpeedRules` 统一倍速范围、预设、连续值归一化、无障碍步进及进度／角度转换，供 ViewModel、仪表盘、拖动输入、图标与 Slider 使用。仪表盘和 Slider 的无障碍操作只在最终倍率变化时回调并返回成功，到达边界后返回 false。
 
 播放器控制栏自动隐藏、手势判定窗口、反馈停留、历史采样的最小进度差与恢复读取超时使用 `kotlin.time.Duration`；系统手势配置在输入边界转换。Media3 播放位置、弹幕时间线与 Compose 动画参数继续使用各自 API 的毫秒类型，弹幕空白区等待在协程超时调用前转换为 `Duration`。媒体、API、图片下载及头像上传的 OkHttp 超时直接使用 `Duration` 重载。
 
 `PlayerGestures.kt` 的 `PlayerGestureState` 仅在组合内保存拖动预览、待判定单击和双击累计目标；`Modifier.playerGestures` 在系统触摸阈值之后锁定方向，尊重子控件的事件消费，左右边缘 24dp 内开始的拖动不接管。背景与隐藏控制栏上方的拦截层共用状态，使隐藏期间仍可双击或拖动；横向拖动显示控制栏，拦截层保持至拖动结束以保留指针所有者；音量拖动不强制改变控制栏显隐，结束后重置三秒计时。控制布局仅在内容溢出时启用纵向滚动，防止普通尺寸下拦截音量滑动。
 
-横向目标以开始拖动时的位置和累计位移计算，完整画面宽度对应 `min(durationMs, 90_000)`，预览期间不调用播放器，`previewPositionMs` 同时驱动底部进度 Slider 与时间文字，取消后清空预览并恢复实际进度，正常松手才经现有 `onSeek` 提交一次；左右各三分之一区域双击分别跳转 −5／+5 秒，后续同侧点击使用累计目标，避免进度轮询滞后，目标始终限制在有效时长内。双击反馈记录归一化点击位置及单调递增的动画序号，独立的 `PlayerDoubleTapOverlay` 在对应侧绘制弧形区域、点击扩散波纹及带明暗脉冲和位移动画的官方 Material Symbols `fast_forward`／`fast_rewind` 图标，复用现有资源；双击不再显示中央拖动预览卡。初始双击仍遵循系统时间阈值，连续跳转模式在 800ms 反馈窗口内接受同侧后续点击，更新累计秒数（双击和拖动反馈均使用 `+Ns`／`-Ns` 格式）并重新触发官方 Material 3 `ripple`。水波纹通过独立 `MutableInteractionSource` 的 Press／Release 交互从点击位置触发，保持 80ms 后释放，取消时发送 Cancel；`indication` 无点击处理，外层弧形 Shape 负责裁剪，不再手绘扩散圆。`DoubleTapArrows` 缓存官方资源的两个原始箭头轮廓，按由内向外错开 55ms，每个箭头以 120ms 提亮／推进、220ms
+横向目标以开始拖动时的位置和累计位移计算，完整画面宽度对应 `min(durationMs, 90_000)`，预览期间不调用播放器，`previewPositionMs` 同时驱动底部进度 Slider 与时间文字，取消后清空预览并恢复实际进度，正常松手才经现有 `onSeek` 提交一次；左右各三分之一区域双击分别跳转 −5／+5 秒，后续同侧点击使用累计目标，避免进度轮询滞后，目标始终限制在有效时长内。双击反馈记录归一化点击位置及单调递增的动画序号，独立的 `PlayerDoubleTapOverlay` 在对应侧绘制弧形区域、点击扩散波纹及带明暗脉冲和位移动画的Cerasus 快进／快退图标，与拖动反馈共用资源；双击不再显示中央拖动预览卡。初始双击仍遵循系统时间阈值，连续跳转模式在 800ms 反馈窗口内接受同侧后续点击，更新累计秒数（双击和拖动反馈均使用 `+Ns`／`-Ns` 格式）并重新触发官方 Material 3 `ripple`。水波纹通过独立 `MutableInteractionSource` 的 Press／Release 交互从点击位置触发，保持 80ms 后释放，取消时发送 Cancel；`indication` 无点击处理，外层弧形 Shape 负责裁剪，不再手绘扩散圆。`DoubleTapArrows` 缓存两个原始轮廓，在 24 × 24 画布内按轮廓的横向位置排序，快进从左到右、快退从右到左错开 55ms，每个箭头以 120ms 提亮／推进、220ms
 缓动归位，一拍共 395ms；共享位移最多 3dp，单箭头附加位移最多 2dp，缩放最多 4%，白色不透明度在 64%–100% 之间平滑变化，保留箭头间距。`DoubleTapArrowMotion` 由组合生命周期内单个协程消费合并容量为一的装饰脉冲：当前一拍完成后续接最新待播一拍，不重置动画值，也不积压全部点击；业务跳转、秒数及原生 Ripple 仍逐次立即响应。标准动画时长下，两拍衔接约 790ms，与已有 800ms 反馈保持窗口配合；实际动画仍遵循系统时长缩放。方向改变时重建动效状态，离开组合时取消消费者及其子动画；动画值仅在 Canvas 绘制时读取，最后一次操作后沿用反馈淡出，遵循系统动画设置；覆盖层裁剪于播放器内且不接收指针输入。中间区域及不可跳转媒体使用相同的单／双击判定，单击延迟到双击窗口结束后显隐控制栏，双击经 `onToggle` 切换播放／暂停并取消待执行单击；中间区域连续点击按两次一组处理。拖动取消、多指介入、尺寸或配置变化、媒体切换、页面失活及画中画清理临时状态，播放与暂停状态保持不变。首次加载、失败、设置面板和触摸探索禁用新增手势，未知时长及不可跳转媒体禁用进度手势；键盘确认及无障碍显隐动作保留。
 
-`VideoPage` 持有 `MediaVolumeController`，通过 `onReadVolume` 与 `onVolume` 回调给播放器提供 0–1 的媒体音量读写，`VideoPlayer` 不直接访问平台音量服务。适配器仅操作 `AudioManager.STREAM_MUSIC`，按系统最小／最大档位映射，API 27 最小档位为 0；Manifest 声明普通权限 `MODIFY_AUDIO_SETTINGS`，不请求运行时权限。纵向位移按画面高度映射完整音量范围并乘以 1.5，提高滑动灵敏度。滑动不弹系统音量面板，不绕过固定音量或设备策略，反馈使用系统实际读回值，结束后保留音量。进度反馈采用官方 Rounded FILL 1 快进／快退图标、白色时间／变化量及半透明黑底；音量 HUD 靠右侧并避让全屏安全 Insets，使用官方 Material 3 `VerticalSlider` 与百分比，采用 40dp 粗轨道、48×4dp 横向细滑块、6dp 轨道间隔和顶部轨道内音量图标，不额外包裹表面色面板。Slider 禁用输入并使用正常主色和次要容器色，HUD 语义合并为音量读数，不提供可调节动作。音量图标采用官方 Rounded FILL 1 实心样式，音量为 0 时用无声波且无斜线的 `volume_mute`（不是 `volume_off`），1%–50% 用 `volume_down`，超过 50% 用 `volume_up`。`VolumeIconMorph` 从官方 `volume_up` 资源解析并缓存扬声器、内声波与外声波路径，零／低／高音量分别映射形变级别
-0／1／2：扬声器水平位移，声波轮廓从锚点展开或收拢，端点对应这三枚官方图标的几何，仅保留 `volume_up` drawable 作为路径来源。级别通过主题 `fastSpatialSpec` 连续动画，动画值只在绘制阶段读取，遵循系统动画设置。两类反馈均无阴影；结束后停留 800ms，再按主题效果动效淡出，不保存到 SavedState 或磁盘。
+`VideoPage` 持有 `MediaVolumeController`，通过 `onReadVolume` 与 `onVolume` 回调给播放器提供 0–1 的媒体音量读写，`VideoPlayer` 不直接访问平台音量服务。适配器仅操作 `AudioManager.STREAM_MUSIC`，按系统最小／最大档位映射，API 27 最小档位为 0；Manifest 声明普通权限 `MODIFY_AUDIO_SETTINGS`，不请求运行时权限。纵向位移按画面高度映射完整音量范围并乘以 1.5，提高滑动灵敏度。滑动不弹系统音量面板，不绕过固定音量或设备策略，反馈使用系统实际读回值，结束后保留音量。进度反馈采用 Cerasus 快进／快退图标、白色时间／变化量及半透明黑底；音量 HUD 靠右侧并避让全屏安全 Insets，使用官方 Material 3 `VerticalSlider` 与百分比，采用 40dp 粗轨道、48×4dp 横向细滑块、6dp 轨道间隔和顶部轨道内音量图标，不额外包裹表面色面板。Slider 禁用输入并使用正常主色和次要容器色，HUD 语义合并为音量读数，不提供可调节动作。音量图标使用 Cerasus 的扬声器形态，零／低／高音量分别显示零／一／两道声波，对应 `volume_none`、`volume_down` 与 `volume_up`。`VolumeIconMorph` 缓存 `ic_icon_volume_up` 中的扬声器和两道声波，沿同一锚点缩放声波。级别通过主题 `fastSpatialSpec` 连续动画，动画值只在绘制阶段读取，遵循系统动画设置。两类反馈均无阴影；结束后停留 800ms，再按主题效果动效淡出，不保存到 SavedState 或磁盘。
 
 覆盖层遮罩在上下边缘分别渐隐，中部透明；控件默认使用白色，已播放轨道及非 1× 的倍速入口沿用主题强调色。返回与全屏入口使用官方 FilledIconButton；图标容器与画质／倍速按钮均使用 60% 不透明度黑色，禁用时为 30%，不添加阴影。`PlayerSettingsButtons` 使用半透明黑色背景的官方 TextButton 与同一小号尺寸对应的形状、内边距、文字及图标 API，外围按钮统一为官方小号 40dp 容器高度，图标统一使用 IconButtonDefaults.smallIconSize 的 24dp 尺寸，与标准 TopBar 一致。右上角三个按钮采用原生工具栏的相邻排列，不额外叠加水平间距；图标按钮保留默认容器与最小交互布局，不用显式尺寸挤压布局。画质和非默认倍速文字按钮的外侧留白按 LocalMinimumInteractiveComponentSize 与官方小号图标容器宽度差的一半计算，匹配圆形图标按钮的原生留白。默认 48dp 交互布局和 40dp 图标容器下，各可见背景之间约为 8dp；半透明独立背景、官方内边距与系统最小触摸目标扩展继续保留。
 
-倍速入口图标使用官方 Rounded FILL 0，`PlaybackSpeedIcon` 缓存官方指针路径，使用圆角描边绘制外形固定的表盘，并沿表盘轮廓截取以指针方向为中心的 50° 缺口；指针和缺口读取同一动画角度，缺口在零位时沿平底移动；入口与弹层码表共用 `rememberPlaybackSpeedAngle`，播放时按倍率转动，暂停或缓冲时回到 150° 零位，均使用 300ms emphasized 动画。动画状态置于按钮形态切换外，避免经过 1× 时重置，动画值仅在绘制阶段读取。在 1× 时使用圆形 FilledIconButton，不显示数值；非 1× 时使用与画质等高的图标文字按钮并改为主题 primary。外层 AnimatedContent 以数值倍率为目标，以是否为非默认倍率作为 contentKey，仅在图标与文字按钮之间切换时淡入／淡出和过渡容器尺寸；退出内容使用自身倍率，不闪出 1×。控制栏倍率与码表设定读数使用 PlaybackSpeedText，内部仅数值通过共享 AnimatedNumberText 接入 NumberFlow，乘号作为独立的静态 Text 放在动画组件外；共享组件通过 animateContentSize 与主题 fastSpatialSpec 平滑过渡数字区域整体宽度，使增删小数位时按钮宽度与乘号位置连续变化。滑杆刻度及快捷项保持普通 Text。非默认倍率间保留同一组件，让发生变化的数值字符逐位滚动，使用主题
+倍速入口使用 Cerasus 的实心表盘。`PlaybackSpeedIcon` 缓存表盘与镂空指针的路径，绘制时仅围绕原轴心旋转指针。入口与弹层码表共用 `rememberPlaybackSpeedAngle`，播放时按倍率转动，暂停或缓冲时回到 150° 零位，均使用 300ms emphasized 动画。动画状态置于按钮形态切换外，避免经过 1× 时重置，动画值仅在绘制阶段读取。在 1× 时使用圆形 FilledIconButton，不显示数值；非 1× 时使用与画质等高的图标文字按钮并改为主题 primary。外层 AnimatedContent 以数值倍率为目标，以是否为非默认倍率作为 contentKey，仅在图标与文字按钮之间切换时淡入／淡出和过渡容器尺寸；退出内容使用自身倍率，不闪出 1×。控制栏倍率与码表设定读数使用 PlaybackSpeedText，内部仅数值通过共享 AnimatedNumberText 接入 NumberFlow，乘号作为独立的静态 Text 放在动画组件外；共享组件通过 animateContentSize 与主题 fastSpatialSpec 平滑过渡数字区域整体宽度，使增删小数位时按钮宽度与乘号位置连续变化。滑杆刻度及快捷项保持普通 Text。非默认倍率间保留同一组件，让发生变化的数值字符逐位滚动，使用主题
 fastSpatialSpec，颜色与透明度使用 fastEffectsSpec。格式沿用本地化倍率资源，去除小数尾零；组件清除逐字符语义，以完整目标倍率提供单个文字语义。首次显示直接采用当前状态，遵循系统动画时长设置。依赖来源与维护说明见 [NumberFlow](../../third_party/number-flow/README.md)。
 
 顶部使用透明官方 TopAppBar，将返回放在 navigationIcon、画质、倍速与齿轮设置依次放在 actions，复用默认栏高、内容边距和垂直对齐；actions 内部通过 FlowRow 换行，底部时间沿用主题 labelMedium 字体。私有 `PlayerControlsLayout` 使用 SubcomposeLayout 先测量顶部、时间、弹幕／全屏操作与 36dp 高度进度布局区，将 64dp 播放容器定位到视频画面的几何中心，图标与缓冲指示器均为 48dp；全屏时补偿不对称 safeDrawing Insets 对布局中心的偏移。根据实测控件矩形检查居中按钮是否重叠，仅在发生重叠或越界时将播放／缓冲控件以 48dp 容器排入底部操作区。
@@ -90,7 +91,7 @@ fastSpatialSpec，颜色与透明度使用 fastEffectsSpec。格式沿用本地�
 
 时间起点为 16dp，进度条扣除官方手柄半径后设置外边距，使轨道端点与 16dp 内容边界对齐；弹幕 Switch 保留官方尺寸和状态动效，轨道在开关两种状态下均为 60% 不透明度黑色并带半透明白色描边，开启时使用白色滑块与黑色图标，关闭时滑块降低不透明度并保留划线提示，禁用状态同步降低对比度。全屏由控件层避让 safeDrawing Insets，顶栏的 windowInsets 为零以免重复避让，遮罩仍覆盖整个画面。播放形变状态、弹幕划线状态和进度拖动状态保留在自适应布局之外，重排不重播动效或清空拖动预览；错误态单独预留顶部返回与全屏工具栏，继续使用统一 MEDIA 错误组件。
 
-播放／暂停图标使用 `AnimatedPlaybackIcon` 的路径形变，两种切换均顺时针旋转 90°，采用主题的 Material 3 Expressive `fastSpatialSpec` 弹簧，与划线图标共用动效曲线，不做透明度切换。路径插值与旋转保留超过 1 的弹簧进度，使形变和旋转略微超过目标后回弹。目标路径反向补偿 90°，结束后仍为正向 Material Symbols Rounded 图标，并归一化内部坐标。连续切换从当前可见轮廓继续向最新状态顺时针形变，不排队或倒放。动画状态保留在加载与控制层显隐分支之外，首次显示直接采用当前播放状态，恢复控制层不重播；使用 Compose 动画时钟遵循系统动画时长设置。绘制缓存复用，两种尺寸模式共用组件，颜色及无障碍描述继承原按钮。
+播放／暂停图标使用 `AnimatedPlaybackIcon` 的路径形变，两种切换均顺时针旋转 90°，采用主题的 Material 3 Expressive `fastSpatialSpec` 弹簧，与划线图标共用动效曲线，不做透明度切换。路径插值与旋转保留超过 1 的弹簧进度，使形变和旋转略微超过目标后回弹。目标路径反向补偿 90°，结束后恢复正向的 Cerasus 图标，并归一化内部坐标。连续切换从当前可见轮廓继续向最新状态顺时针形变，不排队或倒放。动画状态保留在加载与控制层显隐分支之外，首次显示直接采用当前播放状态，恢复控制层不重播；使用 Compose 动画时钟遵循系统动画时长设置。绘制缓存复用，两种尺寸模式共用组件，颜色及无障碍描述继承原按钮。
 
 图标及操作描述由 `showPauseIcon` 驱动：Media3 `playWhenReady` 为真且未结束、未报错时显示暂停图标，缓冲不会使其切换为播放图标；暂停、播放结束和释放后显示播放图标。`playing` 继续表达 `isPlaying`，用于原有控制层及画中画行为。图标随目标状态变化播放动画，不再使用点击计数或加载结束补播逻辑；Material 2 圆角圆形加载器仍用于缓冲展示，其间图标动画状态在外层继续更新。
 
@@ -110,7 +111,7 @@ fastSpatialSpec，颜色与透明度使用 fastEffectsSpec。格式沿用本地�
 
 码表指针按用户提供的设计参考采用细尖、圆底的渐窄轮廓，以缓存的闭合路径绘制，中心端与尖端宽度比例为 5:1，轴心至尖端的长度为轨道中心半径的 68%；尖端保留小圆角，中心端为一体半圆，不叠加独立圆轴。中心端半宽限制在 4dp–8dp，避免窄屏或大字体下过细。外弧为 8dp 宽的填充环形路径，断口使用 2dp 圆角，避免分段形成独立胶囊。0、0.25、0.5、1、2、4 为大刻度，以 2dp 宽、12dp 长的圆头径向短杆绘制，统一使用主色。轨道按大刻度分段，根据刻度半宽和 3dp 间隔计算角度退让；路径圆角随短弧长度收缩，极短区间空间不足时省略弧段及圆点，避免重叠。
 
-每段弧线中心放置一个小圆点，不按不均匀的快捷倍率分布，尺寸复用 `SliderDefaults.TickSize`，活动圆点使用 `activeTickColor`，其余使用 `inactiveTickColor`。表盘半径扣除轨道半宽，为外缘和标签保留空间；文字仅显示倍率数字，单位由读数表达。设计理由见 [Material Symbols](../../third_party/material-symbols/README.md#播放器控制图标)。
+每段弧线中心放置一个小圆点，不按不均匀的快捷倍率分布，尺寸复用 `SliderDefaults.TickSize`，活动圆点使用 `activeTickColor`，其余使用 `inactiveTickColor`。表盘半径扣除轨道半宽，为外缘和标签保留空间；文字仅显示倍率数字，单位由读数表达。图标来源见 [Cerasus 播放器图标](../../third_party/cerasus-icons/README.md#播放器图标)。
 
 `PlaybackViewModel` 与 `ImageExportViewModel` 在构造时将传入 Context 转为 Application Context，避免随宿主作用域保留 Activity。
 
@@ -186,7 +187,7 @@ Compose [共享元素转场](https://developer.android.com/develop/ui/compose/an
 
 banner 来源通过 `sourceContentScale = ContentScale.Crop` 登记实际填充方式；来源图、查看器的占位图与原图共用 `rememberImageContentScale`，按当前共享边界尺寸在来源的 Crop 缩放与全屏 Fit 缩放之间插值，避免边界变化或加载接力时直接切换填充方式。普通关闭、下拉提交和预测返回均跟随相同的边界几何，静止或无匹配来源时恢复各端原有填充方式；头像仍沿用原有填充与圆角转场。来源填充记录随参与者释放，不进入路由或持久状态。
 
-视频操作区通过 [VideoActionsMenu](../../app/src/main/java/moe/kirakira/feature/video/VideoActionsMenu.kt) 的 Expressive 菜单提供「查看封面」，由 `VideoPage` 校验当前会话、页面交互状态与公开图片地址，再经驻留视频页的导航回调打开 `ImageViewerRoute`。封面使用不限制宽度的原图分发地址，720px 地址仅作缩略占位；不传 `sharedKey`，不关联视频卡片或播放器。
+视频操作区的赞、踩、收藏、下载和分享采用 Cerasus 图标，竖向三点按钮通过 [VideoActionsMenu](../../app/src/main/java/moe/kirakira/feature/video/VideoActionsMenu.kt) 打开 Expressive 菜单，其中「查看封面」使用 Cerasus 的 `photo`。打开封面时由 `VideoPage` 校验当前会话、页面交互状态与公开图片地址，再经驻留视频页的导航回调打开 `ImageViewerRoute`。封面使用不限制宽度的原图分发地址，720px 地址仅作缩略占位；不传 `sharedKey`，不关联视频卡片或播放器。
 
 从视频页打开图片时，`AppNavHost` 通过栈顶／上一条目的 `VideoRoute` 和仍在组合中的查看器计数维护 `videoPageUnderImage`，覆盖打开、查看、预测返回、下拉恢复及退出收尾。`PlaybackHost` 保留整页与原生 Surface、禁止缩为小窗并停用交互；图片导航层固定绘制在其上方。视频占位 Scene 此时不绘制原卡片页背景，且不把图片覆盖误当作普通横移，避免进出瞬间露出空白或卡片页。
 
