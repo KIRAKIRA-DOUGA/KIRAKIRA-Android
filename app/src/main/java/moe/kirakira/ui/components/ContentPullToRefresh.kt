@@ -31,7 +31,6 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.rotate
@@ -132,19 +131,25 @@ private fun PullRefreshArrowIndicator(
             val sweepAngle = adjustedProgress * REFRESH_MAX_PROGRESS_ARC * 360f
             val strokeWidth = RefreshStrokeWidth.toPx()
             val radius = (size.minDimension - strokeWidth) / 2f
-            val arrowSize = RefreshArrowSize.toPx() * adjustedProgress
-            val stroke = Stroke(width = strokeWidth, cap = StrokeCap.Round, join = StrokeJoin.Round)
-            // Rounded chevron_right centerline in its 960-unit viewport; scale length, not stroke.
-            val arrowScale = arrowSize / 960f
-            arrow.reset()
-            arrow.moveTo(-104f * arrowScale, -184f * arrowScale)
-            arrow.lineTo(80f * arrowScale, 0f)
-            arrow.lineTo(-104f * arrowScale, 184f * arrowScale)
+            val halfArrowWidth = RefreshArrowWidth.toPx() * adjustedProgress / 2f
+            val arrowHeight = RefreshArrowHeight.toPx() * adjustedProgress
+            val corner = arrowHeight * 0.2f
+            val diagonalCorner = corner * 0.7071068f
+            val stroke = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            arrow.rewind()
+            arrow.moveTo(-halfArrowWidth + corner, 0f)
+            arrow.lineTo(halfArrowWidth - corner, 0f)
+            arrow.quadraticTo(halfArrowWidth, 0f, halfArrowWidth - diagonalCorner, diagonalCorner)
+            arrow.lineTo(diagonalCorner, arrowHeight - diagonalCorner)
+            arrow.quadraticTo(0f, arrowHeight, -diagonalCorner, arrowHeight - diagonalCorner)
+            arrow.lineTo(-halfArrowWidth + diagonalCorner, diagonalCorner)
+            arrow.quadraticTo(-halfArrowWidth, 0f, -halfArrowWidth + corner, 0f)
+            arrow.close()
             opacityPaint.alpha = alpha * color.alpha
             val opaqueColor = color.copy(alpha = 1f)
             drawIntoCanvas { canvas ->
-                // Composite both strokes before fading, with room for the arrow outside the arc.
-                val outset = arrowSize + strokeWidth
+                // Composite the arc and arrowhead before fading their overlap.
+                val outset = halfArrowWidth + strokeWidth
                 canvas.saveLayer(
                     bounds = Rect(-outset, -outset, size.width + outset, size.height + outset),
                     paint = opacityPaint,
@@ -162,10 +167,9 @@ private fun PullRefreshArrowIndicator(
                         )
                         withTransform({
                             rotate(degrees = startAngle + sweepAngle)
-                            translate(left = center.x + radius, top = center.y)
-                            rotate(degrees = 90f, pivot = Offset.Zero)
+                            translate(left = center.x + radius, top = center.y + strokeWidth / 4f)
                         }) {
-                            drawPath(path = arrow, color = opaqueColor, style = stroke)
+                            drawPath(path = arrow, color = opaqueColor)
                         }
                     }
                 } finally {
@@ -182,4 +186,5 @@ private const val REFRESH_MIN_ALPHA = 0.3f
 private const val REFRESH_MAX_PROGRESS_ARC = 0.8f
 private val RefreshSpinnerSize = 20.dp
 private val RefreshStrokeWidth = 2.5.dp
-private val RefreshArrowSize = 18.dp
+private val RefreshArrowWidth = 10.dp
+private val RefreshArrowHeight = 5.dp

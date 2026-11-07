@@ -55,7 +55,7 @@ internal fun CustomColorInput(
             TextButton(onClick = { expanded = true }) {
                 Text(stringResource(R.string.theme_color_format, state.format.name))
                 Icon(
-                    painter = painterResource(R.drawable.ic_symbol_chevron_right),
+                    painter = painterResource(R.drawable.ic_icon_chevron_right),
                     contentDescription = null,
                     modifier = Modifier.size(18.dp).rotate(90f),
                 )
@@ -79,7 +79,7 @@ internal fun CustomColorInput(
                             colors = itemColors,
                             trailingContent = if (state.format == format) {
                                 {
-                                    Icon(painterResource(R.drawable.ic_symbol_check), contentDescription = null)
+                                    Icon(painterResource(R.drawable.ic_icon_check), contentDescription = null)
                                 }
                             } else null,
                         )

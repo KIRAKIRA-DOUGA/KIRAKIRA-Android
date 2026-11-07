@@ -275,7 +275,7 @@ internal fun ContentComposer(
             enabled = enabled && !busy,
         ) {
             Icon(
-                painterResource(if (panelOpen) R.drawable.ic_symbol_keyboard else R.drawable.ic_custom_kaomoji),
+                painterResource(if (panelOpen) R.drawable.ic_icon_keyboard else R.drawable.ic_custom_kaomoji),
                 stringResource(if (panelOpen) R.string.kaomoji_keyboard else R.string.kaomoji_title),
                 modifier = Modifier.size(24.dp),
             )
@@ -309,7 +309,7 @@ internal fun ContentComposer(
                 disabledContentColor = colors.disabledContentColor.compositeOver(disabledContainerColor),
             ),
         ) {
-            Icon(painterResource(R.drawable.ic_symbol_send), stringResource(R.string.content_send))
+            Icon(painterResource(R.drawable.ic_icon_send), stringResource(R.string.content_send))
         }
     }
     Column(

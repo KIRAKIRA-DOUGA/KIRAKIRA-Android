@@ -124,7 +124,7 @@ internal fun VideoCommentItem(
                         onCheckedChange = { onVote(1) },
                         modifier = actionButtonModifier,
                     ) {
-                        Icon(painterResource(R.drawable.ic_symbol_arrow_upward), stringResource(R.string.video_like))
+                        Icon(painterResource(R.drawable.ic_icon_arrow_up), stringResource(R.string.video_like))
                     }
                     AnimatedCountLabel(
                         count = comment.score,
@@ -138,17 +138,17 @@ internal fun VideoCommentItem(
                         modifier = actionButtonModifier,
                     ) {
                         Icon(
-                            painterResource(R.drawable.ic_symbol_arrow_downward),
+                            painterResource(R.drawable.ic_icon_arrow_down),
                             stringResource(R.string.video_dislike),
                         )
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                     IconButton(onClick = onReply, modifier = actionButtonModifier) {
-                        Icon(painterResource(R.drawable.ic_symbol_reply), stringResource(R.string.video_comment_reply))
+                        Icon(painterResource(R.drawable.ic_icon_reply), stringResource(R.string.video_comment_reply))
                     }
                     IconButton(onClick = onMore, modifier = actionButtonModifier) {
-                        Icon(painterResource(R.drawable.ic_symbol_more_horiz), stringResource(R.string.video_more))
+                        Icon(painterResource(R.drawable.ic_icon_more_vert), stringResource(R.string.video_more))
                     }
                 }
             }

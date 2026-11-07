@@ -50,18 +50,18 @@ internal fun SecurityOverview(state: SecuritySettingsState, email: String, onOpe
     val canEdit = !state.working && state.status != null && !state.statusPending
     SettingsSection {
         SecurityItem(
-            R.drawable.ic_symbol_mail, stringResource(R.string.auth_email), email, 0, 2,
+            R.drawable.ic_icon_email, stringResource(R.string.auth_email), email, 0, 2,
             enabled = canEdit, onClick = { onOpen(SecurityStep.EMAIL) },
         )
         SecurityItem(
-            R.drawable.ic_symbol_password, stringResource(R.string.security_password),
+            R.drawable.ic_icon_password, stringResource(R.string.security_password),
             stringResource(R.string.security_change_password), 1, 2, enabled = canEdit,
             onClick = { onOpen(SecurityStep.PASSWORD) },
         )
     }
     SettingsSection {
         SecurityItem(
-            R.drawable.ic_symbol_lock, stringResource(R.string.security_two_factor_section),
+            R.drawable.ic_icon_lock, stringResource(R.string.security_two_factor_section),
             stringResource(state.status?.factor?.label() ?: R.string.security_status_pending),
             0, 1, enabled = !state.working, onClick = { onOpen(SecurityStep.TWO_FACTOR) },
         )
@@ -98,7 +98,7 @@ private fun SecurityStatusBanner(state: SecuritySettingsState) {
         ) {
             if (protected) {
                 TwoFactorMethodIcon(
-                    icon = if (factor == SecondFactor.EMAIL) R.drawable.ic_symbol_mail else R.drawable.ic_symbol_lock,
+                    icon = if (factor == SecondFactor.EMAIL) R.drawable.ic_icon_email else R.drawable.ic_icon_lock,
                 )
             } else if (unprotected) {
                 Surface(
@@ -109,7 +109,7 @@ private fun SecurityStatusBanner(state: SecuritySettingsState) {
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            painter = painterResource(R.drawable.ic_symbol_error),
+                            painter = painterResource(R.drawable.ic_icon_error),
                             contentDescription = null,
                             modifier = Modifier.size(32.dp),
                         )
@@ -117,7 +117,7 @@ private fun SecurityStatusBanner(state: SecuritySettingsState) {
                 }
             } else {
                 IconBadge(
-                    icon = if (state.statusPending) R.drawable.ic_symbol_lock else R.drawable.ic_symbol_error,
+                    icon = if (state.statusPending) R.drawable.ic_icon_lock else R.drawable.ic_icon_error,
                     shape = MaterialShapes.Cookie12Sided.toShape(),
                     tone = IconBadgeTone.NEUTRAL,
                     size = 64.dp,
@@ -167,7 +167,7 @@ internal fun TwoFactorManagement(
                         onClick = { onSelectFactor(SecondFactor.EMAIL) },
                         index = 0,
                         count = 2,
-                        icon = R.drawable.ic_symbol_mail,
+                        icon = R.drawable.ic_icon_email,
                         supporting = email,
                         enabled = isActive && !state.working,
                     )
@@ -177,7 +177,7 @@ internal fun TwoFactorManagement(
                         onClick = { onSelectFactor(SecondFactor.TOTP) },
                         index = 1,
                         count = 2,
-                        icon = R.drawable.ic_symbol_lock,
+                        icon = R.drawable.ic_icon_lock,
                         supporting = if (flow.draft is TotpDraft.Available) {
                             stringResource(R.string.security_continue_binding)
                         } else {
@@ -219,8 +219,8 @@ private fun TwoFactorEnabledCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 TwoFactorMethodIcon(
-                    icon = if (status.factor == SecondFactor.EMAIL) R.drawable.ic_symbol_mail
-                    else R.drawable.ic_symbol_lock,
+                    icon = if (status.factor == SecondFactor.EMAIL) R.drawable.ic_icon_email
+                    else R.drawable.ic_icon_lock,
                 )
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
@@ -285,7 +285,7 @@ private fun TwoFactorEnabledBadge(modifier: Modifier = Modifier) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                painter = painterResource(R.drawable.ic_symbol_check),
+                painter = painterResource(R.drawable.ic_icon_check),
                 contentDescription = null,
                 modifier = Modifier.size(16.dp),
             )
@@ -310,7 +310,7 @@ private fun SecurityItem(
             if (busy) {
                 IndeterminateCircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
             } else {
-                Icon(painterResource(R.drawable.ic_symbol_chevron_right), null, Modifier.size(24.dp))
+                Icon(painterResource(R.drawable.ic_icon_chevron_right), null, Modifier.size(24.dp))
             }
         },
         content = { Text(title) },

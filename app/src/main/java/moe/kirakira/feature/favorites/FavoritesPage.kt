@@ -32,7 +32,7 @@ internal fun FavoritesPage(onBack: () -> Unit, modifier: Modifier = Modifier) {
         topBar = {
             Box {
                 ShadingIcon(
-                    icon = R.drawable.ic_symbol_star,
+                    icon = R.drawable.ic_icon_star,
                     modifier = Modifier.matchParentSize(),
                     endPadding = 0.dp,
                     alignment = Alignment.BottomEnd,

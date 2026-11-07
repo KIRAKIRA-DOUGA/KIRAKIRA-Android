@@ -141,7 +141,7 @@ internal fun PrivacySettingsScreen(
     SettingsScaffold(
         title = stringResource(R.string.settings_privacy),
         onBack = onBack,
-        shadingIcon = R.drawable.ic_symbol_shield,
+        shadingIcon = R.drawable.ic_icon_shield,
         modifier = modifier,
         imePadding = true,
         actions = {
@@ -166,7 +166,7 @@ internal fun PrivacySettingsScreen(
                                 strokeWidth = 2.dp,
                             )
                         } else {
-                            Icon(painterResource(R.drawable.ic_symbol_history), null, Modifier.size(24.dp))
+                            Icon(painterResource(R.drawable.ic_icon_history), null, Modifier.size(24.dp))
                         }
                     }
                 }
@@ -183,7 +183,7 @@ internal fun PrivacySettingsScreen(
                 modifier = Modifier.padding(padding),
                 title = stringResource(R.string.management_sign_in),
                 description = null,
-                iconRes = R.drawable.ic_symbol_shield,
+                iconRes = R.drawable.ic_icon_shield,
                 presentation = ContentUnavailablePresentation.PAGE,
                 primaryAction = ContentUnavailableAction(stringResource(R.string.management_login), onLogin),
             )
@@ -227,7 +227,7 @@ internal fun PrivacySettingsScreen(
     if (state.confirmReset && signedIn && !sessionBusy) {
         ActionDialog(
             onDismissRequest = onCancelReset,
-            icon = { Icon(painterResource(R.drawable.ic_symbol_shield), contentDescription = null) },
+            icon = { Icon(painterResource(R.drawable.ic_icon_shield), contentDescription = null) },
             title = { Text(stringResource(R.string.privacy_reset_title)) },
             text = { Text(stringResource(R.string.privacy_reset_message)) },
             actions = {
@@ -345,7 +345,7 @@ private fun PrivacyGroup(
                         }
                     }
                 },
-                trailingContent = { Icon(painterResource(R.drawable.ic_symbol_chevron_right), null, Modifier.size(24.dp)) },
+                trailingContent = { Icon(painterResource(R.drawable.ic_icon_chevron_right), null, Modifier.size(24.dp)) },
                 content = { Text(stringResource(item.titleRes())) },
             )
         }
@@ -415,11 +415,11 @@ private fun PrivacyItem.titleRes(): Int = when (this) {
     PrivacyItem.FAVORITES -> R.string.me_favorites
 }
 private fun PrivacyItem.iconRes(): Int = when (this) {
-    PrivacyItem.BIRTHDAY -> R.drawable.ic_symbol_cake
-    PrivacyItem.AGE -> R.drawable.ic_symbol_calendar_today
-    PrivacyItem.FOLLOWING -> R.drawable.ic_symbol_person_add
-    PrivacyItem.FOLLOWERS -> R.drawable.ic_symbol_group
-    PrivacyItem.FAVORITES -> R.drawable.ic_symbol_star
+    PrivacyItem.BIRTHDAY -> R.drawable.ic_icon_birthday
+    PrivacyItem.AGE -> R.drawable.ic_icon_calendar
+    PrivacyItem.FOLLOWING -> R.drawable.ic_icon_person_add
+    PrivacyItem.FOLLOWERS -> R.drawable.ic_icon_person_heart
+    PrivacyItem.FAVORITES -> R.drawable.ic_icon_star
 }
 
 private fun PrivacyVisibility.titleRes(): Int = when (this) {
@@ -428,9 +428,9 @@ private fun PrivacyVisibility.titleRes(): Int = when (this) {
     PrivacyVisibility.PRIVATE -> R.string.privacy_hidden
 }
 private fun PrivacyVisibility.iconRes(): Int = when (this) {
-    PrivacyVisibility.PUBLIC -> R.drawable.ic_symbol_visibility
-    PrivacyVisibility.FOLLOWING -> R.drawable.ic_symbol_person_add
-    PrivacyVisibility.PRIVATE -> R.drawable.ic_symbol_visibility_off
+    PrivacyVisibility.PUBLIC -> R.drawable.ic_icon_visibility
+    PrivacyVisibility.FOLLOWING -> R.drawable.ic_icon_person_add
+    PrivacyVisibility.PRIVATE -> R.drawable.ic_icon_visibility_off
 }
 
 @Preview(name = "Privacy · Guest", locale = "en", showBackground = true)

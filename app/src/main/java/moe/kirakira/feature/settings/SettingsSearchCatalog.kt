@@ -32,8 +32,8 @@ internal val settingsSearchCatalog: List<SettingsSearchEntry> = buildList {
     fun items(destination: SettingsSearchPage, category: Int, icon: Int, account: Boolean, vararg labels: Pair<String, Int>) {
         labels.forEach { (id, title) -> add(SettingsSearchEntry(id, title, destination, category, icon, account)) }
     }
-    page("profile", R.string.settings_profile, SettingsSearchPage.PROFILE, R.drawable.ic_symbol_badge, true)
-    items(SettingsSearchPage.PROFILE, R.string.settings_profile, R.drawable.ic_symbol_badge, true,
+    page("profile", R.string.settings_profile, SettingsSearchPage.PROFILE, R.drawable.ic_icon_badge, true)
+    items(SettingsSearchPage.PROFILE, R.string.settings_profile, R.drawable.ic_icon_badge, true,
         "profile.avatar" to R.string.profile_edit_avatar,
         "profile.username" to R.string.auth_username,
         "profile.nickname" to R.string.auth_nickname,
@@ -42,8 +42,8 @@ internal val settingsSearchCatalog: List<SettingsSearchEntry> = buildList {
         "profile.gender" to R.string.profile_gender,
         "profile.labels" to R.string.profile_add_label,
     )
-    page("privacy", R.string.settings_privacy, SettingsSearchPage.PRIVACY, R.drawable.ic_symbol_shield, true)
-    items(SettingsSearchPage.PRIVACY, R.string.settings_privacy, R.drawable.ic_symbol_shield, true,
+    page("privacy", R.string.settings_privacy, SettingsSearchPage.PRIVACY, R.drawable.ic_icon_shield, true)
+    items(SettingsSearchPage.PRIVACY, R.string.settings_privacy, R.drawable.ic_icon_shield, true,
         "privacy.all" to R.string.privacy_set_all,
         "privacy.birthday" to R.string.profile_birthday,
         "privacy.age" to R.string.privacy_age,
@@ -51,14 +51,14 @@ internal val settingsSearchCatalog: List<SettingsSearchEntry> = buildList {
         "privacy.followers" to R.string.me_followers_count,
         "privacy.favorites" to R.string.me_favorites,
     )
-    page("security", R.string.settings_security, SettingsSearchPage.SECURITY, R.drawable.ic_symbol_lock, true)
-    items(SettingsSearchPage.SECURITY, R.string.settings_security, R.drawable.ic_symbol_lock, true,
+    page("security", R.string.settings_security, SettingsSearchPage.SECURITY, R.drawable.ic_icon_lock, true)
+    items(SettingsSearchPage.SECURITY, R.string.settings_security, R.drawable.ic_icon_lock, true,
         "security.email" to R.string.auth_email,
         "security.password" to R.string.security_password,
         "security.two_factor" to R.string.security_two_factor_section,
     )
-    page("blocking", R.string.settings_blocking, SettingsSearchPage.BLOCKING, R.drawable.ic_symbol_block, true)
-    items(SettingsSearchPage.BLOCKING, R.string.settings_blocking, R.drawable.ic_symbol_block, true,
+    page("blocking", R.string.settings_blocking, SettingsSearchPage.BLOCKING, R.drawable.ic_icon_block, true)
+    items(SettingsSearchPage.BLOCKING, R.string.settings_blocking, R.drawable.ic_icon_block, true,
         "blocking.users" to R.string.management_blocked_users,
         "blocking.hidden" to R.string.management_hidden_users,
         "blocking.tags" to R.string.management_tags,
@@ -66,9 +66,9 @@ internal val settingsSearchCatalog: List<SettingsSearchEntry> = buildList {
         "blocking.regex" to R.string.management_regex,
     )
     page("invitations", R.string.settings_invitation_code, SettingsSearchPage.INVITATIONS,
-        R.drawable.ic_symbol_confirmation_number, true)
-    page("appearance", R.string.settings_appearance, SettingsSearchPage.APPEARANCE, R.drawable.ic_symbol_palette)
-    items(SettingsSearchPage.APPEARANCE, R.string.settings_appearance, R.drawable.ic_symbol_palette, false,
+        R.drawable.ic_icon_gift, true)
+    page("appearance", R.string.settings_appearance, SettingsSearchPage.APPEARANCE, R.drawable.ic_icon_palette)
+    items(SettingsSearchPage.APPEARANCE, R.string.settings_appearance, R.drawable.ic_icon_palette, false,
         "appearance.brightness" to R.string.theme_brightness,
         "appearance.system" to R.string.theme_system,
         "appearance.light" to R.string.theme_light,
@@ -79,12 +79,12 @@ internal val settingsSearchCatalog: List<SettingsSearchEntry> = buildList {
     )
     ThemePresetColor.entries.forEach { preset ->
         add(SettingsSearchEntry("appearance.color.${preset.name}", preset.titleRes, SettingsSearchPage.APPEARANCE,
-            R.string.settings_appearance, R.drawable.ic_symbol_palette))
+            R.string.settings_appearance, R.drawable.ic_icon_palette))
     }
     add(SettingsSearchEntry("appearance.system_accent", R.string.theme_color_system_accent, SettingsSearchPage.APPEARANCE,
         R.string.settings_appearance, R.drawable.ic_symbol_android, minimumSdk = 31))
-    page("playback", R.string.settings_playback, SettingsSearchPage.PLAYBACK, R.drawable.ic_symbol_play_circle)
-    items(SettingsSearchPage.PLAYBACK, R.string.settings_playback, R.drawable.ic_symbol_play_circle, false,
+    page("playback", R.string.settings_playback, SettingsSearchPage.PLAYBACK, R.drawable.ic_icon_play)
+    items(SettingsSearchPage.PLAYBACK, R.string.settings_playback, R.drawable.ic_icon_play, false,
         "playback.in_app" to R.string.settings_in_app_mini_player,
         "playback.outside_app" to R.string.settings_outside_app_mini_player,
         "playback.autoplay" to R.string.settings_autoplay,
@@ -101,13 +101,13 @@ internal val settingsSearchCatalog: List<SettingsSearchEntry> = buildList {
         "danmaku.bottom" to R.string.danmaku_style_bottom,
         "danmaku.ltr" to R.string.danmaku_style_ltr,
     )
-    page("about", R.string.settings_about, SettingsSearchPage.ABOUT, R.drawable.ic_symbol_info)
-    items(SettingsSearchPage.ABOUT, R.string.settings_about, R.drawable.ic_symbol_info, false,
+    page("about", R.string.settings_about, SettingsSearchPage.ABOUT, R.drawable.ic_icon_info)
+    items(SettingsSearchPage.ABOUT, R.string.settings_about, R.drawable.ic_icon_info, false,
         "about.github" to R.string.about_github,
         "about.licenses" to R.string.about_licenses,
     )
     page("account", R.string.settings_switch_account, SettingsSearchPage.ACCOUNT, R.drawable.ic_symbol_switch_account)
-    page("logout", R.string.settings_log_out, SettingsSearchPage.HOME, R.drawable.ic_symbol_logout, true)
+    page("logout", R.string.settings_log_out, SettingsSearchPage.HOME, R.drawable.ic_icon_logout, true)
 }
 
 internal fun SettingsSearchEntry.isVisible(signedIn: Boolean): Boolean =

@@ -96,7 +96,7 @@ internal fun BlockingOverviewScreen(
 ) {
     ManagementFrame(
         title = stringResource(R.string.settings_blocking),
-        shadingIcon = R.drawable.ic_symbol_block,
+        shadingIcon = R.drawable.ic_icon_block,
         signedIn = signedIn,
         loading = state.loading,
         loaded = state.data != null,
@@ -147,7 +147,7 @@ internal fun BlockingOverviewScreen(
                                             color = MaterialTheme.colorScheme.primary,
                                         )
                                     }
-                                    Icon(painterResource(R.drawable.ic_symbol_chevron_right), null, Modifier.size(24.dp))
+                                    Icon(painterResource(R.drawable.ic_icon_chevron_right), null, Modifier.size(24.dp))
                                 }
                             },
                             content = { Text(stringResource(category.titleRes())) },
@@ -210,7 +210,7 @@ internal fun RuleManagementScreen(
                 enabled = !busy,
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_symbol_add),
+                    painter = painterResource(R.drawable.ic_icon_add),
                     contentDescription = stringResource(R.string.management_add),
                 )
             }
@@ -261,7 +261,7 @@ internal fun RuleManagementScreen(
                     },
                     trailingContent = {
                         IconButton(onClick = { onRemove(entry) }, enabled = !busy && (!user || entry.uid != null)) {
-                            Icon(painterResource(R.drawable.ic_symbol_close), stringResource(R.string.management_remove_named, label), Modifier.size(24.dp))
+                            Icon(painterResource(R.drawable.ic_icon_close), stringResource(R.string.management_remove_named, label), Modifier.size(24.dp))
                         }
                     },
                     content = { Text(label, fontFamily = if (category == RuleCategory.REGEX) FontFamily.Monospace else null) },
@@ -378,7 +378,7 @@ private fun RuleEditorSheet(
                             enabled = !busy,
                             shapes = connectedListItemShapes(index, tags.size),
                             supportingContent = { Text("#${tag.id}") },
-                            trailingContent = { Icon(painterResource(R.drawable.ic_symbol_add), null, Modifier.size(24.dp)) },
+                            trailingContent = { Icon(painterResource(R.drawable.ic_icon_add), null, Modifier.size(24.dp)) },
                             content = { Text(tag.displayName(language)) },
                         )
                     }

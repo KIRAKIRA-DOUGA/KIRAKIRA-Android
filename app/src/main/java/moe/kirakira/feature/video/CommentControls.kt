@@ -80,7 +80,7 @@ internal fun CommentToolbar(
     ) {
         IconButton(onClick = { onPage(currentPage - 1) }, enabled = enabled && currentPage > 1) {
             Icon(
-                painterResource(R.drawable.ic_symbol_chevron_right),
+                painterResource(R.drawable.ic_icon_chevron_right),
                 contentDescription = stringResource(R.string.video_comments_previous_page),
                 modifier = Modifier.graphicsLayer { rotationZ = if (rtl) 0f else 180f },
             )
@@ -100,7 +100,7 @@ internal fun CommentToolbar(
         }
         IconButton(onClick = { onPage(currentPage + 1) }, enabled = enabled && currentPage < totalPages) {
             Icon(
-                painterResource(R.drawable.ic_symbol_chevron_right),
+                painterResource(R.drawable.ic_icon_chevron_right),
                 contentDescription = stringResource(R.string.video_comments_next_page),
                 modifier = Modifier.graphicsLayer { rotationZ = if (rtl) 180f else 0f },
             )
@@ -122,7 +122,7 @@ internal fun CommentJumpDialog(
     val jump = { if (valid) onJump(target) }
     ActionDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(painterResource(R.drawable.ic_symbol_keyboard), contentDescription = null) },
+        icon = { Icon(painterResource(R.drawable.ic_icon_keyboard), contentDescription = null) },
         title = { Text(stringResource(R.string.video_comments_jump_title)) },
         text = {
             Column(

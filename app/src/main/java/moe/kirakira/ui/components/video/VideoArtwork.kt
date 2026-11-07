@@ -25,7 +25,7 @@ internal fun VideoArtwork(
 ) {
     Surface(modifier = modifier, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
         Box(contentAlignment = Alignment.Center) {
-            Icon(painterResource(R.drawable.ic_symbol_video_library), contentDescription = null)
+            Icon(painterResource(R.drawable.ic_icon_video_library), contentDescription = null)
             AsyncImage(
                 model = deliveryImageUrl(image, 720),
                 placeholder = placeholder,

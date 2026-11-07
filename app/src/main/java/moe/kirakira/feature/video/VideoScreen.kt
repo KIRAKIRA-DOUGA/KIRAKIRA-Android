@@ -330,6 +330,9 @@ internal fun VideoScreen(
                                     if (detail.parts.size > 1) {
                                         item("parts") {
                                             val partChipColors = FilterChipDefaults.filterChipColors(
+                                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                                labelColor = MaterialTheme.colorScheme.onSurface,
+                                                iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 selectedContainerColor = MaterialTheme.colorScheme.primary,
                                                 selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
                                                 selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
@@ -344,6 +347,8 @@ internal fun VideoScreen(
                                                             Text(part.title.ifBlank { stringResource(R.string.player_part, index + 1) })
                                                         },
                                                         colors = partChipColors,
+                                                        shape = CircleShape,
+                                                        border = null,
                                                     )
                                                 }
                                             }
@@ -356,14 +361,14 @@ internal fun VideoScreen(
                                             detail.summary.views?.let {
                                                 val count = stringResource(R.string.video_views, it)
                                                 VideoMetadata(
-                                                    R.drawable.ic_symbol_play_circle,
+                                                    R.drawable.ic_icon_play,
                                                     count,
                                                     description = stringResource(R.string.video_views_description, count),
                                                 )
                                             }
-                                            VideoMetadata(R.drawable.ic_symbol_calendar_today, dateText(detail.summary.uploadedAt))
+                                            VideoMetadata(R.drawable.ic_icon_calendar, dateText(detail.summary.uploadedAt))
                                             if (detail.category.isNotBlank()) {
-                                                VideoMetadata(R.drawable.ic_symbol_category, categoryText(detail.category))
+                                                VideoMetadata(R.drawable.ic_icon_category, categoryText(detail.category))
                                             }
                                         }
                                     }
@@ -389,8 +394,10 @@ internal fun VideoScreen(
                                                         label = { Text(tag.displayName(language)) },
                                                         shape = CircleShape,
                                                         colors = AssistChipDefaults.assistChipColors(
-                                                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                                                             labelColor = MaterialTheme.colorScheme.onSurface,
+                                                            leadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                            trailingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                                         ),
                                                         border = null,
                                                     )
@@ -633,14 +640,14 @@ private fun VideoActions(
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), itemVerticalAlignment = Alignment.CenterVertically) {
-        ReactionAction(detail.reaction == Reaction.LIKE, R.drawable.ic_symbol_thumb_up, R.string.video_like, detail.upvotes, busy || detail.blockedByOther) { onVote(Reaction.LIKE) }
-        ReactionAction(detail.reaction == Reaction.DISLIKE, R.drawable.ic_symbol_thumb_down, R.string.video_dislike, detail.downvotes, busy || detail.blockedByOther) { onVote(Reaction.DISLIKE) }
-        ReactionAction(false, R.drawable.ic_symbol_star, R.string.video_save, null, busy = false, onClick = onUnavailable)
+        ReactionAction(detail.reaction == Reaction.LIKE, R.drawable.ic_icon_thumb_up, R.string.video_like, detail.upvotes, busy || detail.blockedByOther) { onVote(Reaction.LIKE) }
+        ReactionAction(detail.reaction == Reaction.DISLIKE, R.drawable.ic_icon_thumb_down, R.string.video_dislike, detail.downvotes, busy || detail.blockedByOther) { onVote(Reaction.DISLIKE) }
+        ReactionAction(false, R.drawable.ic_icon_star, R.string.video_save, null, busy = false, onClick = onUnavailable)
         FilledTonalIconButton(onClick = onUnavailable, colors = actionColors) {
-            Icon(painterResource(R.drawable.ic_symbol_download), stringResource(R.string.video_download))
+            Icon(painterResource(R.drawable.ic_icon_download), stringResource(R.string.video_download))
         }
         FilledTonalIconButton(onClick = onShare, colors = actionColors) {
-            Icon(painterResource(R.drawable.ic_symbol_share), stringResource(R.string.video_share))
+            Icon(painterResource(R.drawable.ic_icon_share), stringResource(R.string.video_share))
         }
         VideoActionsMenu(
             videoId = detail.summary.id,
@@ -648,7 +655,7 @@ private fun VideoActions(
             onViewCover = onViewCover,
         ) { open ->
             FilledTonalIconButton(onClick = open, colors = actionColors) {
-                Icon(painterResource(R.drawable.ic_symbol_more_horiz), stringResource(R.string.video_more))
+                Icon(painterResource(R.drawable.ic_icon_more_vert), stringResource(R.string.video_more))
             }
         }
     }

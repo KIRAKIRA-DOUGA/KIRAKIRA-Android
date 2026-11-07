@@ -200,7 +200,7 @@ internal fun HistoryScreen(
                 Column {
                     Box {
                         ShadingIcon(
-                            icon = R.drawable.ic_symbol_history,
+                            icon = R.drawable.ic_icon_history,
                             modifier = Modifier.matchParentSize(),
                             endPadding = 0.dp,
                             alignment = Alignment.BottomEnd,
@@ -400,12 +400,12 @@ private fun HistoryRow(
                         overflow = TextOverflow.Ellipsis,
                     )
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        HistoryMetadata(R.drawable.ic_symbol_calendar_today, time, stringResource(R.string.history_watched_at, time))
+                        HistoryMetadata(R.drawable.ic_icon_calendar, time, stringResource(R.string.history_watched_at, time))
                         entry.positionMs?.let { position ->
                             val progress = if (entry.video.durationMs != null) stringResource(
                                 R.string.history_position_duration, durationText(position), durationText(entry.video.durationMs),
                             ) else durationText(position)
-                            HistoryMetadata(R.drawable.ic_symbol_play_circle, progress,
+                            HistoryMetadata(R.drawable.ic_icon_play, progress,
                                 stringResource(R.string.history_playback_position, progress))
                         }
                     }

@@ -46,8 +46,8 @@ internal fun SearchResultControls(
             SearchIconButton(
                 label = stringResource(nextLayout.titleRes),
                 icon = if (nextLayout == VideoCardLayout.GRID) {
-                    R.drawable.ic_symbol_grid_view
-                } else R.drawable.ic_symbol_view_list,
+                    R.drawable.ic_icon_grid
+                } else R.drawable.ic_icon_list,
                 onClick = { onEvent(SearchEvent.LayoutChanged(nextLayout)) },
                 enabled = state.ready,
             )
@@ -69,7 +69,7 @@ private fun SearchSortMenu(state: SearchUiState, onEvent: (SearchEvent) -> Unit)
     Box {
         SearchIconButton(
             label = stringResource(state.sort.label),
-            icon = R.drawable.ic_symbol_sort,
+            icon = R.drawable.ic_icon_sort,
             onClick = { expanded = true },
             enabled = state.ready,
         )
@@ -102,7 +102,7 @@ private fun SearchSortMenu(state: SearchUiState, onEvent: (SearchEvent) -> Unit)
                                     label = "searchSortDirection",
                                 )
                                 Icon(
-                                    painter = painterResource(R.drawable.ic_symbol_arrow_downward),
+                                    painter = painterResource(R.drawable.ic_icon_arrow_down),
                                     contentDescription = stringResource(
                                         if (descending) R.string.search_sort_descending else R.string.search_sort_ascending,
                                     ),

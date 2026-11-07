@@ -28,7 +28,7 @@ fun PlaceholderAvatar(
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
-                painter = painterResource(R.drawable.ic_symbol_person),
+                painter = painterResource(R.drawable.ic_icon_person),
                 contentDescription = contentDescription,
                 modifier = Modifier.size(size * 0.55f),
             )

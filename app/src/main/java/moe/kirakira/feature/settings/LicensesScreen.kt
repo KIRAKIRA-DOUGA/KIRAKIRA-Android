@@ -112,7 +112,7 @@ internal fun LicensesContent(
         topBar = {
             Box {
                 ShadingIcon(
-                    icon = R.drawable.ic_symbol_description,
+                    icon = R.drawable.ic_icon_file,
                     modifier = Modifier.matchParentSize(),
                     alignment = Alignment.BottomEnd,
                     endPadding = 0.dp,
@@ -123,7 +123,7 @@ internal fun LicensesContent(
                     navigationIcon = {
                         IconButton(onClick = onBack, modifier = Modifier.testTag("licenses_back")) {
                             Icon(
-                                painter = painterResource(R.drawable.ic_symbol_arrow_back),
+                                painter = painterResource(R.drawable.ic_icon_arrow_left),
                                 contentDescription = stringResource(R.string.navigate_back),
                             )
                         }

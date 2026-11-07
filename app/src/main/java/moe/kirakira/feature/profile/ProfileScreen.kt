@@ -155,7 +155,7 @@ internal fun ProfileScreen(
                                 onClick = onBack,
                             ) {
                                 Icon(
-                                    painterResource(R.drawable.ic_symbol_arrow_back),
+                                    painterResource(R.drawable.ic_icon_arrow_left),
                                     stringResource(R.string.navigate_back),
                                 )
                             }

@@ -230,13 +230,13 @@ private fun PageSearchInputField(
         leadingIcon = {
             if (state.currentValue == SearchBarValue.Expanded) {
                 IconButton(onClick = { scope.launch { state.animateToCollapsed() } }, enabled = enabled) {
-                    Icon(painterResource(R.drawable.ic_symbol_arrow_back), stringResource(R.string.navigate_back))
+                    Icon(painterResource(R.drawable.ic_icon_arrow_left), stringResource(R.string.navigate_back))
                 }
-            } else Icon(painterResource(R.drawable.ic_symbol_search), contentDescription = null)
+            } else Icon(painterResource(R.drawable.ic_icon_search), contentDescription = null)
         },
         trailingIcon = {
             if (text.text.isNotEmpty()) IconButton(onClick = { text.setTextAndPlaceCursorAtEnd("") }, enabled = enabled) {
-                Icon(painterResource(R.drawable.ic_symbol_close), stringResource(R.string.search_clear))
+                Icon(painterResource(R.drawable.ic_icon_close), stringResource(R.string.search_clear))
             }
         },
     )

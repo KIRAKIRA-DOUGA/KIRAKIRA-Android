@@ -45,7 +45,7 @@ internal fun ComponentTestScreen(
     SettingsScaffold(
         title = "组件测试",
         onBack = onBack,
-        shadingIcon = R.drawable.ic_symbol_palette,
+        shadingIcon = R.drawable.ic_icon_palette,
         modifier = modifier,
     ) { padding ->
         val listState = rememberLazyListState()
@@ -70,7 +70,7 @@ internal fun ComponentTestScreen(
                                 shapes = connectedListItemShapes(index, ComponentCategory.entries.size),
                                 trailingContent = {
                                     Icon(
-                                        painterResource(R.drawable.ic_symbol_chevron_right),
+                                        painterResource(R.drawable.ic_icon_chevron_right),
                                         contentDescription = null,
                                         modifier = Modifier.size(24.dp),
                                     )

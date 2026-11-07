@@ -115,7 +115,7 @@ internal fun TagScreen(
         topBar = {
             CollapsibleTopAppBar(stringResource(R.string.tag_title), onBack, scroll, actions = {
                 IconButton(onClick = { showNames = true }, enabled = value != null) {
-                    Icon(painterResource(R.drawable.ic_symbol_info), stringResource(R.string.tag_names))
+                    Icon(painterResource(R.drawable.ic_icon_info), stringResource(R.string.tag_names))
                 }
             })
         },
@@ -168,7 +168,7 @@ internal fun TagScreen(
                         if (showTagStatus) item("tag-status") {
                             ContentStatus(tag.copy(loading = tag.loading && tag.data == null), onRetryTag,
                                 Modifier.fillMaxWidth().onSizeChanged { tagStatusHeight = it.height }, emptyTitle = stringResource(R.string.tag_not_found),
-                                emptyIconRes = R.drawable.ic_symbol_label, empty = tag.data != null && value == null)
+                                emptyIconRes = R.drawable.ic_icon_tag, empty = tag.data != null && value == null)
                         }
                         item("count") {
                             val count = videos.data?.size
@@ -195,7 +195,7 @@ internal fun TagScreen(
                                     if (videos.data.isNullOrEmpty()) statusModifier else Modifier,
                                 ), empty = videos.data.isNullOrEmpty(),
                                 emptyTitle = stringResource(R.string.tag_videos_empty),
-                                emptyIconRes = R.drawable.ic_symbol_video_library)
+                                emptyIconRes = R.drawable.ic_icon_video_library)
                         }
                         itemsIndexed(rows, key = { _, row -> row.first().id }) { _, row ->
                             VideoCardRow(row, layout, onOpenVideo, Modifier.fillMaxWidth())

@@ -269,7 +269,7 @@ private fun CopyButton(
     onClick: () -> Unit,
 ) {
     OutlinedButton(onClick = onClick, shapes = ButtonDefaults.shapes(), modifier = modifier, enabled = enabled) {
-        Icon(painterResource(R.drawable.ic_symbol_content_copy), null, Modifier.size(ButtonDefaults.IconSize))
+        Icon(painterResource(R.drawable.ic_icon_copy), null, Modifier.size(ButtonDefaults.IconSize))
         Spacer(Modifier.width(ButtonDefaults.IconSpacing))
         Text(label)
     }

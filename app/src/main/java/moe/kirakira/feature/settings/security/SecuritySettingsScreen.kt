@@ -64,7 +64,7 @@ internal fun SecuritySettingsScreen(
         SettingsScaffold(
             title = stringResource(step.title()),
             onBack = onBack,
-            shadingIcon = R.drawable.ic_symbol_lock,
+            shadingIcon = R.drawable.ic_icon_lock,
             modifier = modifier,
             imePadding = true,
             snackbarHost = { SnackbarHost(snackbar) },
@@ -84,7 +84,7 @@ internal fun SecuritySettingsScreen(
                             modifier = Modifier.padding(padding),
                             title = stringResource(R.string.security_sign_in),
                             description = null,
-                            iconRes = R.drawable.ic_symbol_lock,
+                            iconRes = R.drawable.ic_icon_lock,
                             presentation = ContentUnavailablePresentation.PAGE,
                             primaryAction = ContentUnavailableAction(
                                 stringResource(R.string.management_login), onLogin,
@@ -131,7 +131,7 @@ internal fun SecuritySettingsScreen(
     if (state.confirmDiscardCodes && isActive) {
         ActionDialog(
             onDismissRequest = onCancelDiscard,
-            icon = { Icon(painterResource(R.drawable.ic_symbol_lock), contentDescription = null) },
+            icon = { Icon(painterResource(R.drawable.ic_icon_lock), contentDescription = null) },
             title = { Text(stringResource(R.string.security_leave_codes_title)) },
             text = { Text(stringResource(R.string.security_leave_codes_message)) },
             actions = {
@@ -151,7 +151,7 @@ internal fun SecuritySettingsScreen(
     if (state.confirmDiscardCredentials && isActive) {
         ActionDialog(
             onDismissRequest = onCancelDiscardCredentials,
-            icon = { Icon(painterResource(R.drawable.ic_symbol_lock), contentDescription = null) },
+            icon = { Icon(painterResource(R.drawable.ic_icon_lock), contentDescription = null) },
             title = { Text(stringResource(if (state.confirmAbandonCompletion) R.string.write_leave_confirmation_title
                 else R.string.security_leave_changes_title)) },
             text = { Text(stringResource(if (state.confirmAbandonCompletion) R.string.write_leave_confirmation_message

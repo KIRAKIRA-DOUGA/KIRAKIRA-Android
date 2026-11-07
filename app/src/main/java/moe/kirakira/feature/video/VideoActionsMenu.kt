@@ -46,7 +46,7 @@ internal fun VideoActionsMenu(
                         onViewCover()
                     },
                     text = { Text(stringResource(R.string.video_view_cover)) },
-                    leadingIcon = { Icon(painterResource(R.drawable.ic_symbol_image), contentDescription = null) },
+                    leadingIcon = { Icon(painterResource(R.drawable.ic_icon_photo), contentDescription = null) },
                     shapes = MenuDefaults.itemShape(index = 0, count = 1),
                     colors = MenuDefaults.selectableItemColors(
                         containerColor = Color.Transparent,

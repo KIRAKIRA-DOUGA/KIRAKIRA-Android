@@ -123,7 +123,7 @@ internal fun AvatarCropScreen(
                         onClick = onCancel,
                         enabled = !state.cropBusy,
                     ) {
-                        ProfileIcon(R.drawable.ic_symbol_close, stringResource(R.string.account_cancel))
+                        ProfileIcon(R.drawable.ic_icon_close, stringResource(R.string.account_cancel))
                     }
                 },
             )
@@ -154,7 +154,7 @@ internal fun AvatarCropScreen(
                             ),
                         ) {
                             Icon(
-                                painterResource(R.drawable.ic_symbol_rotate_right),
+                                painterResource(R.drawable.ic_custom_rotate_right),
                                 stringResource(R.string.profile_rotate),
                             )
                         }
@@ -162,7 +162,7 @@ internal fun AvatarCropScreen(
                     SettingsPrimaryButton(
                         label = stringResource(R.string.profile_done),
                         onClick = onConfirm,
-                        icon = R.drawable.ic_symbol_check,
+                        icon = R.drawable.ic_icon_check,
                         enabled = state.cropReady && !state.cropBusy,
                         busy = state.cropBusy,
                         modifier = Modifier.weight(1f),

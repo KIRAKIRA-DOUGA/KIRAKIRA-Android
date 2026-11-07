@@ -192,7 +192,7 @@ internal fun FilledTextField(
 @Composable
 internal fun TextFieldErrorIcon(modifier: Modifier = Modifier) {
     Icon(
-        painter = painterResource(R.drawable.ic_symbol_error_filled),
+        painter = painterResource(R.drawable.ic_icon_error),
         contentDescription = null,
         tint = MaterialTheme.colorScheme.error,
         modifier = modifier.size(24.dp),

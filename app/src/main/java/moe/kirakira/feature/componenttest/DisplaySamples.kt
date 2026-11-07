@@ -119,9 +119,9 @@ internal fun IdentitySamples(modifier: Modifier = Modifier) {
         }
         Text("强调 / 次要 / 第三色 / 中性 / 错误")
         SampleRow {
-            IconBadgeTone.entries.forEach { tone -> IconBadge(icon = R.drawable.ic_symbol_info, tone = tone) }
+            IconBadgeTone.entries.forEach { tone -> IconBadge(icon = R.drawable.ic_icon_info, tone = tone) }
         }
         Text("禁用徽章")
-        IconBadge(icon = R.drawable.ic_symbol_lock, enabled = false)
+        IconBadge(icon = R.drawable.ic_icon_lock, enabled = false)
     }
 }

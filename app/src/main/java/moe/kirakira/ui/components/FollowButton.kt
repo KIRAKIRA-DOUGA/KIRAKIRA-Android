@@ -88,7 +88,7 @@ internal fun FollowButton(
                     },
                 ) {
                     Icon(
-                        painter = painterResource(if (checked) R.drawable.ic_symbol_check else R.drawable.ic_symbol_add),
+                        painter = painterResource(if (checked) R.drawable.ic_icon_check else R.drawable.ic_icon_add),
                         contentDescription = null,
                     )
                 }

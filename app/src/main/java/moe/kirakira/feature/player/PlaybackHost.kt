@@ -587,7 +587,7 @@ internal fun PlaybackHost(
                         modifier = Modifier.align(Alignment.TopStart).size(buttonSize),
                     ) {
                         Icon(
-                            painterResource(R.drawable.ic_symbol_fullscreen),
+                            painterResource(R.drawable.ic_icon_fullscreen),
                             restoreLabel,
                             modifier = Modifier.size(iconSize),
                         )
@@ -635,7 +635,7 @@ internal fun PlaybackHost(
                         modifier = Modifier.align(Alignment.TopEnd).size(buttonSize),
                     ) {
                         Icon(
-                            painterResource(R.drawable.ic_symbol_close),
+                            painterResource(R.drawable.ic_icon_close),
                             stringResource(R.string.player_mini_close),
                             modifier = Modifier.size(iconSize),
                         )

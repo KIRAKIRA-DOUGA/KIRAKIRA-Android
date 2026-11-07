@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -105,7 +106,7 @@ internal fun DanmakuComposer(
             enabled = enabled && !busy,
         ) {
             Icon(
-                painterResource(R.drawable.ic_symbol_text_format),
+                painterResource(R.drawable.ic_icon_text_format),
                 stringResource(R.string.danmaku_style),
                 modifier = Modifier.size(24.dp),
             )
@@ -249,7 +250,12 @@ internal fun DanmakuStyleContent(
                             FilterChip(
                                 selected = style.mode == mode,
                                 onClick = { onStyle(style.copy(mode = mode)) },
+                                shape = CircleShape,
+                                border = null,
                                 colors = FilterChipDefaults.filterChipColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    labelColor = MaterialTheme.colorScheme.onSurface,
+                                    iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                     selectedContainerColor = MaterialTheme.colorScheme.primary,
                                     selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
                                     selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
@@ -260,10 +266,10 @@ internal fun DanmakuStyleContent(
                                     Icon(
                                         painterResource(
                                             when (mode) {
-                                                DanmakuMode.RTL -> R.drawable.ic_symbol_west
-                                                DanmakuMode.LTR -> R.drawable.ic_symbol_east
-                                                DanmakuMode.TOP -> R.drawable.ic_symbol_vertical_align_top
-                                                DanmakuMode.BOTTOM -> R.drawable.ic_symbol_vertical_align_bottom
+                                                DanmakuMode.RTL -> R.drawable.ic_icon_danmaku_rtl
+                                                DanmakuMode.LTR -> R.drawable.ic_icon_danmaku_ltr
+                                                DanmakuMode.TOP -> R.drawable.ic_icon_danmaku_top
+                                                DanmakuMode.BOTTOM -> R.drawable.ic_icon_danmaku_bottom
                                             },
                                         ),
                                         contentDescription = null,

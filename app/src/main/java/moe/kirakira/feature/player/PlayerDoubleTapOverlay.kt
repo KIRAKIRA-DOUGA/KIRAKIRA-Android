@@ -130,17 +130,17 @@ internal fun PlayerDoubleTapOverlay(
     }
 }
 
-/** Animate each contour in the official symbol in its stored inward-to-outward order. */
+/** Animate the Cerasus contours from the inner arrow to the outer arrow. */
 @Composable
 private fun DoubleTapArrows(direction: Int, motion: DoubleTapArrowMotion, modifier: Modifier = Modifier) {
     val resources = LocalResources.current
     val arrows = remember(resources, direction) {
-        val resource = if (direction > 0) R.drawable.ic_symbol_fast_forward else R.drawable.ic_symbol_fast_rewind
+        val resource = if (direction > 0) R.drawable.ic_icon_fast_forward else R.drawable.ic_icon_fast_rewind
         val data = readVectorPathData(resources, resource).first()
         vectorPathContours(data).map {
             val path = PathParser().parsePathString(it).toPath()
             path to path.getBounds().center
-        }
+        }.sortedBy { (_, center) -> center.x * direction }
     }
     Canvas(modifier) {
         val first = motion.arrows[0].value.coerceIn(0f, 1f)
@@ -151,7 +151,7 @@ private fun DoubleTapArrows(direction: Int, motion: DoubleTapArrowMotion, modifi
             // Shared movement adds momentum; small independent travel preserves the arrow gap.
             val displacement = groupTravel + 2.dp.toPx() * emphasis
             translate(left = displacement * direction) {
-                scale(size.width / 960f, size.height / 960f, Offset.Zero) {
+                scale(size.width / 24f, size.height / 24f, Offset.Zero) {
                     scale(1f + 0.04f * emphasis, 1f + 0.04f * emphasis, center) {
                         drawPath(path, Color.White.copy(alpha = 0.64f + 0.36f * emphasis))
                     }

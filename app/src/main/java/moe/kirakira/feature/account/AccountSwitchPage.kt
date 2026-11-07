@@ -66,7 +66,7 @@ internal fun AccountSwitchPage(
     if (pendingAccount != null) {
         ActionDialog(
             onDismissRequest = { pendingRemovalId = null },
-            icon = { Icon(painterResource(R.drawable.ic_symbol_logout), contentDescription = null) },
+            icon = { Icon(painterResource(R.drawable.ic_icon_logout), contentDescription = null) },
             title = { Text(stringResource(R.string.account_remove_title)) },
             text = { Text(stringResource(R.string.account_remove_message, pendingAccount.name)) },
             actions = {

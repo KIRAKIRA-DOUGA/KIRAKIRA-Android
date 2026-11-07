@@ -31,7 +31,7 @@ internal fun CustomColorDialog(
 
     ActionDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(painterResource(R.drawable.ic_symbol_palette), contentDescription = null) },
+        icon = { Icon(painterResource(R.drawable.ic_icon_palette), contentDescription = null) },
         title = { Text(stringResource(R.string.theme_color_custom)) },
         text = {
             Column(

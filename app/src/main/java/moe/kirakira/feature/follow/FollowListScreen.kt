@@ -100,7 +100,7 @@ internal fun FollowListScreen(
                 title = { Text(title, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(painterResource(R.drawable.ic_symbol_arrow_back), stringResource(R.string.navigate_back))
+                        Icon(painterResource(R.drawable.ic_icon_arrow_left), stringResource(R.string.navigate_back))
                     }
                 },
                 colors = appTopAppBarColors(),
@@ -150,7 +150,7 @@ internal fun FollowListScreen(
                                 state = ContentUnavailableState.EMPTY,
                                 title = emptyTitle,
                                 description = null,
-                                iconRes = R.drawable.ic_symbol_person,
+                                iconRes = R.drawable.ic_icon_person,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .then(statusModifier),

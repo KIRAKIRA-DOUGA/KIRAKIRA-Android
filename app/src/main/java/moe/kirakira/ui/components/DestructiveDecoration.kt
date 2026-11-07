@@ -116,7 +116,7 @@ private fun Modifier.destructiveDecoration(
     val durationScale = rememberCoroutineScope().coroutineContext[MotionDurationScale]
     if (durationScale?.scaleFactor == 0f) return this
 
-    val painter = painterResource(R.drawable.ic_symbol_close)
+    val painter = painterResource(R.drawable.ic_icon_close)
     val hovered by interactionSource.collectIsHoveredAsState()
     val hover = animateFloatAsState(
         targetValue = if (hovered) 1f else 0f,

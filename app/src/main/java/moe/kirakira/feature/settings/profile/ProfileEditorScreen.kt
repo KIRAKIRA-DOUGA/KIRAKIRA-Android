@@ -33,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.InputChip
+import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
@@ -128,7 +129,7 @@ internal fun ProfileEditorScreen(
     SettingsScaffold(
         title = stringResource(R.string.settings_profile),
         onBack = onBack,
-        shadingIcon = R.drawable.ic_symbol_badge,
+        shadingIcon = R.drawable.ic_icon_badge,
         modifier = modifier.dismissKeyboardOnBlankTap(),
         imePadding = true,
         snackbarHost = { SnackbarHost(snackbar) },
@@ -164,7 +165,7 @@ internal fun ProfileEditorScreen(
             state.draft == null -> ContentUnavailableView(
                 ContentUnavailableState.EMPTY,
                 title = stringResource(R.string.profile_sign_in), description = null,
-                iconRes = R.drawable.ic_symbol_badge,
+                iconRes = R.drawable.ic_icon_badge,
                 primaryAction = ContentUnavailableAction(stringResource(R.string.auth_sign_in), onLogin),
                 modifier = Modifier.padding(padding),
             )
@@ -179,11 +180,11 @@ internal fun ProfileEditorScreen(
                 SettingsSection {
                     SettingsFormCard {
                         ProfileTextField(state, "username", state.draft.username,
-                            stringResource(R.string.auth_username), R.drawable.ic_symbol_alternate_email, onEdit)
+                            stringResource(R.string.auth_username), R.drawable.ic_icon_at, onEdit)
                         ProfileTextField(state, "nickname", state.draft.nickname,
-                            stringResource(R.string.auth_nickname), R.drawable.ic_symbol_person, onEdit)
+                            stringResource(R.string.auth_nickname), R.drawable.ic_icon_person, onEdit)
                         ProfileTextField(state, "signature", state.draft.signature,
-                            stringResource(R.string.profile_bio), R.drawable.ic_symbol_edit, onEdit, multiline = true)
+                            stringResource(R.string.profile_bio), R.drawable.ic_icon_edit, onEdit, multiline = true)
                     }
                 }
                 PersonalInformation(state, onEdit)
@@ -230,7 +231,7 @@ private fun ProfileIdentity(state: ProfileEditorState, onPick: () -> Unit) {
                                 if (state.preparingImage) {
                                     IndeterminateCircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
                                 } else {
-                                    ProfileIcon(R.drawable.ic_symbol_edit, stringResource(R.string.profile_edit_avatar))
+                                    ProfileIcon(R.drawable.ic_icon_edit, stringResource(R.string.profile_edit_avatar))
                                 }
                             }
                         }
@@ -303,21 +304,21 @@ private fun PersonalInformation(state: ProfileEditorState, onEdit: (String, Stri
             onClick = { showBirthday = true }, enabled = state.editable,
             shapes = connectedListItemShapes(0, 2),
             modifier = Modifier.settingsSearchAnchor(stringResource(R.string.profile_birthday)),
-            leadingContent = { ProfileListIcon(R.drawable.ic_symbol_calendar_today) },
+            leadingContent = { ProfileListIcon(R.drawable.ic_icon_calendar) },
             supportingContent = {
                 Text(
                     birthday?.let { dateOnlyText(it) }
                         ?: draft.birthday.ifBlank { stringResource(R.string.profile_not_set) },
                 )
             },
-            trailingContent = { ProfileListIcon(R.drawable.ic_symbol_chevron_right) },
+            trailingContent = { ProfileListIcon(R.drawable.ic_icon_chevron_right) },
             content = { Text(stringResource(R.string.profile_birthday)) },
         )
         SegmentedListItem(
             onClick = { showGender = true }, enabled = state.editable,
             shapes = connectedListItemShapes(1, 2),
             modifier = Modifier.settingsSearchAnchor(stringResource(R.string.profile_gender)),
-            leadingContent = { ProfileListIcon(R.drawable.ic_symbol_person) },
+            leadingContent = { ProfileListIcon(R.drawable.ic_icon_person) },
             supportingContent = {
                 Text(
                     genderValues.indexOf(draft.gender).takeIf { it >= 0 }?.let {
@@ -328,7 +329,7 @@ private fun PersonalInformation(state: ProfileEditorState, onEdit: (String, Stri
             trailingContent = {
                 Box {
                     Icon(
-                        painter = painterResource(R.drawable.ic_symbol_chevron_right),
+                        painter = painterResource(R.drawable.ic_icon_chevron_right),
                         contentDescription = null,
                         modifier = Modifier.size(24.dp).rotate(90f),
                     )
@@ -353,7 +354,7 @@ private fun PersonalInformation(state: ProfileEditorState, onEdit: (String, Stri
                                     shapes = MenuDefaults.itemShape(index = index, count = genderValues.size),
                                     colors = genderItemColors,
                                     trailingContent = if (draft.gender == value) {
-                                        { ProfileIcon(R.drawable.ic_symbol_check) }
+                                        { ProfileIcon(R.drawable.ic_icon_check) }
                                     } else null,
                                 )
                             }
@@ -406,8 +407,20 @@ private fun ProfileLabels(state: ProfileEditorState, onAdd: (String) -> Unit, on
             state.draft.labels.forEachIndexed { index, label ->
                 key(label.id, label.labelName) {
                     InputChip(selected = false, onClick = { onRemove(index) }, enabled = state.editable,
+                        shape = CircleShape,
+                        border = null,
+                        colors = InputChipDefaults.inputChipColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            labelColor = MaterialTheme.colorScheme.onSurface,
+                            leadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            trailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                            selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+                            selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimary,
+                        ),
                         label = { Text(label.labelName, maxLines = 3, overflow = TextOverflow.Ellipsis) },
-                        trailingIcon = { ProfileIcon(R.drawable.ic_symbol_close,
+                        trailingIcon = { ProfileIcon(R.drawable.ic_icon_close,
                             stringResource(R.string.profile_remove_label, label.labelName)) })
                 }
             }
@@ -418,9 +431,9 @@ private fun ProfileLabels(state: ProfileEditorState, onAdd: (String) -> Unit, on
             modifier = Modifier.settingsSearchAnchor(stringResource(R.string.profile_add_label)).fillMaxWidth(),
             enabled = state.editable,
             label = { Text(stringResource(R.string.profile_add_label)) }, singleLine = true,
-            leadingIcon = { ProfileIcon(R.drawable.ic_symbol_label) },
+            leadingIcon = { ProfileIcon(R.drawable.ic_icon_tag) },
             trailingIcon = { IconButton(onClick = ::add, enabled = state.editable && input.isNotBlank()) {
-                ProfileIcon(R.drawable.ic_symbol_add, stringResource(R.string.profile_add_label))
+                ProfileIcon(R.drawable.ic_icon_add, stringResource(R.string.profile_add_label))
             } }, keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { add() }))
     } }

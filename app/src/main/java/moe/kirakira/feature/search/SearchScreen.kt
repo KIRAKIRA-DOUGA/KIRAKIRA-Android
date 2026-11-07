@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -190,7 +191,7 @@ private fun SearchScreenContent(
                             emptyTitle = stringResource(R.string.search_videos_empty),
                             emptyDescription = null,
                             emptyIcon = { SearchVideosEmptyLogo() },
-                            emptyIconRes = R.drawable.ic_symbol_search,
+                            emptyIconRes = R.drawable.ic_icon_search,
                         )
                     }
                 }
@@ -224,7 +225,13 @@ internal fun SelectedSearchTags(
                 onClick = { onRemove(tag) },
                 enabled = enabled,
                 label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                shape = CircleShape,
+                border = null,
                 colors = InputChipDefaults.inputChipColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    labelColor = MaterialTheme.colorScheme.onSurface,
+                    leadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    trailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     selectedContainerColor = MaterialTheme.colorScheme.primary,
                     selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
                     selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
@@ -232,7 +239,7 @@ internal fun SelectedSearchTags(
                 ),
                 modifier = Modifier.widthIn(max = 280.dp),
                 trailingIcon = {
-                    Icon(painterResource(R.drawable.ic_symbol_close), stringResource(R.string.search_remove_tag, label),
+                    Icon(painterResource(R.drawable.ic_icon_close), stringResource(R.string.search_remove_tag, label),
                         Modifier.size(18.dp))
                 },
             )

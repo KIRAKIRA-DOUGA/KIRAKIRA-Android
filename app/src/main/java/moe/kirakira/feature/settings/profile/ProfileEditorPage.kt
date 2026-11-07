@@ -43,7 +43,7 @@ internal fun ProfileEditorPage(model: ProfileEditorViewModel, onBack: () -> Unit
     }
     if (state.confirmDiscard) ActionDialog(
         onDismissRequest = model::dismissDiscard,
-        icon = { Icon(painterResource(R.drawable.ic_symbol_edit), contentDescription = null) },
+        icon = { Icon(painterResource(R.drawable.ic_icon_edit), contentDescription = null) },
         title = { Text(stringResource(R.string.profile_discard_title)) },
         text = { Text(stringResource(when {
             state.saveUnconfirmed -> R.string.write_leave_confirmation_message

@@ -77,7 +77,7 @@ fun SettingsScreen(
     if (confirmLogout && signedIn) {
         ActionDialog(
             onDismissRequest = { confirmLogout = false },
-            icon = { Icon(painterResource(R.drawable.ic_symbol_logout), contentDescription = null) },
+            icon = { Icon(painterResource(R.drawable.ic_icon_logout), contentDescription = null) },
             title = { Text(stringResource(R.string.settings_log_out)) },
             text = { Text(stringResource(R.string.account_logout_message)) },
             actions = {
@@ -108,20 +108,20 @@ fun SettingsScreen(
 
     val personalSettings = remember {
         listOf(
-            SettingsEntry(R.string.settings_profile, R.drawable.ic_symbol_badge),
-            SettingsEntry(R.string.settings_privacy, R.drawable.ic_symbol_shield),
-            SettingsEntry(R.string.settings_security, R.drawable.ic_symbol_lock),
-            SettingsEntry(R.string.settings_blocking, R.drawable.ic_symbol_block),
-            SettingsEntry(R.string.settings_invitation_code, R.drawable.ic_symbol_confirmation_number),
+            SettingsEntry(R.string.settings_profile, R.drawable.ic_icon_badge),
+            SettingsEntry(R.string.settings_privacy, R.drawable.ic_icon_shield),
+            SettingsEntry(R.string.settings_security, R.drawable.ic_icon_lock),
+            SettingsEntry(R.string.settings_blocking, R.drawable.ic_icon_block),
+            SettingsEntry(R.string.settings_invitation_code, R.drawable.ic_icon_gift),
         )
     }
 
     val generalSettings = remember {
         listOf(
-            SettingsEntry(R.string.settings_appearance, R.drawable.ic_symbol_palette),
-            SettingsEntry(R.string.settings_playback, R.drawable.ic_symbol_play_circle),
+            SettingsEntry(R.string.settings_appearance, R.drawable.ic_icon_palette),
+            SettingsEntry(R.string.settings_playback, R.drawable.ic_icon_play),
             SettingsEntry(R.string.settings_danmaku, R.drawable.ic_custom_danmaku),
-            SettingsEntry(R.string.settings_about, R.drawable.ic_symbol_info),
+            SettingsEntry(R.string.settings_about, R.drawable.ic_icon_info),
         )
     }
 
@@ -135,7 +135,7 @@ fun SettingsScreen(
             Column {
                 Box {
                     ShadingIcon(
-                        icon = R.drawable.ic_symbol_settings,
+                        icon = R.drawable.ic_icon_settings,
                         modifier = Modifier.matchParentSize(),
                         rotating = true,
                         endPadding = 0.dp,
@@ -220,7 +220,7 @@ fun SettingsScreen(
                             if (signedIn) {
                                 SegmentedMenuItem(
                                     title = stringResource(R.string.settings_log_out),
-                                    icon = R.drawable.ic_symbol_logout,
+                                    icon = R.drawable.ic_icon_logout,
                                     index = 1,
                                     count = 2,
                                     showChevron = false,

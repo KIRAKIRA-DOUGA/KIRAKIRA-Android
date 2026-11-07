@@ -37,7 +37,7 @@ internal fun SessionFeedback(
         when (state.notice) {
             SessionNotice.LEGACY_SIGN_IN_REQUIRED -> ActionDialog(
                 onDismissRequest = onDismissNotice,
-                icon = { Icon(painterResource(R.drawable.ic_symbol_info), contentDescription = null) },
+                icon = { Icon(painterResource(R.drawable.ic_icon_info), contentDescription = null) },
                 title = { Text(stringResource(R.string.account_needs_login)) },
                 text = { Text(stringResource(R.string.account_migration_sign_in_required)) },
                 actions = {
@@ -64,7 +64,7 @@ internal fun SessionFeedback(
     if (confirmingReset) {
         ActionDialog(
             onDismissRequest = { confirmingReset = false },
-            icon = { Icon(painterResource(R.drawable.ic_symbol_delete), contentDescription = null) },
+            icon = { Icon(painterResource(R.drawable.ic_icon_delete), contentDescription = null) },
             title = { Text(stringResource(R.string.account_reset_local)) },
             text = { Text(stringResource(R.string.account_reset_local_message)) },
             actions = {
@@ -88,7 +88,7 @@ internal fun SessionFeedback(
     }
     ActionDialog(
         onDismissRequest = onDismissError,
-        icon = { Icon(painterResource(R.drawable.ic_symbol_error), contentDescription = null) },
+        icon = { Icon(painterResource(R.drawable.ic_icon_error), contentDescription = null) },
         title = {
             val title = when (error) {
                 ApiFailure.NETWORK -> R.string.account_connection_error_title

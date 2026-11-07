@@ -71,14 +71,14 @@ internal fun MeScreen(
             ConnectedListGroup {
                 SegmentedMenuItem(
                     title = stringResource(R.string.me_history),
-                    icon = R.drawable.ic_symbol_history,
+                    icon = R.drawable.ic_icon_history,
                     onClick = onOpenHistory,
                     index = 0,
                     count = 2,
                 )
                 SegmentedMenuItem(
                     title = stringResource(R.string.me_favorites),
-                    icon = R.drawable.ic_symbol_star,
+                    icon = R.drawable.ic_icon_star,
                     onClick = onOpenFavorites,
                     index = 1,
                     count = 2,
@@ -87,7 +87,7 @@ internal fun MeScreen(
             ConnectedListGroup {
                 SegmentedMenuItem(
                     title = stringResource(R.string.me_settings),
-                    icon = R.drawable.ic_symbol_settings,
+                    icon = R.drawable.ic_icon_settings,
                     onClick = onOpenSettings,
                     index = 0,
                     count = 1,
@@ -117,7 +117,7 @@ private fun ProfileListItem(
         leadingContent = { AccountAvatar(url = profile?.avatar, size = 72.dp) },
         supportingContent = supportingContent,
         trailingContent = {
-            Icon(painterResource(R.drawable.ic_symbol_chevron_right), contentDescription = null)
+            Icon(painterResource(R.drawable.ic_icon_chevron_right), contentDescription = null)
         },
     ) {
         Text(

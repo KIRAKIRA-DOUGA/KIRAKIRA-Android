@@ -62,7 +62,7 @@ internal fun ProfileActionsMenu(
                         onShare()
                     },
                     text = { Text(stringResource(R.string.share)) },
-                    leadingIcon = { Icon(painterResource(R.drawable.ic_symbol_share), contentDescription = null) },
+                    leadingIcon = { Icon(painterResource(R.drawable.ic_icon_share), contentDescription = null) },
                     shapes = MenuDefaults.itemShape(index = 0, count = 1),
                     colors = MenuDefaults.selectableItemColors(containerColor = Color.Transparent),
                 )
@@ -112,12 +112,12 @@ private fun ProfileRelationshipMenuGroup(
                 text = { Text(stringResource(label)) },
                 leadingIcon = {
                     Icon(
-                        painterResource(if (block) R.drawable.ic_symbol_block else R.drawable.ic_symbol_visibility_off),
+                        painterResource(if (block) R.drawable.ic_icon_block else R.drawable.ic_icon_visibility_off),
                         contentDescription = null,
                     )
                 },
                 trailingContent = if (selected) {
-                    { Icon(painterResource(R.drawable.ic_symbol_check), contentDescription = null) }
+                    { Icon(painterResource(R.drawable.ic_icon_check), contentDescription = null) }
                 } else null,
                 shapes = MenuDefaults.itemShape(index = index, count = count),
                 colors = MenuDefaults.selectableItemColors(

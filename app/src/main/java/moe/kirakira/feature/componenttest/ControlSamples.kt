@@ -7,7 +7,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
@@ -20,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSliderState
@@ -166,21 +169,52 @@ internal fun ListSamples(
             }
         }
         SampleRow {
-            AssistChip(onClick = { onFeedback("已点击辅助标签") }, label = { Text("辅助标签") })
-            SuggestionChip(onClick = { onFeedback("已点击建议标签") }, label = { Text("建议标签") })
+            AssistChip(
+                onClick = { onFeedback("已点击辅助标签") },
+                label = { Text("辅助标签") },
+                shape = CircleShape,
+                border = null,
+                colors = AssistChipDefaults.assistChipColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    labelColor = MaterialTheme.colorScheme.onSurface,
+                    leadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    trailingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
+            )
+            SuggestionChip(
+                onClick = { onFeedback("已点击建议标签") },
+                label = { Text("建议标签") },
+                shape = CircleShape,
+                border = null,
+                colors = SuggestionChipDefaults.suggestionChipColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    labelColor = MaterialTheme.colorScheme.onSurface,
+                    iconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
+            )
             FilterChip(selected = state.filter, onClick = { onChange(state.copy(filter = !state.filter)) },
+                shape = CircleShape, border = null,
                 label = { Text("筛选标签") }, colors = FilterChipDefaults.filterChipColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    labelColor = MaterialTheme.colorScheme.onSurface,
+                    iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     selectedContainerColor = MaterialTheme.colorScheme.primary,
                     selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
                     selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
                     selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimary))
             InputChip(selected = state.chip, onClick = { onChange(state.copy(chip = !state.chip)) },
+                shape = CircleShape, border = null,
                 label = { Text("输入标签") }, colors = InputChipDefaults.inputChipColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    labelColor = MaterialTheme.colorScheme.onSurface,
+                    leadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    trailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     selectedContainerColor = MaterialTheme.colorScheme.primary,
                     selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
                     selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
                     selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimary))
-            FilterChip(selected = true, onClick = {}, enabled = false, label = { Text("禁用标签") })
+            FilterChip(selected = true, onClick = {}, enabled = false, label = { Text("禁用标签") },
+                shape = CircleShape, border = null)
         }
     }
 }

@@ -240,7 +240,7 @@ private fun TagSearchDialogContent(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         SearchIconButton(
-                            stringResource(R.string.search_close_tags), R.drawable.ic_symbol_close, close,
+                            stringResource(R.string.search_close_tags), R.drawable.ic_icon_close, close,
                         )
                         Text(
                             stringResource(R.string.search_choose_tags),
@@ -276,13 +276,13 @@ private fun TagSearchDialogContent(
                                 enabled = state.ready,
                                 placeholder = { Text(stringResource(R.string.management_search_tags)) },
                                 leadingIcon = {
-                                    Icon(painterResource(R.drawable.ic_symbol_search), null, Modifier.size(24.dp))
+                                    Icon(painterResource(R.drawable.ic_icon_search), null, Modifier.size(24.dp))
                                 },
                                 trailingIcon = if (state.tagQuery.isNotEmpty()) {
                                     {
                                         SearchIconButton(
                                             stringResource(R.string.search_clear),
-                                            R.drawable.ic_symbol_close,
+                                            R.drawable.ic_icon_close,
                                             { onEvent(SearchEvent.TagQueryChanged("")) },
                                             enabled = state.ready,
                                         )

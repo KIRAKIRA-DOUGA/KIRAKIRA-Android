@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -121,7 +122,7 @@ internal fun SearchHistoryContent(
                             emptyTitle = stringResource(R.string.search_history_empty),
                             emptyDescription = null,
                             emptyIcon = { SearchHistoryEmptyLogo() },
-                            emptyIconRes = R.drawable.ic_symbol_history,
+                            emptyIconRes = R.drawable.ic_icon_history,
                         )
                     }
                 }
@@ -129,7 +130,7 @@ internal fun SearchHistoryContent(
             items(state.history, key = { it.key }) { entry ->
                 val leading: @Composable () -> Unit = {
                     Icon(
-                        painterResource(if (entry.keyword != null) R.drawable.ic_symbol_match_word else R.drawable.ic_symbol_label),
+                        painterResource(if (entry.keyword != null) R.drawable.ic_symbol_match_word else R.drawable.ic_icon_tag),
                         contentDescription = stringResource(
                             if (entry.keyword != null) R.string.search_mode_keyword else R.string.search_mode_tag,
                         ),
@@ -140,7 +141,7 @@ internal fun SearchHistoryContent(
                 val trailing: @Composable () -> Unit = {
                     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
                         SearchIconButton(
-                            stringResource(R.string.search_history_delete), R.drawable.ic_symbol_close,
+                            stringResource(R.string.search_history_delete), R.drawable.ic_icon_close,
                             onClick = { onEvent(SearchEvent.DeleteHistory(entry.key)) },
                             enabled = state.ready && !state.historyBusy,
                         )
@@ -177,9 +178,9 @@ internal fun SearchHistoryContent(
                                     entry.tags.forEach { tag ->
                                         Surface(
                                             modifier = Modifier.align(Alignment.CenterVertically),
-                                            shape = SuggestionChipDefaults.shape,
-                                            color = MaterialTheme.colorScheme.surfaceContainerLow,
-                                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            shape = CircleShape,
+                                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                            contentColor = MaterialTheme.colorScheme.onSurface,
                                         ) {
                                             Box(
                                                 modifier = Modifier
@@ -253,7 +254,7 @@ internal fun ClearSearchHistoryDialog(state: SearchUiState, onEvent: (SearchEven
     if (!state.clearHistoryOpen) return
     ActionDialog(
         onDismissRequest = { onEvent(SearchEvent.DismissClearHistory) },
-        icon = { Icon(painterResource(R.drawable.ic_symbol_delete), contentDescription = null) },
+        icon = { Icon(painterResource(R.drawable.ic_icon_delete), contentDescription = null) },
         title = { Text(stringResource(R.string.search_history_clear_title)) },
         actions = {
             ShadowButton(

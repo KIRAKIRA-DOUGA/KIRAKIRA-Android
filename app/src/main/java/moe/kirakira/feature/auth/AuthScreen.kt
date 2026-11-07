@@ -95,15 +95,15 @@ internal fun AuthScreen(
     }
     val stepIcon = when (state.step) {
         AuthStep.LOGIN -> R.drawable.logo_kirakira
-        AuthStep.LOGIN_EMAIL, AuthStep.REGISTER_VERIFY -> R.drawable.ic_symbol_mail
-        AuthStep.LOGIN_TOTP -> R.drawable.ic_symbol_lock
-        AuthStep.REGISTER_PROFILE -> R.drawable.ic_symbol_person
-        AuthStep.REGISTER_CREDENTIALS -> R.drawable.ic_symbol_person_add
-        AuthStep.REGISTER_INVITATION -> R.drawable.ic_symbol_confirmation_number
+        AuthStep.LOGIN_EMAIL, AuthStep.REGISTER_VERIFY -> R.drawable.ic_icon_email
+        AuthStep.LOGIN_TOTP -> R.drawable.ic_icon_lock
+        AuthStep.REGISTER_PROFILE -> R.drawable.ic_icon_person
+        AuthStep.REGISTER_CREDENTIALS -> R.drawable.ic_icon_person_add
+        AuthStep.REGISTER_INVITATION -> R.drawable.ic_icon_gift
         AuthStep.FORGOT_EMAIL -> R.drawable.ic_symbol_manage_accounts
-        AuthStep.RESET_PASSWORD -> R.drawable.ic_symbol_password
-        AuthStep.TOTP_HELP -> R.drawable.ic_symbol_help
-        AuthStep.SAVE_SESSION, AuthStep.SAVE_PASSWORD_RESET -> R.drawable.ic_symbol_save
+        AuthStep.RESET_PASSWORD -> R.drawable.ic_icon_password
+        AuthStep.TOTP_HELP -> R.drawable.ic_icon_help
+        AuthStep.SAVE_SESSION, AuthStep.SAVE_PASSWORD_RESET -> R.drawable.ic_icon_save
     }
     val registrationStep = when (state.step) {
         AuthStep.REGISTER_PROFILE -> 1

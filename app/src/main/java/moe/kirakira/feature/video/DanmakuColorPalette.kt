@@ -92,7 +92,7 @@ internal fun DanmakuColorPalette(
                             modifier = Modifier.weight(1f),
                             uncheckedContent = {
                                 Icon(
-                                    painterResource(R.drawable.ic_symbol_palette),
+                                    painterResource(R.drawable.ic_icon_palette),
                                     contentDescription = null,
                                     modifier = Modifier.size(IconButtonDefaults.extraSmallIconSize),
                                 )
@@ -211,7 +211,7 @@ private fun DanmakuColorOption(
                 }
             }
             Icon(
-                painterResource(R.drawable.ic_symbol_check),
+                painterResource(R.drawable.ic_icon_check),
                 contentDescription = null,
                 tint = checkColor,
                 modifier = Modifier

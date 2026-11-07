@@ -35,15 +35,16 @@ internal enum class SlashIconType(
     val slashAnchor: Offset,
 ) {
     VISIBILITY(
-        R.drawable.ic_symbol_visibility,
-        R.drawable.ic_symbol_visibility_off,
-        "M83,196Q72,184 72.5,167.5Q73,151 84,140Q95,129 112,129Q129,129 140,140" +
-            "L820,820Q831,831 831.5,847.5Q832,864 820,876Q809,887 792,887Q775,887 764,876" +
-            "L624,738L522,634L306,418L222,336Z",
-        960f,
+        R.drawable.ic_icon_visibility,
+        R.drawable.ic_icon_visibility_off,
+        "M2.71 3.15993C2.32 3.54993 2.32 4.17993 2.71 4.56993L4.68 6.53993" +
+            "L16.31 18.1799L19.03 20.8999C19.42 21.2899 20.05 21.2899 20.44 20.8999" +
+            "C20.83 20.5099 20.83 19.8799 20.44 19.4899L4.13 3.15993" +
+            "C3.74 2.76993 3.1 2.76993 2.71 3.15993Z",
+        24f,
         5f,
         43f,
-        Offset(2.8f, 4.2f),
+        Offset(3.42f, 3.86493f),
     ),
     DANMAKU(
         R.drawable.ic_custom_danmaku,

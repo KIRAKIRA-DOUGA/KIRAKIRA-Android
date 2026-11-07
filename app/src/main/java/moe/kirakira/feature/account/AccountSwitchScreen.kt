@@ -262,7 +262,7 @@ internal fun AccountSwitchScreen(
                                 contentColor = addContentColor,
                             ) {
                                 Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                                    Icon(painterResource(R.drawable.ic_symbol_add), contentDescription = null)
+                                    Icon(painterResource(R.drawable.ic_icon_add), contentDescription = null)
                                 }
                             }
                         },
@@ -402,7 +402,7 @@ private fun AccountRow(
                                 modifier = Modifier.testTag("account_remove_${account.id}"),
                             ) {
                                 Icon(
-                                    painterResource(R.drawable.ic_symbol_logout),
+                                    painterResource(R.drawable.ic_icon_logout),
                                     contentDescription = stringResource(R.string.account_remove_description, account.name),
                                     tint = if (enabled) MaterialTheme.colorScheme.error
                                         else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),

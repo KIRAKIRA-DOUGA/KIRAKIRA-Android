@@ -1,5 +1,6 @@
 package moe.kirakira.feature.account
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
@@ -24,6 +25,7 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -40,6 +42,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
@@ -82,6 +85,7 @@ internal fun SwipeToRemoveAccount(
     )
     val closeLabel = stringResource(R.string.account_close_swipe)
     val revealed = enabled && active && state.settledValue == AccountSwipeValue.REVEALED && !dragging
+    val showingAction by remember(state) { derivedStateOf { state.offset < 0f } }
 
     LaunchedEffect(rowWidth, buttonWidth, gap) {
         if (rowWidth > 0 && buttonWidth > 0) {
@@ -122,6 +126,8 @@ internal fun SwipeToRemoveAccount(
             .fillMaxWidth()
             .onSizeChanged { rowWidth = it.width }
             .clipToBounds()
+            // Cover the group shadow where the moving row exposes the swipe area.
+            .background(MaterialTheme.colorScheme.surfaceContainer)
             .anchoredDraggable(
                 state = state,
                 orientation = Orientation.Horizontal,
@@ -142,21 +148,23 @@ internal fun SwipeToRemoveAccount(
         ) {
             ShadowButton(
                 onClick = onRemove,
-                enabled = revealed,
                 modifier = Modifier
                     .fillMaxHeight()
                     .widthIn(min = 80.dp)
                     .onSizeChanged { buttonWidth = it.width }
-                    .testTag("account_swipe_remove_$accountId"),
+                    .testTag("account_swipe_remove_$accountId")
+                    .semantics { if (revealed) contentDescription = removeLabel },
+                enabled = revealed,
                 shapes = ButtonShapes(CircleShape, CircleShape),
                 destructive = true,
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                previewEnabledAppearance = showingAction,
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    Icon(painterResource(R.drawable.ic_symbol_delete), contentDescription = null)
+                    Icon(painterResource(R.drawable.ic_icon_delete), contentDescription = null)
                 }
             }
         }

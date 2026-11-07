@@ -54,7 +54,10 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 
-/** Destructive actions own their error colors; [colors] applies only to ordinary buttons. */
+/**
+ * Destructive actions use the theme's error colors. [colors] applies to ordinary buttons.
+ * [previewEnabledAppearance] keeps the enabled styling on a visible preview of the action.
+ */
 @Composable
 internal fun ShadowButton(
     onClick: () -> Unit,
@@ -66,11 +69,21 @@ internal fun ShadowButton(
     border: BorderStroke? = null,
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     interactionSource: MutableInteractionSource? = null,
+    previewEnabledAppearance: Boolean = false,
     content: @Composable RowScope.() -> Unit,
 ) {
     val source = interactionSource ?: remember { MutableInteractionSource() }
     val outline = rememberButtonShadowShape(shapes.shape, shapes.pressedShape, enabled, source)
     val resolvedColors = if (destructive) DestructiveActionDefaults.buttonColors() else colors
+    val showEnabledAppearance = enabled || previewEnabledAppearance
+    val buttonColors = if (!enabled && previewEnabledAppearance) {
+        resolvedColors.copy(
+            disabledContainerColor = resolvedColors.containerColor,
+            disabledContentColor = resolvedColors.contentColor,
+        )
+    } else {
+        resolvedColors
+    }
     var visualSize by remember { mutableStateOf(Size.Zero) }
     Button(
         onClick = onClick,
@@ -85,16 +98,16 @@ internal fun ShadowButton(
                     )
                 } else Modifier,
             )
-            .buttonShadow(outline, resolvedColors.containerColor, enabled, source),
+            .buttonShadow(outline, resolvedColors.containerColor, showEnabledAppearance, source),
         enabled = enabled,
         shape = outline,
-        colors = resolvedColors,
+        colors = buttonColors,
         elevation = null,
         border = border,
         contentPadding = contentPadding,
         interactionSource = source,
     ) {
-        if (destructive && enabled) {
+        if (destructive && showEnabledAppearance) {
             DestructiveButtonContent(
                 visualSize = { visualSize },
                 contentPadding = contentPadding,

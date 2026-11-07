@@ -36,7 +36,7 @@ fun SegmentedMenuItem(
         )
     }
     val trailingContent: (@Composable () -> Unit)? = if (showChevron) {
-        { Icon(painterResource(R.drawable.ic_symbol_chevron_right), contentDescription = null, modifier = Modifier.size(24.dp)) }
+        { Icon(painterResource(R.drawable.ic_icon_chevron_right), contentDescription = null, modifier = Modifier.size(24.dp)) }
     } else null
     val content: @Composable () -> Unit = {
         Text(title, color = if (destructive) MaterialTheme.colorScheme.error else Color.Unspecified)

@@ -201,7 +201,7 @@ internal fun VideoCommentsPage(
                                 ),
                                 empty = entries.isEmpty() && posted == null,
                                 emptyTitle = stringResource(R.string.video_comments_empty),
-                                emptyIconRes = R.drawable.ic_symbol_chat_bubble,
+                                emptyIconRes = R.drawable.ic_icon_chat_bubble,
                                 retryEnabled = !state.loading,
                             )
                         }

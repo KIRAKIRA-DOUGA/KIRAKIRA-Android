@@ -143,19 +143,19 @@ private fun VideoCardInfo(
             itemVerticalAlignment = Alignment.CenterVertically,
         ) {
             VideoCardMetadata(
-                icon = R.drawable.ic_symbol_play_circle,
+                icon = R.drawable.ic_icon_play,
                 text = viewCount,
                 description = stringResource(R.string.video_views_description, viewCount),
                 iconSize = iconSize,
             )
             VideoCardMetadata(
-                icon = R.drawable.ic_symbol_schedule,
+                icon = R.drawable.ic_icon_duration,
                 text = duration,
                 description = stringResource(R.string.video_duration, duration),
                 iconSize = iconSize,
             )
             VideoCardMetadata(
-                icon = R.drawable.ic_symbol_calendar_today,
+                icon = R.drawable.ic_icon_calendar,
                 text = uploadTime,
                 description = stringResource(R.string.video_upload_time_description, uploadTime),
                 iconSize = iconSize,

@@ -59,7 +59,7 @@ internal fun TagSearchCandidates(
                         Modifier.fillMaxWidth().then(
                             if (candidates.isEmpty()) statusModifier else Modifier,
                         ), empty = candidates.isEmpty(),
-                        emptyTitle = stringResource(R.string.search_tags_empty), emptyIconRes = R.drawable.ic_symbol_label)
+                        emptyTitle = stringResource(R.string.search_tags_empty), emptyIconRes = R.drawable.ic_icon_tag)
                 }
             }
             connectedItemsIndexed("tags", candidates, key = { _, tag -> tag.id }) { index, tag ->
@@ -74,7 +74,7 @@ internal fun TagSearchCandidates(
                         role = Role.Checkbox
                         toggleableState = ToggleableState(checked)
                     },
-                    leadingContent = { Icon(painterResource(R.drawable.ic_symbol_label), null, Modifier.size(20.dp)) },
+                    leadingContent = { Icon(painterResource(R.drawable.ic_icon_tag), null, Modifier.size(20.dp)) },
                     trailingContent = { Checkbox(checked = checked, onCheckedChange = null, enabled = state.ready) },
                     supportingContent = original?.let { { Text(it) } },
                     content = { Text(name) },

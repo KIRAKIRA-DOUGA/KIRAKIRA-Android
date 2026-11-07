@@ -261,7 +261,7 @@ fun ImageViewerScreen(
                             disabledContentColor = Color.White,
                         ),
                     ) {
-                        Icon(painterResource(R.drawable.ic_symbol_close), stringResource(R.string.image_close))
+                        Icon(painterResource(R.drawable.ic_icon_close), stringResource(R.string.image_close))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -299,7 +299,7 @@ fun ImageViewerScreen(
                     if (saving) {
                         IndeterminateCircularProgressIndicator(Modifier.size(24.dp), Color.White, 2.dp)
                     } else {
-                        Icon(painterResource(R.drawable.ic_symbol_download), null)
+                        Icon(painterResource(R.drawable.ic_icon_download), null)
                     }
                 }
                 IconButton(
@@ -310,7 +310,7 @@ fun ImageViewerScreen(
                     if (copying) {
                         IndeterminateCircularProgressIndicator(Modifier.size(24.dp), Color.White, 2.dp)
                     } else {
-                        Icon(painterResource(R.drawable.ic_symbol_content_copy), null)
+                        Icon(painterResource(R.drawable.ic_icon_copy), null)
                     }
                 }
             }
@@ -328,7 +328,7 @@ fun ImageViewerScreen(
 @Preview
 @Composable
 private fun ImageViewerPreview() {
-    val painter = painterResource(R.drawable.ic_symbol_video_library)
+    val painter = painterResource(R.drawable.ic_icon_video_library)
     val image = remember(painter) {
         object : ZoomableImageSource {
             @Composable

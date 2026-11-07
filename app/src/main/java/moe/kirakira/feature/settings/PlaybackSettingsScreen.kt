@@ -22,7 +22,7 @@ internal fun PlaybackSettingsScreen(
     SettingsPage(
         title = stringResource(R.string.settings_playback),
         onBack = onBack,
-        shadingIcon = R.drawable.ic_symbol_play_circle,
+        shadingIcon = R.drawable.ic_icon_play,
         modifier = modifier,
     ) {
         PlaybackSettingsContent(settings, onOutsideAppMiniPlayerChange, onInAppMiniPlayerChange, onAutoplayChange)
@@ -47,7 +47,7 @@ internal fun PlaybackSettingsContent(
                 onCheckedChange = onInAppMiniPlayerChange,
                 index = 0,
                 count = 2,
-                icon = R.drawable.ic_symbol_picture_in_picture_alt,
+                icon = R.drawable.ic_custom_in_app_pip,
                 enabled = ready,
             )
             SettingsSwitchItem(
@@ -56,7 +56,7 @@ internal fun PlaybackSettingsContent(
                 onCheckedChange = onOutsideAppMiniPlayerChange,
                 index = 1,
                 count = 2,
-                icon = R.drawable.ic_symbol_pip,
+                icon = R.drawable.ic_custom_pip,
                 enabled = ready,
             )
         }
@@ -67,7 +67,7 @@ internal fun PlaybackSettingsContent(
                 onCheckedChange = onAutoplayChange,
                 index = 0,
                 count = 1,
-                icon = R.drawable.ic_symbol_autoplay,
+                icon = R.drawable.ic_icon_autoplay,
                 enabled = ready,
             )
         }

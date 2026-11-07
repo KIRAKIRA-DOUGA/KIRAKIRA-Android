@@ -1,19 +1,10 @@
 package moe.kirakira.feature.main
 
-import android.view.animation.AnimationUtils
 import androidx.annotation.DrawableRes
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Easing
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.keyframes
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -21,23 +12,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.GraphicsLayerScope
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
 import moe.kirakira.R
-import moe.kirakira.ui.navigation.activityInterpolatorResource
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 internal enum class MainTabIcon(@param:DrawableRes val resource: Int) {
-    HOME(R.drawable.ic_symbol_home),
+    HOME(R.drawable.ic_icon_home),
     SEARCH(R.drawable.ic_symbol_search),
     FOLLOWING(R.drawable.ic_symbol_wifi_tethering),
-    ME(R.drawable.ic_symbol_person),
+    ME(R.drawable.ic_icon_person),
 }
 
 @Composable
@@ -50,87 +38,66 @@ internal fun AnimatedTabIcon(
         FollowingTabIcon(selected = selected, modifier = modifier)
         return
     }
-
-    val context = LocalContext.current
-    val easing = remember(context) {
-        val interpolator = AnimationUtils.loadInterpolator(context, activityInterpolatorResource())
-        Easing { interpolator.getInterpolation(it) }
+    if (icon == MainTabIcon.ME) {
+        PersonTabIcon(selected = selected, modifier = modifier)
+        return
     }
-    val fillProgress = animateFloatAsState(
-        targetValue = if (selected) 1f else 0f,
-        animationSpec = tween(durationMillis = 300, easing = easing),
-        label = "Tab icon fill",
-    )
-    val scaleImpulse = remember(icon) { Animatable(1f) }
-    val rotation = remember(icon) { Animatable(0f) }
+
+    val choreography = if (icon == MainTabIcon.HOME) homeChoreography else searchChoreography
+    val motion = remember(icon) { TabSelectionMotion(choreography.durationMillis) }
     var previouslySelected by remember(icon) { mutableStateOf(selected) }
 
     LaunchedEffect(icon, selected) {
-        // Start at the restored selection without replaying an entrance pulse.
+        // Start at the restored selection without replaying an entrance motion.
         if (previouslySelected == selected) return@LaunchedEffect
         previouslySelected = selected
-        // A new selection cancels the previous job and continues from its current value.
-        launch {
-            if (!selected) {
-                scaleImpulse.animateTo(1f, tween(durationMillis = 120, easing = easing))
-            } else {
-                val start = scaleImpulse.value
-                scaleImpulse.animateTo(
-                    targetValue = 1f,
-                    animationSpec = keyframes {
-                        durationMillis = 320
-                        start at 0 using FastOutSlowInEasing
-                        0.94f at 64 using FastOutSlowInEasing
-                        1.08f at 160 using FastOutSlowInEasing
-                        1f at durationMillis
-                    },
-                )
-            }
-        }
-        if (icon == MainTabIcon.SEARCH) {
-            launch {
-                if (!selected) {
-                    rotation.animateTo(0f, tween(durationMillis = 120, easing = easing))
-                } else {
-                    val start = rotation.value
-                    rotation.animateTo(
-                        targetValue = 0f,
-                        animationSpec = keyframes {
-                            durationMillis = 320
-                            start at 0 using FastOutSlowInEasing
-                            (-12f) at 80 using FastOutSlowInEasing
-                            8f at 200 using FastOutSlowInEasing
-                            0f at durationMillis
-                        },
-                    )
-                }
-            }
-        }
+        motion.onSelectionChanged(selected)
     }
 
-    val iconModifier = modifier.size(24.dp).graphicsLayer {
-        rotationZ = rotation.value
-        scaleX = scaleImpulse.value
-        scaleY = scaleImpulse.value
-    }
-    val morphPath = remember(icon) {
-        when (icon) {
-            MainTabIcon.HOME -> TabIconMorphPath(homeIconMorph)
-            MainTabIcon.ME -> TabIconMorphPath(personIconMorph)
-            else -> null
-        }
-    }
-    if (morphPath == null) {
-        Icon(painterResource(icon.resource), contentDescription = null, modifier = iconModifier)
-    } else {
-        val color = LocalContentColor.current
-        Canvas(modifier = iconModifier) {
-            scale(size.width / 960f, size.height / 960f, pivot = Offset.Zero) {
-                drawPath(morphPath.pathAt(fillProgress.value), color)
-            }
-        }
+    Icon(
+        painter = painterResource(icon.resource),
+        contentDescription = null,
+        modifier = modifier
+            .size(24.dp)
+            .graphicsLayer { choreography.applyTo(this, motion) },
+    )
+}
+
+private class TabIconChoreography(
+    val durationMillis: Int,
+    private val pivot: TransformOrigin,
+    private val translationYDp: MotionTrack? = null,
+    private val rotationDegrees: MotionTrack? = null,
+    private val widthScale: MotionTrack,
+    private val heightScale: MotionTrack,
+) {
+    fun applyTo(layer: GraphicsLayerScope, motion: TabSelectionMotion) {
+        layer.transformOrigin = pivot
+        translationYDp?.let { layer.translationY = with(layer) { motion.sample(it, 0f).dp.toPx() } }
+        rotationDegrees?.let { layer.rotationZ = motion.sample(it, 0f) }
+        val width = motion.sample(widthScale, 1f)
+        layer.scaleX = width
+        layer.scaleY = motion.sample(heightScale, 1f)
     }
 }
+
+// Opposing width and height tracks squash the house before stretching it upward from its base.
+private val homeChoreography = TabIconChoreography(
+    durationMillis = 400,
+    pivot = TransformOrigin(0.5f, 0.83f),
+    translationYDp = MotionTrack(0f, 0f, 0.2f, 0.4f, 0.46f, -0.9f, 0.72f, 0.12f, 1f, 0f),
+    widthScale = MotionTrack(0f, 1f, 0.2f, 1.14f, 0.46f, 0.88f, 0.72f, 1.04f, 1f, 1f),
+    heightScale = MotionTrack(0f, 1f, 0.2f, 0.84f, 0.46f, 1.14f, 0.72f, 0.96f, 1f, 1f),
+)
+
+// Anchor the magnifier at the rounded handle tip (784, 784) in the 960-unit source viewport.
+private val searchChoreography = TabIconChoreography(
+    durationMillis = 420,
+    pivot = TransformOrigin(784f / 960f, 784f / 960f),
+    rotationDegrees = MotionTrack(0f, 0f, 0.2f, -12f, 0.46f, 7f, 0.72f, -2f, 1f, 0f),
+    widthScale = MotionTrack(0f, 1f, 0.2f, 0.88f, 0.46f, 1.11f, 0.72f, 0.98f, 1f, 1f),
+    heightScale = MotionTrack(0f, 1f, 0.2f, 0.88f, 0.46f, 1.11f, 0.72f, 0.98f, 1f, 1f),
+)
 
 @Preview(showBackground = true)
 @Composable

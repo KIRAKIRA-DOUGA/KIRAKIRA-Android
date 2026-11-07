@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -67,8 +68,6 @@ internal fun SearchTopBar(
                         placeholder = stringResource(R.string.search_placeholder),
                         modifier = Modifier.fillMaxWidth(),
                         enabled = state.ready,
-                        searchEnabled = state.keyword.isNotBlank() &&
-                            !(state.videos.loading && state.submitted == SearchCriteria.Keyword(state.keyword.trim())),
                         showClear = state.keyword.isNotEmpty() || state.submitted != null,
                         onClear = closeSearch,
                     )
@@ -101,8 +100,12 @@ internal fun SearchTopBar(
                             },
                             enabled = state.ready,
                             label = { Text(stringResource(mode.label)) },
-                            shape = MaterialTheme.shapes.large,
+                            shape = CircleShape,
+                            border = null,
                             colors = FilterChipDefaults.filterChipColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                labelColor = MaterialTheme.colorScheme.onSurface,
+                                iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                 selectedContainerColor = MaterialTheme.colorScheme.primary,
                                 selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
                                 selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
@@ -112,7 +115,7 @@ internal fun SearchTopBar(
                                 Icon(
                                     painter = painterResource(
                                         if (mode == SearchMode.KEYWORD) R.drawable.ic_symbol_match_word
-                                        else R.drawable.ic_symbol_label,
+                                        else R.drawable.ic_icon_tag,
                                     ),
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp),

@@ -1,9 +1,15 @@
 package moe.kirakira.feature.player
 
 import android.view.accessibility.AccessibilityManager
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.updateTransition
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
@@ -18,6 +24,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -86,6 +93,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
@@ -390,7 +399,7 @@ internal fun VideoPlayer(
                                 colors = iconColors,
                             ) {
                                 Icon(
-                                    painterResource(R.drawable.ic_symbol_arrow_back),
+                                    painterResource(R.drawable.ic_icon_arrow_left),
                                     stringResource(
                                         if (fullscreen) R.string.player_exit_fullscreen else R.string.navigate_back,
                                     ),
@@ -409,7 +418,7 @@ internal fun VideoPlayer(
                                             colors = iconColors,
                                         ) {
                                             Icon(
-                                                painterResource(if (fullscreen) R.drawable.ic_symbol_fullscreen_exit else R.drawable.ic_symbol_fullscreen),
+                                                painterResource(if (fullscreen) R.drawable.ic_icon_fullscreen_exit else R.drawable.ic_icon_fullscreen),
                                                 stringResource(if (fullscreen) R.string.player_exit_fullscreen else R.string.player_fullscreen),
                                                 Modifier.size(IconButtonDefaults.smallIconSize),
                                             )
@@ -477,11 +486,6 @@ internal fun VideoPlayer(
                                 slider.value =
                                     (displayedPositionMs.toFloat() / state.durationMs.coerceAtLeast(1)).coerceIn(0f, 1f)
                             }
-                            val displayedTime = if (showRemainingTime && state.durationMs > 0) {
-                                "-${durationText((state.durationMs - displayedPositionMs).coerceAtLeast(0))}"
-                            } else {
-                                durationText(displayedPositionMs)
-                            }
                             PlayerControlsLayout(
                                 modifier = contentModifier,
                                 fullscreen = fullscreen,
@@ -511,20 +515,11 @@ internal fun VideoPlayer(
                                             },
                                         contentAlignment = Alignment.CenterStart,
                                     ) {
-                                        Text(
-                                            text = if (resumePosition != null) {
-                                                stringResource(R.string.player_resumed_position, durationText(resumePosition))
-                                            } else {
-                                                "$displayedTime / ${durationText(state.durationMs)}"
-                                            },
-                                            style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
-                                            color = Color.White,
-                                            modifier = if (resumePosition != null) {
-                                                Modifier
-                                                    .background(Color.Black.copy(alpha = 0.6f), MaterialTheme.shapes.small)
-                                                    .padding(horizontal = 8.dp, vertical = 6.dp)
-                                                    .semantics { liveRegion = LiveRegionMode.Polite }
-                                            } else Modifier,
+                                        PlayerTimeLabel(
+                                            positionMs = displayedPositionMs,
+                                            durationMs = state.durationMs,
+                                            showRemainingTime = showRemainingTime,
+                                            resumePositionMs = resumePosition,
                                         )
                                     }
                                 },
@@ -575,7 +570,7 @@ internal fun VideoPlayer(
                                             colors = iconColors,
                                         ) {
                                             Icon(
-                                                painterResource(if (fullscreen) R.drawable.ic_symbol_fullscreen_exit else R.drawable.ic_symbol_fullscreen),
+                                                painterResource(if (fullscreen) R.drawable.ic_icon_fullscreen_exit else R.drawable.ic_icon_fullscreen),
                                                 stringResource(if (fullscreen) R.string.player_exit_fullscreen else R.string.player_fullscreen),
                                                 Modifier.size(IconButtonDefaults.smallIconSize),
                                             )
@@ -647,6 +642,73 @@ internal fun VideoPlayer(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun PlayerTimeLabel(
+    positionMs: Long,
+    durationMs: Long,
+    showRemainingTime: Boolean,
+    resumePositionMs: Long?,
+) {
+    val style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum")
+    if (resumePositionMs != null) {
+        Text(
+            text = stringResource(R.string.player_resumed_position, durationText(resumePositionMs)),
+            style = style,
+            color = Color.White,
+            modifier = Modifier
+                .background(Color.Black.copy(alpha = 0.6f), MaterialTheme.shapes.small)
+                .padding(horizontal = 8.dp, vertical = 6.dp)
+                .semantics { liveRegion = LiveRegionMode.Polite },
+        )
+        return
+    }
+
+    val total = remember(durationMs) { durationText(durationMs) }
+    if (durationMs <= 0) {
+        Text("${durationText(positionMs)} / $total", style = style, color = Color.White)
+        return
+    }
+
+    val remainingMs = (durationMs - positionMs).coerceAtLeast(0)
+    val displayedMs = if (showRemainingTime) remainingMs else positionMs
+    val displayedTime = remember(displayedMs / 1000) { durationText(displayedMs) }
+    val sign = if (showRemainingTime) "-" else ""
+    val transition = updateTransition(showRemainingTime, label = "PlayerTimeMode")
+    val motion = MaterialTheme.motionScheme
+    val sizeSpec = motion.fastSpatialSpec<IntSize>()
+    val fadeSpec = motion.fastEffectsSpec<Float>()
+    FlowRow(
+        modifier = Modifier.clearAndSetSemantics { text = AnnotatedString("$sign$displayedTime / $total") },
+        itemVerticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            transition.AnimatedVisibility(
+                visible = { it },
+                enter = fadeIn(fadeSpec) + expandHorizontally(sizeSpec, expandFrom = Alignment.Start),
+                exit = fadeOut(fadeSpec) + shrinkHorizontally(sizeSpec, shrinkTowards = Alignment.Start),
+            ) {
+                Text("-", style = style, color = Color.White)
+            }
+            transition.AnimatedContent(
+                contentAlignment = Alignment.CenterStart,
+                transitionSpec = {
+                    (fadeIn(fadeSpec) togetherWith fadeOut(fadeSpec)).using(
+                        SizeTransform { _, _ -> sizeSpec },
+                    )
+                },
+            ) { remaining ->
+                val time = when {
+                    remaining == showRemainingTime -> displayedTime
+                    remaining -> durationText(remainingMs)
+                    else -> durationText(positionMs)
+                }
+                Text(time, style = style, color = Color.White)
+            }
+        }
+        Text(" / $total", style = style, color = Color.White)
     }
 }
 

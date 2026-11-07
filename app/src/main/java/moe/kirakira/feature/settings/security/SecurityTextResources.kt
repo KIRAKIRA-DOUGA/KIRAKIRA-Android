@@ -6,11 +6,11 @@ import moe.kirakira.data.auth.SecondFactor
 
 internal fun SecurityStep.iconRes(): Int = when (this) {
     SecurityStep.EMAIL, SecurityStep.VERIFY_EMAIL, SecurityStep.ENABLE_EMAIL, SecurityStep.DISABLE_EMAIL ->
-        R.drawable.ic_symbol_mail
-    SecurityStep.PASSWORD, SecurityStep.VERIFY_PASSWORD -> R.drawable.ic_symbol_password
-    SecurityStep.SECRETS -> R.drawable.ic_symbol_check
+        R.drawable.ic_icon_email
+    SecurityStep.PASSWORD, SecurityStep.VERIFY_PASSWORD -> R.drawable.ic_icon_password
+    SecurityStep.SECRETS -> R.drawable.ic_icon_check
     SecurityStep.OVERVIEW, SecurityStep.TWO_FACTOR, SecurityStep.TOTP_CONFIRM,
-    SecurityStep.DISABLE_TOTP, SecurityStep.CHECK_FACTOR -> R.drawable.ic_symbol_lock
+    SecurityStep.DISABLE_TOTP, SecurityStep.CHECK_FACTOR -> R.drawable.ic_icon_lock
 }
 
 internal fun SecondFactor.label(): Int = when (this) {

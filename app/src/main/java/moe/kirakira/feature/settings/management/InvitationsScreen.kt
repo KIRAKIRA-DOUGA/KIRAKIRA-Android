@@ -209,7 +209,7 @@ private fun InvitationStatistics(
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            painterResource(R.drawable.ic_symbol_confirmation_number),
+                            painterResource(R.drawable.ic_icon_gift),
                             contentDescription = null,
                             modifier = Modifier.size(32.dp),
                         )
@@ -234,7 +234,7 @@ private fun InvitationStatistics(
                 ),
                 elevation = null,
             ) {
-                Icon(painterResource(R.drawable.ic_symbol_add), null,
+                Icon(painterResource(R.drawable.ic_icon_add), null,
                     Modifier.size(ButtonDefaults.iconSizeFor(ButtonDefaults.MediumContainerHeight)))
                 Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(ButtonDefaults.MediumContainerHeight)))
                 Text(stringResource(R.string.invitation_generate),
@@ -276,7 +276,7 @@ private fun InvitationList(
         ) {
             if (loaded && invitations.isEmpty() && error == null) item {
                 ManagementEmpty(
-                    R.drawable.ic_symbol_confirmation_number,
+                    R.drawable.ic_icon_gift,
                     stringResource(R.string.invitation_empty),
                     statusModifier,
                 )
@@ -286,7 +286,7 @@ private fun InvitationList(
                     shapes = connectedListItemShapes(index, invitations.size),
                     leadingContent = {
                         ManagementIcon(
-                            if (invitation.used) R.drawable.ic_symbol_check else R.drawable.ic_symbol_confirmation_number,
+                            if (invitation.used) R.drawable.ic_icon_check else R.drawable.ic_icon_gift,
                             shape = (if (invitation.used) MaterialShapes.Circle else MaterialShapes.Cookie9Sided).toShape(),
                             tone = if (invitation.used) IconBadgeTone.NEUTRAL else IconBadgeTone.PRIMARY,
                         )
@@ -297,7 +297,7 @@ private fun InvitationList(
                     },
                     trailingContent = {
                         IconButton(onClick = { onCopy(invitation) }) {
-                            Icon(painterResource(R.drawable.ic_symbol_content_copy), stringResource(R.string.invitation_copy_named, invitation.code), Modifier.size(24.dp))
+                            Icon(painterResource(R.drawable.ic_icon_copy), stringResource(R.string.invitation_copy_named, invitation.code), Modifier.size(24.dp))
                         }
                     },
                     content = { Text(invitation.code, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.titleMedium) },

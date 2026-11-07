@@ -142,7 +142,7 @@ private fun SettingsSearchBreadcrumb(path: List<String>, modifier: Modifier = Mo
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 if (index > 0) Icon(
-                    painter = painterResource(R.drawable.ic_symbol_chevron_right),
+                    painter = painterResource(R.drawable.ic_icon_chevron_right),
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
                 )

@@ -29,10 +29,12 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import kotlin.math.PI
 import kotlin.math.sin
+import moe.kirakira.R
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 /** The existing history clock paired with the same flat paper magnifier as video search. */
@@ -59,9 +61,11 @@ internal fun SearchVideosEmptyLogo(modifier: Modifier = Modifier) {
 /** Opaque, uniform paper lens: depth comes only from the cut edge and cast shadow. */
 @Composable
 private fun SearchPaperMagnifier() {
-    val silhouette = remember {
-        val search = PathParser().parsePathString(CLASSIC_SEARCH_PATH).toPath()
-        val lensPaper = Path().apply { addOval(Rect(5f, 5f, 14f, 14f)) }
+    val resources = LocalResources.current
+    val silhouette = remember(resources) {
+        val data = readVectorPathData(resources, R.drawable.ic_icon_search).first()
+        val search = PathParser().parsePathString(data).toPath()
+        val lensPaper = Path().apply { addOval(Rect(4.5f, 4.5f, 14.5f, 14.5f)) }
         val paper = Path.combine(PathOperation.Union, search, lensPaper).apply {
             transform(Matrix().apply { scale(3.6f, 3.6f) })
         }
@@ -153,7 +157,3 @@ private fun SearchHistoryEmptyLogoPreview() {
 private fun SearchVideosEmptyLogoPreview() {
     KIRAKIRATheme { SearchVideosEmptyLogo() }
 }
-
-// Google Material Icons, action/search/materialicons/24px.svg (Apache 2.0).
-// Preserve the classic circular rim, narrow neck, and square-ended diagonal handle.
-private const val CLASSIC_SEARCH_PATH = "M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"

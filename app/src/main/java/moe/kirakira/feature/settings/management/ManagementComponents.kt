@@ -61,11 +61,11 @@ internal fun RuleCategory.titleRes(): Int = when (this) {
 
 @DrawableRes
 internal fun RuleCategory.iconRes(): Int = when (this) {
-    RuleCategory.BLOCK -> R.drawable.ic_symbol_block
-    RuleCategory.HIDE -> R.drawable.ic_symbol_visibility_off
-    RuleCategory.TAG -> R.drawable.ic_symbol_label
+    RuleCategory.BLOCK -> R.drawable.ic_icon_block
+    RuleCategory.HIDE -> R.drawable.ic_icon_visibility_off
+    RuleCategory.TAG -> R.drawable.ic_icon_tag
     RuleCategory.KEYWORD -> R.drawable.ic_symbol_match_word
-    RuleCategory.REGEX -> R.drawable.ic_symbol_regular_expression
+    RuleCategory.REGEX -> R.drawable.ic_icon_regexp
 }
 
 @Composable
@@ -153,7 +153,7 @@ internal fun ManagementFrame(
                     modifier = Modifier.padding(padding),
                     title = stringResource(R.string.management_sign_in),
                     description = null,
-                    iconRes = R.drawable.ic_symbol_lock,
+                    iconRes = R.drawable.ic_icon_lock,
                     presentation = ContentUnavailablePresentation.PAGE,
                     primaryAction = ContentUnavailableAction(stringResource(R.string.management_login), onLogin),
                 )

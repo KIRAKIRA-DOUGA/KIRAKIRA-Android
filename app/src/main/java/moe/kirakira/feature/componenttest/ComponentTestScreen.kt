@@ -161,7 +161,7 @@ private fun ComponentTestContent(
     SettingsScaffold(
         title = category.title,
         onBack = onBack,
-        shadingIcon = R.drawable.ic_symbol_palette,
+        shadingIcon = R.drawable.ic_icon_palette,
         modifier = modifier,
         imePadding = true,
         actions = { TextButton(onClick = onReset) { Text("重置") } },
@@ -293,5 +293,5 @@ internal fun SampleRow(modifier: Modifier = Modifier, content: @Composable FlowR
 
 @Composable
 internal fun SampleIcon(modifier: Modifier = Modifier, description: String? = null) {
-    Icon(painterResource(R.drawable.ic_symbol_add), description, modifier.size(24.dp))
+    Icon(painterResource(R.drawable.ic_icon_add), description, modifier.size(24.dp))
 }

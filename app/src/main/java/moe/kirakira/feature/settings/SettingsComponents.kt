@@ -291,7 +291,7 @@ internal fun SettingsNavigationItem(
         supporting = supporting, enabled = enabled, onClick = onClick,
         trailing = {
             Icon(
-                painterResource(R.drawable.ic_symbol_chevron_right),
+                painterResource(R.drawable.ic_icon_chevron_right),
                 contentDescription = null,
                 modifier = Modifier.size(24.dp),
             )
@@ -458,7 +458,7 @@ internal fun SettingsErrorCard(message: String, modifier: Modifier = Modifier) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(painterResource(R.drawable.ic_symbol_error), contentDescription = null)
+            Icon(painterResource(R.drawable.ic_icon_error), contentDescription = null)
             Text(message, style = MaterialTheme.typography.bodyMedium)
         }
     }

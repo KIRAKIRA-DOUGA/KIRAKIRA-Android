@@ -72,7 +72,7 @@ fun AboutScreen(
     SettingsPage(
         title = stringResource(R.string.settings_about),
         onBack = onBack,
-        shadingIcon = R.drawable.ic_symbol_info,
+        shadingIcon = R.drawable.ic_icon_info,
         modifier = modifier.testTag("about_screen"),
         backButtonModifier = Modifier.testTag("about_back"),
     ) {
@@ -91,7 +91,7 @@ fun AboutScreen(
             )
             SettingsNavigationItem(
                 title = stringResource(R.string.about_licenses),
-                icon = R.drawable.ic_symbol_description,
+                icon = R.drawable.ic_icon_file,
                 index = 1,
                 count = 4,
                 onClick = onNavigateToLicenses,

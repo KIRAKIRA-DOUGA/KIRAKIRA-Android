@@ -129,7 +129,7 @@ internal fun ProfilePage(
                             showRelationshipActions = model.uid != session.activeProfile?.uid,
                         ) { open ->
                             IconButton(onClick = open) {
-                                Icon(painterResource(R.drawable.ic_symbol_more_horiz), stringResource(R.string.video_more))
+                                Icon(painterResource(R.drawable.ic_icon_more_vert), stringResource(R.string.video_more))
                             }
                         }
                     },
@@ -137,7 +137,7 @@ internal fun ProfilePage(
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(
-                                painterResource(R.drawable.ic_symbol_arrow_back),
+                                painterResource(R.drawable.ic_icon_arrow_left),
                                 stringResource(R.string.navigate_back),
                             )
                         }
@@ -150,7 +150,7 @@ internal fun ProfilePage(
                     state = ContentUnavailableState.EMPTY,
                     title = stringResource(R.string.profile_blocked),
                     description = details.error?.let { stringResource(it.messageRes()) },
-                    iconRes = R.drawable.ic_symbol_block,
+                    iconRes = R.drawable.ic_icon_block,
                     onRetry = model::refresh,
                     retryEnabled = !busy && !details.loading,
                     modifier = Modifier.fillMaxSize().padding(padding),
@@ -201,7 +201,7 @@ internal fun ProfilePage(
                 showRelationshipActions = !state.isSelf,
             ) { open ->
                 ProfileTopBarIconButton(tabsPinned = tabsPinned, hazeState = hazeState, onClick = open) {
-                    Icon(painterResource(R.drawable.ic_symbol_more_horiz), stringResource(R.string.video_more))
+                    Icon(painterResource(R.drawable.ic_icon_more_vert), stringResource(R.string.video_more))
                 }
             }
         },

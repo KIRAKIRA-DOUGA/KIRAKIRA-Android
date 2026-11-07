@@ -44,12 +44,12 @@ enum class ContentUnavailableState(
     EMPTY(
         titleRes = R.string.content_unavailable_empty_title,
         descriptionRes = R.string.content_unavailable_empty_description,
-        iconRes = R.drawable.ic_symbol_info,
+        iconRes = R.drawable.ic_icon_info,
     ),
     ERROR(
         titleRes = R.string.content_unavailable_error_title,
         descriptionRes = R.string.content_unavailable_error_description,
-        iconRes = R.drawable.ic_symbol_error,
+        iconRes = R.drawable.ic_icon_error,
     ),
 }
 

@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -203,7 +204,7 @@ internal fun PlayerSettingsButtons(
             colors = iconColors,
         ) {
             Icon(
-                painterResource(R.drawable.ic_symbol_settings),
+                painterResource(R.drawable.ic_icon_settings),
                 stringResource(R.string.player_settings),
                 Modifier
                     .size(IconButtonDefaults.smallIconSize)
@@ -381,7 +382,12 @@ private fun PlaybackOptionsContent(
                         selected = state.speed == speed,
                         onClick = { onSpeed(speed) },
                         label = { Text(speedLabel(speed)) },
+                        shape = CircleShape,
+                        border = null,
                         colors = FilterChipDefaults.filterChipColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            labelColor = MaterialTheme.colorScheme.onSurface,
+                            iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             selectedContainerColor = MaterialTheme.colorScheme.primary,
                             selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
                             selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,

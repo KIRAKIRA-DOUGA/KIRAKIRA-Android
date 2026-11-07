@@ -90,7 +90,7 @@ internal fun SecurityFlowScreen(
                 modifier = Modifier.padding(padding).consumeWindowInsets(padding),
                 title = stringResource(R.string.security_sign_in),
                 description = null,
-                iconRes = R.drawable.ic_symbol_lock,
+                iconRes = R.drawable.ic_icon_lock,
                 presentation = ContentUnavailablePresentation.PAGE,
             )
             state.status == null && !state.statusPending -> ContentUnavailableView(

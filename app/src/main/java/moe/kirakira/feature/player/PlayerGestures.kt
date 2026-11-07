@@ -313,8 +313,8 @@ internal fun PlayerGestureOverlay(state: PlayerGestureState, modifier: Modifier 
                     ) {
                         Icon(
                             painterResource(
-                                if (feedback.direction < 0) R.drawable.ic_symbol_fast_rewind
-                                else R.drawable.ic_symbol_fast_forward,
+                                if (feedback.direction < 0) R.drawable.ic_icon_fast_rewind
+                                else R.drawable.ic_icon_fast_forward,
                             ),
                             contentDescription = null,
                             modifier = Modifier.size(24.dp),
@@ -401,14 +401,14 @@ private fun PlayerVolumeHud(percent: Int, sliderHeight: Dp) {
                             // The icon stays upright and uses the foreground of each track segment.
                             clipRect(bottom = activeTop) {
                                 translate(iconX, iconY) {
-                                    scale(iconSize / 960f, iconSize / 960f, Offset.Zero) {
+                                    scale(iconSize / 24f, iconSize / 24f, Offset.Zero) {
                                         volumeIcon.draw(this, iconLevel.value, colors.onSecondaryContainer)
                                     }
                                 }
                             }
                             clipRect(top = activeTop) {
                                 translate(iconX, iconY) {
-                                    scale(iconSize / 960f, iconSize / 960f, Offset.Zero) {
+                                    scale(iconSize / 24f, iconSize / 24f, Offset.Zero) {
                                         volumeIcon.draw(this, iconLevel.value, colors.onPrimary)
                                     }
                                 }

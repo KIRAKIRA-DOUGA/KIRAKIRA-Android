@@ -154,7 +154,7 @@ internal fun ComponentTestOverlay(
                     else -> "普通 Dialog"
                 }) },
                 icon = if (overlay == ComponentOverlay.ICON || danger) {
-                    { Icon(painterResource(if (danger) R.drawable.ic_symbol_delete else R.drawable.ic_symbol_info),
+                    { Icon(painterResource(if (danger) R.drawable.ic_icon_delete else R.drawable.ic_icon_info),
                         contentDescription = null, tint = if (danger) MaterialTheme.colorScheme.error
                         else MaterialTheme.colorScheme.primary) }
                 } else null,

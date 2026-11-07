@@ -113,7 +113,7 @@ internal fun InvitationsScaffold(
                         )
                     }
                     ShadingIcon(
-                        icon = R.drawable.ic_symbol_confirmation_number,
+                        icon = R.drawable.ic_icon_gift,
                         modifier = Modifier.matchParentSize(),
                         alignment = Alignment.BottomEnd,
                         endPadding = 0.dp,
@@ -131,7 +131,7 @@ internal fun InvitationsScaffold(
                         navigationIcon = {
                             IconButton(onClick = onBack) {
                                 Icon(
-                                    painter = painterResource(R.drawable.ic_symbol_arrow_back),
+                                    painter = painterResource(R.drawable.ic_icon_arrow_left),
                                     contentDescription = stringResource(R.string.navigate_back),
                                 )
                             }
@@ -156,7 +156,7 @@ internal fun InvitationsScaffold(
                         modifier = Modifier.padding(padding),
                         title = stringResource(R.string.management_sign_in),
                         description = null,
-                        iconRes = R.drawable.ic_symbol_lock,
+                        iconRes = R.drawable.ic_icon_lock,
                         presentation = ContentUnavailablePresentation.PAGE,
                         primaryAction = ContentUnavailableAction(stringResource(R.string.management_login), onLogin),
                     )

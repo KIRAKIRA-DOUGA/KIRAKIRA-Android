@@ -113,7 +113,7 @@ internal fun AccountFlowScaffold(
                     if (onBack != null) {
                         IconButton(onClick = onBack, modifier = backButtonModifier) {
                             Icon(
-                                painter = painterResource(R.drawable.ic_symbol_arrow_back),
+                                painter = painterResource(R.drawable.ic_icon_arrow_left),
                                 contentDescription = stringResource(R.string.navigate_back),
                             )
                         }

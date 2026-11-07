@@ -50,7 +50,7 @@ internal fun TagSearchField(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                Icon(painterResource(R.drawable.ic_symbol_label), contentDescription = null)
+                Icon(painterResource(R.drawable.ic_icon_tag), contentDescription = null)
             }
             if (tags.isEmpty()) {
                 Text(
@@ -73,12 +73,12 @@ internal fun TagSearchField(
                 )
             }
             SearchIconButton(
-                stringResource(R.string.search_choose_tags), R.drawable.ic_symbol_add,
+                stringResource(R.string.search_choose_tags), R.drawable.ic_icon_add,
                 onClick = onAdd, enabled = enabled,
             )
             if (showClear) {
                 SearchIconButton(
-                    clearDescription, R.drawable.ic_symbol_close, onClick = onClear, enabled = enabled,
+                    clearDescription, R.drawable.ic_icon_close, onClick = onClear, enabled = enabled,
                 )
             }
         }

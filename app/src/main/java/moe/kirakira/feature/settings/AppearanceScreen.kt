@@ -83,7 +83,7 @@ fun AppearanceScreen(
     SettingsScaffold(
         title = stringResource(R.string.settings_appearance),
         onBack = onBack,
-        shadingIcon = R.drawable.ic_symbol_palette,
+        shadingIcon = R.drawable.ic_icon_palette,
         modifier = modifier.testTag("appearance_screen"),
         backButtonModifier = Modifier.testTag("appearance_back"),
     ) { padding ->
@@ -204,7 +204,7 @@ fun AppearanceScreen(
                                     color = Color(themeColors.customColorArgb),
                                     selected = !usesSystemColors && themeColors.useCustomColor,
                                     onClick = { showCustomColor = true },
-                                    icon = R.drawable.ic_symbol_edit,
+                                    icon = R.drawable.ic_icon_edit,
                                     modifier = cardModifier.settingsSearchAnchor(stringResource(R.string.theme_color_custom)),
                                 )
                             }
@@ -218,7 +218,7 @@ fun AppearanceScreen(
                                 onCheckedChange = onPredictiveBackEnabledChange,
                                 index = 0,
                                 count = 1,
-                                icon = R.drawable.ic_symbol_arrow_back,
+                                icon = R.drawable.ic_icon_arrow_left,
                             )
                         }
                     }
@@ -239,9 +239,9 @@ fun AppearanceScreen(
 }
 
 private fun ThemeMode.iconRes(): Int = when (this) {
-    ThemeMode.LIGHT -> R.drawable.ic_symbol_light_mode
-    ThemeMode.DARK -> R.drawable.ic_symbol_dark_mode
-    ThemeMode.SYSTEM -> R.drawable.ic_symbol_hdr_auto
+    ThemeMode.LIGHT -> R.drawable.ic_icon_sun
+    ThemeMode.DARK -> R.drawable.ic_icon_moon
+    ThemeMode.SYSTEM -> R.drawable.ic_icon_brightness_medium
 }
 
 private fun themeCardColumns(width: Dp, minWidth: Dp, fontScale: Float, count: Int): Int =

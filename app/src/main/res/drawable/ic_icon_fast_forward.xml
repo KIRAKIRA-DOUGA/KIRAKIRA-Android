@@ -1,0 +1,11 @@
+<!-- Cerasus icon, AGPL-3.0. SVG converted to VectorDrawable.
+     Source: https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Cerasus/blob/dd5b8cdcabaac4d03ad190f6b7037bfab494c72b/assets/icons/fast_forward.svg -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M5.58 16.89L11.35 12.82C11.91 12.42 11.91 11.58 11.35 11.19L5.58 7.11002C4.91 6.65002 4 7.12002 4 7.93002V16.07C4 16.88 4.91 17.35 5.58 16.89ZM13 7.93002V16.07C13 16.88 13.91 17.35 14.58 16.89L20.35 12.82C20.91 12.42 20.91 11.58 20.35 11.19L14.58 7.12002C13.91 6.65002 13 7.12002 13 7.93002Z" />
+</vector>

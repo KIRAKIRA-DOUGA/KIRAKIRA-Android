@@ -153,7 +153,7 @@ internal fun ThemeSelectionCard(
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.ic_symbol_check),
+                        painter = painterResource(R.drawable.ic_icon_check),
                         contentDescription = null,
                         tint = checkColor,
                         modifier = Modifier.size(24.dp),

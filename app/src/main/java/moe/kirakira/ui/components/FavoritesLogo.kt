@@ -23,9 +23,11 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.unit.dp
+import moe.kirakira.R
 
-/** Classic Material star cut from yellow paper, with a 2dp edge and raised silhouette. */
+/** Cerasus star cut from yellow paper, with a 2dp edge and raised silhouette. */
 @Composable
 internal fun FavoritesLogo(modifier: Modifier = Modifier) {
     val inspecting = LocalInspectionMode.current
@@ -38,7 +40,11 @@ internal fun FavoritesLogo(modifier: Modifier = Modifier) {
             progress.animateTo(1f, tween(1_000, easing = CubicBezierEasing(0.1f, 0.9f, 0.2f, 1f)))
         }
     }
-    val star = remember { PathParser().parsePathString(STAR_PATH).toPath() }
+    val resources = LocalResources.current
+    val star = remember(resources) {
+        val data = readVectorPathData(resources, R.drawable.ic_icon_star).first()
+        PathParser().parsePathString(data).toPath()
+    }
     val paperShape = remember(star) {
         GenericShape { size, _ ->
             addPath(star, Offset(0f, 0.375f))
@@ -82,6 +88,3 @@ private val favoritesPaperBrush = Brush.linearGradient(
     start = Offset(2f, 2f),
     end = Offset(22f, 22f),
 )
-
-// Material Design Icons "star", 24 × 24 viewport.
-private const val STAR_PATH = "M12 17.27L18.18 21L16.54 13.97L22 9.24L14.81 8.63L12 2L9.19 8.63L2 9.24L7.46 13.97L5.82 21Z"
