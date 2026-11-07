@@ -10,4 +10,4 @@
 
 图片版权归原作者所有。
 
-明暗主题缩略图使用 Android 自身布局与已有品牌／Material Symbols 资源绘制，没有移植 Cerasus 的 `LogoThemePreview.vue` 图形。
+明暗主题缩略图使用 Android 自身布局与已有品牌／Cerasus 图标资源绘制，没有移植 Cerasus 的 `LogoThemePreview.vue` 图形。

@@ -8,7 +8,7 @@
     }
   ],
   "website": "https://github.com/google/material-design-icons",
-  "description": "Rounded icons; theme tint removed and XML formatting adjusted. Path data retained.",
+  "description": "Bottom navigation search and following icons and fallback interface icons, plus window contours used by the outside-app mini-player icon.",
   "licenses": [
     "kirakira-material-symbols-apache-2.0"
   ]
