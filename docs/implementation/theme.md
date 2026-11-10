@@ -2,7 +2,7 @@
 
 [实现索引](../implementation.md) · [功能现状](../features.md) · [开发指南](../development.md) · [贡献规范](../../CONTRIBUTING.md)
 
-本文维护语义配色、颜色偏好、弹层背景与投影参数。开发约束以贡献指南为准。
+本文维护主题圆角、语义配色、颜色偏好、弹层背景与投影参数。开发约束以贡献指南为准。
 
 - [主题实现](#主题实现)
   - [成功语义色](#成功语义色)
@@ -16,7 +16,9 @@
 
 ## 主题实现
 
-界面以 Material 3 Expressive 为基础，配色与高度阴影采用 Material Design 2 的视觉风格，并结合 KIRAKIRA 特色的彩色阴影。`KIRAKIRATheme` 保留 Material 3 语义颜色角色及 `MaterialExpressiveTheme` 的组件、形状、排版与动效；经典强调色和中性表面由项目主题生成器提供，关闭色调高度叠加。彩色按钮、FAB 与设置页实色大卡片的投影取实际容器色，选中单选框的投影取实际选中色，中性色使用黑色；共享双层阴影几何参数来自 Material Web，原生阴影由平台绘制。设计约束、强度与场景例外见[主题配色约束](../../CONTRIBUTING.md#主题配色约束)及[按钮、单选框与阴影](../../CONTRIBUTING.md#按钮单选框与阴影)。
+界面以 Material 3 Expressive 为基础，配色与高度阴影采用 Material Design 2 的视觉风格，并结合 KIRAKIRA 特色的彩色阴影。`KIRAKIRATheme` 保留 Material 3 语义颜色角色及 `MaterialExpressiveTheme` 的组件、形状档位、排版与动效；经典强调色和中性表面由项目主题生成器提供，关闭色调高度叠加。彩色按钮、FAB 与设置页实色大卡片的投影取实际容器色，选中单选框的投影取实际选中色，中性色使用黑色；共享双层阴影几何参数来自 Material Web，原生阴影由平台绘制。设计约束、强度与场景例外见[主题配色约束](../../CONTRIBUTING.md#主题配色约束)及[按钮、单选框与阴影](../../CONTRIBUTING.md#按钮单选框与阴影)。
+
+`KIRAKIRATheme` 通过 `MaterialExpressiveTheme` 的 `shapes` 参数提供八档圆角。`extraSmall`、`small`、`medium`、`large`、`largeIncreased`、`extraLarge`、`extraLargeIncreased` 和 `extraExtraLarge` 依次为 2、4、6、8、10、14、16、24dp。网格视频封面、共享输入框和连接列表外角使用 `large`，默认对话框使用 `extraLarge`。头像与胶囊 Chip 通过 `CircleShape` 随组件尺寸形成轮廓。[主题入口](../../app/src/main/java/moe/kirakira/ui/theme/Theme.kt)
 
 [ThemeSettingsStore](../../app/src/main/java/moe/kirakira/data/settings/ThemeSettingsStore.kt) 负责 `kirakira_settings` 的读取、写入与旧预设颜色迁移，仅处理字符串、布尔值及 ARGB 数值。[ThemeViewModel](../../app/src/main/java/moe/kirakira/ui/theme/ThemeViewModel.kt) 提供当前主题的默认色和迁移映射，将存储结果映射为 UI 状态；保留后台首次读取、就绪门控、无效明暗模式回退和不透明颜色处理。
 
@@ -24,13 +26,13 @@
 
 主题层的 [ThemeSemanticColors](../../app/src/main/java/moe/kirakira/ui/theme/ThemeSemanticColors.kt) 提供不可变的成功色 `success/onSuccess` 与警告色 `warning/onWarning`，通过 `MaterialTheme.semanticColors` 读取，供成功／完成及警告状态复用，不占用 Material 3 的既有颜色角色。`KIRAKIRATheme` 根据自身 `darkTheme` 参数通过 `CompositionLocal` 提供配色：浅色固定使用 `#008577`，深色使用 `#00594F`，`onSuccess` 默认值为白色，主题生成时直接使用该默认值，不引用个性色预设，不受强调色或系统强调色影响。警告色浅色使用 `#FFC107/#3E2E00`，深色使用 `#5D4300/#FFE082`，同样不随强调色变化。
 
-安全页顶部卡片在已开启二步验证时使用 `success/onSuccess`，确认未开启时使用 `warning/onWarning`，待核对时使用 `surfaceContainerLow/onSurface`；保护状态同时由文案及盾牌／警示图标表达。邀请码顶部卡片使用 `primary` 与 `onPrimary` 实色配对，默认呈品牌粉色并随主题强调色变化。安全页与邀请码页的这些卡片沿用关于页的大圆角、实色视觉语言及共享 2dp 彩色投影，图标底座使用低透明度前景色；邀请码生成按钮在浅深主题的可用状态均采用白色容器与 `primary` 文字、图标，直接使用官方 `Button` 并设置 `elevation = null`，所有交互状态均无阴影，保留官方 Expressive 尺寸和按压形变，禁用配色沿用统计块的低透明度前景色。加载指示器使用卡片前景色。
+安全页顶部卡片在已开启二步验证时使用 `success/onSuccess`，确认未开启时使用 `warning/onWarning`，待核对时使用 `surfaceContainerLow/onSurface`。保护状态同时由文案及盾牌／警示图标表达。邀请码顶部卡片使用 `primary` 与 `onPrimary` 实色配对，默认呈品牌粉色并随主题强调色变化。安全页与邀请码页的这些卡片和关于页页头共用圆角档位与 2dp 彩色投影，图标底座使用低透明度前景色。邀请码生成按钮在浅深主题的可用状态均采用白色容器与 `primary` 文字、图标，直接使用官方 `Button` 并设置 `elevation = null`，所有交互状态均无阴影，保留官方 Expressive 尺寸和按压形变，禁用配色沿用统计块的低透明度前景色。加载指示器使用卡片前景色。
 
 ### 配色生成
 
 所有主题颜色固定使用经典强调色，默认原色为 `KIRAKIRAPink`（`#F06E8E`）。[MaterialKolor](https://github.com/jordond/MaterialKolor) 的纯函数 `dynamicColorScheme` 仅用于生成 `Monochrome / SPEC_2021` 灰阶基础，HCT 工具用于生成强调色的容器、反色与固定色角色。该库维护 Google Material Color Utilities 的 Kotlin 移植与 Compose 适配，许可证为 MIT，底层 Material Color Utilities 为 Apache-2.0。
 
-`KIRAKIRATheme` 使用 `rememberSeedColorScheme(seedColor, darkTheme)` 将预设、系统强调色或自定义颜色转换为主题配色。主题与设置不再接收、保存配色算法，经典方案沿用 `MaterialExpressiveTheme` 的形状、排版和动效。
+`KIRAKIRATheme` 使用 `rememberSeedColorScheme(seedColor, darkTheme)` 将预设、系统强调色或自定义颜色转换为主题配色。主题与设置不再接收、保存配色算法。
 
 浅色与深色灰阶基础各在进程内惰性生成一次，完整配色按不透明 ARGB 与明暗模式存入容量为 32 的 `LruCache`。多个预览和重复进入页面复用结果，算法与颜色角色保持一致；缓存只持有颜色值和 `ColorScheme`，不持有 Activity、不写入存储，进程退出后释放。
 
@@ -74,7 +76,7 @@ Chip 保留官方 Material 3 组件及其尺寸、排版和交互，通过公开
 
 明暗模式使用 `ThemeModeCard`，图标卡片下方独立显示居中的文字标签，标签始终使用 `onSurface`，与卡片间距为 8dp。选中卡片使用 `primary/onPrimary`，未选中使用 `surface/onSurfaceVariant`，图标与其他设置图标采用相同的中性内容色。只有图标卡片使用官方可点击 `Card` 处理点击、圆角水波纹、焦点与单选语义；卡片外的标签不响应点击或绘制水波纹。外层 Column 不裁剪卡片阴影。
 
-角色、系统强调色与自定义卡片继续使用 `ThemeSelectionCard` 的官方可点击 `Card` 管理涟漪、焦点与交互。预览区保持 `surface` 底色及原始图片／原色图标，仅下方文字区在选中时使用 `primary` 背景，标题和副标题同步使用 `onPrimary`；未选中文字区使用 `surface/onSurface`，副标题使用 `onSurfaceVariant`。
+角色、系统强调色与自定义卡片继续使用 `ThemeSelectionCard` 的官方可点击 `Card` 管理涟漪、焦点与交互。预览区保持 `surface` 底色及原始图片／原色图标，仅下方文字区在选中时使用 `primary` 背景，标题和副标题同步使用 `onPrimary`；未选中文字区使用 `surface/onSurface`，副标题使用 `onSurfaceVariant`。`ThemeColorCard` 为角色名副标题传入 `LocaleList("ja")`，`ThemeSelectionCard` 将其合并进该行的 `bodySmall` 样式，由 Android 选择日文字形。
 
 两类卡片均使用主题 large 形状，原生阴影的静止／按压／悬停或聚焦高度为 1dp／8dp／4dp，按压优先；选中状态只控制配色与勾选标记，不决定交互高度。两类卡片均配置官方 `CardDefaults.cardElevation` 的各状态高度，保留官方过渡。卡片不绘制描边，背景、图标与个性色标签和勾选沿用主题 Expressive effects 动效。卡片提供单选角色与选中状态，合并主题／角色名称或 HEX 色值，子预览与标签清除独立语义。明暗卡片的图标区域固定高 64dp，使图标与文字间距不随卡片宽度增大；跟随系统／浅色／深色分别居中显示 32dp 的 `hdr_auto`／`light_mode`／`dark_mode`；标题使用 `labelLarge` 居中排列并允许换行。`ThemeViewModel` 初始值、缺失或无效偏好的回退均为 `ThemeMode.SYSTEM`，有效的 `theme_mode` 偏好按已保存值恢复。
 
@@ -155,6 +157,6 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 
 ### 彩色卡片阴影
 
-设置页的实色大圆角卡片复用 [MaterialColorShadow](../../app/src/main/java/moe/kirakira/ui/components/MaterialColorShadow.kt) 中的 `cardColorShadow`，固定 `CardColorShadowElevation = 2.dp`，使用与按钮相同的双层几何和默认强度（彩色环境层／主层 25%／50%，中性 7.5%／15%），阴影取实际容器色。卡片本身没有按压、悬停或聚焦状态，因此不接入交互源、不随内部 Logo 或按钮的交互改变高度；容器色随安全状态或主题变化时，阴影读取当前实际颜色实时更新，内容尺寸变化由卡片自身的尺寸动画带动。
+设置页的顶部特色卡片复用 [MaterialColorShadow](../../app/src/main/java/moe/kirakira/ui/components/MaterialColorShadow.kt) 中的 `cardColorShadow`，固定 `CardColorShadowElevation = 2.dp`，使用与按钮相同的双层几何和默认强度（彩色环境层／主层 25%／50%，中性 7.5%／15%），阴影取实际容器色。卡片本身没有按压、悬停或聚焦状态，因此不接入交互源、不随内部 Logo 或按钮的交互改变高度。容器色随安全状态或主题变化时，阴影读取当前实际颜色实时更新，内容尺寸变化由卡片自身的尺寸动画带动。
 
-关于页页头、安全状态横幅、二步验证已启用卡片和邀请码统计卡使用此入口。带形状和 `animateContentSize()` 的统计卡将阴影修饰符放在尺寸动画外侧，按动画后的实际尺寸绘制，保证阴影跟随卡片高度；不设置 `Surface.shadowElevation`、`tonalElevation` 或 `CardDefaults.cardElevation`，每个表面只保留一条双层投影路径。中性待核对横幅沿用共享中性回退。主题明暗与个性色卡片保留官方可点击 `Card` 的 1dp／8dp／4dp 交互阴影；内联错误提示、TOTP 代码展示区和连接列表继续使用各自既有规则。容器留白需容纳外侧阴影，滚动或折叠头部不额外添加 margin 或阴影占位。
+关于页页头、安全状态横幅、二步验证已启用卡片和邀请码统计卡将同一个 `MaterialTheme.shapes.large` 轮廓传给 `Surface` 和 `cardColorShadow`。带形状和 `animateContentSize()` 的统计卡将阴影修饰符放在尺寸动画外侧，按动画后的实际尺寸绘制，保证阴影跟随卡片高度。不设置 `Surface.shadowElevation`、`tonalElevation` 或 `CardDefaults.cardElevation`，每个表面只保留一条双层投影路径。中性待核对横幅沿用共享中性回退。主题明暗与个性色卡片保留官方可点击 `Card` 的 1dp／8dp／4dp 交互阴影。内联错误提示、TOTP 代码展示区和连接列表继续使用各自既有规则。容器留白需容纳外侧阴影，滚动或折叠头部不额外添加 margin 或阴影占位。

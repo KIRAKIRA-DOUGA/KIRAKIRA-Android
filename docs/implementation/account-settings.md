@@ -28,7 +28,7 @@
 
 `ProfileEditorRoute` 使用 Navigation 3 条目级 `ProfileEditorViewModel`，资料通过 `data/profile/ProfileRepository` 访问，DTO 与凭据保持在数据层。`AccountProfile` 增加生日、性别和标签及兼容旧存储的默认值；读取本人资料时核对 UUID、UID。保存任务被取消后，错误处理与收尾不再更新页面状态，避免旧任务清除新账号任务的忙碌状态。
 
-页面最大宽度 640dp，与设置页同用 `surfaceContainer` 背景；表单使用无标题的 `SettingsSection`，保留字段标签和组间留白；顶部为大圆角横幅，使用 `Image` 与 `ContentScale.Crop` 展示个人主页共用的 `profile_banner_placeholder` 樱花图，保留服务端背景字段；头像为居中重叠的 112dp 头像，带背景色描边的编辑按钮固定在头像右下角。按钮的 `TooltipBox` 外层使用直接属于头像容器的 `Box(Modifier.align(Alignment.BottomEnd))`，避免 Tooltip 内部锚点截留父布局对齐参数；描边、阴影、提示、加载及禁用行为保持一致。
+页面最大宽度 640dp，与设置页同用 `surfaceContainer` 背景。表单使用无标题的 `SettingsSection`，保留字段标签和组间留白。顶部横幅使用 `Image` 与 `ContentScale.Crop` 展示个人主页共用的 `profile_banner_placeholder` 樱花图，并以 `MaterialTheme.shapes.large` 裁剪，与表单分组外角一致。保存时保留服务端背景字段。112dp 头像居中叠在横幅下沿，带背景色描边的编辑按钮固定在头像右下角。按钮的 `TooltipBox` 外层使用直接属于头像容器的 `Box(Modifier.align(Alignment.BottomEnd))`，避免 Tooltip 内部锚点截留父布局对齐参数。描边、阴影、提示、加载及禁用行为保持一致。
 
 基本资料与标签放在 `surface` 圆角卡片中，个人信息使用标准两行分段资料行，字段名使用主文本槽，当前值使用辅助文本槽并继承官方字号与次要文字色，整行可点击；尾部仅显示图标，生日保留向右箭头，性别使用向下箭头，菜单锚定右侧图标并随可用空间调整展开方向；保存操作接入[设置表单操作区](#设置表单操作区)。另含日期选择器与标签 Chips。性别选择与搜索排序共用 `ExpressiveMenuPopup` 宿主和官方 `DropdownMenuGroup`、`SelectableDropdownMenuItem`；动画图层通过 `LayerOutsets` 保留组外阴影，不增加布局边距，具体接入见[共享菜单说明](components.md#连接列表分组)。所有界面文本维护中英文资源，预览使用空表单。
 

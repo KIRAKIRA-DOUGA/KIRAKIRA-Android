@@ -36,7 +36,7 @@
 
 Slider 使用官方 `SliderDefaults.Thumb`（16dp 等宽高，保留默认按压／拖动形变），以两层 `SliderDefaults.Track` 显示缓冲和已播放位置；上层未播放轨道透明，底层只绘制、不添加交互或语义。两层使用相同圆头尺寸，保留官方定位手势与无障碍语义。`PlaybackViewModel` 在 Media3 事件及现有 500ms 进度轮询中读取 `bufferedPosition`，按有效时长限制范围；未知时长与播放器释放时显示零缓冲，不持久化缓冲位置。
 
-`data/content/ContentRepository` 将私有 serialization DTO 映射为 `VideoSummary`、`VideoDetail`、`PublicProfile`、`VideoComment` 和 `DanmakuEntry`，UI 不持有 Cookie 或 token。资料映射拒绝非正 UID，以及响应中 UID 与目标不一致的结果，避免将异常资料归给目标用户。首页、视频、资料分别由 ViewModel 管理；视频与资料的 ViewModel 绑定 Navigation 3 条目。
+`data/content/ContentRepository` 将私有 serialization DTO 映射为 `VideoSummary`、`VideoDetail`、`PublicProfile`、`VideoComment` 和 `DanmakuEntry`，UI 不持有 Cookie 或 token。列表通过响应检查后，在解码调度器上逐条解析并省略无效记录。视频摘要要求 KVID 为正数，原样传递标题字符串，缺失标题映射为空。详情校验视频和作者身份，独立解析分 P 和标签。分 P 按 ID 保留首个可解码条目，缺失或无效地址标记为不可播放。资料映射拒绝非正 UID，以及响应中 UID 与目标不一致的结果，避免将异常资料归给目标用户。首页、视频、资料分别由 ViewModel 管理；视频与资料的 ViewModel 绑定 Navigation 3 条目。
 
 `VideoRoute(videoId)` 和 `ProfileRoute(uid)` 使用真实 ID，旧无 ID 的演示路由与已移除的加载动画演示页路由在恢复时移除；旧路由类型仅保留用于反序列化兼容。状态变更通过 SessionState.revision 取消旧账号工作；请求前取得账号快照、返回时再次核对 revision，旧响应不覆盖新页面。启动时内容加载等待本地会话恢复及 `INITIALIZE` 账号校验结束（含失败），期间手动刷新也不提前请求，避免本地恢复和校验完成两次发布 revision 导致列表清空重载、加载指示器闪回；正常账号切换仍取消并清空旧账号内容。明确 401 只清除发起请求账号的凭据，其他业务拒绝不会自动清空会话。
 
@@ -57,7 +57,7 @@ Slider 使用官方 `SliderDefaults.Thumb`（16dp 等宽高，保留默认按压
 
 `userDataBootstrapHint` 从登录或 `/user/self` 获取，仅放入加密 StoredAccount 的可选字段，旧 v1 账号库兼容；仅首页过滤请求发送 `uid`、`uuid` 和 `user-data-bootstrap-hint`，缺失时按游客读取。普通鉴权使用账号 token 快照，媒体与图片传输独立且无 Cookie。评论数量字段在空结果时可能省略，游客视频详情可能缺失赞踩计数，UI 显示未知而不是编造零。API 响应继续保留 1 MiB 上限；过大或非法响应显示错误，不无限读取。评论发布少于 20,000 字符；弹幕颜色使用服务端实际要求的不带井号的 `FFFFFF`，默认 `medium`、`rtl`、`enableRainbow=false`，时间单位为秒。
 
-图片地址由 `core/image/DeliveryImage.kt` 统一解析。Cloudflare ID 追加到 Apple 端同款生产地址 `https://kirafile.com/cdn-cgi/imagedelivery/Gyz90amG54C4b_dtJiRpYg/`，缩略图使用宽度变体，全屏和导出使用 `f=auto`；兼容完整合法 HTTPS URL。图片配置本轮固定为生产分发，不随 API 地址自动猜测测试环境。
+图片地址由 `core/image/DeliveryImage.kt` 统一解析。Cloudflare ID 追加到 `BuildConfig.IMAGE_DELIVERY_BASE_URL`，该地址由构建时选中的图片环境提供，包含对应的 CDN 域名和账户哈希。缩略图使用 `w=<像素宽度>,f=auto`，全屏和导出使用 `f=auto`。完整、无凭据的 HTTPS URL 直接使用。图片环境的选择见[开发指南](../development.md#api-环境配置)。
 
 播放器使用 Media3 ExoPlayer、DASH/HLS、OkHttp data source、Compose `ContentFrame` 和 MediaSession。Media3 的画面组件封装了平台 Surface 的互操作，按钮和进度条采用项目 Material 3 控件，不使用 XML PlayerView。独立媒体客户端拒绝 HTTP 和 URL 凭据，清单及分片均不携带账号会话。导航宿主持有共享播放会话，SavedState 保留视频 ID、分 P 索引、播放毫秒数与禁止恢复自动播放的标记；进程重建时暂停，不恢复小窗。新页面在设置已加载、路由处于前台且有可播放内容时，可按设置自动准备媒体一次；手动操作、账号变化或离开页面会消耗自动播放资格。公开媒体读取允许播放器的标准恢复行为，API 写请求仍不自动重放。
 
@@ -163,9 +163,9 @@ Compose [共享元素转场](https://developer.android.com/develop/ui/compose/an
 
 `AppDependenciesViewModel` 在 Activity 宿主作用域持有唯一的 `data/history/HistoryRepository`，使用宿主 `viewModelScope` 管理内存缓存、共享读取及串行进度队列；历史页的 `HistoryViewModel` 绑定 `HistoryRoute`，只持有搜索和刷新任务。仓库按会话 revision 清空缓存并取消旧账号读写，请求前后核对账号快照，明确 401 交由统一会话失效处理，游客不调用历史接口。DTO 留在数据层，领域记录使用 `HistoryEntry`：Rosales 的 `duration` 为秒、`lastUpdateDateTime` 为毫秒时间戳、`anchor` 为秒数字符串，在历史边界将时长与有效锚点转换为毫秒；负数、非有限或溢出锚点不参与展示与续播。
 
-历史读取不传 `videoTitle`，标题与作者过滤在本地完成；接口无分页或删除能力。首次视频详情与续播准备并发执行，不等待历史接口才请求详情。续播准备等待已排队的进度提交及 `loadIfNeeded`，总等待上限为 1500 毫秒；完成时由视频 ViewModel 发布一次续播位置快照，失败或超时按无云端位置处理，不使用迟到的查询结果跳转。自动播放等待该快照，手动播放不受历史等待限制。历史页刷新先等待当时的同步任务，避免从视频返回时读到尚未提交的锚点；刷新进行中新提交成功的记录合并到返回列表，后续刷新重新以云端列表为准，避免内存更新覆盖其他设备的新进度。
+历史记录原样传递视频标题字符串，包括空白标题。历史读取不传 `videoTitle`，标题与作者过滤在本地完成；接口无分页或删除能力。首次视频详情与续播准备并发执行，不等待历史接口才请求详情。续播准备等待已排队的进度提交及 `loadIfNeeded`，总等待上限为 1500 毫秒；完成时由视频 ViewModel 发布一次续播位置快照，失败或超时按无云端位置处理，不使用迟到的查询结果跳转。自动播放等待该快照，手动播放不受历史等待限制。历史页刷新先等待当时的同步任务，避免从视频返回时读到尚未提交的锚点；刷新进行中新提交成功的记录合并到返回列表，后续刷新重新以云端列表为准，避免内存更新覆盖其他设备的新进度。
 
-`PlaybackResumeController` 持有待决策、已处理和等待实际时长校验三种续播状态，统一处理新会话、手动播放、跳转及结尾校验；`PlaybackViewModel` 负责应用返回的位置和播放器操作。`PlaybackHistoryRecorder` 持有采样计数和上次记录位置，保留每 10 个 500ms 样本检查 15 秒变化、flush 检查 1 秒变化的策略；ViewModel 只为首 P 且不等待时长校验的播放生成记录样本。
+`PlaybackResumeController` 持有待决策、已处理和等待实际时长校验三种续播状态，统一处理新会话、手动播放、跳转及结尾校验；`PlaybackViewModel` 负责应用返回的位置和播放器操作。分 P 保留服务端原始序号，用于进程重建后恢复选择。云端续播和进度同步以原始首 P 为准。`PlaybackHistoryRecorder` 持有采样计数和上次记录位置，保留每 10 个 500ms 样本检查 15 秒变化、flush 检查 1 秒变化的策略；ViewModel 只为首 P 且不等待时长校验的播放生成记录样本。
 
 `PlaybackViewModel.setContent` 在新播放会话仅在续播准备完成后应用一次首 P 位置；已有播放器、保存的分 P 和本地位置优先，手动播放、切换分 P 或跳转后不再应用迟到的续播位置，手动跳转同时取消待执行的云端时长校验。Media3 提供实际时长后再检查距离结尾的阈值；通过校验的历史位置生成一次内存提示状态，由 `PlaybackViewModel` 的会话作用域计时 3 秒后清除，释放播放器时同时取消计时并清除状态，不进入 SavedState。`VideoPage` 将其映射到 `PlayerUiState`，`VideoPlayer` 在左下角时间槽中显示带格式化时间的本地化提示，使用半透明黑底、白字和礼貌无障碍播报；提示期间保持控件可见并暂停时间格式切换，结束后恢复进度时间显示，沿用控件布局处理窄屏换行与全屏安全区域。临近结尾而重新从头播放时不生成续播提示。进度采样附着在共享播放器，而不是视频页面，覆盖小窗、全屏和系统画中画；生命周期进入后台时额外 flush。提交只保存 `uuid`、`category=video`、字符串视频 ID 与向下取整的秒数，不扩展 Apple 共用的锚点协议，因此其他 P 不覆盖首 P 秒数。
 

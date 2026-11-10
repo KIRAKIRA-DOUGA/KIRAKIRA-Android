@@ -37,7 +37,7 @@
 
 以上公开读取不携带 Cookie，查询通过共享 URL builder 编码。数据层检查业务成功和必要列表字段，将缺失列表与空列表区分，分别按视频／标签 ID 去重；多标签 ID 去重并要求为正数，单标签关联视频保留原调用入口。Rosales 关键词查询使用 Elasticsearch `query_string`，标签名称查询使用不区分大小写的正则表达式，客户端保留查询内容，不添加新的查询语法或全站过滤规则。未知业务拒绝映射为统一错误，取消继续传播到 HTTP Call。
 
-Rosales 按标签查询视频时，上传者关联查询未匹配到用户会返回 `uploaderInfo: false`。视频 DTO 仅将该布尔值归一化为缺失资料，保留视频及 `uploaderId`，作者名称沿用既有回退；资料对象正常解码，其他异常类型仍按响应格式错误处理。此映射由搜索结果与标签页共用。
+Rosales 按标签查询视频时，上传者关联查询未匹配到用户会返回 `uploaderInfo: false`。视频摘要将该布尔值归一化为缺失资料，保留视频及 `uploaderId`，作者名称沿用既有回退。摘要和标签候选逐条解码，省略无效记录并按 ID 去重。视频卡片只解码摘要字段，分 P 和完整标签交由详情解析。
 
 ViewModel 分离关键词草稿、所选标签和已提交条件。视频读取与候选读取分别持有任务和递增版本，更新结果时同时检查请求版本及账号 revision；新条件、模式切换或清空会取消旧视频任务。标签候选输入防抖 500 毫秒，每次输入取消旧候选任务，取消选择也取消。打开全屏选择器时复制已选标签到 `draftTags`，勾选和移除只更新草稿；`ApplyTags` 才应用并查询，关闭时丢弃草稿，底层搜索结果及滚动列表保持组合；系统返回先收起键盘，再关闭选择器。全屏窗口使用官方 `Dialog`，设置 `usePlatformDefaultWidth = false` 与 `decorFitsSystemWindows = false`；窗口内复用 `FrostedScaffold`、系统 Insets 和独立的 `NavigationBackHandler`，顶栏使用中性标题，左右提供关闭图标与平面“搜索”文字按钮；候选输入与草稿 Chip 合并在一个使用官方搜索栏容器色、主题 extraLarge 圆角的区域内，横向外边距为 16dp。Chip 区域保留 16dp 内边距和 8dp 行距，增删时使用主题 `fastSpatialSpec` 平滑调整容器高度。`MainEntries` 按账号 revision 记住 `TagSearchAnchor`，顶栏通过 `onGloballyPositioned` 记录搜索框的屏幕坐标；坐标仅用于组合内动效，不进入 ViewModel 或 SavedState。Dialog 内用窗口原点将坐标换算到局部空间，在同一个 `SharedTransitionLayout` 中以原位标签框作为过渡起点，`AnimatedContent` 配合官方 `sharedBounds` 将其连续变换为选择器输入区域，使用主题 `defaultSpatialSpec` 与 `fastEffectsSpec`，保留原生系统动画缩放。窗口默认动画和遮罩关闭，避免与共享过渡叠加。关闭／确认暂存为 UI 退出意图，反向动画完全结束后才发送对应业务事件，期间忽略重复操作；确认时收拢端显示待应用的标签，宽度取主搜索框实测值，高度按内容自然测量。`FocusRequester` 仅在展开和共享边界动画均完成后由窗口内容的 `LaunchedEffect` 请求查询框焦点，不保存在 ViewModel；账号 revision 改变仍立即销毁整个窗口，不等待退出动画。未展开选择时移除顶栏标签仍即时查询，以去重排序后的 ID 列表识别相同条件。相同条件正在请求时不重复提交，刷新只读已提交条件，不将未提交草稿当作刷新条件。
 
@@ -68,7 +68,9 @@ ViewModel 分离关键词草稿、所选标签和已提交条件。视频读取�
 
 ## 视频列表布局
 
-跨功能的视频列表展示集中在 `ui/components/video/`：`VideoCard`、`VideoCardRow`、`VideoArtwork`、`VideoCardLayout` 与内容格式化函数由首页、搜索、标签、资料、历史和播放器按需复用。通用加载状态与账号请求协调位于 `ui/content/`，会话就绪条件 `SessionState.isReadyForContent` 由 `data/auth` 定义；共享组件不依赖具体功能包。
+跨功能的视频列表展示集中在 `ui/components/video/`：`VideoCard`、`VideoCardRow`、`VideoArtwork`、`VideoCardLayout` 与内容格式化函数由首页、搜索、标签、资料、历史和播放器按需复用。首页向 `VideoCardRow` 传入 `showUploadTime = false`，网格和列表布局都省略上传时间字段。通用加载状态与账号请求协调位于 `ui/content/`，会话就绪条件 `SessionState.isReadyForContent` 由 `data/auth` 定义；共享组件不依赖具体功能包。
+
+首页、搜索、标签页、作者主页和 Preview 的卡片行距统一由 [`VideoCardRowSpacing`](../../app/src/main/java/moe/kirakira/ui/components/video/VideoCardLayout.kt) 定义。各页面分别设置标题、状态提示和列表边缘的留白。
 
 [评论页](../../app/src/main/java/moe/kirakira/feature/video/VideoCommentsPage.kt)与[弹幕条目](../../app/src/main/java/moe/kirakira/feature/video/DanmakuListItem.kt)使用透明背景的普通 `Row`／`Column` 布局，不使用分段背景、首尾圆角或分段间距，也不添加卡片或分割线；保留条目内边距、评论头像与操作按钮，以及弹幕左侧时间和右侧正文的对齐。
 
@@ -84,13 +86,15 @@ ViewModel 分离关键词草稿、所选标签和已提交条件。视频读取�
 
 评论 Tab 重选和系统状态栏共用回顶操作。第 1 页已加载且没有待处理的跳转时，复用 `smoothScrollToTop` 滚到评论数量标题。回顶需要跨页或取代其他待处理的跳转时，交由 `CommentListLoader.jump(1)` 取消旧请求并定位，避免向前补页恢复旧锚点。加载中的同一跳页请求去重。
 
+评论逐条解码，分页边界按服务端原始条数与总页数判断。服务端返回零条时停止对应方向加载。过滤后没有可显示评论的页仍参与分页；当前已加载窗口没有可显示评论时，在跳转定位完成后继续尝试前后相邻页，不依赖可见评论触发。页区间变化会重新触发加载，仍由加载器按首末页、原始零条返回、进行中的请求及失败状态停止对应方向，不自动重试失败请求；页码工具栏仍可跳转到其他页。
+
 评论下拉刷新仅在第 1 页已加载且滚动处于顶部时启用（空列表同样允许）；中间页的上边缘只用于前页加载。刷新成功后重建第 1 页，失败保留原内容；局部赞踩只重读所属页，保留其他页和阅读位置，重读期间禁用该页互动。发布成功后根据最新总数读取末页并定位，回传评论已出现在列表时隐藏发布回显。首页、视频当前标签页、弹幕和作者资料继续使用 Material 3 `PullToRefreshBox`；共享包装器的 `enabled` 默认保持开启。加载与错误状态独立于现有内容，不使用演示数据回填，错误状态提供重试按钮。
 
 ## 关注与粉丝列表
 
 `FollowListRoute(uid, kind)` 为可序列化的 Navigation 3 路由，两种列表共享 `feature/follow/` 页面和导航条目级 `FollowListViewModel`。主页统计通过事件回调进入列表，列表行按 UID 打开 `ProfileRoute`，导航宿主防止重复入栈；返回沿用该条目的数据和滚动状态。
 
-`ContentRepository.followList` 复用账号快照与 revision 守卫，检查 `success`、必需的 `result`、非负 `totalCount` 和正 UID，将私有 DTO 转为用户摘要及分页领域模型。昵称缺失时回退到用户名；头像复用公开图片客户端。页面不逐行补读关注关系，不保存 Cookie 或列表缓存。
+`ContentRepository.followList` 复用账号快照与 revision 守卫，检查 `success`、必需的 `result` 和非负 `totalCount`，逐条解码并保留 UID 为正的用户摘要。分页模型同时记录原始条数，整页过滤后仍可用同一滚动触发器读取下一页。昵称缺失时回退到用户名；头像复用公开图片客户端。页面不逐行补读关注关系，不保存 Cookie 或列表缓存。
 
 ViewModel 从第 1 页开始，每页 50 条，保留后端顺序并按 UID 去重；结束判断使用原始返回条数的累计值与最新总数，空页直接结束。单个请求任务和请求序号协调刷新、分页与取消，过期结果不能覆盖最新状态。刷新成功替换第一页并重置分页进度；读取失败按共享 `ApiFailure.retainsContent` 保留旧内容和原分页进度，刷新失败需重试刷新，分页失败需手动重试该页。只有明确内容不可访问或会话失效时清除内容及分页状态，通用业务拒绝与响应异常不再清空旧结果。账号 revision 变化取消任务、清空内容并重新请求，UI 以 revision 校验展示状态并重建滚动状态。
 
@@ -168,7 +172,7 @@ ViewModel 从第 1 页开始，每页 50 条，保留后端顺序并按 UID 去�
 
 `ContentStatus.emptyDescription` 允许调用方省略空状态辅助说明；主搜索空结果、主搜索首页空历史、历史页普通空记录及历史搜索空结果传入 `null`，加载与错误分支沿用原有提示。
 
-历史页的普通空记录和搜索无匹配通过 `ContentStatus.emptyIcon` 展示 `HistorySearchLogo`，游客登录提示通过 `ContentUnavailableView.icon` 展示同一 Logo。时钟保留经典 Android Clock 的三根指针和斜向长阴影，外沿参考回溯时钟采用亮青色宽纸片式逆时针箭头，以深青底边和独立投影表达厚度；进入空结果时指针回拨、箭头展开一次。普通空记录与游客提示均保留原有文案及操作，首次加载和错误状态保留原有提示。图形实现见[搜索空结果图形](components.md#搜索空结果图形)。
+历史页的普通空记录和搜索无匹配通过 `ContentStatus.emptyIcon` 展示 `HistorySearchLogo`，游客登录提示通过 `ContentUnavailableView.icon` 展示同一 Logo。时钟保留经典 Android Clock 的三根指针和斜向长阴影，外沿参考回溯时钟采用随主题配色的宽纸片式逆时针箭头，以底边和独立投影表达厚度；进入空结果时指针回拨、箭头展开一次。普通空记录与游客提示均保留原有文案及操作，首次加载和错误状态保留原有提示。图形实现见[搜索空结果图形](components.md#搜索空结果图形)。
 
 ## 收藏占位页
 

@@ -17,7 +17,7 @@
 
 ## 技术选型与架构
 
-- 新应用代码使用 Kotlin，Gradle 使用 Kotlin DSL。新界面统一使用 Jetpack Compose，以 **Material 3 Expressive** 为基础，采用 **Material Design 2** 风格的经典强调色配色与高度阴影，并结合 **KIRAKIRA 特色的彩色阴影**；组件、形状、排版与动效沿用 Material 3 Expressive。复用 `KIRAKIRATheme` 中的 `MaterialExpressiveTheme`，由主题层提供项目定制的 Material 3 语义配色。
+- 新应用代码使用 Kotlin，Gradle 使用 Kotlin DSL。新界面统一使用 Jetpack Compose，以 **Material 3 Expressive** 为基础，采用 **Material Design 2** 风格的经典强调色配色与高度阴影，并结合 **KIRAKIRA 特色的彩色阴影**。组件、形状档位、排版与动效沿用 Material 3 Expressive。复用 `KIRAKIRATheme` 中的 `MaterialExpressiveTheme`，由主题层提供项目定制的语义配色与圆角数值。
 - 不新增以 XML Layout、Fragment、ViewBinding 或 DataBinding 为核心的页面。只有平台能力或第三方 SDK 需要时使用 `AndroidView` 等互操作，并封装生命周期与资源释放。Manifest、图标、字符串和系统主题 XML 仍正常使用。
 - 保持单 Activity 入口；`MainActivity` 负责宿主和顶层组合，不承载网络、数据库或业务规则。
 - 保留当前 `:app` 模块。新功能放在 `moe.kirakira.feature.<name>`；跨功能 UI 放 `ui/components/`，主题放 `ui/theme/`，数据访问按需放 `data/`，真正跨功能的基础设施放 `core/`。包名全小写，不将无关代码堆入 `Utils.kt`。
@@ -81,7 +81,7 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 - 单选框统一使用 `ShadowRadioButton` 封装官方 `RadioButton`，仅选中且可用时绘制双层彩色阴影。交互高度、时序与强度见下表，按压优先；禁用时立即移除阴影。几何参数与实心按钮共用 Material 官方映射和插值，1dp 的环境层／主层「垂直偏移／模糊／扩张」分别为 1／3／1dp 与 1／2／0dp。阴影取实际选中颜色，强度为按钮的一半：双层强度按下表固定，中性色使用黑色，均乘以选中颜色透明度。投影仅位于居中的 20dp 可见圆圈外侧，不染色内部空白，不改变官方布局、触摸目标、涟漪、选中动画及语义；整行处理点击时，行与单选框共用显式交互源，单选框 `onClick = null`。
 
   不增加阴影开关或持久化偏好，接入方式见[单选框动态阴影](docs/implementation/theme.md#单选框动态阴影)。
-- 设置页的实色大圆角卡片（关于页页头、安全状态横幅与已启用卡片、邀请码统计）复用共享 `cardColorShadow`，固定 2dp 双层彩色投影，阴影取实际容器色并沿用现有彩色／中性强度；待核对横幅使用中性回退。卡片无自身交互状态时，阴影不随内部 Logo、按钮的按压或悬停状态改变高度；容器色或内容尺寸变化时，阴影随实际轮廓更新。不叠加原生 elevation、阴影开关或持久化偏好；主题明暗与个性色卡片保留官方交互阴影，内联错误提示、代码展示区及连接列表继续按既有规则处理。接入方式见[彩色卡片阴影](docs/implementation/theme.md#彩色卡片阴影)。
+- 设置页的顶部特色卡片（关于页页头、安全状态横幅、二步验证已启用卡片、邀请码统计）统一使用 `MaterialTheme.shapes.large`，与连接列表的外角一致。卡片复用共享 `cardColorShadow`，固定 2dp 双层彩色投影，阴影取实际容器色并沿用现有彩色／中性强度。待核对横幅使用中性回退。卡片无自身交互状态时，阴影不随内部 Logo、按钮的按压或悬停状态改变高度。容器色或内容尺寸变化时，阴影随实际轮廓更新。不叠加原生 elevation、阴影开关或持久化偏好。主题明暗与个性色卡片保留官方交互阴影，内联错误提示、代码展示区及连接列表继续按既有规则处理。接入方式见[彩色卡片阴影](docs/implementation/theme.md#彩色卡片阴影)。
 - 指定 Expressive 按钮尺寸时，使用 `ButtonDefaults` 的官方尺寸常量（如 `MediumContainerHeight`），将同一尺寸传给 `contentPaddingFor` 与 `textStyleFor`；需要按压形变时使用同尺寸 `shapesFor`，固定轮廓时取其静止 `shape` 或对应的官方固定形状，不因指定尺寸而开启形变。有图标时同步使用 `iconSizeFor` 和 `iconSpacingFor`，并向内边距 API 传入对应的前后图标标记。不得手写标准尺寸的高度、圆角、内边距或字号，也不得只放大容器而保留默认小字号；最小高度使用 `heightIn(min = …)`，允许内容随字体缩放增高。
 - 个人主页与视频页统一使用共享 `FollowButton`，内部保留官方 `ToggleButton`。未关注时使用 `primary/onPrimary` 与共享按钮的双层投影；已关注时使用灰色 `surfaceContainerHigh/onSurfaceVariant`，作为实心按钮阴影规则的例外不绘制投影，悬停、聚焦和按压也不额外添加原生阴影。保留官方尺寸、选中语义、禁用配色及选中／按压形变，表面与投影共用动画轮廓和交互源；禁用时无阴影，关注状态仍由原有业务流程拥有。
 - 邀请码顶部统计块的生成按钮作为实心按钮阴影规则的例外，直接使用官方 `Button` 并设置 `elevation = null`，静止、按压、悬停、聚焦及禁用时均不绘制阴影。浅深主题中可用状态均固定白色容器与主题 `primary` 文字、图标，禁用配色沿用统计块的低透明度前景色；保留官方 Expressive 尺寸配套 API、按压形变、点击反馈和禁用语义，不增加阴影开关。
@@ -225,7 +225,7 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 - 经典强调色在浅深模式均保留不透明原色为 `primary`，完整生成主色容器、反色与固定色角色，次要容器与主色容器共用强调色调及配套前景，使默认 Slider 的未经过轨道和导航指示器统一着色，其余次要／第三色角色维持灰阶；主界面 NavigationBar 的普通前景使用 `onSurface`，选中胶囊覆盖的图标与文字像素使用 `primary`，胶囊背景在浅色主题使用 5% 不透明度的 `scrim`，深色主题使用 10% 不透明度的 `onSurface`，通过当前主题表面与前景的明度关系选择，兼容应用手动明暗模式；栏面底色浅色纯白、深色深灰，普通应用栏叠加共享毛玻璃背景，关闭色调高度叠加以免重新染色。
 - Chip 作为组件形状的明确例外，采用 Material Design 2 风格的胶囊轮廓：官方 `FilterChip`、`InputChip`、`AssistChip`、`SuggestionChip` 统一使用 `CircleShape`、无描边，普通／未选中背景为 `surfaceContainerHigh`，文字为 `onSurface`，前后图标为中性的 `onSurfaceVariant`。可选择的 Chip 在可用且选中时保留项目的 `primary` 实色背景，文字及前后图标使用 `onPrimary`；搜索历史中的只读标签采用相同的普通外观。调用处直接通过官方配色 API 配置，随当前主题变化；禁用配色、尺寸、排版、布局与交互沿用 Material 3 默认，不新增组件或配色包装、阴影或偏好。
 - 经典方案的 `onPrimary` 在主题生成阶段采用白色优先规则：白色与原色的对比达到 2.5:1 时使用白色，否则使用黑色。Switch 滑块与填充按钮文字直接继承该角色；此视觉取舍不保证按钮文字达到 4.5:1。
-- 普通输入框与验证码格统一使用 Material 3 filled 样式，聚焦、未聚焦、禁用及错误状态的背景使用 `surfaceContainerLow`，容器叠加一层参考 Cerasus 的固定中性内阴影：主题 `scrim`，浅色 6%／深色 12% 不透明度，模糊半径 4dp、向下偏移 4dp、扩张 0dp，圆角与容器一致；明暗根据当前主题表面与前景的明度关系判断，阴影仅在背景之上、文字及底线之下绘制，不覆盖 supporting text。普通输入框的未聚焦底线使用较淡的 `outlineVariant`，验证码格不绘制底线，其余配色保持官方默认。普通输入框复用 `FilledTextField`，默认配色、large 圆角和错误尺寸过渡由组件提供，不在调用处重复配置；验证码格复用 `FilledTextFieldDefaults` 的配色与 `FilledTextFieldContainer` 的内阴影，底层保留官方容器 API 并将聚焦与未聚焦指示线高度设为 0dp；普通输入框的聚焦与未聚焦底部指示线统一为 2dp，参考 Cerasus `TextBox` 的 2px 底线；搜索栏和评论／弹幕编辑器保留专用容器配色与阴影。普通 TextButton、RadioButton 及输入框的其余颜色使用官方默认配色；危险操作遵循共享危险样式。主色文字、选中标签与指示线直接引用 `MaterialTheme.colorScheme.primary`，不逐组件计算对比度或调整明度，接受极浅／极深选色时前景对比不足。
+- 普通输入框与验证码格统一使用 Material 3 filled 样式，聚焦、未聚焦、禁用及错误状态的背景使用 `surfaceContainerLow`，容器叠加一层参考 Cerasus 的固定中性内阴影：主题 `scrim`，浅色 6%／深色 12% 不透明度，模糊半径 4dp、向下偏移 4dp、扩张 0dp，圆角与容器一致；明暗根据当前主题表面与前景的明度关系判断，阴影仅在背景之上、文字及底线之下绘制，不覆盖 supporting text。普通输入框的未聚焦底线使用较淡的 `outlineVariant`，验证码格不绘制底线，其余配色保持官方默认。普通输入框复用 `FilledTextField`，默认配色、large 圆角和错误尺寸过渡由组件提供，不在调用处重复配置；验证码格复用 `FilledTextFieldDefaults` 的配色与 `FilledTextFieldContainer` 的内阴影，底层保留官方容器 API 并将聚焦与未聚焦指示线高度设为 0dp；普通输入框的聚焦与未聚焦底部指示线统一为 2dp，参考 Cerasus `TextBox` 的 2px 底线；主搜索输入区域及设置与历史的收起搜索栏复用普通输入框的内阴影。设置与历史打开全屏搜索时隐藏内阴影。评论／弹幕编辑器使用自己的容器配色与阴影。普通 TextButton、RadioButton 及输入框的其余颜色使用官方默认配色；危险操作遵循共享危险样式。主色文字、选中标签与指示线直接引用 `MaterialTheme.colorScheme.primary`，不逐组件计算对比度或调整明度，接受极浅／极深选色时前景对比不足。
 - `ThemeColorDefaults` 只提供栏面颜色、普通页面背景和设置页面背景三个接口；对比度与 HCT 工具仅作为主题生成器的私有实现。底栏选中指示器及第三方组件需映射不同角色时直接使用 `ColorScheme`，不新增组件专用配色函数或包装组件。
 - 自定义颜色草稿仅在确认后持久保存，取消不改变主题。自定义色值与当前生效色值独立存储，并保存预设／自定义选择状态，不能仅按色值相等判断选中项。
 
