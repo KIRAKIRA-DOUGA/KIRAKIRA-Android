@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.GenericShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -51,8 +52,8 @@ import moe.kirakira.R
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 /**
- * A Material Design 1 product icon: an indigo paper circle on the 176 / 192 circle keyline, carrying
- * the bottom bar's signal in grey paper around a raised amber broadcast center. Every sheet has a 1dp
+ * A Material Design 1 product icon: a themed paper circle on the 176 / 192 circle keyline, carrying
+ * the bottom bar's signal and its raised center in the same light grey paper. Every sheet has a 1dp
  * white top tint and Blue Grey 900 bottom shade, casts a 45° long shadow that fades toward the bottom
  * right, and the whole icon receives the top-left radial finish.
  */
@@ -74,6 +75,7 @@ internal fun FollowingLogo(modifier: Modifier = Modifier) {
 
 @Composable
 private fun FollowingLogoArtwork(layerScale: (Int) -> Float, modifier: Modifier = Modifier) {
+    val paperColor = MaterialTheme.colorScheme.primary
     val resources = LocalContext.current.resources
     val signals = remember(resources) {
         readVectorPathData(resources, R.drawable.ic_symbol_wifi_tethering)
@@ -102,7 +104,7 @@ private fun FollowingLogoArtwork(layerScale: (Int) -> Float, modifier: Modifier 
     Box(modifier.size(128.dp)) {
         Canvas(Modifier.size(128.dp).followingElevation(paper.shape, 2f)) {
             followingArtworkScale {
-                drawPath(paper.path, followingPaperColor)
+                drawPath(paper.path, paperColor)
                 clipPath(paper.path) {
                     // Composite opaque projections first so overlaps stay flat, then fade them along 45°.
                     drawIntoCanvas { canvas ->
@@ -134,7 +136,7 @@ private fun FollowingLogoArtwork(layerScale: (Int) -> Float, modifier: Modifier 
                 }.followingElevation(signal.shape, layer.elevation),
             ) {
                 followingArtworkScale {
-                    drawPath(signal.path, layer.color)
+                    drawPath(signal.path, followingSignalColor)
                     drawMaterialEdges(signal)
                 }
             }
@@ -208,7 +210,6 @@ private fun followingLongShadow(source: Path): Path {
 }
 
 private class FollowingPaperLayer(
-    val color: Color,
     val elevation: Float,
     val delayMillis: Int,
     val peakScale: Float,
@@ -234,7 +235,7 @@ private const val FOLLOWING_SIGNAL_SCALE = 0.86f
 private val followingKeyline = Rect(40f, 40f, 920f, 920f)
 private val followingCenter = followingKeyline.center
 
-private val followingPaperColor = Color(0xFF5C6BC0)
+private val followingSignalColor = Color(0xFFF5F5F5)
 private val followingTintColor = Color.White.copy(alpha = 0.2f)
 private val followingShadeColor = Color(0xFF263238)
 private val followingLongShadowFade = Brush.linearGradient(
@@ -250,9 +251,9 @@ private val followingFinish = Brush.radialGradient(
 
 // Resource contour order is outer / inner / center; the pulse travels in the opposite direction.
 private val followingPaperLayers = listOf(
-    FollowingPaperLayer(Color(0xFFF5F5F5), 1f, 140, 1.1f, 0.98f),
-    FollowingPaperLayer(Color(0xFFF5F5F5), 1f, 70, 1.14f, 0.97f),
-    FollowingPaperLayer(Color(0xFFFFCA28), 2f, 0, 1.22f, 0.95f),
+    FollowingPaperLayer(1f, 140, 1.1f, 0.98f),
+    FollowingPaperLayer(1f, 70, 1.14f, 0.97f),
+    FollowingPaperLayer(2f, 0, 1.22f, 0.95f),
 )
 
 @Preview(name = "Following paper signal", widthDp = 208, heightDp = 208)

@@ -6,6 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.GenericShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -21,15 +22,25 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
 
-/** Cerasus star cut from yellow paper, with a 2dp edge and raised silhouette. */
+/** Cerasus star cut from themed paper, with a 2dp edge and raised silhouette. */
 @Composable
 internal fun FavoritesLogo(modifier: Modifier = Modifier) {
+    val paperColor = MaterialTheme.colorScheme.primary
+    val edgeColor = lerp(paperColor, Color.Black, 0.11f)
+    val paperBrush = remember(paperColor) {
+        Brush.linearGradient(
+            colors = listOf(lerp(paperColor, Color.White, 0.2f), paperColor),
+            start = Offset(2f, 2f),
+            end = Offset(22f, 22f),
+        )
+    }
     val inspecting = LocalInspectionMode.current
     val durationScale = rememberCoroutineScope().coroutineContext[MotionDurationScale]
     val progress = remember(inspecting) {
@@ -75,16 +86,9 @@ internal fun FavoritesLogo(modifier: Modifier = Modifier) {
             },
     ) {
         scale(size.width / 24f, size.height / 24f, pivot = Offset.Zero) {
-            translate(top = 0.375f) { drawPath(star, favoritesEdgeColor) }
-            drawPath(star, favoritesPaperBrush)
-            clipPath(star) { drawPath(fold, Color(0xFFF9A825).copy(alpha = 0.22f)) }
+            translate(top = 0.375f) { drawPath(star, edgeColor) }
+            drawPath(star, paperBrush)
+            clipPath(star) { drawPath(fold, edgeColor.copy(alpha = 0.22f)) }
         }
     }
 }
-
-private val favoritesEdgeColor = Color(0xFFF9A825)
-private val favoritesPaperBrush = Brush.linearGradient(
-    colors = listOf(Color(0xFFFFEE58), Color(0xFFFDD835)),
-    start = Offset(2f, 2f),
-    end = Offset(22f, 22f),
-)

@@ -64,5 +64,5 @@
 
 - 来源：[LogoSettings.vue](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Cerasus/blob/03047bcec32cc5007a47440c590d643a2e0db04b/components/Logo/LogoSettings.vue) 与该版本的 `assets/styles/theme/_eases.scss`，许可沿用本目录 GNU AGPL v3.0。
 - Compose 实现位于 `ui/components/SettingsSearchLogo.kt`：保留 512 × 512 齿轮与长阴影路径、三色内环和中心圆，按原始 128dp 大小展示；外齿轮 −90° → 0°、内环 +90° → 0°，以原曲线 `cubic-bezier(0.1, 0.9, 0.2, 1)` 播放一次 1 秒入场动画，不循环。
-- 配色按用户提供的 Android L `Settings.png` 固定为蓝灰齿轮、深蓝灰长阴影及薄荷绿中心，具体色值见[搜索空结果图形](../../docs/implementation/components.md#搜索空结果图形)，参考来源见 [Android Classic Icons](../android-classic-icons/README.md)；网页模糊投影适配为原生图层阴影。路径、内环与旋转均由 Compose 绘制，不依赖 SVG 运行时或 WebView；遵循系统动画缩放，关闭动画时显示最终状态。
+- 配色沿用同版本 `assets/styles/theme/_colors.scss` 的浅深模式混色规则，以应用的 `primary` 为强调色。齿轮使用 `neutral-50`，内环与中心圆保留原版的颜色映射及透明度。配色实现见[搜索空结果图形](../../docs/implementation/components.md#搜索空结果图形)。网页模糊投影适配为原生图层阴影。路径、内环与旋转均由 Compose 绘制，不依赖 SVG 运行时或 WebView；遵循系统动画缩放，关闭动画时显示最终状态。
 - 仅设置搜索无匹配结果时使用，保留原空结果标题。历史搜索参考用户提供的 Android L Clock 图形，独立绘制大表盘和回转箭头，不复用上游齿轮路径；实现见[搜索空结果图形](../../docs/implementation/components.md#搜索空结果图形)。

@@ -7,6 +7,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.GenericShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -22,11 +23,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathOperation
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalResources
@@ -37,30 +40,61 @@ import kotlin.math.sin
 import moe.kirakira.R
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
-/** The existing history clock paired with the same flat paper magnifier as video search. */
+private val searchPaperFrameColor = Color(0xFF616161)
+private val searchPaperEdgeColor = Color(0xFF424242)
+private val searchPaperLensColor = Color(0xFFEEEEEE)
+
+/** A paper clock whose dial forms the lens of a magnifier. */
 @Composable
 internal fun SearchHistoryEmptyLogo(modifier: Modifier = Modifier) {
+    val colors = historySearchLogoColors()
+    val handle = remember {
+        Path().apply {
+            addRoundRect(RoundRect(Rect(-7f, -7f, 55f, 7f), CornerRadius(7f)))
+            transform(Matrix().apply { rotateZ(45f) })
+            translate(Offset(77f, 77f))
+        }
+    }
     Box(modifier.size(128.dp)) {
-        HistorySearchLogo(Modifier.size(102.dp))
-        SearchPaperMagnifier()
+        SearchPaperLayer(
+            path = handle,
+            face = colors.frame,
+            edge = colors.frameEdge,
+            elevation = 2f,
+            edgeDepth = 1.5f,
+        )
+        HistorySearchLogo(
+            modifier = Modifier.graphicsLayer {
+                // Leave room for the handle within the same 128-unit artwork.
+                scaleX = 0.72f
+                scaleY = 0.72f
+                translationX = size.width * (-10f / 128f)
+                translationY = size.height * (-10f / 128f)
+            },
+            colors = colors,
+        )
     }
 }
 
 /** A paper video frame under a magnifying glass; the open lens carries no failure mark. */
 @Composable
 internal fun SearchVideosEmptyLogo(modifier: Modifier = Modifier) {
+    val filmColor = MaterialTheme.colorScheme.primary
+    val edgeColor = lerp(filmColor, Color.Black, 0.18f)
+    val upperColor = lerp(filmColor, Color.Black, 0.08f)
     val frame = remember { videoFilmPath() }
     Box(modifier.size(128.dp)) {
-        SearchPaperLayer(frame, Color(0xFFF33437), Color(0xFFB72C30)) {
-            drawRect(Color(0xFFD53538), Offset(8f, 20f), Size(104f, 39f))
+        SearchPaperLayer(frame, filmColor, edgeColor) {
+            drawRect(upperColor, videoFilmBounds.topLeft, Size(videoFilmBounds.width, videoFilmBounds.height / 2f))
         }
-        SearchPaperMagnifier()
+        SweepingSearchPaperMagnifier()
     }
 }
 
-/** Opaque, uniform paper lens: depth comes only from the cut edge and cast shadow. */
+private val videoSearchLensCenter = Offset(82.2f, 77.2f)
+
 @Composable
-private fun SearchPaperMagnifier() {
+private fun SweepingSearchPaperMagnifier() {
     val resources = LocalResources.current
     val silhouette = remember(resources) {
         val data = readVectorPathData(resources, R.drawable.ic_icon_search).first()
@@ -81,23 +115,23 @@ private fun SearchPaperMagnifier() {
             progress.animateTo(1f, tween(1_000, easing = CubicBezierEasing(0.1f, 0.9f, 0.2f, 1f)))
         }
     }
-    Box(
-        Modifier.size(128.dp).graphicsLayer {
+    SearchPaperLayer(
+        path = silhouette,
+        face = searchPaperFrameColor,
+        edge = searchPaperEdgeColor,
+        modifier = Modifier.graphicsLayer {
+            transformOrigin = TransformOrigin(videoSearchLensCenter.x / 128f, videoSearchLensCenter.y / 128f)
+            scaleX = 0.85f
+            scaleY = 0.85f
             // Search once across the subject, then settle at the original resting position.
             val sweep = sin(PI * progress.value).toFloat()
             translationX = (-24).dp.toPx() * sweep
             translationY = (-8).dp.toPx() * sweep
         },
+        elevation = 2f,
+        edgeDepth = 1f,
     ) {
-        SearchPaperLayer(
-            path = silhouette,
-            face = Color(0xFF616161),
-            edge = Color(0xFF424242),
-            elevation = 2f,
-            edgeDepth = 1f,
-        ) {
-            drawCircle(Color(0xFFEEEEEE), 16.2f, Offset(82.2f, 77.2f))
-        }
+        drawCircle(searchPaperLensColor, 16.2f, videoSearchLensCenter)
     }
 }
 
@@ -131,28 +165,32 @@ private fun SearchPaperLayer(
     }
 }
 
-/** Reference film silhouette: 4:3 red sheet with four rounded perforations on each side. */
+private val videoFilmBounds = Rect(12f, 25f, 116f, 103f)
+
+/** Reference film silhouette: a 4:3 sheet with four rounded perforations on each side. */
 private fun videoFilmPath(): Path {
     val sheet = Path().apply {
-        addRoundRect(RoundRect(Rect(8f, 20f, 112f, 98f), CornerRadius(6f)))
+        addRoundRect(RoundRect(videoFilmBounds, CornerRadius(6f)))
     }
     val holes = Path().apply {
+        val left = videoFilmBounds.left
+        val right = videoFilmBounds.right
         repeat(4) { row ->
-            val top = 29f + row * 17.3f
-            addRoundRect(RoundRect(Rect(16.7f, top, 25.4f, top + 8.7f), CornerRadius(1.3f)))
-            addRoundRect(RoundRect(Rect(94.6f, top, 103.3f, top + 8.7f), CornerRadius(1.3f)))
+            val top = videoFilmBounds.top + 9f + row * 17.3f
+            addRoundRect(RoundRect(Rect(left + 8.7f, top, left + 17.4f, top + 8.7f), CornerRadius(1.3f)))
+            addRoundRect(RoundRect(Rect(right - 17.4f, top, right - 8.7f, top + 8.7f), CornerRadius(1.3f)))
         }
     }
     return Path.combine(PathOperation.Difference, sheet, holes)
 }
 
-@Preview(name = "Search history paper", showBackground = true)
+@Preview(name = "Search history paper", showBackground = false)
 @Composable
 private fun SearchHistoryEmptyLogoPreview() {
     KIRAKIRATheme { SearchHistoryEmptyLogo() }
 }
 
-@Preview(name = "Video search paper", showBackground = true)
+@Preview(name = "Video search paper", showBackground = false)
 @Composable
 private fun SearchVideosEmptyLogoPreview() {
     KIRAKIRATheme { SearchVideosEmptyLogo() }

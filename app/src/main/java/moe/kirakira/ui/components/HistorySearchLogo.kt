@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.GenericShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -28,6 +29,7 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
@@ -38,9 +40,20 @@ import kotlin.math.cos
 import kotlin.math.sin
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
+internal data class HistorySearchLogoColors(
+    val face: Brush,
+    val frame: Color,
+    val frameEdge: Color,
+    val hands: Color,
+    val secondHand: Color,
+)
+
 /** A classic paper clock with a counterclockwise history arrow and one rewind on entry. */
 @Composable
-internal fun HistorySearchLogo(modifier: Modifier = Modifier) {
+internal fun HistorySearchLogo(
+    modifier: Modifier = Modifier,
+    colors: HistorySearchLogoColors = historySearchLogoColors(),
+) {
     val inspecting = LocalInspectionMode.current
     val durationScale = rememberCoroutineScope().coroutineContext[MotionDurationScale]
     val progress = remember(inspecting) {
@@ -51,11 +64,37 @@ internal fun HistorySearchLogo(modifier: Modifier = Modifier) {
             progress.animateTo(1f, tween(1_000, easing = historyEntryEasing))
         }
     }
-    HistorySearchLogoArtwork(progress = { progress.value }, modifier = modifier)
+    HistorySearchLogoArtwork(progress = { progress.value }, modifier = modifier, colors = colors)
 }
 
 @Composable
-private fun HistorySearchLogoArtwork(progress: () -> Float, modifier: Modifier = Modifier) {
+internal fun historySearchLogoColors(): HistorySearchLogoColors {
+    val frameColor = MaterialTheme.colorScheme.primary
+    val faceBrush = remember(frameColor) {
+        Brush.linearGradient(
+            colors = listOf(
+                lerp(frameColor, Color.Black, 0.22f),
+                lerp(frameColor, Color.Black, 0.26f),
+            ),
+            start = Offset(112f, 112f),
+            end = Offset(400f, 400f),
+        )
+    }
+    return HistorySearchLogoColors(
+        face = faceBrush,
+        frame = frameColor,
+        frameEdge = lerp(frameColor, Color.Black, 0.17f),
+        hands = Color.White,
+        secondHand = lerp(frameColor, Color.White, 0.5f),
+    )
+}
+
+@Composable
+private fun HistorySearchLogoArtwork(
+    progress: () -> Float,
+    modifier: Modifier = Modifier,
+    colors: HistorySearchLogoColors = historySearchLogoColors(),
+) {
     val dialClip = remember { Path().apply { addOval(Rect(64f, 64f, 448f, 448f)) } }
     val faceShape = remember {
         GenericShape { size, _ ->
@@ -74,7 +113,7 @@ private fun HistorySearchLogoArtwork(progress: () -> Float, modifier: Modifier =
             },
         ) {
             scale(size.width / 512f, size.height / 512f, pivot = Offset.Zero) {
-                drawCircle(historyFaceBrush, radius = 202f, center = clockCenter)
+                drawCircle(colors.face, radius = 202f, center = clockCenter)
             }
         }
         Canvas(Modifier.size(128.dp)) {
@@ -90,10 +129,10 @@ private fun HistorySearchLogoArtwork(progress: () -> Float, modifier: Modifier =
                 clipPath(dialClip) {
                     // Hand positions change, but the light always projects toward the lower right.
                     drawPath(shadow, Color.Black.copy(alpha = 0.2f))
-                    drawLine(historyHandColor, clockCenter, hour, 14f, StrokeCap.Butt)
-                    drawLine(historyHandColor, clockCenter, minute, 14f, StrokeCap.Butt)
-                    drawLine(historySecondHandColor, clockCenter, second, 8f, StrokeCap.Butt)
-                    drawCircle(historySecondHandColor, radius = 16f, center = clockCenter)
+                    drawLine(colors.hands, clockCenter, hour, 14f, StrokeCap.Butt)
+                    drawLine(colors.hands, clockCenter, minute, 14f, StrokeCap.Butt)
+                    drawLine(colors.secondHand, clockCenter, second, 8f, StrokeCap.Butt)
+                    drawCircle(colors.secondHand, radius = 16f, center = clockCenter)
                 }
             }
         }
@@ -113,8 +152,8 @@ private fun HistorySearchLogoArtwork(progress: () -> Float, modifier: Modifier =
         ) {
             scale(size.width / 512f, size.height / 512f, pivot = Offset.Zero) {
                 arrow.setHistoryArrow(progress())
-                translate(top = 8f) { drawPath(arrow, historyFrameEdge) }
-                drawPath(arrow, historyFrameColor)
+                translate(top = 8f) { drawPath(arrow, colors.frameEdge) }
+                drawPath(arrow, colors.frame)
             }
         }
     }
@@ -122,15 +161,6 @@ private fun HistorySearchLogoArtwork(progress: () -> Float, modifier: Modifier =
 
 private val clockCenter = Offset(256f, 256f)
 private val historyEntryEasing = CubicBezierEasing(0.1f, 0.9f, 0.2f, 1f)
-private val historyHandColor = Color(0xFFFFFFFF)
-private val historySecondHandColor = Color(0xFFFFEB3B)
-private val historyFrameEdge = Color(0xFF009BA3)
-private val historyFrameColor = Color(0xFF19C7CC)
-private val historyFaceBrush = Brush.linearGradient(
-    colors = listOf(Color(0xFF008D96), Color(0xFF00838D)),
-    start = Offset(112f, 112f),
-    end = Offset(400f, 400f),
-)
 
 /** The fixed-size head turns with the leading edge of the 13dp curved band. */
 private fun Path.setHistoryArrow(fraction: Float) {
