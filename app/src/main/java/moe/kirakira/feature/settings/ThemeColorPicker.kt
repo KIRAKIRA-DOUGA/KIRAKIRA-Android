@@ -15,12 +15,15 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.intl.LocaleList
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import moe.kirakira.ui.theme.ThemePresetColor
 import moe.kirakira.ui.theme.formatThemeColor
+
+private val JapaneseCharacterNameLocales = LocaleList("ja")
 
 @Composable
 internal fun ThemeColorCard(
@@ -39,6 +42,7 @@ internal fun ThemeColorCard(
     ThemeSelectionCard(
         title = stringResource(preset.titleRes),
         subtitle = stringResource(preset.characterRes),
+        subtitleLocaleList = JapaneseCharacterNameLocales,
         seedColor = preset.color,
         selected = selected,
         onClick = onClick,

@@ -38,6 +38,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.intl.LocaleList
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
 
@@ -78,6 +79,7 @@ internal fun ThemeSelectionCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
+    subtitleLocaleList: LocaleList? = null,
     seedColor: Color? = null,
     preview: @Composable BoxScope.() -> Unit,
 ) {
@@ -165,7 +167,7 @@ internal fun ThemeSelectionCard(
                 if (subtitle != null) {
                     Text(
                         text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodySmall.merge(localeList = subtitleLocaleList),
                         color = supportingColor,
                     )
                 }
