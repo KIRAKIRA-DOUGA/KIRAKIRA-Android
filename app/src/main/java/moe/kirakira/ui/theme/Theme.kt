@@ -2,17 +2,31 @@ package moe.kirakira.ui.theme
 
 import android.util.LruCache
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.LocalTonalElevationEnabled
 import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.unit.dp
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamicColorScheme
 import com.materialkolor.dynamiccolor.ColorSpec
+
+private val themeShapes = Shapes(
+    extraSmall = RoundedCornerShape(2.dp),
+    small = RoundedCornerShape(4.dp),
+    medium = RoundedCornerShape(6.dp),
+    large = RoundedCornerShape(8.dp),
+    largeIncreased = RoundedCornerShape(10.dp),
+    extraLarge = RoundedCornerShape(14.dp),
+    extraLargeIncreased = RoundedCornerShape(16.dp),
+    extraExtraLarge = RoundedCornerShape(24.dp),
+)
 
 /** Uses classic accent colors; [dynamicColor] selects the system accent on Android 12+. */
 @Composable
@@ -32,6 +46,7 @@ fun KIRAKIRATheme(
     ) {
         MaterialExpressiveTheme(
             colorScheme = colorScheme,
+            shapes = themeShapes,
             typography = Typography,
             content = content,
         )

@@ -75,7 +75,7 @@ private fun SecurityStatusBanner(state: SecuritySettingsState) {
     val unprotected = !state.statusPending && factor == SecondFactor.NONE
     val scheme = MaterialTheme.colorScheme
     val colors = MaterialTheme.semanticColors
-    val shape = MaterialTheme.shapes.extraLarge
+    val shape = MaterialTheme.shapes.large
     val container = when {
         protected -> colors.success
         unprotected -> colors.warning
@@ -203,7 +203,7 @@ private fun TwoFactorEnabledCard(
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.semanticColors
-    val shape = MaterialTheme.shapes.extraLarge
+    val shape = MaterialTheme.shapes.large
     Surface(
         modifier = modifier.fillMaxWidth().cardColorShadow(shape, colors.success),
         shape = shape,

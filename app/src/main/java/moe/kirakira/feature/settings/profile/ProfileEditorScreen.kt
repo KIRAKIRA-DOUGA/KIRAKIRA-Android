@@ -200,7 +200,7 @@ private fun ProfileIdentity(state: ProfileEditorState, onPick: () -> Unit) {
     val draft = state.draft ?: return
     val scheme = MaterialTheme.colorScheme
     val ring = ThemeColorDefaults.settingsBackgroundColor()
-    val bannerShape = MaterialTheme.shapes.extraLarge
+    val bannerShape = MaterialTheme.shapes.large
     Column(Modifier.settingsSearchAnchor(stringResource(R.string.profile_edit_avatar)).fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.fillMaxWidth().height(BannerHeight + AvatarSize / 2)) {

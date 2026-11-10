@@ -124,7 +124,7 @@ private fun AboutHeader(versionName: String?, versionCode: Long, onLogoLongClick
         animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
         label = "aboutLogoPressScale",
     )
-    val shape = MaterialTheme.shapes.extraLarge
+    val shape = MaterialTheme.shapes.large
     val container = MaterialTheme.colorScheme.primary
     Surface(
         modifier = Modifier

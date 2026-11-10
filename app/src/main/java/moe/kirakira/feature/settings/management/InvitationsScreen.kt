@@ -182,7 +182,7 @@ private fun InvitationStatistics(
     onCreate: () -> Unit,
 ) {
     val unused = state.data.orEmpty().count { !it.used }
-    val shape = MaterialTheme.shapes.extraLarge
+    val shape = MaterialTheme.shapes.large
     val container = MaterialTheme.colorScheme.primary
     Surface(
         shape = shape, color = container,
