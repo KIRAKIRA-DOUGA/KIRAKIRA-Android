@@ -14,6 +14,11 @@ require(apiUri.scheme == "https" && !apiUri.host.isNullOrBlank() && apiUri.userI
     apiUri.query == null && apiUri.fragment == null) {
     "kirakira.apiBaseUrl must be an HTTPS URL without credentials, query, or fragment"
 }
+val imageDeliveryBaseUrl = when (providers.gradleProperty("kirakira.imageProvider").orElse("cloudflare-prod").get()) {
+    "cloudflare-prod" -> "https://kirafile.com/cdn-cgi/imagedelivery/Gyz90amG54C4b_dtJiRpYg/"
+    "cloudflare-stg" -> "https://kirakira-image.starcitizen.rip/cdn-cgi/imagedelivery/nLUFLrrgVwzQdEx8eL5BaA/"
+    else -> error("kirakira.imageProvider must be cloudflare-prod or cloudflare-stg")
+}
 val cryptoCheck = providers.gradleProperty("kirakira.cryptoCheck").map { it.toBooleanStrict() }.orElse(false).get()
 val authUiCheck = providers.gradleProperty("kirakira.authUiCheck").map { it.toBooleanStrict() }.orElse(false).get()
 require(!cryptoCheck || !authUiCheck) { "Select one isolated instrumentation variant at a time" }
@@ -33,6 +38,7 @@ android {
         versionCode = 3
         versionName = "0.3"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+        buildConfigField("String", "IMAGE_DELIVERY_BASE_URL", "\"$imageDeliveryBaseUrl\"")
         buildConfigField("boolean", "SYSTEM_CREDENTIALS_ENABLED", (apiBaseUrl == "https://rosales.kirakira.moe/").toString())
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

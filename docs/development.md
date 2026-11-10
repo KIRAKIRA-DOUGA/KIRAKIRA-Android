@@ -84,6 +84,7 @@ android studio render-compose-preview \
 
 - [AuthPreview.kt](../app/src/main/java/moe/kirakira/feature/auth/AuthPreview.kt) 的 `AuthStepPreview` 覆盖认证各步骤。
 - [SecuritySettingsPreview.kt](../app/src/main/java/moe/kirakira/feature/settings/security/SecuritySettingsPreview.kt) 的 `SecurityStepPreview` 覆盖修改邮箱、密码及二步验证各步骤；`TwoFactorEnabledPreview` 分别展示邮箱验证和身份验证器已开启的管理页，`SecuritySettingsPreview` 保留游客态预览。
+- [VideoCard.kt](../app/src/main/java/moe/kirakira/ui/components/video/VideoCard.kt) 的 `Video cards` 预览组展示双列网格和单列列表，`Home` 版本省略上传时间。
 
 预览直接向界面传入固定状态，不创建 ViewModel 或访问 API。账号安全预览提供中英文版本；邮箱、绑定时间、设置密钥与一次性代码均为预览专用虚构值，密码和验证码输入框保持为空，流程回调不会发送验证码或提交账号修改。
 
@@ -97,19 +98,23 @@ Android Studio 的 Build Variants 可选择 `performance`，再以 Run 启动；
 
 ## API 环境配置
 
-默认正式地址为 `https://rosales.kirakira.moe/`。通过 Gradle 属性覆盖地址，例如连接 Cerasus 开发代理使用的预发布服务：
+默认 API 地址为 `https://rosales.kirakira.moe/`。API 地址和图片环境分别通过 Gradle 属性配置。连接 Rainyun staging 时使用以下命令。
 
 ```sh
-./gradlew :app:assembleDebug -Pkirakira.apiBaseUrl=https://stg-rosales.kirafile.com/
+./gradlew :app:assembleDebug \
+  -Pkirakira.apiBaseUrl=https://stg-rainyun-rosales.kirafile.com/ \
+  -Pkirakira.imageProvider=cloudflare-stg
 ```
 
-也可在用户级 Gradle 属性配置 `kirakira.apiBaseUrl`；不要提交个人环境文件。地址经 HTTPS／host／无凭据／无 query 与 fragment 校验后生成 `BuildConfig.API_BASE_URL`，支持路径前缀，尾部斜杠自动补齐。模拟器访问开发机应使用设备可达、证书可信的 HTTPS 地址，不能把设备的 localhost 当作开发机，也不能关闭证书校验。
+两项也可在用户级 Gradle 属性中配置。个人环境文件仅在本机使用。`kirakira.apiBaseUrl` 经 HTTPS／host／无凭据／无 query 与 fragment 校验后生成 `BuildConfig.API_BASE_URL`，支持路径前缀，尾部斜杠自动补齐。模拟器访问开发机应使用设备可达、证书可信的 HTTPS 地址，不能把设备的 localhost 当作开发机，也不能关闭证书校验。
+
+`kirakira.imageProvider` 默认为 `cloudflare-prod`，可设为 `cloudflare-stg` 以使用 Cerasus 的 staging 图片分发地址。其他值会在 Gradle 配置阶段报错。图片环境由该属性独立决定。
 
 增加的 `INTERNET` 与播放器媒体音量使用的 `MODIFY_AUDIO_SETTINGS` 均为普通权限，不弹运行时请求。Manifest 禁用明文流量；OkHttp API 客户端禁止重定向、自动连接重试、响应缓存和请求日志，Coil 头像请求使用独立客户端。OkHttp 用于 API 超时、取消、TLS 与 URL 编码，`coil-network-okhttp` 为已有 Coil 添加远程头像支持；复用现有 serialization，无新 DI／数据库框架。Media3 用于真实视频播放，按同一固定版本声明，不升级现有 Compose BOM。播放器使用无账号会话的独立媒体客户端。体积增量未测量，许可证由 AboutLibraries 收集。
 
 非生产 API 根地址构建的 `SYSTEM_CREDENTIALS_ENABLED=false`，禁用真实系统密码提供者；仅完整的默认生产根地址启用。
 
-账号库以 JSON 保存在不参与备份的 `noBackupFilesDir/sessions.json`，正常读写不依赖 Keystore。只有新库主文件及备份都不存在时才尝试迁移旧 `sessions.v1.enc`，首次写入遗留的临时文件清理后可重试；恢复失败保留旧文件，成功写入空新库后提示重新登录。密码和验证码不持久保存。会话与完整 API 根地址绑定；迁移保留原后端的账号数据，切换构建环境时不加载另一后端的账号，首次保存新环境会话才会替换本机旧环境账号库。可选的 userDataBootstrapHint 同样保存在私有账号文件中，仅首页过滤请求使用。图片分发默认固定生产 Cloudflare 地址，覆盖 API 地址不会自动切换图片环境。协议与已知服务端限制见[API 与会话](implementation/auth.md#api-与会话)。
+账号库以 JSON 保存在不参与备份的 `noBackupFilesDir/sessions.json`，正常读写不依赖 Keystore。只有新库主文件及备份都不存在时才尝试迁移旧 `sessions.v1.enc`，首次写入遗留的临时文件清理后可重试；恢复失败保留旧文件，成功写入空新库后提示重新登录。密码和验证码不持久保存。会话与完整 API 根地址绑定；迁移保留原后端的账号数据，切换构建环境时不加载另一后端的账号，首次保存新环境会话才会替换本机旧环境账号库。可选的 userDataBootstrapHint 同样保存在私有账号文件中，仅首页过滤请求使用。协议与已知服务端限制见[API 与会话](implementation/auth.md#api-与会话)。
 
 ## 环境排障
 
