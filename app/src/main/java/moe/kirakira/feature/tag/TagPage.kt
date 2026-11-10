@@ -2,6 +2,7 @@ package moe.kirakira.feature.tag
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -64,6 +65,7 @@ import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.components.video.VideoCardLayout
 import moe.kirakira.ui.components.video.VideoCardRow
+import moe.kirakira.ui.components.video.VideoCardRowSpacing
 import moe.kirakira.ui.content.ContentState
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
@@ -106,6 +108,7 @@ internal fun TagScreen(
         scrollContentAvailable = !(tag.loading && tag.data == null && videos.loading && videos.data == null),
     )
     val rows = videos.data.orEmpty().chunked(layout.columns)
+    val sectionSpacing = 16.dp
     val density = LocalDensity.current
     var identityHeight by remember { mutableIntStateOf(0) }
     var tagStatusHeight by remember { mutableIntStateOf(0) }
@@ -143,18 +146,21 @@ internal fun TagScreen(
                 ContentStatusViewport(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = listContentPadding,
-                    leadingContentHeight = headerHeight + if (showTagStatus) 48.dp else 32.dp,
+                    leadingContentHeight = headerHeight + sectionSpacing * (if (showTagStatus) 3 else 2),
                 ) { statusModifier ->
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.widthIn(max = 840.dp).fillMaxSize(),
                         contentPadding = listContentPadding,
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         item("identity") {
                             Column(
-                                Modifier.fillMaxWidth().onSizeChanged { identityHeight = it.height }.animateContentSize(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = sectionSpacing)
+                                    .onSizeChanged { identityHeight = it.height }
+                                    .animateContentSize(),
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
                                 Text(name, style = MaterialTheme.typography.headlineLarge,
@@ -166,18 +172,35 @@ internal fun TagScreen(
                             }
                         }
                         if (showTagStatus) item("tag-status") {
-                            ContentStatus(tag.copy(loading = tag.loading && tag.data == null), onRetryTag,
-                                Modifier.fillMaxWidth().onSizeChanged { tagStatusHeight = it.height }, emptyTitle = stringResource(R.string.tag_not_found),
-                                emptyIconRes = R.drawable.ic_icon_tag, empty = tag.data != null && value == null)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = sectionSpacing)
+                                    .onSizeChanged { tagStatusHeight = it.height },
+                            ) {
+                                ContentStatus(
+                                    state = tag.copy(loading = tag.loading && tag.data == null),
+                                    onRetry = onRetryTag,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    emptyTitle = stringResource(R.string.tag_not_found),
+                                    emptyIconRes = R.drawable.ic_icon_tag,
+                                    empty = tag.data != null && value == null,
+                                )
+                            }
                         }
                         item("count") {
                             val count = videos.data?.size
+                            val countModifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = sectionSpacing)
+                                .onSizeChanged { countHeight = it.height }
+                                .semantics { heading() }
                             if (count == null) {
                                 Text(
                                     text = stringResource(R.string.tag_related_videos),
                                     style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.fillMaxWidth().onSizeChanged { countHeight = it.height }.semantics { heading() },
+                                    modifier = countModifier,
                                 )
                             } else {
                                 AnimatedCountLabel(
@@ -185,20 +208,27 @@ internal fun TagScreen(
                                     template = pluralStringResource(R.plurals.tag_video_count, count),
                                     style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.fillMaxWidth().onSizeChanged { countHeight = it.height }.semantics { heading() },
+                                    modifier = countModifier,
                                 )
                             }
                         }
                         if (videos.error != null || videos.data.isNullOrEmpty()) item("video-status") {
                             ContentStatus(videos.copy(loading = videos.loading && videos.data == null), onRetryVideos,
                                 Modifier.fillMaxWidth().then(
-                                    if (videos.data.isNullOrEmpty()) statusModifier else Modifier,
+                                    if (rows.isEmpty()) statusModifier else Modifier.padding(bottom = sectionSpacing),
                                 ), empty = videos.data.isNullOrEmpty(),
                                 emptyTitle = stringResource(R.string.tag_videos_empty),
                                 emptyIconRes = R.drawable.ic_icon_video_library)
                         }
-                        itemsIndexed(rows, key = { _, row -> row.first().id }) { _, row ->
-                            VideoCardRow(row, layout, onOpenVideo, Modifier.fillMaxWidth())
+                        itemsIndexed(rows, key = { _, row -> row.first().id }) { index, row ->
+                            VideoCardRow(
+                                videos = row,
+                                layout = layout,
+                                onOpenVideo = onOpenVideo,
+                                modifier = Modifier.fillMaxWidth().padding(
+                                    bottom = if (index == rows.lastIndex) 0.dp else VideoCardRowSpacing,
+                                ),
+                            )
                         }
                     }
                 }

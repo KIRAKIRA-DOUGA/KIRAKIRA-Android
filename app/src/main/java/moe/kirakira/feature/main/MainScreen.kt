@@ -18,7 +18,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Icon
@@ -72,6 +72,7 @@ import moe.kirakira.ui.components.rememberTabReselectHandler
 import moe.kirakira.ui.components.smoothScrollToTop
 import moe.kirakira.ui.components.video.VideoCardLayout
 import moe.kirakira.ui.components.video.VideoCardRow
+import moe.kirakira.ui.components.video.VideoCardRowSpacing
 import moe.kirakira.ui.content.ContentState
 import moe.kirakira.ui.navigation.rememberNavigationMotion
 import moe.kirakira.ui.theme.KIRAKIRATheme
@@ -210,9 +211,11 @@ internal fun MainScreen(
                                     indicatorTopPadding = innerPadding.calculateTopPadding(),
                                     modifier = Modifier.fillMaxSize(),
                                 ) {
+                                    val rows = videos.data.orEmpty().chunked(videosLayout.columns)
+                                    val bottomContentPadding = if (rows.isEmpty()) 16.dp else 28.dp
                                     val listContentPadding = PaddingValues(
                                         top = innerPadding.calculateTopPadding() + 16.dp,
-                                        bottom = bottomBarPadding.calculateBottomPadding() + 16.dp,
+                                        bottom = bottomBarPadding.calculateBottomPadding() + bottomContentPadding,
                                         start = 16.dp,
                                         end = 16.dp,
                                     )
@@ -225,6 +228,7 @@ internal fun MainScreen(
                                             state = homeScrollState,
                                             modifier = Modifier.fillMaxSize().testTag("home_screen"),
                                             contentPadding = listContentPadding,
+                                            horizontalAlignment = Alignment.CenterHorizontally,
                                         ) {
                                             item(key = "status") {
                                                 if (videos.error != null || videos.data.isNullOrEmpty()) {
@@ -237,11 +241,18 @@ internal fun MainScreen(
                                                     )
                                                 }
                                             }
-                                            items(videos.data.orEmpty().chunked(videosLayout.columns), key = { it.first().id }) { row ->
-                                                Box(Modifier.fillMaxWidth().padding(bottom = 12.dp), contentAlignment = Alignment.TopCenter) {
-                                                    VideoCardRow(row, videosLayout, onOpenVideo,
-                                                        Modifier.widthIn(max = 840.dp).fillMaxWidth())
-                                                }
+                                            itemsIndexed(rows, key = { _, row -> row.first().id }) { index, row ->
+                                                val rowSpacing = if (index < rows.lastIndex) VideoCardRowSpacing else 0.dp
+                                                VideoCardRow(
+                                                    videos = row,
+                                                    layout = videosLayout,
+                                                    onOpenVideo = onOpenVideo,
+                                                    modifier = Modifier
+                                                        .widthIn(max = 840.dp)
+                                                        .fillMaxWidth()
+                                                        .padding(bottom = rowSpacing),
+                                                    showUploadTime = false,
+                                                )
                                             }
                                         }
                                     }

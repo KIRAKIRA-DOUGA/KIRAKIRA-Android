@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
@@ -27,10 +28,13 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import java.time.Instant
 import moe.kirakira.R
 import moe.kirakira.data.content.VideoSummary
+import moe.kirakira.ui.theme.KIRAKIRATheme
 
 @Composable
 internal fun VideoCard(
@@ -38,33 +42,35 @@ internal fun VideoCard(
     uploader: String?,
     viewCount: String,
     duration: String,
-    uploadTime: String,
+    uploadTime: String?,
     layout: VideoCardLayout,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     image: String? = null,
     videoId: Int? = null,
 ) {
-    val artworkShape = if (layout == VideoCardLayout.GRID) MaterialTheme.shapes.large else MaterialTheme.shapes.medium
+    val artworkShape = MaterialTheme.shapes.medium
     val zoomSource = rememberVideoZoomSource(videoId, image, artworkShape)
     Box(
         modifier = modifier
-            .clip(MaterialTheme.shapes.small)
+            .clip(MaterialTheme.shapes.medium)
             .clickable(role = Role.Button) {
                 if (zoomSource == null) onClick() else zoomSource.open(onClick)
             }
-            .padding(4.dp),
     ) {
         if (layout == VideoCardLayout.GRID) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(if (uploader == null) 8.dp else 4.dp),
             ) {
                 VideoArtwork(
                     image = image,
                     onPainterChange = { zoomSource?.painter = it },
-                    modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f)
-                        .clip(artworkShape).videoZoomSource(zoomSource),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(16f / 9f)
+                        .clip(artworkShape)
+                        .videoZoomSource(zoomSource),
                 )
                 VideoCardInfo(
                     title = title,
@@ -85,8 +91,10 @@ internal fun VideoCard(
                 VideoArtwork(
                     image = image,
                     onPainterChange = { zoomSource?.painter = it },
-                    modifier = Modifier.size(width = 128.dp, height = 72.dp)
-                        .clip(artworkShape).videoZoomSource(zoomSource),
+                    modifier = Modifier
+                        .size(width = 128.dp, height = 72.dp)
+                        .clip(artworkShape)
+                        .videoZoomSource(zoomSource),
                 )
                 VideoCardInfo(
                     title = title,
@@ -108,7 +116,7 @@ private fun VideoCardInfo(
     uploader: String?,
     viewCount: String,
     duration: String,
-    uploadTime: String,
+    uploadTime: String?,
     layout: VideoCardLayout,
     modifier: Modifier = Modifier,
 ) {
@@ -154,12 +162,14 @@ private fun VideoCardInfo(
                 description = stringResource(R.string.video_duration, duration),
                 iconSize = iconSize,
             )
-            VideoCardMetadata(
-                icon = R.drawable.ic_icon_calendar,
-                text = uploadTime,
-                description = stringResource(R.string.video_upload_time_description, uploadTime),
-                iconSize = iconSize,
-            )
+            if (uploadTime != null) {
+                VideoCardMetadata(
+                    icon = R.drawable.ic_icon_calendar,
+                    text = uploadTime,
+                    description = stringResource(R.string.video_upload_time_description, uploadTime),
+                    iconSize = iconSize,
+                )
+            }
         }
     }
 }
@@ -200,8 +210,9 @@ internal fun VideoCardRow(
     onOpenVideo: (Int) -> Unit,
     modifier: Modifier = Modifier,
     showUploader: Boolean = true,
+    showUploadTime: Boolean = true,
 ) {
-    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         videos.forEach { video ->
             key(video.id) {
                 VideoCard(
@@ -213,7 +224,7 @@ internal fun VideoCardRow(
                     },
                     viewCount = video.views?.let { stringResource(R.string.video_views, it) } ?: "—",
                     duration = durationText(video.durationMs),
-                    uploadTime = dateText(video.uploadedAt),
+                    uploadTime = if (showUploadTime) dateText(video.uploadedAt) else null,
                     layout = layout,
                     image = video.image,
                     videoId = video.id,
@@ -224,6 +235,64 @@ internal fun VideoCardRow(
         }
         repeat((layout.columns - videos.size).coerceAtLeast(0)) {
             Spacer(Modifier.weight(1f))
+        }
+    }
+}
+
+@Preview(name = "Grid", group = "Video cards", widthDp = 360)
+@Composable
+private fun VideoCardGridPreview() = VideoCardRowsPreview(VideoCardLayout.GRID, showUploadTime = true)
+
+@Preview(name = "List", group = "Video cards", widthDp = 360)
+@Composable
+private fun VideoCardListPreview() = VideoCardRowsPreview(VideoCardLayout.LIST, showUploadTime = true)
+
+@Preview(name = "Home · Grid", group = "Video cards", widthDp = 360)
+@Composable
+private fun HomeVideoCardGridPreview() = VideoCardRowsPreview(VideoCardLayout.GRID, showUploadTime = false)
+
+@Preview(name = "Home · List", group = "Video cards", widthDp = 360)
+@Composable
+private fun HomeVideoCardListPreview() = VideoCardRowsPreview(VideoCardLayout.LIST, showUploadTime = false)
+
+@Composable
+private fun VideoCardRowsPreview(layout: VideoCardLayout, showUploadTime: Boolean) {
+    val uploadedAt = Instant.parse("2025-01-15T12:30:00Z").toEpochMilli()
+    val videos = listOf(
+        VideoSummary(
+            id = 1,
+            title = "Clouds over the coast",
+            author = "Studio Momo",
+            views = 12_345,
+            durationMs = 195_000,
+            uploadedAt = uploadedAt,
+        ),
+        VideoSummary(
+            id = 2,
+            title = "A quiet afternoon sketching the city from the train window",
+            author = "Paper Lantern",
+            views = 980,
+            durationMs = 3_865_000,
+            uploadedAt = uploadedAt,
+        ),
+        VideoSummary(id = 3, title = "Night walk", author = "Studio Momo"),
+    )
+    KIRAKIRATheme {
+        Surface {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(VideoCardRowSpacing),
+            ) {
+                videos.chunked(layout.columns).forEach { row ->
+                    VideoCardRow(
+                        videos = row,
+                        layout = layout,
+                        onOpenVideo = {},
+                        modifier = Modifier.fillMaxWidth(),
+                        showUploadTime = showUploadTime,
+                    )
+                }
+            }
         }
     }
 }

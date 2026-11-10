@@ -13,11 +13,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -67,6 +68,7 @@ import moe.kirakira.ui.components.SearchVideosEmptyLogo
 import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.components.smoothScrollToTop
 import moe.kirakira.ui.components.video.VideoCardRow
+import moe.kirakira.ui.components.video.VideoCardRowSpacing
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 @Composable
@@ -126,6 +128,7 @@ private fun SearchScreenContent(
         sortedSearchVideos(state.videos.data.orEmpty(), state.sort, state.descending)
     }
     val rows = remember(videos, state.layout) { videos.chunked(state.layout.columns) }
+    val sectionSpacing = 12.dp
     val density = LocalDensity.current
     var headerHeightPx by remember { mutableIntStateOf(0) }
     var historyErrorHeightPx by remember { mutableIntStateOf(0) }
@@ -145,7 +148,7 @@ private fun SearchScreenContent(
             contentPadding = listContentPadding,
             leadingContentHeight = with(density) {
                 (headerHeightPx + if (state.historyError) historyErrorHeightPx else 0).toDp()
-            } + if (state.historyError) 24.dp else 12.dp,
+            } + sectionSpacing * (if (state.historyError) 2 else 1),
         ) { statusModifier ->
             AnimatedVisibility(
                 visible = state.submitted == null,
@@ -160,19 +163,23 @@ private fun SearchScreenContent(
                 state = listState,
                 modifier = Modifier.widthIn(max = 840.dp).fillMaxSize(),
                 contentPadding = listContentPadding,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 if (state.historyError) item("history-error") {
                     SearchHistoryError(
                         onEvent,
-                        modifier = Modifier.onSizeChanged { historyErrorHeightPx = it.height },
+                        modifier = Modifier
+                            .padding(bottom = sectionSpacing)
+                            .onSizeChanged { historyErrorHeightPx = it.height },
                         canDismiss = state.historyLoaded,
                     )
                 }
                 item("search-header") {
                     Row(
-                        modifier = Modifier.fillMaxWidth().onSizeChanged { headerHeightPx = it.height },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = sectionSpacing)
+                            .onSizeChanged { headerHeightPx = it.height },
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         SearchResultCount(state, Modifier.weight(1f))
@@ -185,7 +192,7 @@ private fun SearchScreenContent(
                             state.videos.copy(loading = state.videos.loading && state.videos.data == null),
                             onRetry = { onEvent(SearchEvent.Refresh) },
                             modifier = Modifier.fillMaxWidth().then(
-                                if (state.videos.data.isNullOrEmpty()) statusModifier else Modifier,
+                                if (rows.isEmpty()) statusModifier else Modifier.padding(bottom = sectionSpacing),
                             ),
                             empty = state.videos.data.isNullOrEmpty(),
                             emptyTitle = stringResource(R.string.search_videos_empty),
@@ -195,8 +202,15 @@ private fun SearchScreenContent(
                         )
                     }
                 }
-                items(rows, key = { it.first().id }) { row ->
-                    VideoCardRow(row, state.layout, onOpenVideo, Modifier.fillMaxWidth())
+                itemsIndexed(rows, key = { _, row -> row.first().id }) { index, row ->
+                    VideoCardRow(
+                        videos = row,
+                        layout = state.layout,
+                        onOpenVideo = onOpenVideo,
+                        modifier = Modifier.fillMaxWidth().padding(
+                            bottom = if (index == rows.lastIndex) 0.dp else VideoCardRowSpacing,
+                        ),
+                    )
                 }
             }
         }

@@ -266,7 +266,7 @@ internal fun MainBottomBar(
         modifier = modifier
             .fillMaxWidth()
             .windowInsetsPadding(NavigationBarDefaults.windowInsets)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 8.dp),
         contentAlignment = Alignment.BottomCenter,
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {

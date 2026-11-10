@@ -78,6 +78,7 @@ import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.components.rememberCollapsingTabState
 import moe.kirakira.ui.components.video.VideoCardLayout
 import moe.kirakira.ui.components.video.VideoCardRow
+import moe.kirakira.ui.components.video.VideoCardRowSpacing
 import moe.kirakira.ui.content.ContentState
 import moe.kirakira.ui.navigation.imageSharedBounds
 import moe.kirakira.ui.navigation.rememberImageContentScale
@@ -320,7 +321,7 @@ internal fun ProfileScreen(
                                                         .padding(
                                                             start = 16.dp,
                                                             end = 16.dp,
-                                                            top = if (index == 0) 16.dp else 12.dp,
+                                                            top = if (index == 0) 16.dp else VideoCardRowSpacing,
                                                             bottom = if (index == videoRows.lastIndex) 16.dp else 0.dp,
                                                         ),
                                                 ) {
