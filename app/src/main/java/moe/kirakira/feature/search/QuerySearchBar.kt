@@ -1,5 +1,6 @@
 package moe.kirakira.feature.search
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -11,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import moe.kirakira.R
+import moe.kirakira.ui.components.textFieldInnerShadow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,10 +59,14 @@ internal fun SearchFieldContainer(
     modifier: Modifier = Modifier,
     inputField: @Composable () -> Unit,
 ) {
+    val shape = MaterialTheme.shapes.large
     Surface(
         modifier = modifier,
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = shape,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
-        content = inputField,
-    )
+    ) {
+        Box(Modifier.textFieldInnerShadow(shape), propagateMinConstraints = true) {
+            inputField()
+        }
+    }
 }

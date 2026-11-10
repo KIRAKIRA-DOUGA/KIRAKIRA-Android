@@ -30,7 +30,6 @@ import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.onConsumedWindowInsetsChanged
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SearchBarState
@@ -49,7 +48,7 @@ import kotlin.math.roundToInt
 
 /**
  * Adapts AndroidX FullScreenSearchBarLayout's ordinary expansion geometry to an Activity layer.
- * The public SearchBarState supplies official motion timing; only the window host is replaced.
+ * The public SearchBarState supplies motion timing for the theme shape and expansion geometry.
  * See third_party/android-search/README.md for source and intentional differences.
  */
 @OptIn(ExperimentalLayoutApi::class)
@@ -64,6 +63,7 @@ internal fun PageSearchOverlayLayout(
     val windowInsets = SearchBarDefaults.fullScreenWindowInsets
     val unconsumedInsets = remember { MutableWindowInsets() }
     val nonTopInsets = unconsumedInsets.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
+    val collapsedShape = MaterialTheme.shapes.large
     Layout(
         modifier = modifier
             .onConsumedWindowInsetsChanged { unconsumedInsets.insets = windowInsets.exclude(it) }
@@ -71,8 +71,7 @@ internal fun PageSearchOverlayLayout(
         content = {
             Surface(
                 modifier = Modifier.graphicsLayer {
-                    val startHeight = collapsedBoundsProvider()?.height ?: SearchBarDefaults.InputFieldHeight.toPx()
-                    shape = RoundedCornerShape((startHeight / 2f * (1f - state.progress)).toDp())
+                    shape = searchExpansionShape(collapsedShape, state.progress)
                     clip = true
                 },
                 color = MaterialTheme.colorScheme.surface,
@@ -80,7 +79,7 @@ internal fun PageSearchOverlayLayout(
             )
             Box(
                 modifier = Modifier.padding(nonTopInsets.only(WindowInsetsSides.Horizontal).asPaddingValues())
-                    .clip(SearchBarDefaults.inputFieldShape),
+                    .clip(collapsedShape),
                 propagateMinConstraints = true,
             ) {
                 inputField()

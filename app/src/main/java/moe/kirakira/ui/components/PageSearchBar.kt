@@ -40,7 +40,12 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Interpolatable
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
@@ -48,7 +53,9 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
@@ -75,10 +82,21 @@ internal fun PageSearchBar(
     LaunchedEffect(enabled) {
         if (!enabled) state.animateToCollapsed()
     }
+    val collapsedShape = MaterialTheme.shapes.large
+    val dialogExpansionShape = remember(collapsedShape, state) {
+        object : Shape {
+            override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+                // Material 3 switches from a custom collapsed shape to a rectangle at half progress.
+                val progress = (state.progress * 2f).coerceAtMost(1f)
+                return searchExpansionShape(collapsedShape, progress).createOutline(size, layoutDirection, density)
+            }
+        }
+    }
     PageSearchBarAnchor(text, state, placeholder, modifier, enabled, maxContentWidth)
     if (isActive && enabled) ExpandedFullScreenSearchBar(
         state = state,
         inputField = { PageSearchInputField(text, state, placeholder, enabled = enabled) },
+        collapsedShape = dialogExpansionShape,
         colors = SearchBarDefaults.colors(
             containerColor = MaterialTheme.colorScheme.surface,
             dividerColor = Color.Transparent,
@@ -92,7 +110,7 @@ internal fun PageSearchBar(
     )
 }
 
-/** The title owns top insets; the persistent search capsule only owns horizontal insets. */
+/** The title owns top insets; the persistent search bar only owns horizontal insets. */
 @Composable
 internal fun PageSearchBarAnchor(
     text: TextFieldState,
@@ -103,6 +121,7 @@ internal fun PageSearchBarAnchor(
     maxContentWidth: Dp = 640.dp,
     onBoundsChanged: ((Rect) -> Unit)? = null,
 ) {
+    val shape = MaterialTheme.shapes.large
     Box(
         modifier = modifier.fillMaxWidth()
             .windowInsetsPadding(SearchBarDefaults.windowInsets.only(WindowInsetsSides.Horizontal)),
@@ -114,7 +133,15 @@ internal fun PageSearchBarAnchor(
         ) {
             SearchBar(
                 state = state,
-                inputField = { PageSearchInputField(text, state, placeholder, enabled = enabled) },
+                inputField = {
+                    PageSearchInputField(
+                        text,
+                        state,
+                        placeholder,
+                        modifier = Modifier.textFieldInnerShadow(shape),
+                        enabled = enabled,
+                    )
+                },
                 modifier = Modifier.fillMaxWidth().onGloballyPositioned { coordinates ->
                     val position = coordinates.positionInWindow()
                     onBoundsChanged?.invoke(
@@ -126,6 +153,7 @@ internal fun PageSearchBarAnchor(
                         ),
                     )
                 },
+                shape = shape,
                 colors = SearchBarDefaults.colors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                     dividerColor = Color.Transparent,
@@ -136,6 +164,9 @@ internal fun PageSearchBarAnchor(
         }
     }
 }
+
+internal fun searchExpansionShape(collapsedShape: Shape, progress: Float): Shape =
+    Interpolatable.lerp(collapsedShape, RectangleShape, progress) as? Shape ?: collapsedShape
 
 /**
  * Activity-owned full-screen search. Keep it mounted beneath a video destination so both the
@@ -224,6 +255,7 @@ private fun PageSearchInputField(
         textFieldState = text,
         searchBarState = state,
         modifier = modifier,
+        shape = MaterialTheme.shapes.large,
         enabled = enabled,
         onSearch = { keyboard?.hide() },
         placeholder = { Text(placeholder) },

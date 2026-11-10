@@ -52,6 +52,21 @@ internal object FilledTextFieldDefaults {
     )
 }
 
+@Composable
+internal fun Modifier.textFieldInnerShadow(shape: Shape): Modifier {
+    val scheme = MaterialTheme.colorScheme
+    val darkTheme = scheme.surface.luminance() < scheme.onSurface.luminance()
+    return innerShadow(
+        shape = shape,
+        shadow = Shadow(
+            radius = 4.dp,
+            spread = 0.dp,
+            color = scheme.scrim.copy(alpha = if (darkTheme) 0.12f else 0.06f),
+            offset = DpOffset(0.dp, 4.dp),
+        ),
+    )
+}
+
 /** Keep the inset shadow below the official indicator and the editor's foreground content. */
 @Composable
 internal fun FilledTextFieldContainer(
@@ -63,8 +78,6 @@ internal fun FilledTextFieldContainer(
     shape: Shape = MaterialTheme.shapes.large,
     indicatorThickness: Dp = FilledTextFieldDefaults.IndicatorThickness,
 ) {
-    val scheme = MaterialTheme.colorScheme
-    val darkTheme = scheme.surface.luminance() < scheme.onSurface.luminance()
     Box(
         modifier = modifier.indicatorLine(
             enabled = enabled,
@@ -87,19 +100,7 @@ internal fun FilledTextFieldContainer(
             unfocusedIndicatorLineThickness = 0.dp,
         )
         // innerShadow draws before its content; a separate sibling keeps the opaque background below it.
-        Box(
-            Modifier
-                .matchParentSize()
-                .innerShadow(
-                    shape = shape,
-                    shadow = Shadow(
-                        radius = 4.dp,
-                        spread = 0.dp,
-                        color = scheme.scrim.copy(alpha = if (darkTheme) 0.12f else 0.06f),
-                        offset = DpOffset(0.dp, 4.dp),
-                    ),
-                ),
-        )
+        Box(Modifier.matchParentSize().textFieldInnerShadow(shape))
     }
 }
 
