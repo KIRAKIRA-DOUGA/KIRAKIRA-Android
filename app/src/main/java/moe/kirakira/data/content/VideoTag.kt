@@ -2,6 +2,8 @@ package moe.kirakira.data.content
 
 import java.util.Locale
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
+import moe.kirakira.core.network.ApiClient
 import moe.kirakira.core.network.ApiException
 import moe.kirakira.core.network.ApiFailure
 
@@ -43,3 +45,6 @@ internal data class TagDto(val tagId: Long, val tagNameList: List<TagLanguageDto
 internal data class TagLanguageDto(val lang: String, val tagName: List<TagNameDto> = emptyList())
 @Serializable
 internal data class TagNameDto(val name: String, val isDefault: Boolean = false, val isOriginalTagName: Boolean = false)
+
+internal suspend fun ApiClient.decodeTags(rows: List<JsonElement>): List<VideoTag> =
+    decodeRows<TagDto, VideoTag>(rows) { tag, _ -> tag.domain() }.distinctBy { it.id }

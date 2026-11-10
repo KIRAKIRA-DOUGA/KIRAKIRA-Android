@@ -132,8 +132,15 @@ internal fun VideoCommentsPage(
             onLocationConsumed(location.request)
         }
     }
-    LaunchedEffect(entries, state.loading, state.location, state.previous, state.next, composerActive) {
-        if (!composerActive || state.loading || state.location != null || entries.isEmpty()) return@LaunchedEffect
+    LaunchedEffect(entries, state.firstPage, state.lastPage, state.loading, state.location,
+        state.previous, state.next, composerActive) {
+        if (!composerActive || state.loading || state.location != null || state.pages.isEmpty()) return@LaunchedEffect
+        if (entries.isEmpty()) {
+            // A fully filtered page window has no visible comment to trigger adjacent loading.
+            onAdjacent(true, false)
+            onAdjacent(false, false)
+            return@LaunchedEffect
+        }
         snapshotFlow {
             val visible = listState.layoutInfo.visibleItemsInfo.map { it.key }.toSet()
             val first = entries.indexOfFirst { it.comment.id in visible }

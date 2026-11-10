@@ -1,5 +1,7 @@
 package moe.kirakira.feature.player
 
+import moe.kirakira.data.content.VideoPart
+
 /** One cloud resume decision per playback session, followed by validation against the actual first part. */
 internal class PlaybackResumeController {
     private sealed interface State {
@@ -15,10 +17,11 @@ internal class PlaybackResumeController {
         state = if (restored) State.Handled else State.Pending
     }
 
-    fun resolve(positionMs: Long?): Long? {
+    fun resolve(part: VideoPart?, positionMs: Long?): Long? {
         if (state != State.Pending) return null
-        state = positionMs?.let { State.AwaitingDuration(it) } ?: State.Handled
-        return positionMs
+        val candidate = positionMs.takeIf { part?.sourceIndex == 0 && part.url != null }
+        state = candidate?.let { State.AwaitingDuration(it) } ?: State.Handled
+        return candidate
     }
 
     fun onPlay() {

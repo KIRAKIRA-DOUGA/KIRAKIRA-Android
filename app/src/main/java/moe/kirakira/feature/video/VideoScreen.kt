@@ -344,7 +344,7 @@ internal fun VideoScreen(
                                                         selected = selectedPart == index,
                                                         onClick = { onSelectPart(index) },
                                                         label = {
-                                                            Text(part.title.ifBlank { stringResource(R.string.player_part, index + 1) })
+                                                            Text(part.title.ifBlank { stringResource(R.string.player_part, part.sourceIndex + 1) })
                                                         },
                                                         colors = partChipColors,
                                                         shape = CircleShape,

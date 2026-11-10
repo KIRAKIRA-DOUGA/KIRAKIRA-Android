@@ -11,6 +11,7 @@ import moe.kirakira.data.auth.isReadyForContent
 import moe.kirakira.data.content.CommentPage
 import moe.kirakira.data.content.ContentRepository
 import moe.kirakira.data.content.VideoComment
+import moe.kirakira.data.content.commentPageCount
 import moe.kirakira.ui.content.ContentState
 
 internal data class CommentEntry(val comment: VideoComment, val page: Int)
@@ -44,7 +45,7 @@ internal data class CommentListState(
     val entries: List<CommentEntry> get() = content.entries
     val firstPage: Int get() = content.firstPage
     val lastPage: Int get() = content.lastPage
-    val totalPages: Int get() = ((total + 19) / 20).coerceAtLeast(1)
+    val totalPages: Int get() = commentPageCount(total)
 }
 
 private enum class CommentOperation { JUMP, REFRESH, LAST, PREVIOUS, NEXT, UPDATE }
@@ -168,9 +169,9 @@ internal class CommentListLoader(
     }
 
     fun posted() {
-        val total = mutableState.value.total + 1
+        val total = mutableState.value.total.let { if (it == Int.MAX_VALUE) it else it + 1 }
         mutableState.value = mutableState.value.copy(total = total)
-        replace(CommentRequest(((total + 19) / 20).coerceAtLeast(1), CommentOperation.LAST))
+        replace(CommentRequest(commentPageCount(total), CommentOperation.LAST))
     }
 
     private fun read(request: CommentRequest) {
@@ -208,9 +209,9 @@ internal class CommentListLoader(
                     previous = if (replace || before) ContentState() else current.previous,
                     next = if (replace || (!before && !update)) ContentState() else current.next,
                     startReached = if (replace) result.page == 1 else current.startReached ||
-                        (before && result.comments.isEmpty()),
-                    endReached = if (replace) result.comments.isEmpty()
-                        else current.endReached || (!before && !update && result.comments.isEmpty()),
+                        (before && result.rawCount == 0),
+                    endReached = if (replace) result.rawCount == 0
+                        else current.endReached || (!before && !update && result.rawCount == 0),
                     location = if (replace) CommentLocation(++locationId, result.page) else current.location,
                     updatingPages = current.updatingPages - page,
                     unconfirmedPages = if (replace) emptySet() else current.unconfirmedPages - page,

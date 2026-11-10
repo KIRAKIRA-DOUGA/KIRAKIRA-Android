@@ -7,10 +7,13 @@ import kotlin.coroutines.resumeWithException
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.decodeFromJsonElement
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -65,11 +68,34 @@ internal class ApiClient(
     suspend inline fun <reified T> delete(path: String, body: String, cookie: String? = null): T =
         decode(request(path, body = body, cookie = cookie, method = "DELETE"))
 
-    suspend inline fun <reified T> decode(body: String): T = withContext(decodeDispatcher) {
+    suspend inline fun <reified T> decode(body: String): T = decodeResponse { json.decodeFromString<T>(body) }
+
+    suspend inline fun <reified T> decode(element: JsonElement): T =
+        decodeResponse { json.decodeFromJsonElement<T>(element) }
+
+    private suspend inline fun <T> decodeResponse(crossinline decode: () -> T): T = withContext(decodeDispatcher) {
         try {
-            json.decodeFromString<T>(body)
+            decode()
         } catch (_: SerializationException) {
             throw ApiException(ApiFailure.INVALID_RESPONSE)
+        }
+    }
+
+    /** Opt-in for independent read-only records after the caller validates the response envelope. */
+    suspend inline fun <reified T, R : Any> decodeRows(
+        rows: List<JsonElement>,
+        crossinline transform: (T, Int) -> R?,
+    ): List<R> = withContext(decodeDispatcher) {
+        rows.mapIndexedNotNull { index, element ->
+            ensureActive()
+            try {
+                transform(json.decodeFromJsonElement<T>(element), index)
+            } catch (_: SerializationException) {
+                null
+            } catch (error: ApiException) {
+                if (error.failure != ApiFailure.INVALID_RESPONSE) throw error
+                null
+            }
         }
     }
 

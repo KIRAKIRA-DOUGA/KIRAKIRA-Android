@@ -154,7 +154,7 @@ internal class PlaybackViewModel(
 
     var player by mutableStateOf<ExoPlayer?>(null)
         private set
-    var selectedPart by mutableIntStateOf(savedState.get<Int>("part") ?: 0)
+    var selectedPart by mutableIntStateOf(0)
         private set
     var positionMs by mutableLongStateOf(savedState.get<Long>("position") ?: 0L)
         private set
@@ -266,16 +266,16 @@ internal class PlaybackViewModel(
         artwork: String? = null,
     ) {
         this.artwork = artwork
-        // Follow the part identity across reordering; refreshed URLs alone must not interrupt playback.
+        // Live refresh follows the ID. Saved state stores the original position in the response.
         val previousPart = this.parts.getOrNull(selectedPart)
-        val matchingIndex = previousPart?.let { previous -> parts.indexOfFirst { it.id == previous.id } } ?: -1
-        val nextIndex = if (previousPart != null) {
-            matchingIndex.takeIf { it >= 0 } ?: 0
-        } else {
-            selectedPart.takeIf { it in parts.indices } ?: 0
+        val sourceIndex = savedState.get<Int>("part") ?: 0
+        val matchingIndex = parts.indexOfFirst { part ->
+            if (previousPart != null) part.id == previousPart.id else part.sourceIndex == sourceIndex
         }
+        val nextIndex = matchingIndex.coerceAtLeast(0)
         val partRemoved = this.parts.isNotEmpty() && (previousPart == null || matchingIndex == -1)
-        val restoredPartMissing = this.parts.isEmpty() && parts.isNotEmpty() && selectedPart !in parts.indices
+        val restoredPartMissing = this.parts.isEmpty() && parts.isNotEmpty() && matchingIndex == -1 &&
+            (positionMs != 0L || sourceIndex != 0)
         if (partRemoved || restoredPartMissing) {
             release()
             resume.onSeek()
@@ -285,18 +285,18 @@ internal class PlaybackViewModel(
             failed = false
             historyRecorder.resetPosition(0L)
             savedState["position"] = 0L
-        } else if (selectedPart != nextIndex) {
-            // Flush under the old index before its first-part history eligibility changes.
+        } else if (previousPart != null && previousPart.sourceIndex != parts[nextIndex].sourceIndex) {
+            // Flush under the old selection before its first-part history eligibility changes.
             flushHistory()
             historyRecorder.resetPosition(positionMs)
         }
         this.title = title
         this.parts = parts
         selectedPart = nextIndex
-        savedState["part"] = selectedPart
+        parts.getOrNull(selectedPart)?.let { savedState["part"] = it.sourceIndex }
         if (resumeReady && parts.isNotEmpty()) {
-            val candidate = resumePosition.takeIf { selectedPart == 0 && player == null && positionMs == 0L }
-            resume.resolve(candidate)?.let { position ->
+            val candidate = resumePosition.takeIf { player == null && positionMs == 0L }
+            resume.resolve(parts.getOrNull(selectedPart), candidate)?.let { position ->
                 positionMs = position
                 savedState["position"] = position
                 historyRecorder.resetPosition(position)
@@ -411,7 +411,7 @@ internal class PlaybackViewModel(
         historyRecorder.resetPosition(0L)
         durationMs = 0
         failed = false
-        savedState["part"] = index
+        savedState["part"] = parts[index].sourceIndex
         savedState["position"] = 0L
         if (continuePlaying) play()
     }
@@ -422,7 +422,7 @@ internal class PlaybackViewModel(
         val current = player ?: return null
         val id = videoId ?: return null
         val revision = sessionRevision ?: return null
-        if (selectedPart != 0 || !resume.canRecordHistory) return null
+        if (parts.getOrNull(selectedPart)?.sourceIndex != 0 || !resume.canRecordHistory) return null
         return PlaybackHistorySample(id, revision, current.currentPosition.coerceAtLeast(0), durationMs)
     }
 
@@ -431,7 +431,7 @@ internal class PlaybackViewModel(
         flushHistory()
         player?.let { positionMs = it.currentPosition.coerceAtLeast(0) }
         savedState["position"] = positionMs
-        savedState["part"] = selectedPart
+        parts.getOrNull(selectedPart)?.let { savedState["part"] = it.sourceIndex }
         progress?.cancel()
         progress = null
         mediaSession?.release()

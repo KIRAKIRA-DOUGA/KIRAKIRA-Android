@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -15,6 +16,7 @@ import moe.kirakira.core.network.ApiException
 import moe.kirakira.core.network.ApiFailure
 import moe.kirakira.data.auth.AuthRepository
 import moe.kirakira.data.content.TagDto
+import moe.kirakira.data.content.decodeTags
 
 /** Account-scoped settings. Only the server applies these rules to content. */
 internal class AccountSettingsRepository(private val api: ApiClient, private val auth: AuthRepository) {
@@ -134,7 +136,7 @@ internal class AccountSettingsRepository(private val api: ApiClient, private val
     suspend fun searchTags(query: String, revision: Long): List<RuleTag> = request(revision) { cookie ->
         val result = api.get<TagsDto>("video/tag/search", mapOf("tagName" to query), cookie)
         checkSuccess(result.success)
-        (result.result ?: invalidResponse()).map { it.domain() }.distinctBy { it.id }
+        api.decodeTags(result.result ?: invalidResponse())
     }
 
     suspend fun invitations(revision: Long): List<Invitation> = request(revision) { cookie ->
@@ -208,7 +210,7 @@ private data class RuleDto(
 @Serializable
 private data class MutationDto(val success: Boolean, val unsafeRegex: Boolean = false)
 @Serializable
-private data class TagsDto(val success: Boolean, val result: List<TagDto>? = null)
+private data class TagsDto(val success: Boolean, val result: List<JsonElement>? = null)
 @Serializable
 private data class InvitationsDto(val success: Boolean, val invitationCodeResult: List<InvitationDto>? = null)
 @Serializable

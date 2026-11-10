@@ -71,7 +71,7 @@ internal fun FollowListScreen(
     val users = content.data.orEmpty()
     val canLoadMore = isActive && ready && state.hasMore && !content.loading && !state.loadingMore &&
         content.error == null && state.moreError == null
-    LaunchedEffect(list, users.size, canLoadMore) {
+    LaunchedEffect(list, users.size, state.loadedPage, canLoadMore) {
         if (canLoadMore) {
             snapshotFlow {
                 val lastVisible = list.layoutInfo.visibleItemsInfo.lastOrNull()?.index

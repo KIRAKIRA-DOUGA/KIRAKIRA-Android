@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import moe.kirakira.core.network.ApiClient
@@ -87,7 +88,8 @@ internal class HistoryRepository(
                 val entries = request(revision) { account ->
                     val response = api.get<HistoryResponse>("history/filter", cookie = account.cookie())
                     if (!response.success) throw ApiException(ApiFailure.REJECTED)
-                    (response.result ?: throw ApiException(ApiFailure.INVALID_RESPONSE)).map { it.domain() }
+                    val rows = response.result ?: throw ApiException(ApiFailure.INVALID_RESPONSE)
+                    api.decodeRows<HistoryDto, HistoryEntry>(rows) { row, _ -> row.domain() }
                 }
                 requireRevision(revision)
                 val merged = entries.associateBy { it.video.id }.toMutableMap()
@@ -185,7 +187,7 @@ internal class HistoryRepository(
 }
 
 @Serializable
-private data class HistoryResponse(val success: Boolean, val result: List<HistoryDto>? = null)
+private data class HistoryResponse(val success: Boolean, val result: List<JsonElement>? = null)
 
 @Serializable
 private data class MergeResponse(val success: Boolean)
@@ -194,7 +196,7 @@ private data class MergeResponse(val success: Boolean)
 private data class HistoryDto(
     val category: String,
     val videoId: Int,
-    val title: String,
+    val title: String? = null,
     val image: String? = null,
     val uploader: String? = null,
     val uploaderId: Long? = null,
@@ -203,11 +205,11 @@ private data class HistoryDto(
     val lastUpdateDateTime: Long,
 ) {
     fun domain(): HistoryEntry {
-        if (category != "video" || videoId <= 0 || title.isBlank() || lastUpdateDateTime < 0) {
+        if (category != "video" || videoId <= 0 || lastUpdateDateTime < 0) {
             throw ApiException(ApiFailure.INVALID_RESPONSE)
         }
         return HistoryEntry(
-            video = VideoSummary(id = videoId, title = title, image = image, author = uploader.orEmpty(),
+            video = VideoSummary(id = videoId, title = title.orEmpty(), image = image, author = uploader.orEmpty(),
                 authorUid = uploaderId?.takeIf { it > 0 }, durationMs = secondsToMilliseconds(duration)),
             updatedAt = lastUpdateDateTime,
             positionMs = secondsToMilliseconds(anchor?.toDoubleOrNull()),

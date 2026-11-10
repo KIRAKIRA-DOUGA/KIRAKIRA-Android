@@ -16,6 +16,7 @@ internal data class FollowListState(
     val revision: Long,
     val content: ContentState<List<FollowListUser>> = ContentState(loading = true),
     val hasMore: Boolean = false,
+    val loadedPage: Int = 0,
     val loadingMore: Boolean = false,
     val moreError: ApiFailure? = null,
 )
@@ -27,7 +28,6 @@ internal class FollowListViewModel(
 ) : ContentViewModel(repository) {
     private val _state = MutableStateFlow(FollowListState(revision))
     val state = _state.asStateFlow()
-    private var page = 0
     private var receivedCount = 0L
     private var generation = 0L
     private var task: Job? = null
@@ -36,7 +36,6 @@ internal class FollowListViewModel(
         observeAccount({
             generation++
             task = null
-            page = 0
             receivedCount = 0
             _state.value = FollowListState(revision)
         }, ::refresh)
@@ -60,8 +59,8 @@ internal class FollowListViewModel(
         task?.cancel()
         val requestGeneration = ++generation
         val expected = revision
-        val requestedPage = if (replacing) 1 else page + 1
         val previous = _state.value
+        val requestedPage = if (replacing) 1 else previous.loadedPage + 1
         _state.value = previous.copy(
             content = previous.content.copy(loading = replacing, error = null),
             loadingMore = !replacing,
@@ -73,18 +72,17 @@ internal class FollowListViewModel(
                 if (!current(expected, requestGeneration)) return@launchTask
                 val users = (if (replacing) result.users else previous.content.data.orEmpty() + result.users)
                     .distinctBy { it.uid }
-                receivedCount = (if (replacing) 0L else receivedCount) + result.users.size
-                page = requestedPage
+                receivedCount = (if (replacing) 0L else receivedCount) + result.rawCount
                 _state.value = FollowListState(
                     revision = expected,
                     content = ContentState(users),
-                    hasMore = result.users.isNotEmpty() && receivedCount < result.totalCount,
+                    hasMore = result.rawCount > 0 && receivedCount < result.totalCount,
+                    loadedPage = requestedPage,
                 )
             } catch (error: ApiException) {
                 if (!current(expected, requestGeneration)) return@launchTask
                 _state.value = when {
                     !error.failure.retainsContent -> {
-                        page = 0
                         receivedCount = 0
                         FollowListState(expected, ContentState(error = error.failure))
                     }

@@ -14,7 +14,7 @@ internal data class FollowListUser(
     val avatar: String?,
 )
 
-internal data class FollowListPage(val users: List<FollowListUser>, val totalCount: Int)
+internal data class FollowListPage(val users: List<FollowListUser>, val totalCount: Int, val rawCount: Int)
 
 internal data class VideoSummary(
     val id: Int,
@@ -49,7 +49,7 @@ internal data class ProfileDetails(
 )
 
 internal data class FollowStats(val following: Int? = null, val followers: Int? = null)
-internal data class VideoPart(val id: Int, val title: String, val url: String?)
+internal data class VideoPart(val id: Int, val title: String, val url: String?, val sourceIndex: Int)
 internal data class VideoDetail(
     val summary: VideoSummary,
     val parts: List<VideoPart>,
@@ -78,9 +78,11 @@ internal data class VideoComment(
     val score: Long get() = upvotes - downvotes
 }
 
-internal data class CommentPage(val comments: List<VideoComment>, val total: Int, val page: Int) {
-    val pages: Int get() = ((total + 19) / 20).coerceAtLeast(1)
+internal data class CommentPage(val comments: List<VideoComment>, val total: Int, val page: Int, val rawCount: Int) {
+    val pages: Int get() = commentPageCount(total)
 }
+
+internal fun commentPageCount(total: Int): Int = ((total.toLong() + 19) / 20).toInt().coerceAtLeast(1)
 
 internal data class DanmakuEntry(
     val timeSeconds: Double,
