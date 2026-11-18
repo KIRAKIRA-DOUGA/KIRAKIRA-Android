@@ -2,9 +2,7 @@ package moe.kirakira.feature.search
 
 import androidx.annotation.StringRes
 import androidx.lifecycle.viewModelScope
-import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
@@ -21,6 +19,8 @@ import moe.kirakira.data.search.SearchHistoryRepository
 import moe.kirakira.ui.components.video.VideoCardLayout
 import moe.kirakira.ui.content.ContentState
 import moe.kirakira.ui.content.ContentViewModel
+import moe.kirakira.ui.content.TagSearchLookup
+import moe.kirakira.ui.content.TagSearchState
 
 internal enum class SearchMode(@param:StringRes val label: Int) {
     KEYWORD(R.string.search_mode_keyword), TAG(R.string.search_mode_tag),
@@ -53,8 +53,7 @@ internal data class SearchUiState(
     val videos: ContentState<List<VideoSummary>> = ContentState(),
     val pickerOpen: Boolean = false,
     val draftTags: List<VideoTag> = emptyList(),
-    val tagQuery: String = "",
-    val candidates: ContentState<List<VideoTag>> = ContentState(),
+    val tagSearch: TagSearchState = TagSearchState(),
     val sort: SearchSort = SearchSort.DEFAULT,
     val descending: Boolean = true,
     val layout: VideoCardLayout = VideoCardLayout.GRID,
@@ -100,18 +99,22 @@ internal class SearchViewModel(
     }.stateIn(viewModelScope, SharingStarted.Eagerly, SearchUiState())
     private var historyVersion = 0L
     private var videoJob: Job? = null
-    private var tagJob: Job? = null
     private var videoVersion = 0L
-    private var tagVersion = 0L
-    private var candidateQuery: String? = null
+    private val tagSearch = TagSearchLookup(
+        launchAccountTask = { block ->
+            val expected = revision
+            launchTask { block(expected) }
+        },
+        isCurrentAccount = { it == session.value.revision },
+        fetch = repository::searchTags,
+        publish = { _state.value = _state.value.copy(tagSearch = it) },
+    )
 
     init {
         observeAccount({
             videoVersion++
-            tagVersion++
             videoJob = null
-            tagJob = null
-            candidateQuery = null
+            tagSearch.cancel()
             _state.value = SearchUiState(
                 ready = true, accountRevision = revision, generation = _state.value.generation + 1,
             )
@@ -175,9 +178,8 @@ internal class SearchViewModel(
                 _state.value = _state.value.copy(
                     pickerOpen = true,
                     draftTags = if (_state.value.pickerOpen) _state.value.draftTags else _state.value.tags,
-                    tagQuery = event.value,
                 )
-                lookupTags(debounce = true)
+                tagSearch.search(event.value, _state.value.tagSearch, debounce = true)
             }
             is SearchEvent.ToggleTag -> {
                 if (!_state.value.pickerOpen) return
@@ -289,37 +291,18 @@ internal class SearchViewModel(
     }
 
     private fun closeTags() {
-        tagJob?.cancel()
-        tagVersion++
-        candidateQuery = null
-        _state.value = _state.value.copy(pickerOpen = false, draftTags = emptyList(), candidates = ContentState())
+        tagSearch.cancel()
+        val current = _state.value
+        _state.value = current.copy(
+            pickerOpen = false,
+            draftTags = emptyList(),
+            tagSearch = TagSearchState(current.tagSearch.query),
+        )
     }
 
-    private fun lookupTags(debounce: Boolean = false) {
-        tagJob?.cancel()
-        val version = ++tagVersion
-        val expected = revision
-        val query = _state.value.tagQuery.trim()
-        val previous = _state.value.candidates.data.takeIf { candidateQuery == query }
-        candidateQuery = query
-        if (!_state.value.pickerOpen || query.isEmpty()) {
-            _state.value = _state.value.copy(candidates = ContentState())
-            return
-        }
-        _state.value = _state.value.copy(candidates = ContentState(data = previous, loading = true))
-        tagJob = launchTask {
-            if (debounce) delay(500.milliseconds)
-            try {
-                val tags = repository.searchTags(query, expected)
-                if (expected == session.value.revision && version == tagVersion) {
-                    _state.value = _state.value.copy(candidates = ContentState(tags))
-                }
-            } catch (error: ApiException) {
-                if (expected == session.value.revision && version == tagVersion) {
-                    _state.value = _state.value.copy(candidates = _state.value.candidates.readFailed(error.failure))
-                }
-            }
-        }
+    private fun lookupTags() {
+        val current = _state.value
+        if (current.pickerOpen) tagSearch.search(current.tagSearch.query, current.tagSearch, debounce = false)
     }
 }
 

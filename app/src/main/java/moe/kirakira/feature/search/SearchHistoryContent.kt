@@ -26,7 +26,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -52,9 +51,13 @@ import moe.kirakira.R
 import moe.kirakira.ui.components.ActionDialog
 import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.ContentStatusViewport
+import moe.kirakira.ui.components.DestructiveActionIcon
+import moe.kirakira.ui.components.FlatTextButton
 import moe.kirakira.ui.components.SearchHistoryEmptyLogo
 import moe.kirakira.ui.components.ShadowButton
+import moe.kirakira.ui.components.search.SearchIconButton
 import moe.kirakira.ui.content.ContentState
+import moe.kirakira.ui.theme.ThemeColorDefaults
 
 @Composable
 internal fun SearchHistoryContent(
@@ -63,6 +66,7 @@ internal fun SearchHistoryContent(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
     listState: LazyListState = rememberLazyListState(),
+    isActive: Boolean = true,
 ) {
     val language = LocalConfiguration.current.locales[0].toLanguageTag()
     val focus = LocalFocusManager.current
@@ -102,7 +106,7 @@ internal fun SearchHistoryContent(
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    TextButton(
+                    FlatTextButton(
                         onClick = { onEvent(SearchEvent.RequestClearHistory) },
                         enabled = state.ready && !state.historyBusy && state.history.isNotEmpty(),
                     ) { Text(stringResource(R.string.search_history_clear)) }
@@ -121,7 +125,7 @@ internal fun SearchHistoryContent(
                             empty = state.historyLoaded,
                             emptyTitle = stringResource(R.string.search_history_empty),
                             emptyDescription = null,
-                            emptyIcon = { SearchHistoryEmptyLogo() },
+                            emptyIcon = { SearchHistoryEmptyLogo(isActive = isActive) },
                             emptyIconRes = R.drawable.ic_icon_history,
                         )
                     }
@@ -139,11 +143,14 @@ internal fun SearchHistoryContent(
                     )
                 }
                 val trailing: @Composable () -> Unit = {
-                    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
+                    val enabled = state.ready && !state.historyBusy
+                    val colors = MaterialTheme.colorScheme
+                    val iconColor = if (enabled) colors.error else colors.onSurfaceVariant
+                    CompositionLocalProvider(LocalContentColor provides iconColor) {
                         SearchIconButton(
                             stringResource(R.string.search_history_delete), R.drawable.ic_icon_close,
                             onClick = { onEvent(SearchEvent.DeleteHistory(entry.key)) },
-                            enabled = state.ready && !state.historyBusy,
+                            enabled = enabled,
                         )
                     }
                 }
@@ -179,7 +186,7 @@ internal fun SearchHistoryContent(
                                         Surface(
                                             modifier = Modifier.align(Alignment.CenterVertically),
                                             shape = CircleShape,
-                                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                            color = ThemeColorDefaults.controlContainerColor(),
                                             contentColor = MaterialTheme.colorScheme.onSurface,
                                         ) {
                                             Box(
@@ -239,10 +246,10 @@ internal fun SearchHistoryError(
             style = MaterialTheme.typography.bodyMedium,
         )
         Row {
-            TextButton(onClick = { onEvent(SearchEvent.RetryHistory) }) {
+            FlatTextButton(onClick = { onEvent(SearchEvent.RetryHistory) }) {
                 Text(stringResource(R.string.search_history_reload))
             }
-            if (canDismiss) TextButton(onClick = { onEvent(SearchEvent.DismissHistoryError) }) {
+            if (canDismiss) FlatTextButton(onClick = { onEvent(SearchEvent.DismissHistoryError) }) {
                 Text(stringResource(R.string.search_history_dismiss))
             }
         }
@@ -254,7 +261,7 @@ internal fun ClearSearchHistoryDialog(state: SearchUiState, onEvent: (SearchEven
     if (!state.clearHistoryOpen) return
     ActionDialog(
         onDismissRequest = { onEvent(SearchEvent.DismissClearHistory) },
-        icon = { Icon(painterResource(R.drawable.ic_icon_delete), contentDescription = null) },
+        icon = { DestructiveActionIcon(R.drawable.ic_icon_delete) },
         title = { Text(stringResource(R.string.search_history_clear_title)) },
         actions = {
             ShadowButton(
@@ -262,7 +269,7 @@ internal fun ClearSearchHistoryDialog(state: SearchUiState, onEvent: (SearchEven
                 destructive = true,
                 enabled = state.ready && !state.historyBusy,
             ) { Text(stringResource(R.string.search_history_clear)) }
-            TextButton(
+            FlatTextButton(
                 onClick = { onEvent(SearchEvent.DismissClearHistory) },
                 contentPadding = ButtonDefaults.ContentPadding,
             ) {

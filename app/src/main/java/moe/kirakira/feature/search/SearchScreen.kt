@@ -1,13 +1,10 @@
 package moe.kirakira.feature.search
 
-import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,19 +17,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.InputChip
-import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Text
-import androidx.compose.material3.TooltipAnchorPosition
-import androidx.compose.material3.TooltipBox
-import androidx.compose.material3.TooltipDefaults
-import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -46,19 +32,15 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.distinctUntilChanged
 import moe.kirakira.R
-import moe.kirakira.data.content.VideoTag
 import moe.kirakira.ui.components.AnimatedCountLabel
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
@@ -66,6 +48,7 @@ import moe.kirakira.ui.components.ContentStatusViewport
 import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.SearchVideosEmptyLogo
 import moe.kirakira.ui.components.StatusBarScrollToTopEffect
+import moe.kirakira.ui.components.search.TagSearchDialog
 import moe.kirakira.ui.components.smoothScrollToTop
 import moe.kirakira.ui.components.video.VideoCardRow
 import moe.kirakira.ui.components.video.VideoCardRowSpacing
@@ -157,7 +140,11 @@ private fun SearchScreenContent(
                 exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) +
                     slideOutVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { -it / 24 },
             ) {
-                SearchHistoryContent(state, onEvent, contentPadding, listState = historyListState)
+                SearchHistoryContent(
+                    state, onEvent, contentPadding,
+                    listState = historyListState,
+                    isActive = state.submitted == null && !state.pickerOpen,
+                )
             }
             if (state.submitted != null) LazyColumn(
                 state = listState,
@@ -197,7 +184,7 @@ private fun SearchScreenContent(
                             empty = state.videos.data.isNullOrEmpty(),
                             emptyTitle = stringResource(R.string.search_videos_empty),
                             emptyDescription = null,
-                            emptyIcon = { SearchVideosEmptyLogo() },
+                            emptyIcon = { SearchVideosEmptyLogo(isActive = !state.pickerOpen) },
                             emptyIconRes = R.drawable.ic_icon_search,
                         )
                     }
@@ -215,50 +202,23 @@ private fun SearchScreenContent(
             }
         }
     }
-    if (state.pickerOpen) TagSearchDialog(state, onEvent)
-    ClearSearchHistoryDialog(state, onEvent)
-}
-
-@Composable
-internal fun SelectedSearchTags(
-    tags: List<VideoTag>,
-    onRemove: (VideoTag) -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-) {
-    val language = LocalConfiguration.current.locales[0].toLanguageTag()
-    FlowRow(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        tags.forEach { tag ->
-            val label = tag.displayName(language)
-            InputChip(
-                selected = true,
-                onClick = { onRemove(tag) },
-                enabled = enabled,
-                label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                shape = CircleShape,
-                border = null,
-                colors = InputChipDefaults.inputChipColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    labelColor = MaterialTheme.colorScheme.onSurface,
-                    leadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    trailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
-                    selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-                modifier = Modifier.widthIn(max = 280.dp),
-                trailingIcon = {
-                    Icon(painterResource(R.drawable.ic_icon_close), stringResource(R.string.search_remove_tag, label),
-                        Modifier.size(18.dp))
-                },
-            )
-        }
+    if (state.pickerOpen) {
+        TagSearchDialog(
+            search = state.tagSearch,
+            selectedTags = state.draftTags,
+            onQueryChange = { onEvent(SearchEvent.TagQueryChanged(it)) },
+            onRetry = { onEvent(SearchEvent.RetryTags) },
+            onToggleTag = { onEvent(SearchEvent.ToggleTag(it)) },
+            onDismiss = { onEvent(SearchEvent.CloseTags) },
+            onConfirm = { onEvent(SearchEvent.ApplyTags) },
+            confirmLabel = stringResource(R.string.search_apply_tags),
+            enabled = state.ready,
+            confirmEnabled = state.draftTags.isNotEmpty() || state.tags.isNotEmpty(),
+            confirmOnExit = true,
+            sourceTags = state.tags,
+        )
     }
+    ClearSearchHistoryDialog(state, onEvent)
 }
 
 @Composable
@@ -282,32 +242,6 @@ private fun SearchResultCount(state: SearchUiState, modifier: Modifier = Modifie
             )
         }
     }
-}
-
-@Composable
-internal fun SearchIconButton(
-    label: String,
-    @DrawableRes icon: Int,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-) {
-    SearchTooltip(label) {
-        IconButton(onClick = onClick, modifier = modifier, enabled = enabled) {
-            Icon(painterResource(icon), label)
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SearchTooltip(label: String, content: @Composable () -> Unit) {
-    TooltipBox(
-        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-        tooltip = { PlainTooltip { Text(label) } },
-        state = rememberTooltipState(),
-        content = content,
-    )
 }
 
 @Preview(locale = "zh", showBackground = true)

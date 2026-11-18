@@ -25,11 +25,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -53,7 +56,6 @@ import moe.kirakira.R
 import moe.kirakira.data.settings.RuleCategory
 import moe.kirakira.data.settings.RuleEntry
 import moe.kirakira.data.settings.RulePage
-import moe.kirakira.data.settings.RuleTag
 import moe.kirakira.feature.settings.LocalSettingsSearchTarget
 import moe.kirakira.feature.settings.SettingsDefaults
 import moe.kirakira.feature.settings.SettingsSectionHeader
@@ -67,12 +69,16 @@ import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.ui.components.FilledTextField
+import moe.kirakira.ui.components.FilledTextFieldDefaults
+import moe.kirakira.ui.components.FlatTextButton
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.ShadowFilledTonalButton
 import moe.kirakira.ui.components.ShadowFloatingActionButton
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.dateOnlyText
+import moe.kirakira.ui.components.pressToRoundButtonShapes
+import moe.kirakira.ui.components.search.TagSearchDialog
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 @Composable
@@ -168,12 +174,35 @@ internal fun RuleManagementPage(model: RuleManagementViewModel, onBack: () -> Un
     val message by model.message.collectAsStateWithLifecycle()
     val session by model.session.collectAsStateWithLifecycle()
     val signedIn = session.activeProfile != null && !session.isBusy
-    androidx.compose.runtime.key(session.revision) {
+    key(session.revision) {
         RuleManagementScreen(model.category, state, signedIn, busy, message, onBack, onLogin, model::refresh,
             model::more, model::openEditor, model::remove, model::dismissMessage)
-    }
-    if (editor.open && signedIn) {
-        RuleEditorSheet(model.category, editor, busy, model::input, model::submit, model::selectTag, model::closeEditor)
+        if (editor.accountRevision == session.revision && signedIn) {
+            if (model.category == RuleCategory.TAG) {
+                val snackbar = remember { SnackbarHostState() }
+                val error = editor.error?.let { stringResource(it) }
+                LaunchedEffect(error) {
+                    if (error != null) {
+                        snackbar.showSnackbar(error)
+                        model.dismissEditorError()
+                    }
+                }
+                TagSearchDialog(
+                    search = editor.tagSearch,
+                    selectedTags = listOfNotNull(editor.selectedTag),
+                    onQueryChange = model::input,
+                    onRetry = model::retryTagSearch,
+                    onToggleTag = model::selectTag,
+                    onDismiss = model::closeEditor,
+                    onConfirm = model::submit,
+                    confirmLabel = stringResource(R.string.management_confirm_add),
+                    confirming = busy,
+                    snackbarHost = { SnackbarHost(snackbar) },
+                )
+            } else {
+                RuleEditorSheet(model.category, editor, busy, model::input, model::submit, model::closeEditor)
+            }
+        }
     }
 }
 
@@ -208,6 +237,8 @@ internal fun RuleManagementScreen(
             ShadowFloatingActionButton(
                 onClick = onAdd,
                 enabled = !busy,
+                // Together with Scaffold's 16dp margins, fit the 12dp elevation shadow at the edges.
+                modifier = Modifier.padding(end = 2.dp, bottom = 10.dp),
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_icon_add),
@@ -270,7 +301,7 @@ internal fun RuleManagementScreen(
             if (page.entries.size < page.total) item {
                 Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
                     if (state.loading && state.appending) IndeterminateCircularProgressIndicator()
-                    else TextButton(
+                    else FlatTextButton(
                         onClick = onMore,
                         enabled = !busy && !state.loading && (state.error == null || state.appending),
                     ) {
@@ -303,19 +334,18 @@ private fun RuleEditorSheet(
     busy: Boolean,
     onInput: (String) -> Unit,
     onSubmit: () -> Unit,
-    onTag: (RuleTag) -> Unit,
     onClose: () -> Unit,
 ) {
     val user = category == RuleCategory.BLOCK || category == RuleCategory.HIDE
-    val language = LocalConfiguration.current.locales[0].toLanguageTag()
     val currentBusy by rememberUpdatedState(busy)
+    val sheetColor = if (state.profile != null) {
+        MaterialTheme.colorScheme.surfaceContainerLow
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
     ModalBottomSheet(
         onDismissRequest = onClose,
-        containerColor = if (state.profile != null || !state.tags.isNullOrEmpty()) {
-            MaterialTheme.colorScheme.surfaceContainerLow
-        } else {
-            MaterialTheme.colorScheme.surface
-        },
+        containerColor = sheetColor,
         sheetState = rememberBottomSheetState(
             initialValue = SheetValue.Hidden,
             enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
@@ -331,6 +361,7 @@ private fun RuleEditorSheet(
             Text(stringResource(category.titleRes()), style = MaterialTheme.typography.headlineSmall)
             FilledTextField(
                 value = state.input, onValueChange = onInput, modifier = Modifier.fillMaxWidth(), enabled = !busy,
+                colors = FilledTextFieldDefaults.colors(sheetColor),
                 singleLine = category != RuleCategory.REGEX,
                 label = { Text(stringResource(if (user) R.string.management_uid_label else category.titleRes())) },
                 keyboardOptions = KeyboardOptions(keyboardType = if (user) KeyboardType.Number else KeyboardType.Text),
@@ -352,43 +383,21 @@ private fun RuleEditorSheet(
                     )
                 }
             }
-            if (busy) {
-                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    IndeterminateCircularProgressIndicator()
-                }
-            }
             ShadowButton(
                 onClick = onSubmit,
-                enabled = !busy && state.input.isNotBlank(),
+                enabled = state.input.isNotBlank(),
+                loading = busy,
                 modifier = Modifier.fillMaxWidth().heightIn(min = ButtonDefaults.MediumContainerHeight),
-                shapes = ButtonDefaults.shapesFor(ButtonDefaults.MediumContainerHeight),
+                shapes = pressToRoundButtonShapes(ButtonDefaults.MediumContainerHeight),
             ) {
-                Text(stringResource(when {
-                    user && state.profile == null -> R.string.management_lookup
-                    category == RuleCategory.TAG -> R.string.management_search_tags
-                    else -> R.string.management_confirm_add
-                }))
-            }
-            state.tags?.let { tags ->
-                if (tags.isEmpty()) Text(stringResource(R.string.management_no_tags))
-                ConnectedListGroup {
-                    tags.forEachIndexed { index, tag ->
-                        SegmentedListItem(
-                            onClick = { onTag(tag) },
-                            enabled = !busy,
-                            shapes = connectedListItemShapes(index, tags.size),
-                            supportingContent = { Text("#${tag.id}") },
-                            trailingContent = { Icon(painterResource(R.drawable.ic_icon_add), null, Modifier.size(24.dp)) },
-                            content = { Text(tag.displayName(language)) },
-                        )
-                    }
-                }
+                val action = if (user && state.profile == null) R.string.management_lookup else R.string.management_confirm_add
+                Text(stringResource(action))
             }
             ShadowFilledTonalButton(
                 onClick = onClose,
                 enabled = !busy,
                 modifier = Modifier.fillMaxWidth().heightIn(min = ButtonDefaults.MediumContainerHeight),
-                shapes = ButtonDefaults.shapesFor(ButtonDefaults.MediumContainerHeight),
+                shapes = pressToRoundButtonShapes(ButtonDefaults.MediumContainerHeight),
             ) {
                 Text(stringResource(R.string.account_cancel))
             }

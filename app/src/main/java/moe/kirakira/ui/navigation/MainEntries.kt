@@ -9,12 +9,12 @@ import moe.kirakira.data.auth.SessionState
 import moe.kirakira.feature.auth.AuthRoute
 import moe.kirakira.feature.main.HomeViewModel
 import moe.kirakira.feature.main.MainScreen
-import moe.kirakira.feature.search.LocalTagSearchAnchor
 import moe.kirakira.feature.search.SearchPage
 import moe.kirakira.feature.search.SearchTopBar
 import moe.kirakira.feature.search.SearchUiState
 import moe.kirakira.feature.search.SearchViewModel
-import moe.kirakira.feature.search.TagSearchAnchor
+import moe.kirakira.ui.components.search.LocalTagSearchAnchor
+import moe.kirakira.ui.components.search.TagSearchAnchor
 
 internal fun registerMainEntries(
     scope: EntryProviderScope<NavKey>,

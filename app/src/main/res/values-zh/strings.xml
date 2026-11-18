@@ -135,12 +135,9 @@
     <string name="search_placeholder">搜索 KIRAKIRA</string>
     <string name="search_mode_keyword">关键词</string>
     <string name="search_mode_tag">标签</string>
-    <string name="search_submit">搜索视频</string>
     <string name="search_apply_tags">搜索</string>
     <string name="search_clear">清空搜索</string>
-    <string name="search_close">退出搜索</string>
     <string name="search_choose_tags">选择标签</string>
-    <string name="search_close_tags">关闭标签选择</string>
     <string name="search_remove_tag">移除标签：%1$s</string>
     <string name="search_videos_empty">未找到相关视频</string>
     <string name="search_tags_empty">没有匹配的标签</string>
@@ -462,7 +459,6 @@
     <string name="management_lookup">查找用户</string>
     <string name="management_search_tags">搜索标签</string>
     <string name="management_confirm_add">确认添加</string>
-    <string name="management_no_tags">未找到匹配的标签</string>
     <string name="invitation_cooling_down">邀请码生成冷却中，请稍后再试</string>
     <string name="invitation_created">邀请码已生成</string>
     <string name="invitation_unused">未使用</string>

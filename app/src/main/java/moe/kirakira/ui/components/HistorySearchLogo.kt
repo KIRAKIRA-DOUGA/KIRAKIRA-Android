@@ -1,23 +1,19 @@
 package moe.kirakira.ui.components
 
 import android.content.res.Configuration
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.MotionDurationScale
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
@@ -30,10 +26,12 @@ import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.graphics.shadow.Shadow
+import androidx.compose.ui.graphics.shadow.ShadowContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import kotlin.math.PI
 import kotlin.math.cos
@@ -43,7 +41,6 @@ import moe.kirakira.ui.theme.KIRAKIRATheme
 internal data class HistorySearchLogoColors(
     val face: Brush,
     val frame: Color,
-    val frameEdge: Color,
     val hands: Color,
     val secondHand: Color,
 )
@@ -53,17 +50,9 @@ internal data class HistorySearchLogoColors(
 internal fun HistorySearchLogo(
     modifier: Modifier = Modifier,
     colors: HistorySearchLogoColors = historySearchLogoColors(),
+    isActive: Boolean = true,
 ) {
-    val inspecting = LocalInspectionMode.current
-    val durationScale = rememberCoroutineScope().coroutineContext[MotionDurationScale]
-    val progress = remember(inspecting) {
-        Animatable(if (inspecting || durationScale?.scaleFactor == 0f) 1f else 0f)
-    }
-    LaunchedEffect(inspecting) {
-        if (!inspecting) {
-            progress.animateTo(1f, tween(1_000, easing = historyEntryEasing))
-        }
-    }
+    val progress = rememberIllustrationEntranceProgress(isActive)
     HistorySearchLogoArtwork(progress = { progress.value }, modifier = modifier, colors = colors)
 }
 
@@ -83,7 +72,6 @@ internal fun historySearchLogoColors(): HistorySearchLogoColors {
     return HistorySearchLogoColors(
         face = faceBrush,
         frame = frameColor,
-        frameEdge = lerp(frameColor, Color.Black, 0.17f),
         hands = Color.White,
         secondHand = lerp(frameColor, Color.White, 0.5f),
     )
@@ -103,7 +91,6 @@ private fun HistorySearchLogoArtwork(
         }
     }
     val shadow = remember { Path() }
-    val arrow = remember { Path() }
     Box(modifier.size(128.dp), contentAlignment = Alignment.Center) {
         // Every plane uses the same viewport and center; elevation never shifts its geometry.
         Canvas(
@@ -136,31 +123,35 @@ private fun HistorySearchLogoArtwork(
                 }
             }
         }
-        Canvas(
+        Spacer(
             Modifier
                 .size(128.dp)
-                .graphicsLayer {
-                    val fraction = progress()
-                    shape = GenericShape { size, _ ->
-                        val face = Path().apply { setHistoryArrow(fraction) }
-                        addPath(face, Offset(0f, 8f))
-                        addPath(face)
+                .drawWithCache {
+                    val arrow = Path().apply {
+                        setHistoryArrow(progress())
                         transform(Matrix().apply { scale(size.width / 512f, size.height / 512f) })
                     }
-                    shadowElevation = 4.dp.toPx()
+                    // Use the same path for the face and its shadow, including outside the viewport.
+                    val bounds = arrow.getBounds()
+                    val shape = GenericShape { _, _ -> addPath(arrow, -bounds.topLeft) }
+                    val painter = ShadowContext().createDropShadowPainter(shape, historyArrowShadow)
+                    onDrawBehind {
+                        translate(bounds.left, bounds.top) {
+                            with(painter) { draw(bounds.size) }
+                        }
+                        drawPath(arrow, colors.frame)
+                    }
                 },
-        ) {
-            scale(size.width / 512f, size.height / 512f, pivot = Offset.Zero) {
-                arrow.setHistoryArrow(progress())
-                translate(top = 8f) { drawPath(arrow, colors.frameEdge) }
-                drawPath(arrow, colors.frame)
-            }
-        }
+        )
     }
 }
 
 private val clockCenter = Offset(256f, 256f)
-private val historyEntryEasing = CubicBezierEasing(0.1f, 0.9f, 0.2f, 1f)
+private val historyArrowShadow = Shadow(
+    radius = 4.dp,
+    color = Color.Black.copy(alpha = 0.2f),
+    offset = DpOffset(0.dp, 2.dp),
+)
 
 /** The fixed-size head turns with the leading edge of the 13dp curved band. */
 private fun Path.setHistoryArrow(fraction: Float) {
@@ -247,7 +238,7 @@ private fun HistorySearchMotionPreview(
     KIRAKIRATheme {
         Surface {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                HistorySearchLogoArtwork(progress = { historyEntryEasing.transform(elapsed) })
+                HistorySearchLogoArtwork(progress = { illustrationEntranceSpec.easing.transform(elapsed) })
             }
         }
     }

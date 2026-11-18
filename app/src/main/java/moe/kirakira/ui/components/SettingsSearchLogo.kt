@@ -1,8 +1,5 @@
 package moe.kirakira.ui.components
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -10,12 +7,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -33,7 +27,7 @@ import androidx.compose.ui.unit.dp
 
 /** Cerasus LogoSettings: one opposing quarter-turn on entry. */
 @Composable
-internal fun SettingsSearchLogo(modifier: Modifier = Modifier) {
+internal fun SettingsSearchLogo(isActive: Boolean, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
     val darkTheme = colors.surface.luminance() < colors.onSurface.luminance()
     val accent = colors.primary
@@ -45,11 +39,7 @@ internal fun SettingsSearchLogo(modifier: Modifier = Modifier) {
     val accent60 = if (darkTheme) lerp(accent, Color.White, 0.2f) else lerp(accent, Color.Black, 0.1f)
     val accent10 = if (darkTheme) lerp(accent, Color.Black, 0.4f) else lerp(accent, Color.White, 0.8f)
     val ringColors = listOf(accent60.copy(alpha = 0.8f), accent10.copy(alpha = 0.7f), accent40)
-    val durationScale = rememberCoroutineScope().coroutineContext[MotionDurationScale]
-    val progress = remember { Animatable(if (durationScale?.scaleFactor == 0f) 1f else 0f) }
-    LaunchedEffect(Unit) {
-        progress.animateTo(1f, tween(1_000, easing = CubicBezierEasing(0.1f, 0.9f, 0.2f, 1f)))
-    }
+    val progress = rememberIllustrationEntranceProgress(isActive)
     val gear = remember { PathParser().parsePathString(GEAR_PATH).toPath() }
     val shadow = remember { PathParser().parsePathString(LONG_SHADOW_PATH).toPath() }
     val gearShape = remember(gear) {

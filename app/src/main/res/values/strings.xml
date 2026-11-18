@@ -136,12 +136,9 @@
     <string name="search_placeholder">Search KIRAKIRA</string>
     <string name="search_mode_keyword">Keyword</string>
     <string name="search_mode_tag">Tags</string>
-    <string name="search_submit">Search videos</string>
     <string name="search_apply_tags">Search</string>
     <string name="search_clear">Clear search</string>
-    <string name="search_close">Close search</string>
     <string name="search_choose_tags">Choose tags</string>
-    <string name="search_close_tags">Close tag picker</string>
     <string name="search_remove_tag">Remove tag: %1$s</string>
     <string name="search_videos_empty">No matching videos</string>
     <string name="search_tags_empty">No matching tags</string>
@@ -470,7 +467,6 @@
     <string name="management_lookup">Find user</string>
     <string name="management_search_tags">Search tags</string>
     <string name="management_confirm_add">Confirm addition</string>
-    <string name="management_no_tags">No matching tags</string>
     <string name="invitation_cooling_down">Invitation generation is cooling down. Try again later.</string>
     <string name="invitation_created">Invitation code created</string>
     <string name="invitation_unused">Unused</string>

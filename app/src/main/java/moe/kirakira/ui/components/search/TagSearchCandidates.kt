@@ -1,4 +1,4 @@
-package moe.kirakira.feature.search
+package moe.kirakira.ui.components.search
 
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,21 +22,26 @@ import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
+import moe.kirakira.data.content.VideoTag
 import moe.kirakira.ui.components.ConnectedLazyColumn
 import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.ContentStatusViewport
 import moe.kirakira.ui.components.connectedListItemShapes
+import moe.kirakira.ui.content.TagSearchState
 
 @Composable
 internal fun TagSearchCandidates(
-    state: SearchUiState,
-    onEvent: (SearchEvent) -> Unit,
+    search: TagSearchState,
+    selectedTags: List<VideoTag>,
+    onToggleTag: (VideoTag) -> Unit,
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     contentPadding: PaddingValues = PaddingValues(),
 ) {
     val language = LocalConfiguration.current.locales[0].toLanguageTag()
-    val selected = remember(state.draftTags) { state.draftTags.map { it.id }.toSet() }
-    val candidates = state.candidates.data.orEmpty()
+    val selected = remember(selectedTags) { selectedTags.map { it.id }.toSet() }
+    val candidates = search.candidates.data.orEmpty()
     val listContentPadding = PaddingValues(
         start = 16.dp, end = 16.dp,
         top = contentPadding.calculateTopPadding() + 12.dp,
@@ -51,15 +56,21 @@ internal fun TagSearchCandidates(
             modifier = Modifier.fillMaxSize(),
             contentPadding = listContentPadding,
         ) {
-            if (state.tagQuery.isNotBlank() &&
-                (state.candidates.loading || state.candidates.error != null || candidates.isEmpty())
+            if (search.query.isNotBlank() &&
+                (search.candidates.loading || search.candidates.error != null || candidates.isEmpty())
             ) {
                 item("status") {
-                    ContentStatus(state.candidates, { onEvent(SearchEvent.RetryTags) },
-                        Modifier.fillMaxWidth().then(
+                    ContentStatus(
+                        state = search.candidates,
+                        onRetry = onRetry,
+                        modifier = Modifier.fillMaxWidth().then(
                             if (candidates.isEmpty()) statusModifier else Modifier,
-                        ), empty = candidates.isEmpty(),
-                        emptyTitle = stringResource(R.string.search_tags_empty), emptyIconRes = R.drawable.ic_icon_tag)
+                        ),
+                        empty = candidates.isEmpty(),
+                        emptyTitle = stringResource(R.string.search_tags_empty),
+                        emptyIconRes = R.drawable.ic_icon_tag,
+                        retryEnabled = enabled,
+                    )
                 }
             }
             connectedItemsIndexed("tags", candidates, key = { _, tag -> tag.id }) { index, tag ->
@@ -67,15 +78,15 @@ internal fun TagSearchCandidates(
                 val name = tag.displayName(language)
                 val original = tag.originalName()?.takeIf { it != name }
                 SegmentedListItem(
-                    onClick = { onEvent(SearchEvent.ToggleTag(tag)) },
-                    enabled = state.ready,
+                    onClick = { onToggleTag(tag) },
+                    enabled = enabled,
                     shapes = connectedListItemShapes(index, candidates.size),
                     modifier = Modifier.semantics {
                         role = Role.Checkbox
                         toggleableState = ToggleableState(checked)
                     },
                     leadingContent = { Icon(painterResource(R.drawable.ic_icon_tag), null, Modifier.size(20.dp)) },
-                    trailingContent = { Checkbox(checked = checked, onCheckedChange = null, enabled = state.ready) },
+                    trailingContent = { Checkbox(checked = checked, onCheckedChange = null, enabled = enabled) },
                     supportingContent = original?.let { { Text(it) } },
                     content = { Text(name) },
                 )

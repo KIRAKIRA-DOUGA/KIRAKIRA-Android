@@ -12,17 +12,12 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -55,10 +50,9 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.layout.positionOnScreen
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
@@ -82,7 +76,7 @@ import moe.kirakira.data.history.HistoryEntry
 import moe.kirakira.ui.components.CollapsibleTopAppBar
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
-import moe.kirakira.ui.components.ContentStatusViewport
+import moe.kirakira.ui.components.ContentStatusList
 import moe.kirakira.ui.components.ContentUnavailableAction
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
@@ -162,10 +156,11 @@ internal fun HistoryScreen(
     var pageOrigin by remember { mutableStateOf(Offset.Zero) }
     val pageList = rememberLazyListState()
     val searchList = rememberLazyListState()
+    val historyActive = isActive && searchState.currentValue == SearchBarValue.Collapsed &&
+        searchState.targetValue == SearchBarValue.Collapsed
     StatusBarScrollToTopEffect(
         pageList,
-        enabled = isActive && searchState.currentValue == SearchBarValue.Collapsed &&
-            searchState.targetValue == SearchBarValue.Collapsed,
+        enabled = historyActive,
         scrollBehavior = scroll,
     )
     val currentQuery by rememberUpdatedState(query)
@@ -193,7 +188,7 @@ internal fun HistoryScreen(
             snackbar.showSnackbar(resources.getString(it.messageRes()))
         }
     }
-    Box(modifier.fillMaxSize().onGloballyPositioned { pageOrigin = it.positionInWindow() }) {
+    Box(modifier.fillMaxSize().onGloballyPositioned { pageOrigin = it.positionOnScreen() }) {
         FrostedScaffold(
             modifier = Modifier.fillMaxSize().nestedScroll(scroll.nestedScrollConnection),
             topBar = {
@@ -228,6 +223,7 @@ internal fun HistoryScreen(
                 state, signedIn, ready, query, sections, onRefresh, onLogin, onOpenVideo,
                 padding = padding,
                 list = pageList,
+                isActive = historyActive,
             )
         }
         PageSearchOverlay(
@@ -237,7 +233,7 @@ internal fun HistoryScreen(
             isActive = isActive,
             collapsedBoundsProvider = { searchAnchorBounds?.translate(-pageOrigin) },
             enabled = signedIn && ready,
-        ) {
+        ) { contentPadding ->
             val focus = LocalFocusManager.current
             val keyboard = LocalSoftwareKeyboardController.current
             Box(Modifier.fillMaxSize()) {
@@ -250,10 +246,14 @@ internal fun HistoryScreen(
                             onOpenVideo(id)
                         }
                     },
-                    modifier = Modifier.imePadding(),
+                    padding = contentPadding,
                     list = searchList,
+                    isActive = isActive && searchState.targetValue == SearchBarValue.Expanded,
                 )
-                SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter))
+                SnackbarHost(
+                    snackbar,
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(contentPadding),
+                )
             }
         }
     }
@@ -269,11 +269,11 @@ private fun HistoryContent(
     onRefresh: () -> Unit,
     onLogin: () -> Unit,
     onOpenVideo: (Int) -> Unit,
+    list: LazyListState,
+    isActive: Boolean,
     modifier: Modifier = Modifier,
     padding: PaddingValues = PaddingValues(0.dp),
-    list: LazyListState = rememberLazyListState(),
 ) {
-    val direction = LocalLayoutDirection.current
     Column(
         modifier.fillMaxSize().consumeWindowInsets(padding),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -285,68 +285,52 @@ private fun HistoryContent(
             indicatorTopPadding = padding.calculateTopPadding(),
             modifier = Modifier.weight(1f).fillMaxWidth(),
         ) {
-            val listContentPadding = PaddingValues(
-                start = padding.calculateStartPadding(direction),
-                end = padding.calculateEndPadding(direction),
-                top = padding.calculateTopPadding() + 8.dp,
-                bottom = padding.calculateBottomPadding() + 24.dp,
-            )
-            ContentStatusViewport(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = listContentPadding,
-                leadingContentHeight = 0.dp,
-            ) { statusModifier ->
-                LazyColumn(
-                    state = list,
-                    modifier = Modifier.widthIn(max = 840.dp).fillMaxSize(),
-                    contentPadding = listContentPadding,
+            ContentStatusList(list, padding, Modifier.fillMaxSize()) { statusModifier ->
+                if (!ready || !signedIn || state.data == null || sections.isEmpty()) item(
+                    key = "status",
+                    contentType = "status",
                 ) {
-                    if (!ready || !signedIn || state.data == null || sections.isEmpty()) item(
-                        key = "status",
-                        contentType = "status",
-                    ) {
-                        val paddedStatusModifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-                            .then(statusModifier)
-                        if (ready && !signedIn) ContentUnavailableView(
-                            state = ContentUnavailableState.EMPTY,
-                            modifier = paddedStatusModifier,
-                            title = stringResource(R.string.history_sign_in),
-                            description = null,
-                            icon = { HistorySearchLogo() },
-                            primaryAction = ContentUnavailableAction(stringResource(R.string.auth_sign_in), onLogin),
-                            presentation = ContentUnavailablePresentation.INLINE,
-                        ) else ContentStatus(
-                            state = state.copy(loading = !ready || (state.loading && state.data == null),
-                                error = state.error.takeIf { state.data == null }),
-                            onRetry = onRefresh,
-                            modifier = paddedStatusModifier,
-                            empty = sections.isEmpty(),
-                            emptyTitle = stringResource(if (query.trim().isEmpty()) R.string.history_empty else R.string.history_no_results),
-                            emptyDescription = null,
-                            emptyIcon = { HistorySearchLogo() },
+                    val paddedStatusModifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                        .then(statusModifier)
+                    if (ready && !signedIn) ContentUnavailableView(
+                        state = ContentUnavailableState.EMPTY,
+                        modifier = paddedStatusModifier,
+                        title = stringResource(R.string.history_sign_in),
+                        description = null,
+                        icon = { HistorySearchLogo(isActive = isActive) },
+                        primaryAction = ContentUnavailableAction(stringResource(R.string.auth_sign_in), onLogin),
+                        presentation = ContentUnavailablePresentation.INLINE,
+                    ) else ContentStatus(
+                        state = state.copy(loading = !ready || (state.loading && state.data == null),
+                            error = state.error.takeIf { state.data == null }),
+                        onRetry = onRefresh,
+                        modifier = paddedStatusModifier,
+                        empty = sections.isEmpty(),
+                        emptyTitle = stringResource(if (query.trim().isEmpty()) R.string.history_empty else R.string.history_no_results),
+                        emptyDescription = null,
+                        emptyIcon = { HistorySearchLogo(isActive = isActive) },
+                    )
+                }
+                if (ready && signedIn) sections.forEach { (day, entries) ->
+                    item(key = "day-$day", contentType = "date") {
+                        Text(
+                            dateOnlyText(day),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.fillMaxWidth()
+                                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 12.dp)
+                                .semantics { heading() },
                         )
                     }
-                    if (ready && signedIn) sections.forEach { (day, entries) ->
-                        item(key = "day-$day", contentType = "date") {
-                            Text(
-                                dateOnlyText(day),
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.fillMaxWidth()
-                                    .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 12.dp)
-                                    .semantics { heading() },
-                            )
-                        }
-                        items(
-                            items = entries,
-                            key = { entry -> "video-${entry.video.id}" },
-                            contentType = { "history" },
-                        ) { entry ->
-                            HistoryRow(
-                                entry = entry,
-                                onClick = { onOpenVideo(entry.video.id) },
-                            )
-                        }
+                    items(
+                        items = entries,
+                        key = { entry -> "video-${entry.video.id}" },
+                        contentType = { "history" },
+                    ) { entry ->
+                        HistoryRow(
+                            entry = entry,
+                            onClick = { onOpenVideo(entry.video.id) },
+                        )
                     }
                 }
             }

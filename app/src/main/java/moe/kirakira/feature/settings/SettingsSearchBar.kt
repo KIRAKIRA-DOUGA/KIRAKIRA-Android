@@ -6,10 +6,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,6 +20,7 @@ import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.SearchBarValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSearchBarState
 import androidx.compose.runtime.Composable
@@ -43,7 +45,7 @@ import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.PageSearchBar
 import moe.kirakira.ui.components.SettingsSearchLogo
 
-/** Both official search surfaces share the same saved text, expansion and results position. */
+/** The search anchor and dialog share the same saved text, expansion and results position. */
 @Composable
 internal fun SettingsSearchBar(
     signedIn: Boolean,
@@ -71,10 +73,11 @@ internal fun SettingsSearchBar(
         placeholder = stringResource(R.string.settings_search),
         isActive = isActive,
         modifier = modifier,
-    ) {
+    ) { contentPadding ->
         SettingsSearchResults(
             query = query,
             results = results,
+            isActive = state.targetValue == SearchBarValue.Expanded,
             onSelect = { entry ->
                 keyboard?.hide()
                 if (entry.page == SettingsSearchPage.HOME) {
@@ -84,7 +87,8 @@ internal fun SettingsSearchBar(
                     }
                 } else onSelect(entry)
             },
-            modifier = Modifier.fillMaxSize().imePadding(),
+            contentPadding = contentPadding,
+            modifier = Modifier.fillMaxSize(),
             listState = resultsState,
         )
     }
@@ -94,7 +98,9 @@ internal fun SettingsSearchBar(
 private fun SettingsSearchResults(
     query: String,
     results: List<SettingsSearchResult>,
+    isActive: Boolean,
     onSelect: (SettingsSearchEntry) -> Unit,
+    contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
     listState: androidx.compose.foundation.lazy.LazyListState = rememberLazyListState(),
 ) {
@@ -105,12 +111,13 @@ private fun SettingsSearchResults(
             state = ContentUnavailableState.EMPTY,
             title = stringResource(R.string.settings_search_empty),
             description = null,
-            modifier = modifier,
-            icon = { SettingsSearchLogo() },
+            modifier = modifier.padding(contentPadding),
+            icon = { SettingsSearchLogo(isActive = isActive) },
         )
     } else LazyColumn(
         state = listState,
-        modifier = modifier,
+        modifier = modifier.consumeWindowInsets(contentPadding),
+        contentPadding = contentPadding,
     ) {
         items(results, key = { it.entry.id }, contentType = { "settings_search_result" }) { result ->
             ListItem(

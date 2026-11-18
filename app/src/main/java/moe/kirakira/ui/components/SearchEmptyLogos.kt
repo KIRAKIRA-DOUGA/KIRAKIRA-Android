@@ -1,19 +1,13 @@
 package moe.kirakira.ui.components
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -27,11 +21,9 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.scale
-import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.PathParser
-import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -41,12 +33,11 @@ import moe.kirakira.R
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 private val searchPaperFrameColor = Color(0xFF616161)
-private val searchPaperEdgeColor = Color(0xFF424242)
 private val searchPaperLensColor = Color(0xFFEEEEEE)
 
 /** A paper clock whose dial forms the lens of a magnifier. */
 @Composable
-internal fun SearchHistoryEmptyLogo(modifier: Modifier = Modifier) {
+internal fun SearchHistoryEmptyLogo(modifier: Modifier = Modifier, isActive: Boolean = true) {
     val colors = historySearchLogoColors()
     val handle = remember {
         Path().apply {
@@ -59,9 +50,7 @@ internal fun SearchHistoryEmptyLogo(modifier: Modifier = Modifier) {
         SearchPaperLayer(
             path = handle,
             face = colors.frame,
-            edge = colors.frameEdge,
             elevation = 2f,
-            edgeDepth = 1.5f,
         )
         HistorySearchLogo(
             modifier = Modifier.graphicsLayer {
@@ -72,29 +61,29 @@ internal fun SearchHistoryEmptyLogo(modifier: Modifier = Modifier) {
                 translationY = size.height * (-10f / 128f)
             },
             colors = colors,
+            isActive = isActive,
         )
     }
 }
 
 /** A paper video frame under a magnifying glass; the open lens carries no failure mark. */
 @Composable
-internal fun SearchVideosEmptyLogo(modifier: Modifier = Modifier) {
+internal fun SearchVideosEmptyLogo(modifier: Modifier = Modifier, isActive: Boolean = true) {
     val filmColor = MaterialTheme.colorScheme.primary
-    val edgeColor = lerp(filmColor, Color.Black, 0.18f)
     val upperColor = lerp(filmColor, Color.Black, 0.08f)
     val frame = remember { videoFilmPath() }
     Box(modifier.size(128.dp)) {
-        SearchPaperLayer(frame, filmColor, edgeColor) {
+        SearchPaperLayer(frame, filmColor) {
             drawRect(upperColor, videoFilmBounds.topLeft, Size(videoFilmBounds.width, videoFilmBounds.height / 2f))
         }
-        SweepingSearchPaperMagnifier()
+        SweepingSearchPaperMagnifier(isActive)
     }
 }
 
 private val videoSearchLensCenter = Offset(82.2f, 77.2f)
 
 @Composable
-private fun SweepingSearchPaperMagnifier() {
+private fun SweepingSearchPaperMagnifier(isActive: Boolean) {
     val resources = LocalResources.current
     val silhouette = remember(resources) {
         val data = readVectorPathData(resources, R.drawable.ic_icon_search).first()
@@ -105,20 +94,10 @@ private fun SweepingSearchPaperMagnifier() {
         }
         Path().apply { addPath(paper, Offset(48f, 43f)) }
     }
-    val inspecting = LocalInspectionMode.current
-    val durationScale = rememberCoroutineScope().coroutineContext[MotionDurationScale]
-    val progress = remember(inspecting) {
-        Animatable(if (inspecting || durationScale?.scaleFactor == 0f) 1f else 0f)
-    }
-    LaunchedEffect(inspecting) {
-        if (!inspecting) {
-            progress.animateTo(1f, tween(1_000, easing = CubicBezierEasing(0.1f, 0.9f, 0.2f, 1f)))
-        }
-    }
+    val progress = rememberIllustrationEntranceProgress(isActive)
     SearchPaperLayer(
         path = silhouette,
         face = searchPaperFrameColor,
-        edge = searchPaperEdgeColor,
         modifier = Modifier.graphicsLayer {
             transformOrigin = TransformOrigin(videoSearchLensCenter.x / 128f, videoSearchLensCenter.y / 128f)
             scaleX = 0.85f
@@ -129,26 +108,22 @@ private fun SweepingSearchPaperMagnifier() {
             translationY = (-8).dp.toPx() * sweep
         },
         elevation = 2f,
-        edgeDepth = 1f,
     ) {
         drawCircle(searchPaperLensColor, 16.2f, videoSearchLensCenter)
     }
 }
 
-/** Each piece owns one continuous silhouette, a shaded cut edge, and physical elevation. */
+/** Draws one paper silhouette with native elevation. */
 @Composable
 private fun SearchPaperLayer(
     path: Path,
     face: Color,
-    edge: Color,
     modifier: Modifier = Modifier,
     elevation: Float = 4f,
-    edgeDepth: Float = 2f,
     decoration: DrawScope.() -> Unit = {},
 ) {
-    val shape = remember(path, edgeDepth) {
+    val shape = remember(path) {
         GenericShape { size, _ ->
-            addPath(path, Offset(0f, edgeDepth))
             addPath(path)
             transform(Matrix().apply { scale(size.width / 128f, size.height / 128f) })
         }
@@ -158,7 +133,6 @@ private fun SearchPaperLayer(
         shadowElevation = elevation.dp.toPx()
     }) {
         scale(size.width / 128f, size.height / 128f, pivot = Offset.Zero) {
-            translate(top = edgeDepth) { drawPath(path, edge) }
             drawPath(path, face)
             clipPath(path) { decoration() }
         }
