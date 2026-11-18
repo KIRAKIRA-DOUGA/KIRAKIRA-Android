@@ -39,6 +39,8 @@ Navigation 3 的 `rememberDecoratedNavEntries` 按返回栈缓存入口，不因
 
 ## 主界面切换与底栏动效
 
+底栏与 `Segmented` 共用 `SlidingSelection` 的边缘动画、跟手与吸附弹簧、前景着色和单指拖动取消条件。底栏消费整个触摸序列以处理重选。分段控件在确认横向拖动后接管触摸，空选开始的手势直接按手指位置绘制滑块。 [SlidingSelection.kt](../../app/src/main/java/moe/kirakira/ui/components/SlidingSelection.kt)
+
 `MainBottomBar` 将当前项的触摸点击及无障碍点击通过独立的 `onDestinationReselect` 上报，拖动释放仅保留选择行为。 按下任意项时，胶囊围绕中心缩至 90% 宽度、90% 高度，背景不透明度增至静止时的 1.5 倍（浅色 7.5%、深色 15%）；尺寸与背景通过同一个按压进度同步变化，按下收缩与松开或取消后恢复均使用主题 `slowSpatialSpec`。触摸手势显式维护按下状态，键盘等交互复用各项的 `MutableInteractionSource`。拖动期间保留按压反馈，松开或取消后恢复；绘制阶段将同一路径用于胶囊背景和前景着色遮罩，不缩放图标、文字或触摸区域。`MainScreen` 通过共享 `rememberTabReselectHandler` 对首页和“我”的现有滚动状态执行回顶，切换目标时取消回顶。搜索内容插槽额外接收回顶操作注册回调；`SearchScreenContent` 通过 `DisposableEffect` 注册挂起操作并在离开组合时注销，通过最新状态选择结果列表或历史列表，保留原有账号 revision、结果 generation 和滚动上报边界。关注占位页无需滚动操作。
 
 [MainBottomBar](../../app/src/main/java/moe/kirakira/feature/main/MainBottomBar.kt) 的布局和按住拖动交互参考 [InstallerX-Revived 的 FloatingBottomBar](https://github.com/wxxsfxyzm/InstallerX-Revived/blob/main/app/src/main/java/com/rosan/installer/ui/library/FloatingBottomBar.kt)，使用现有 Compose API 实现，不引入其 Miuix、液态玻璃或传感器依赖。外层在系统导航 Insets 内两侧各留白 16dp、顶部留白 12dp、底部留白 8dp，底栏填满剩余可用宽度，不再按内容收缩或设置固定／最大宽度。内部四项通过 `weight(1f)` 等分可用宽度，内边距 4dp，常规字体下高度为 64dp，大字体按内容增高；指示器与拖拽命中范围由实际栏宽计算，随窗口尺寸变化自动适配。文字为 11sp／14sp 行高，与图标间隔 1dp，图标保留原有 24dp 尺寸及选中动效。

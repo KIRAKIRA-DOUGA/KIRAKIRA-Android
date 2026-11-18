@@ -126,7 +126,8 @@ internal fun AppNavHost(
     // Discard retired demo destinations when restoring navigation after an upgrade.
     LaunchedEffect(Unit) {
         backStack.removeAll {
-            it is TestRoute || (it is VideoRoute && it.videoId <= 0) || (it is ProfileRoute && it.uid <= 0) ||
+            it is TestRoute || it is ComponentSamplesRoute ||
+                (it is VideoRoute && it.videoId <= 0) || (it is ProfileRoute && it.uid <= 0) ||
                 (it is TagRoute && it.tagId <= 0) || (it is FollowListRoute && it.uid <= 0)
         }
     }

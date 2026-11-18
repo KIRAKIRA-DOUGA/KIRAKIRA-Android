@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -28,6 +27,7 @@ import moe.kirakira.ui.components.AnimatedPageCount
 import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ExpandableText
+import moe.kirakira.ui.components.FlatTextButton
 import moe.kirakira.ui.components.IconBadge
 import moe.kirakira.ui.components.IconBadgeTone
 import moe.kirakira.ui.content.ContentState
@@ -39,12 +39,12 @@ internal fun ContentStateSamples(onFeedback: (String) -> Unit, modifier: Modifie
     Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SampleRow {
             listOf("加载", "空状态", "错误").forEachIndexed { index, label ->
-                TextButton(onClick = { state = index }, enabled = state != index) { Text(label) }
+                FlatTextButton(onClick = { state = index }, enabled = state != index) { Text(label) }
             }
         }
         SampleRow {
             listOf("页面", "列表", "媒体").forEachIndexed { index, label ->
-                TextButton(onClick = { presentation = index }, enabled = presentation != index) { Text(label) }
+                FlatTextButton(onClick = { presentation = index }, enabled = presentation != index) { Text(label) }
             }
         }
         Box(Modifier.fillMaxWidth().height(280.dp)) {
@@ -74,18 +74,18 @@ internal fun NumberSamples(modifier: Modifier = Modifier) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         SampleRow {
-            TextButton(onClick = { count-- }, enabled = count > -1000) { Text("减一") }
-            TextButton(onClick = { count++ }, enabled = count < 1000) { Text("加一") }
-            TextButton(onClick = { count = if (count == 9L) 10L else 9L }) { Text("9 ↔ 10") }
-            TextButton(onClick = { count = if (count == 99L) 100L else 99L }) { Text("99 ↔ 100") }
-            TextButton(onClick = { count = -count }) { Text("切换正负") }
+            FlatTextButton(onClick = { count-- }, enabled = count > -1000) { Text("减一") }
+            FlatTextButton(onClick = { count++ }, enabled = count < 1000) { Text("加一") }
+            FlatTextButton(onClick = { count = if (count == 9L) 10L else 9L }) { Text("9 ↔ 10") }
+            FlatTextButton(onClick = { count = if (count == 99L) 100L else 99L }) { Text("99 ↔ 100") }
+            FlatTextButton(onClick = { count = -count }) { Text("切换正负") }
         }
         // The same count in a narrow region exercises the label's overflow fallback.
         AnimatedCountLabel(count = count, template = "%1\$s 条结果", modifier = Modifier.widthIn(max = 80.dp))
         AnimatedPageCount(currentPage = page, totalPages = 12, template = "第 %1\$s / %2\$s 页")
         SampleRow {
-            TextButton(onClick = { page-- }, enabled = page > 1) { Text("上一页") }
-            TextButton(onClick = { page++ }, enabled = page < 12) { Text("下一页") }
+            FlatTextButton(onClick = { page-- }, enabled = page > 1) { Text("上一页") }
+            FlatTextButton(onClick = { page++ }, enabled = page < 12) { Text("下一页") }
         }
     }
 }
@@ -111,16 +111,24 @@ internal fun ExpandableTextSamples(modifier: Modifier = Modifier) {
 }
 
 @Composable
-internal fun IdentitySamples(modifier: Modifier = Modifier) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+internal fun AvatarSamples() {
+    SampleSection(R.string.component_gallery_variant_sizes) {
         Text("游客头像：24dp / 40dp / 64dp")
         SampleRow {
             listOf(24.dp, 40.dp, 64.dp).forEach { size -> AccountAvatar(url = null, size = size) }
         }
+    }
+}
+
+@Composable
+internal fun BadgeSamples() {
+    SampleSection(R.string.component_gallery_variant_styles) {
         Text("强调 / 次要 / 第三色 / 中性 / 错误")
         SampleRow {
             IconBadgeTone.entries.forEach { tone -> IconBadge(icon = R.drawable.ic_icon_info, tone = tone) }
         }
+    }
+    SampleSection(R.string.component_gallery_variant_states) {
         Text("禁用徽章")
         IconBadge(icon = R.drawable.ic_icon_lock, enabled = false)
     }

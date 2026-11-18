@@ -5,6 +5,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import moe.kirakira.data.content.FollowListKind
 import moe.kirakira.feature.componenttest.ComponentCategory
+import moe.kirakira.feature.componenttest.GalleryComponent
 import moe.kirakira.feature.imageviewer.ViewerImage
 import java.util.UUID
 
@@ -39,8 +40,12 @@ internal data object AboutRoute : NavKey
 @Serializable
 internal data object ComponentTestRoute : NavKey
 
+// Decode legacy saved stacks so AppNavHost can return to the gallery index.
 @Serializable
 internal data class ComponentSamplesRoute(val category: ComponentCategory) : NavKey
+
+@Serializable
+internal data class ComponentDetailRoute(val component: GalleryComponent) : NavKey
 
 @Serializable
 @SerialName("moe.kirakira.LicensesRoute")

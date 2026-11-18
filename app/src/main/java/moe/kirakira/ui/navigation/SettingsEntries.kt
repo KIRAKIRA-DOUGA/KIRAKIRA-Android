@@ -12,8 +12,8 @@ import moe.kirakira.data.auth.SessionState
 import moe.kirakira.data.settings.DanmakuSettings
 import moe.kirakira.data.settings.PlaybackSettings
 import moe.kirakira.feature.auth.AuthRoute
-import moe.kirakira.feature.componenttest.ComponentSamplesScreen
-import moe.kirakira.feature.componenttest.ComponentTestScreen
+import moe.kirakira.feature.componenttest.ComponentDetailScreen
+import moe.kirakira.feature.componenttest.ComponentGalleryScreen
 import moe.kirakira.feature.settings.AboutScreen
 import moe.kirakira.feature.settings.AppearanceScreen
 import moe.kirakira.feature.settings.DanmakuSettingsScreen
@@ -271,16 +271,19 @@ internal fun registerSettingsEntries(
         entry<AboutRoute> { route -> renderSettingsDestination(route, route) }
         entry<ComponentTestRoute> {
             NavigationPage {
-                ComponentTestScreen(
+                ComponentGalleryScreen(
                     onBack = { navigation.popFrom(ComponentTestRoute) },
-                    onOpenCategory = { navigation.openFrom(ComponentTestRoute, ComponentSamplesRoute(it)) },
+                    onOpenComponent = { navigation.openFrom(ComponentTestRoute, ComponentDetailRoute(it)) },
                 )
             }
         }
-        entry<ComponentSamplesRoute> { route ->
+        entry<ComponentSamplesRoute> {
+            // AppNavHost drops this restored legacy destination.
+        }
+        entry<ComponentDetailRoute> { route ->
             NavigationPage {
-                ComponentSamplesScreen(
-                    category = route.category,
+                ComponentDetailScreen(
+                    component = route.component,
                     onBack = { navigation.popFrom(route) },
                 )
             }
