@@ -17,6 +17,8 @@ import moe.kirakira.core.network.ApiFailure
 import moe.kirakira.data.auth.isReadyForContent
 import moe.kirakira.data.content.ContentRepository
 
+internal enum class ContentMutation { OTHER, FOLLOW, SEND_COMMENT, SEND_DANMAKU }
+
 /** In-flight reads, mutations and drafts belong to one published account revision. */
 internal abstract class ContentViewModel(protected val repository: ContentRepository) : ViewModel() {
     protected var revision = repository.session.value.revision
@@ -24,8 +26,8 @@ internal abstract class ContentViewModel(protected val repository: ContentReposi
     private val reads = mutableMapOf<Any, Job>()
     private val _actionError = MutableStateFlow<ApiFailure?>(null)
     val actionError = _actionError.asStateFlow()
-    protected val busyState = MutableStateFlow(false)
-    val busy = busyState.asStateFlow()
+    private val _mutation = MutableStateFlow<ContentMutation?>(null)
+    val mutation = _mutation.asStateFlow()
     val session get() = repository.session
 
     protected fun observeAccount(reset: () -> Unit, reload: () -> Unit) {
@@ -36,7 +38,7 @@ internal abstract class ContentViewModel(protected val repository: ContentReposi
                 tasks.cancelCurrent()
                 reads.clear()
                 revision = it
-                busyState.value = false
+                _mutation.value = null
                 _actionError.value = null
                 reset()
                 reload()
@@ -70,10 +72,10 @@ internal abstract class ContentViewModel(protected val repository: ContentReposi
         }
     }
 
-    protected fun mutate(block: suspend (Long) -> Unit) {
-        if (busyState.value) return
+    protected fun mutate(operation: ContentMutation = ContentMutation.OTHER, block: suspend (Long) -> Unit) {
+        if (_mutation.value != null) return
         val expected = revision
-        busyState.value = true
+        _mutation.value = operation
         _actionError.value = null
         launchTask {
             try {
@@ -81,7 +83,7 @@ internal abstract class ContentViewModel(protected val repository: ContentReposi
             } catch (error: ApiException) {
                 if (expected == repository.session.value.revision) _actionError.value = error.failure
             } finally {
-                if (expected == revision) busyState.value = false
+                if (expected == revision) _mutation.value = null
             }
         }
     }

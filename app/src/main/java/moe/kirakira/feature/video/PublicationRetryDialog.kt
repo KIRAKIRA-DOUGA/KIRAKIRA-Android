@@ -1,12 +1,12 @@
 package moe.kirakira.feature.video
 
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import moe.kirakira.R
 import moe.kirakira.ui.components.ActionDialog
+import moe.kirakira.ui.components.FlatTextButton
 import moe.kirakira.ui.components.ShadowButton
 
 @Composable
@@ -26,7 +26,7 @@ internal fun PublicationRetryDialog(
             ShadowButton(onClick = onCheck, enabled = !busy) {
                 Text(stringResource(R.string.publication_check))
             }
-            TextButton(onClick = onResend, enabled = !busy) {
+            FlatTextButton(onClick = onResend, enabled = !busy) {
                 Text(stringResource(R.string.publication_resend))
             }
         },

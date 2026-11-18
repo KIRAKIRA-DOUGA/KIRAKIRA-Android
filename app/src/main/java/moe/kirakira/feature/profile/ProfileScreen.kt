@@ -346,7 +346,7 @@ internal fun ProfileScreen(
                                                     state = ContentUnavailableState.EMPTY,
                                                     title = stringResource(R.string.content_not_available_yet),
                                                     description = null,
-                                                    icon = { FavoritesLogo() },
+                                                    icon = { FavoritesLogo(isActive = pagerState.settledPage == page) },
                                                     presentation = ContentUnavailablePresentation.INLINE,
                                                     modifier = Modifier
                                                         .fillMaxWidth()

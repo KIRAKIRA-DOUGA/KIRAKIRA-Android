@@ -6,7 +6,9 @@ internal data class ProfileUiState(
     val profile: PublicProfile,
     val followingCount: Int? = null,
     val followerCount: Int? = null,
+    val statsLoading: Boolean = false,
     val busy: Boolean = false,
+    val followingInProgress: Boolean = false,
     val avatarKey: String? = null,
     val bannerKey: String? = null,
 ) {

@@ -86,8 +86,11 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import moe.kirakira.R
+import moe.kirakira.ui.components.ButtonShadowBottomPadding
+import moe.kirakira.ui.components.ButtonLoadingIndicator
 import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.materialColorShadow
+import moe.kirakira.ui.components.pressToRoundButtonShapes
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 /** The composer applies Scaffold safe-drawing insets internally so its panel can reach the edges. */
@@ -175,6 +178,7 @@ internal fun ContentComposer(
     recent: List<String> = emptyList(),
     onKaomojiInserted: (String) -> Unit = {},
     onLogin: (() -> Unit)? = null,
+    sending: Boolean = false,
     trailingIcon: (@Composable (() -> Unit) -> Unit)? = null,
 ) {
     val focus = LocalFocusManager.current
@@ -195,13 +199,16 @@ internal fun ContentComposer(
         }
         val buttonHeight = ButtonDefaults.MediumContainerHeight
         Box(
-            modifier.fillMaxWidth().padding(bottom = bottomPadding + 12.dp).padding(inputPadding),
+            modifier
+                .fillMaxWidth()
+                .padding(bottom = bottomPadding + ButtonShadowBottomPadding)
+                .padding(inputPadding),
             contentAlignment = Alignment.BottomCenter,
         ) {
             ShadowButton(
                 onClick = onLogin,
                 modifier = Modifier.widthIn(max = 640.dp).fillMaxWidth().heightIn(min = buttonHeight),
-                shapes = ButtonDefaults.shapesFor(buttonHeight),
+                shapes = pressToRoundButtonShapes(buttonHeight),
                 contentPadding = ButtonDefaults.contentPaddingFor(buttonHeight),
             ) {
                 Text(
@@ -297,19 +304,23 @@ internal fun ContentComposer(
         } else {
             Modifier.shadow(shadowElevation, CircleShape, clip = false)
         }
-        FilledIconButton(
-            onClick = onSend,
-            enabled = sendEnabled,
-            modifier = Modifier
-                .size(56.dp)
-                .then(sendShadow),
+        ButtonLoadingIndicator(
+            loading = sending,
             shape = CircleShape,
-            colors = colors.copy(
-                disabledContainerColor = disabledContainerColor,
-                disabledContentColor = colors.disabledContentColor.compositeOver(disabledContainerColor),
-            ),
-        ) {
-            Icon(painterResource(R.drawable.ic_icon_send), stringResource(R.string.content_send))
+            modifier = Modifier.size(56.dp),
+        ) { buttonModifier ->
+            FilledIconButton(
+                onClick = onSend,
+                enabled = sendEnabled,
+                modifier = buttonModifier.then(sendShadow),
+                shape = CircleShape,
+                colors = colors.copy(
+                    disabledContainerColor = disabledContainerColor,
+                    disabledContentColor = colors.disabledContentColor.compositeOver(disabledContainerColor),
+                ),
+            ) {
+                Icon(painterResource(R.drawable.ic_icon_send), stringResource(R.string.content_send))
+            }
         }
     }
     Column(

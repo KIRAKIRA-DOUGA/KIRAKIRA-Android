@@ -19,6 +19,7 @@ import moe.kirakira.data.content.PublicProfile
 import moe.kirakira.data.content.VideoSummary
 import moe.kirakira.data.settings.AccountSettingsRepository
 import moe.kirakira.data.settings.RuleCategory
+import moe.kirakira.ui.content.ContentMutation
 import moe.kirakira.ui.content.ContentState
 import moe.kirakira.ui.content.ContentViewModel
 
@@ -157,7 +158,7 @@ internal class ProfileViewModel(
         val state = _details.value
         val value = state.data?.profile ?: return
         if (state.loading || state.error != null || state.data.isBlocked) return
-        mutate { expected ->
+        mutate(ContentMutation.FOLLOW) { expected ->
             try {
                 repository.follow(uid, !value.following, expected)
             } finally {

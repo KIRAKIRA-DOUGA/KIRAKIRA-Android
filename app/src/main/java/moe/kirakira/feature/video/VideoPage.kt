@@ -128,7 +128,8 @@ internal fun VideoPage(
     val resume by model.resume.collectAsStateWithLifecycle()
     val comments by model.comments.collectAsStateWithLifecycle()
     val danmaku by model.danmaku.collectAsStateWithLifecycle()
-    val busy by model.busy.collectAsStateWithLifecycle()
+    val mutation by model.mutation.collectAsStateWithLifecycle()
+    val busy = mutation != null
     val session by model.session.collectAsStateWithLifecycle()
     val commentDraft by model.commentDraft.collectAsStateWithLifecycle()
     val danmakuStyle by model.danmakuStyle.collectAsStateWithLifecycle()
@@ -291,6 +292,7 @@ internal fun VideoPage(
                             comments = comments,
                             danmaku = danmaku,
                             busy = busy,
+                            mutation = mutation,
                             signedIn = signedIn,
                             sessionRevision = session.revision,
                             commentDraft = commentDraft,

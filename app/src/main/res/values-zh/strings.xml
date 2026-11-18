@@ -254,13 +254,16 @@
     <string name="video_like">点赞</string>
     <string name="video_dislike">点踩</string>
     <string name="video_save">收藏</string>
+    <string name="video_watch_later">稍后再看</string>
     <string name="video_download">下载</string>
     <string name="video_share">分享</string>
     <string name="video_more">更多</string>
     <string name="video_view_cover">查看封面</string>
+    <string name="video_report">举报</string>
     <string name="video_cover_description">%1$s的封面</string>
     <string name="video_action_unavailable">此功能待接入</string>
     <string name="video_action_count">%1$s，%2$d</string>
+    <string name="video_unknown_action_count">—</string>
     <string name="animated_count">%1$s</string>
 
     <!-- Comment sorting and navigation -->

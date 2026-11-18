@@ -22,6 +22,7 @@ import moe.kirakira.data.content.VideoDetail
 import moe.kirakira.data.history.HistoryRepository
 import moe.kirakira.data.settings.AccountSettingsRepository
 import moe.kirakira.data.settings.RuleCategory
+import moe.kirakira.ui.content.ContentMutation
 import moe.kirakira.ui.content.ContentState
 import moe.kirakira.ui.content.ContentViewModel
 
@@ -61,7 +62,7 @@ internal class VideoViewModel(
     private val _danmakuStyle = MutableStateFlow(DanmakuStyle())
     val danmakuStyle = _danmakuStyle.asStateFlow()
     fun updateDanmakuStyle(style: DanmakuStyle) {
-        if (!busy.value) _danmakuStyle.value = style
+        if (mutation.value == null) _danmakuStyle.value = style
     }
 
     private val _danmakuDraft = MutableStateFlow("")
@@ -234,7 +235,7 @@ internal class VideoViewModel(
         if (!canAccessContent || _detail.value.loading || _detail.value.error != null) return
         val author = _detail.value.data?.author ?: return
         val following = !author.following
-        mutate { revision ->
+        mutate(ContentMutation.FOLLOW) { revision ->
             try {
                 repository.follow(author.uid, following, revision)
                 currentCoroutineContext().ensureActive()
@@ -253,7 +254,7 @@ internal class VideoViewModel(
     fun voteComment(comment: VideoComment, target: Reaction) {
         if (!canAccessContent) return
         val page = comments.value.entries.firstOrNull { it.comment.id == comment.id }?.page ?: return
-        if (busy.value || comments.value.loading || comments.value.unconfirmedPages.isNotEmpty() ||
+        if (mutation.value != null || comments.value.loading || comments.value.unconfirmedPages.isNotEmpty() ||
             page in comments.value.updatingPages) return
         commentList.markUnconfirmed(page)
         mutate { revision ->
@@ -266,11 +267,11 @@ internal class VideoViewModel(
         }
     }
     fun updateCommentDraft(text: String) {
-        if (!busy.value) _commentDraft.value = text
+        if (mutation.value == null) _commentDraft.value = text
     }
 
     fun updateDanmakuDraft(text: String) {
-        if (!busy.value) _danmakuDraft.value = text
+        if (mutation.value == null) _danmakuDraft.value = text
     }
 
     fun sendComment() = submitComment(allowDuplicate = false)
@@ -283,7 +284,7 @@ internal class VideoViewModel(
             _publicationRetry.value = PublicationRetry.Comment
             return
         }
-        mutate { revision ->
+        mutate(ContentMutation.SEND_COMMENT) { revision ->
             val comment = try {
                 repository.postComment(videoId, text, revision)
             } catch (error: ApiException) {
@@ -311,7 +312,7 @@ internal class VideoViewModel(
             _publicationRetry.value = PublicationRetry.Danmaku(positionMs)
             return
         }
-        mutate { revision ->
+        mutate(ContentMutation.SEND_DANMAKU) { revision ->
             try {
                 repository.postDanmaku(videoId, text, positionMs / 1000.0, revision, style)
             } catch (error: ApiException) {
@@ -340,7 +341,7 @@ internal class VideoViewModel(
 
     fun confirmPublicationRetry() {
         val request = _publicationRetry.value ?: return
-        if (busy.value) return
+        if (mutation.value != null) return
         dismissPublicationRetry()
         when (request) {
             PublicationRetry.Comment -> submitComment(allowDuplicate = true)

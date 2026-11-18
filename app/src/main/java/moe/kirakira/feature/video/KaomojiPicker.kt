@@ -25,7 +25,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -40,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import moe.kirakira.R
 import moe.kirakira.data.kaomoji.kaomojiCatalog
+import moe.kirakira.ui.components.FlatTextButton
 import moe.kirakira.ui.components.PagerTabRow
 import moe.kirakira.ui.components.rememberTabChangeHandler
 import moe.kirakira.ui.components.smoothScrollToTop
@@ -165,11 +165,10 @@ private fun KaomojiGrid(
             items = entries,
             key = { index, text -> if (category == "recent") text else "$category:$index" },
         ) { _, text ->
-            TextButton(
+            FlatTextButton(
                 onClick = { onSelect(text) },
                 enabled = enabled,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface),
                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
             ) {

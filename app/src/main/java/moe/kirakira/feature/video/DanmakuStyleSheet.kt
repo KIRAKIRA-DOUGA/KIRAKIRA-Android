@@ -1,9 +1,12 @@
 package moe.kirakira.feature.video
 
 import android.content.res.Configuration
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -12,24 +15,19 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SheetValue
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,17 +39,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
@@ -59,6 +63,10 @@ import moe.kirakira.data.content.DanmakuFontSize
 import moe.kirakira.data.content.DanmakuMode
 import moe.kirakira.data.content.DanmakuStyle
 import moe.kirakira.ui.components.ConnectedListGroup
+import moe.kirakira.ui.components.FlatTextButton
+import moe.kirakira.ui.components.Segmented
+import moe.kirakira.ui.components.SegmentedItemHorizontalPadding
+import moe.kirakira.ui.components.ShadowRadioButton
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.video.DanmakuColors
 import moe.kirakira.ui.theme.KIRAKIRATheme
@@ -82,6 +90,7 @@ internal fun DanmakuComposer(
     recentKaomoji: List<String> = emptyList(),
     onLogin: (() -> Unit)? = null,
     onKaomojiInserted: (String) -> Unit = {},
+    sending: Boolean = false,
 ) {
     var open by rememberSaveable(sessionRevision, onLogin != null) { mutableStateOf(false) }
     LaunchedEffect(composerActive) {
@@ -91,7 +100,7 @@ internal fun DanmakuComposer(
     val keyboard = LocalSoftwareKeyboardController.current
     ContentComposer(
         draft, R.string.danmaku_write, onDraft, onSend, modifier, enabled, busy,
-        state = composerState, active = composerActive, availableHeight = availableHeight,
+        sending = sending, state = composerState, active = composerActive, availableHeight = availableHeight,
         contentPadding = contentPadding,
         recent = recentKaomoji, onKaomojiInserted = onKaomojiInserted,
         onLogin = onLogin,
@@ -114,13 +123,14 @@ internal fun DanmakuComposer(
     }
     if (open && composerActive && onLogin == null && enabled && !busy) {
         var custom by rememberSaveable { mutableStateOf(false) }
+        val sheetColor = if (custom) {
+            MaterialTheme.colorScheme.surface
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerLow
+        }
         ModalBottomSheet(
             onDismissRequest = { open = false },
-            containerColor = if (custom) {
-                MaterialTheme.colorScheme.surface
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerLow
-            },
+            containerColor = sheetColor,
             sheetState = rememberBottomSheetState(
                 initialValue = SheetValue.Hidden,
                 enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
@@ -142,7 +152,9 @@ internal fun DanmakuComposer(
                     },
                 )
             } else {
-                DanmakuStyleContent(draft, style, onStyle, { custom = true })
+                DanmakuStyleContent(
+                    draft, style, onStyle, { custom = true }, parentContainerColor = sheetColor,
+                )
             }
         }
     }
@@ -155,6 +167,7 @@ internal fun DanmakuStyleContent(
     onStyle: (DanmakuStyle) -> Unit,
     onCustomColor: () -> Unit,
     modifier: Modifier = Modifier,
+    parentContainerColor: Color = MaterialTheme.colorScheme.surface,
 ) {
     Column(modifier.fillMaxWidth()) {
         Row(
@@ -166,7 +179,7 @@ internal fun DanmakuStyleContent(
                 Modifier.weight(1f),
                 style = MaterialTheme.typography.headlineSmall,
             )
-            TextButton(
+            FlatTextButton(
                 onClick = { onStyle(DanmakuStyle()) },
                 enabled = style != DanmakuStyle(),
             ) {
@@ -220,77 +233,124 @@ internal fun DanmakuStyleContent(
             }
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(stringResource(R.string.danmaku_style_size), style = MaterialTheme.typography.titleSmall)
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    DanmakuFontSize.entries.forEachIndexed { index, size ->
-                        SegmentedButton(
-                            selected = style.fontSize == size,
-                            onClick = { onStyle(style.copy(fontSize = size)) },
-                            shape = SegmentedButtonDefaults.itemShape(index, DanmakuFontSize.entries.size),
-                            modifier = Modifier.heightIn(min = 48.dp),
-                        ) {
-                            Text(
-                                stringResource(
-                                    when (size) {
-                                        DanmakuFontSize.SMALL -> R.string.danmaku_style_small
-                                        DanmakuFontSize.MEDIUM -> R.string.danmaku_style_medium
-                                        DanmakuFontSize.LARGE -> R.string.danmaku_style_large
-                                    },
-                                ),
-                            )
-                        }
-                    }
+                Segmented(
+                    items = DanmakuFontSize.entries,
+                    selected = style.fontSize,
+                    onSelectedChange = { onStyle(style.copy(fontSize = it)) },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    parentContainerColor = parentContainerColor,
+                ) { size ->
+                    Text(
+                        stringResource(
+                            when (size) {
+                                DanmakuFontSize.SMALL -> R.string.danmaku_style_small
+                                DanmakuFontSize.MEDIUM -> R.string.danmaku_style_medium
+                                DanmakuFontSize.LARGE -> R.string.danmaku_style_large
+                            },
+                        ),
+                        textAlign = TextAlign.Center,
+                    )
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(stringResource(R.string.danmaku_style_mode), style = MaterialTheme.typography.titleSmall)
-                val modes = listOf(DanmakuMode.RTL, DanmakuMode.LTR, DanmakuMode.TOP, DanmakuMode.BOTTOM)
-                modes.chunked(2).forEach { row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        row.forEach { mode ->
-                            FilterChip(
-                                selected = style.mode == mode,
-                                onClick = { onStyle(style.copy(mode = mode)) },
-                                shape = CircleShape,
-                                border = null,
-                                colors = FilterChipDefaults.filterChipColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    labelColor = MaterialTheme.colorScheme.onSurface,
-                                    iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
-                                    selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimary,
-                                ),
-                                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                                leadingIcon = {
-                                    Icon(
-                                        painterResource(
-                                            when (mode) {
-                                                DanmakuMode.RTL -> R.drawable.ic_icon_danmaku_rtl
-                                                DanmakuMode.LTR -> R.drawable.ic_icon_danmaku_ltr
-                                                DanmakuMode.TOP -> R.drawable.ic_icon_danmaku_top
-                                                DanmakuMode.BOTTOM -> R.drawable.ic_icon_danmaku_bottom
-                                            },
-                                        ),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(FilterChipDefaults.IconSize),
-                                    )
-                                },
-                                label = {
-                                    Text(
-                                        stringResource(
-                                            when (mode) {
-                                                DanmakuMode.RTL -> R.string.danmaku_style_rtl
-                                                DanmakuMode.LTR -> R.string.danmaku_style_ltr
-                                                DanmakuMode.TOP -> R.string.danmaku_style_top
-                                                DanmakuMode.BOTTOM -> R.string.danmaku_style_bottom
-                                            },
-                                        ),
-                                    )
-                                },
+                DanmakuModeSelector(
+                    selectedMode = style.mode,
+                    onModeChange = { onStyle(style.copy(mode = it)) },
+                    parentContainerColor = parentContainerColor,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+    }
+}
+
+private data class DanmakuModeOption(
+    val mode: DanmakuMode,
+    val label: String,
+    @DrawableRes val icon: Int,
+)
+
+@Composable
+private fun DanmakuModeSelector(
+    selectedMode: DanmakuMode,
+    onModeChange: (DanmakuMode) -> Unit,
+    parentContainerColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    val options = DanmakuMode.entries.map { mode ->
+        when (mode) {
+            DanmakuMode.RTL -> DanmakuModeOption(
+                mode, stringResource(R.string.danmaku_style_rtl), R.drawable.ic_icon_danmaku_rtl,
+            )
+            DanmakuMode.TOP -> DanmakuModeOption(
+                mode, stringResource(R.string.danmaku_style_top), R.drawable.ic_icon_danmaku_top,
+            )
+            DanmakuMode.BOTTOM -> DanmakuModeOption(
+                mode, stringResource(R.string.danmaku_style_bottom), R.drawable.ic_icon_danmaku_bottom,
+            )
+            DanmakuMode.LTR -> DanmakuModeOption(
+                mode, stringResource(R.string.danmaku_style_ltr), R.drawable.ic_icon_danmaku_ltr,
+            )
+        }
+    }
+    val labelStyle = MaterialTheme.typography.labelLarge.copy(textAlign = TextAlign.Center)
+    val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val maxLabelLines = 2
+    BoxWithConstraints(modifier) {
+        val segmentWidth = constraints.maxWidth / options.size
+        val labelWidth = with(density) { segmentWidth - 2 * SegmentedItemHorizontalPadding.roundToPx() }
+        val labelLayouts = options.map { option ->
+            textMeasurer.measure(
+                text = option.label,
+                style = labelStyle,
+                maxLines = maxLabelLines,
+                constraints = Constraints(maxWidth = labelWidth.coerceAtLeast(0)),
+            )
+        }
+        if (segmentWidth >= with(density) { 48.dp.roundToPx() } && labelLayouts.none { it.hasVisualOverflow }) {
+            val labelLines = labelLayouts.maxOf { it.lineCount }
+            Segmented(
+                items = options,
+                selected = options.first { it.mode == selectedMode },
+                onSelectedChange = { onModeChange(it.mode) },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                parentContainerColor = parentContainerColor,
+            ) { option ->
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Icon(painterResource(option.icon), contentDescription = null, modifier = Modifier.size(18.dp))
+                    Text(option.label, style = labelStyle, minLines = labelLines, maxLines = maxLabelLines)
+                }
+            }
+        } else {
+            Column(Modifier.fillMaxWidth().selectableGroup()) {
+                options.forEach { option ->
+                    val isSelected = option.mode == selectedMode
+                    val interactionSource = remember { MutableInteractionSource() }
+                    ListItem(
+                        onClick = { if (!isSelected) onModeChange(option.mode) },
+                        modifier = Modifier.fillMaxWidth().semantics {
+                            role = Role.RadioButton
+                            selected = isSelected
+                        },
+                        interactionSource = interactionSource,
+                        leadingContent = {
+                            Icon(painterResource(option.icon), contentDescription = null, modifier = Modifier.size(24.dp))
+                        },
+                        trailingContent = {
+                            ShadowRadioButton(
+                                selected = isSelected,
+                                onClick = null,
+                                interactionSource = interactionSource,
                             )
-                        }
-                    }
+                        },
+                        content = { Text(option.label) },
+                    )
                 }
             }
         }

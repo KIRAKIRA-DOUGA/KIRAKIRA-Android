@@ -30,6 +30,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.util.UUID
 import kotlinx.coroutines.launch
 import moe.kirakira.R
+import moe.kirakira.ui.content.ContentMutation
 import moe.kirakira.core.image.deliveryImageUrl
 import moe.kirakira.core.share.profileShareUrl
 import moe.kirakira.core.share.shareContent
@@ -48,6 +49,7 @@ import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.components.rememberTabChangeHandler
 import moe.kirakira.ui.components.smoothScrollToTop
 import moe.kirakira.ui.content.ContentState
+import moe.kirakira.ui.theme.BrandTitleFontFamily
 import okio.ByteString.Companion.encodeUtf8
 
 internal enum class ProfileTab { VIDEOS, COLLECTIONS }
@@ -67,7 +69,8 @@ internal fun ProfilePage(
     val pendingMessage by model.message.collectAsStateWithLifecycle()
     val loadedVideos by model.videos.collectAsStateWithLifecycle()
     val loadedStats by model.stats.collectAsStateWithLifecycle()
-    val busy by model.busy.collectAsStateWithLifecycle()
+    val mutation by model.mutation.collectAsStateWithLifecycle()
+    val busy = mutation != null
     val session by model.session.collectAsStateWithLifecycle()
     val pendingError by model.actionError.collectAsStateWithLifecycle()
     val currentAccount = session.isReadyForContent && model.isCurrentAccount
@@ -119,7 +122,11 @@ internal fun ProfilePage(
                 TopAppBar(
                     title = {
                         if (!profile.loading) {
-                            Text(stringResource(R.string.me_profile), fontWeight = FontWeight.Bold)
+                            Text(
+                                text = stringResource(R.string.me_profile),
+                                fontWeight = FontWeight.SemiBold,
+                                fontFamily = BrandTitleFontFamily,
+                            )
                         }
                     },
                     actions = {
@@ -170,8 +177,13 @@ internal fun ProfilePage(
         "${value.uid}/${value.avatar.orEmpty()}".encodeUtf8().sha256().hex()
     }
     val state = ProfileUiState(
-        value.copy(isSelf = value.uid == session.activeProfile?.uid),
-        stats.data?.following, stats.data?.followers, busy || details.loading || details.error != null,
+        profile = value.copy(isSelf = value.uid == session.activeProfile?.uid),
+        followingCount = stats.data?.following,
+        followerCount = stats.data?.followers,
+        // The first stats request waits for the profile read, even when local profile data is visible.
+        statsLoading = stats.loading || (stats.data == null && stats.error == null && details.error == null),
+        busy = busy || details.loading || details.error != null,
+        followingInProgress = currentAccount && mutation == ContentMutation.FOLLOW,
         avatarKey = "profile/$sourceInstanceId/$avatarIdentity",
         bannerKey = "profile/$sourceInstanceId/banner",
     )

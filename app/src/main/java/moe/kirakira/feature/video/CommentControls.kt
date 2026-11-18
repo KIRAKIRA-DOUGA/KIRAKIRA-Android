@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -16,7 +17,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,9 +26,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -40,6 +43,7 @@ import moe.kirakira.ui.components.ActionDialog
 import moe.kirakira.ui.components.AnimatedCountLabel
 import moe.kirakira.ui.components.AnimatedPageCount
 import moe.kirakira.ui.components.FilledTextField
+import moe.kirakira.ui.components.FlatTextButton
 import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.theme.BarShadowElevation
 
@@ -85,7 +89,7 @@ internal fun CommentToolbar(
                 modifier = Modifier.graphicsLayer { rotationZ = if (rtl) 0f else 180f },
             )
         }
-        TextButton(
+        FlatTextButton(
             onClick = onOpenJump,
             enabled = enabled,
             modifier = Modifier.weight(1f, fill = false).semantics { contentDescription = pageDescription },
@@ -113,15 +117,24 @@ internal fun CommentJumpDialog(
     currentPage: Int,
     totalPages: Int,
     enabled: Boolean,
+    loading: Boolean,
+    errorMessage: String?,
     onDismiss: () -> Unit,
     onJump: (Int) -> Unit,
 ) {
     var input by rememberSaveable { mutableStateOf(currentPage.toString()) }
     val target = input.toIntOrNull()
-    val valid = enabled && target != null && target in 1..totalPages
-    val jump = { if (valid) onJump(target) }
+    val valid = enabled && !loading && target != null && target in 1..totalPages
+    val keyboard = LocalSoftwareKeyboardController.current
+    val jump = {
+        if (valid) {
+            keyboard?.hide()
+            onJump(target)
+        }
+    }
+    val jumpLabel = stringResource(R.string.video_comments_jump)
     ActionDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!loading) onDismiss() },
         icon = { Icon(painterResource(R.drawable.ic_icon_keyboard), contentDescription = null) },
         title = { Text(stringResource(R.string.video_comments_jump_title)) },
         text = {
@@ -133,6 +146,7 @@ internal fun CommentJumpDialog(
                     value = input,
                     onValueChange = { input = it },
                     modifier = Modifier.fillMaxWidth(),
+                    readOnly = loading,
                     label = { Text(stringResource(R.string.video_comments_page)) },
                     singleLine = true,
                     isError = input.isNotEmpty() && (target == null || target !in 1..totalPages),
@@ -142,17 +156,22 @@ internal fun CommentJumpDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Go),
                     keyboardActions = KeyboardActions(onGo = { jump() }),
                 )
+                if (errorMessage != null) {
+                    Text(
+                        text = errorMessage,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                }
             }
         },
         actions = {
-            ShadowButton(
-                onClick = jump,
-                enabled = valid,
-            ) {
-                Text(stringResource(R.string.video_comments_jump))
+            ShadowButton(onClick = jump, enabled = valid, loading = loading) {
+                Text(jumpLabel)
             }
-            TextButton(
+            FlatTextButton(
                 contentPadding = ButtonDefaults.ContentPadding,
+                enabled = !loading,
                 onClick = onDismiss,
             ) {
                 Text(stringResource(R.string.video_comments_cancel))

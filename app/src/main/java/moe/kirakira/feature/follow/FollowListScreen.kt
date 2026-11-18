@@ -2,15 +2,10 @@ package moe.kirakira.feature.follow
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Icon
@@ -26,7 +21,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -40,7 +34,7 @@ import moe.kirakira.data.content.FollowListUser
 import moe.kirakira.ui.components.AccountAvatar
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
-import moe.kirakira.ui.components.ContentStatusViewport
+import moe.kirakira.ui.components.ContentStatusList
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
@@ -50,6 +44,7 @@ import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.components.UsernameText
 import moe.kirakira.ui.components.appTopAppBarColors
 import moe.kirakira.ui.components.messageRes
+import moe.kirakira.ui.theme.BrandTitleFontFamily
 
 @Composable
 internal fun FollowListScreen(
@@ -66,7 +61,6 @@ internal fun FollowListScreen(
 ) {
     val list = rememberLazyListState()
     StatusBarScrollToTopEffect(list, enabled = isActive)
-    val direction = LocalLayoutDirection.current
     val content = state.content
     val users = content.data.orEmpty()
     val canLoadMore = isActive && ready && state.hasMore && !content.loading && !state.loadingMore &&
@@ -97,7 +91,13 @@ internal fun FollowListScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text(title, fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        text = title,
+                        fontWeight = FontWeight.SemiBold,
+                        fontFamily = BrandTitleFontFamily,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(painterResource(R.drawable.ic_icon_arrow_left), stringResource(R.string.navigate_back))
@@ -116,91 +116,69 @@ internal fun FollowListScreen(
                 .fillMaxSize()
                 .consumeWindowInsets(padding),
         ) {
-            val listContentPadding = PaddingValues(
-                start = padding.calculateStartPadding(direction),
-                end = padding.calculateEndPadding(direction),
-                top = padding.calculateTopPadding() + 8.dp,
-                bottom = padding.calculateBottomPadding() + 24.dp,
-            )
-            ContentStatusViewport(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = listContentPadding,
-                leadingContentHeight = 0.dp,
-            ) { statusModifier ->
-                LazyColumn(
-                    state = list,
-                    modifier = Modifier
-                        .widthIn(max = 840.dp)
-                        .fillMaxSize(),
-                    contentPadding = listContentPadding,
-                ) {
-                    if (content.data == null) {
-                        item(key = "status", contentType = "status") {
-                            ContentStatus(
-                                state = content.copy(loading = !ready || content.loading),
-                                onRetry = onRefresh,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .then(statusModifier),
-                            )
-                        }
-                    } else if (users.isEmpty()) {
-                        item(key = "empty", contentType = "status") {
-                            ContentUnavailableView(
-                                state = ContentUnavailableState.EMPTY,
-                                title = emptyTitle,
-                                description = null,
-                                iconRes = R.drawable.ic_icon_person,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .then(statusModifier),
-                                presentation = ContentUnavailablePresentation.INLINE,
-                            )
-                        }
-                    } else {
-                        items(
-                            items = users,
-                            key = { user -> user.uid },
-                            contentType = { "user" },
-                        ) { user ->
-                            FollowListUserRow(
-                                user = user,
-                                onClick = { onOpenProfile(user.uid) },
-                                enabled = ready && isActive,
-                            )
+            ContentStatusList(list, padding, Modifier.fillMaxSize()) { statusModifier ->
+                if (content.data == null) {
+                    item(key = "status", contentType = "status") {
+                        ContentStatus(
+                            state = content.copy(loading = !ready || content.loading),
+                            onRetry = onRefresh,
+                            modifier = statusModifier,
+                        )
+                    }
+                } else if (users.isEmpty()) {
+                    item(key = "empty", contentType = "status") {
+                        ContentUnavailableView(
+                            state = ContentUnavailableState.EMPTY,
+                            title = emptyTitle,
+                            description = null,
+                            iconRes = R.drawable.ic_icon_person,
+                            modifier = statusModifier,
+                            presentation = ContentUnavailablePresentation.INLINE,
+                        )
+                    }
+                } else {
+                    items(
+                        items = users,
+                        key = { user -> user.uid },
+                        contentType = { "user" },
+                    ) { user ->
+                        FollowListUserRow(
+                            user = user,
+                            onClick = { onOpenProfile(user.uid) },
+                            enabled = ready && isActive,
+                        )
+                    }
+                }
+                if (content.data != null && content.error != null) {
+                    item(key = "refresh_error", contentType = "status") {
+                        ContentUnavailableView(
+                            state = ContentUnavailableState.ERROR,
+                            description = stringResource(content.error.messageRes()),
+                            onRetry = onRefresh,
+                            retryEnabled = ready && isActive && !content.loading,
+                            presentation = ContentUnavailablePresentation.INLINE,
+                            modifier = Modifier.padding(top = 16.dp),
+                        )
+                    }
+                }
+                if (state.loadingMore) {
+                    item(key = "loading_more", contentType = "status") {
+                        Box(Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp), contentAlignment = Alignment.Center) {
+                            IndeterminateCircularProgressIndicator()
                         }
                     }
-                    if (content.data != null && content.error != null) {
-                        item(key = "refresh_error", contentType = "status") {
-                            ContentUnavailableView(
-                                state = ContentUnavailableState.ERROR,
-                                description = stringResource(content.error.messageRes()),
-                                onRetry = onRefresh,
-                                retryEnabled = ready && isActive && !content.loading,
-                                presentation = ContentUnavailablePresentation.INLINE,
-                                modifier = Modifier.padding(top = 16.dp),
-                            )
-                        }
-                    }
-                    if (state.loadingMore) {
-                        item(key = "loading_more", contentType = "status") {
-                            Box(Modifier
-                                .fillMaxWidth()
-                                .padding(24.dp), contentAlignment = Alignment.Center) {
-                                IndeterminateCircularProgressIndicator()
-                            }
-                        }
-                    } else if (state.moreError != null) {
-                        item(key = "more_error", contentType = "status") {
-                            ContentUnavailableView(
-                                state = ContentUnavailableState.ERROR,
-                                description = stringResource(state.moreError.messageRes()),
-                                onRetry = onRetryMore,
-                                retryEnabled = ready && isActive && !content.loading,
-                                presentation = ContentUnavailablePresentation.INLINE,
-                                modifier = Modifier.padding(top = 16.dp),
-                            )
-                        }
+                } else if (state.moreError != null) {
+                    item(key = "more_error", contentType = "status") {
+                        ContentUnavailableView(
+                            state = ContentUnavailableState.ERROR,
+                            description = stringResource(state.moreError.messageRes()),
+                            onRetry = onRetryMore,
+                            retryEnabled = ready && isActive && !content.loading,
+                            presentation = ContentUnavailablePresentation.INLINE,
+                            modifier = Modifier.padding(top = 16.dp),
+                        )
                     }
                 }
             }

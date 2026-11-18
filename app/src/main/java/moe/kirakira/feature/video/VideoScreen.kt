@@ -1,14 +1,15 @@
 package moe.kirakira.feature.video
 
+import android.content.res.Configuration
 import android.os.Build
 import androidx.annotation.DrawableRes
-import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
@@ -35,16 +36,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.ToggleButton
-import androidx.compose.material3.ToggleButtonDefaults
-import androidx.compose.material3.ToggleButtonShapes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -74,6 +70,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -81,15 +78,15 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import moe.kirakira.R
-import moe.kirakira.core.image.deliveryImageUrl
 import moe.kirakira.data.content.DanmakuEntry
 import moe.kirakira.data.content.DanmakuStyle
 import moe.kirakira.data.content.PublicProfile
 import moe.kirakira.data.content.Reaction
 import moe.kirakira.data.content.VideoComment
 import moe.kirakira.data.content.VideoDetail
+import moe.kirakira.data.content.VideoSummary
+import moe.kirakira.ui.components.AppChipDefaults
 import moe.kirakira.ui.components.AccountAvatar
-import moe.kirakira.ui.components.AnimatedCountLabel
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.ContentStatusViewport
@@ -102,14 +99,16 @@ import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.components.StatusBarScrollToTopPauseEffect
 import moe.kirakira.ui.components.UsernameText
 import moe.kirakira.ui.components.frostedBarBackground
-import moe.kirakira.ui.components.rememberMorphingButtonShape
 import moe.kirakira.ui.components.rememberTabChangeHandler
 import moe.kirakira.ui.components.smoothScrollToTop
 import moe.kirakira.ui.components.video.categoryText
 import moe.kirakira.ui.components.video.dateText
 import moe.kirakira.ui.components.video.durationText
+import moe.kirakira.ui.content.ContentMutation
 import moe.kirakira.ui.content.ContentState
 import moe.kirakira.ui.theme.BarShadowElevation
+import moe.kirakira.ui.theme.KIRAKIRATheme
+import moe.kirakira.ui.theme.ThemeColorDefaults
 
 internal enum class VideoTab { INTRODUCTION, COMMENTS, DANMAKU }
 
@@ -125,6 +124,7 @@ internal data class VideoUiState(
     val danmakuDraft: String,
     val posted: VideoComment?,
     val danmakuStyle: DanmakuStyle = DanmakuStyle(),
+    val mutation: ContentMutation? = null,
 )
 
 @Composable
@@ -311,6 +311,8 @@ internal fun VideoScreen(
                         indicatorTopPadding = tabPadding,
                     ) {
                         val listContentPadding = PaddingValues(20.dp, tabPadding + 24.dp, 20.dp, bottomPadding + 24.dp)
+                        val pageColor = MaterialTheme.colorScheme.background
+                        val chipContainerColor = ThemeColorDefaults.controlContainerColor(pageColor)
                         ContentStatusViewport(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = listContentPadding,
@@ -329,15 +331,7 @@ internal fun VideoScreen(
                                 if (detail != null) {
                                     if (detail.parts.size > 1) {
                                         item("parts") {
-                                            val partChipColors = FilterChipDefaults.filterChipColors(
-                                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                                labelColor = MaterialTheme.colorScheme.onSurface,
-                                                iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                                                selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
-                                                selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimary,
-                                            )
+                                            val partChipColors = AppChipDefaults.filterColors(pageColor)
                                             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                                 itemsIndexed(detail.parts, key = { _, part -> part.id }) { index, part ->
                                                     FilterChip(
@@ -354,8 +348,15 @@ internal fun VideoScreen(
                                             }
                                         }
                                     }
-                                    item("author") { VideoAuthor(detail.author, onOpenProfile, onFollow, state.busy || state.detail.loading || state.detail.error != null || detail.blockedByOther) }
-                                    item("title") { SelectionContainer { Text(detail.summary.title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() }) } }
+                                    item("author") {
+                                        VideoAuthor(
+                                            detail.author, onOpenProfile, onFollow,
+                                            enabled = !state.busy && !state.detail.loading &&
+                                                state.detail.error == null && !detail.blockedByOther,
+                                            loading = state.mutation == ContentMutation.FOLLOW,
+                                        )
+                                    }
+                                    item("title") { SelectionContainer { Text(detail.summary.title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() }) } }
                                     item("metadata") {
                                         FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                             detail.summary.views?.let {
@@ -370,6 +371,21 @@ internal fun VideoScreen(
                                             if (detail.category.isNotBlank()) {
                                                 VideoMetadata(R.drawable.ic_icon_category, categoryText(detail.category))
                                             }
+                                        }
+                                    }
+                                    item("actions") {
+                                        CompositionLocalProvider(
+                                            LocalNumberAnimationIdentity provides Pair(state.sessionRevision, detail.summary.id),
+                                        ) {
+                                            VideoActions(
+                                                detail = detail,
+                                                busy = state.busy || state.detail.loading || state.detail.error != null,
+                                                onVote = onVote,
+                                                onUnavailable = onUnavailable,
+                                                onShare = onShare,
+                                                onViewCover = onViewCover,
+                                                modifier = Modifier.fillMaxWidth(),
+                                            )
                                         }
                                     }
                                     item("description") {
@@ -394,7 +410,7 @@ internal fun VideoScreen(
                                                         label = { Text(tag.displayName(language)) },
                                                         shape = CircleShape,
                                                         colors = AssistChipDefaults.assistChipColors(
-                                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                                            containerColor = chipContainerColor,
                                                             labelColor = MaterialTheme.colorScheme.onSurface,
                                                             leadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                                             trailingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -403,20 +419,6 @@ internal fun VideoScreen(
                                                     )
                                                 }
                                             }
-                                        }
-                                    }
-                                    item("actions") {
-                                        CompositionLocalProvider(
-                                            LocalNumberAnimationIdentity provides Pair(state.sessionRevision, detail.summary.id),
-                                        ) {
-                                            VideoActions(
-                                                detail = detail,
-                                                busy = state.busy || state.detail.loading || state.detail.error != null,
-                                                onVote = onVote,
-                                                onUnavailable = onUnavailable,
-                                                onShare = onShare,
-                                                onViewCover = onViewCover,
-                                            )
                                         }
                                     }
                                 }
@@ -438,6 +440,7 @@ internal fun VideoScreen(
                             onLogin = onLogin.takeUnless { state.signedIn },
                             composerState = commentComposer,
                             composerActive = composerActive,
+                            sending = state.mutation == ContentMutation.SEND_COMMENT,
                             recentKaomoji = recentKaomoji, onKaomojiInserted = onKaomojiInserted,
                         )
                     }
@@ -450,6 +453,7 @@ internal fun VideoScreen(
                                 onDanmakuDraft, onSendDanmaku, onDanmakuStyle,
                                 enabled = detail != null && !detail.blockedByOther,
                                 busy = state.busy,
+                                sending = state.mutation == ContentMutation.SEND_DANMAKU,
                                 onLogin = onLogin.takeUnless { state.signedIn },
                                 composerState = danmakuComposer,
                                 composerActive = composerActive,
@@ -571,7 +575,8 @@ private fun VideoAuthor(
     author: PublicProfile,
     onOpenProfile: (Long) -> Unit,
     onFollow: () -> Unit,
-    busy: Boolean,
+    enabled: Boolean,
+    loading: Boolean,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -605,7 +610,7 @@ private fun VideoAuthor(
             }
         }
         if (!author.isSelf) {
-            FollowButton(author.following, { onFollow() }, enabled = !busy)
+            FollowButton(author.following, { onFollow() }, enabled = enabled, loading = loading)
         }
     }
 }
@@ -626,69 +631,69 @@ private fun VideoMetadata(@DrawableRes icon: Int, text: String, description: Str
     }
 }
 
+@Preview(name = "Video · Light", widthDp = 360, heightDp = 900)
+@Preview(name = "Video · Dark", widthDp = 360, heightDp = 900, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Preview(name = "Video · Narrow · Large text", widthDp = 320, heightDp = 1000, fontScale = 2f)
 @Composable
-private fun VideoActions(
-    detail: VideoDetail,
-    busy: Boolean,
-    onVote: (Reaction) -> Unit,
-    onUnavailable: () -> Unit,
-    onShare: () -> Unit,
-    onViewCover: () -> Unit,
-) {
-    val actionColors = IconButtonDefaults.filledTonalIconButtonColors(
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), itemVerticalAlignment = Alignment.CenterVertically) {
-        ReactionAction(detail.reaction == Reaction.LIKE, R.drawable.ic_icon_thumb_up, R.string.video_like, detail.upvotes, busy || detail.blockedByOther) { onVote(Reaction.LIKE) }
-        ReactionAction(detail.reaction == Reaction.DISLIKE, R.drawable.ic_icon_thumb_down, R.string.video_dislike, detail.downvotes, busy || detail.blockedByOther) { onVote(Reaction.DISLIKE) }
-        ReactionAction(false, R.drawable.ic_icon_star, R.string.video_save, null, busy = false, onClick = onUnavailable)
-        FilledTonalIconButton(onClick = onUnavailable, colors = actionColors) {
-            Icon(painterResource(R.drawable.ic_icon_download), stringResource(R.string.video_download))
-        }
-        FilledTonalIconButton(onClick = onShare, colors = actionColors) {
-            Icon(painterResource(R.drawable.ic_icon_share), stringResource(R.string.video_share))
-        }
-        VideoActionsMenu(
-            videoId = detail.summary.id,
-            coverAvailable = deliveryImageUrl(detail.summary.image) != null,
-            onViewCover = onViewCover,
-        ) { open ->
-            FilledTonalIconButton(onClick = open, colors = actionColors) {
-                Icon(painterResource(R.drawable.ic_icon_more_vert), stringResource(R.string.video_more))
+private fun VideoScreenPreview() {
+    KIRAKIRATheme {
+        Surface {
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                VideoScreen(
+                    state = VideoUiState(
+                        detail = ContentState(
+                            data = VideoDetail(
+                                summary = VideoSummary(id = 0, title = "Video detail layout preview", views = 1280L),
+                                parts = emptyList(),
+                                author = PublicProfile(uid = 0L, name = "Preview", username = "preview"),
+                                description = "This preview uses local data to show the video title, author, " +
+                                    "metadata, action buttons, and description. The text is long enough to " +
+                                    "check the collapsed description and its expansion button.",
+                                category = "",
+                                upvotes = 1280L,
+                                downvotes = 24L,
+                                reaction = Reaction.LIKE,
+                            ),
+                        ),
+                        access = VideoAccessState(),
+                        comments = CommentListState(),
+                        danmaku = ContentState(data = emptyList()),
+                        busy = false,
+                        signedIn = false,
+                        sessionRevision = 0L,
+                        commentDraft = "",
+                        danmakuDraft = "",
+                        posted = null,
+                    ),
+                    onRetry = {},
+                    onFollow = {},
+                    onVote = {},
+                    onCommentVote = { _, _ -> },
+                    onCommentsPage = {},
+                    onCommentsPageRefresh = {},
+                    onCommentsRetry = {},
+                    onCommentsAdjacent = { _, _ -> },
+                    onCommentLocationConsumed = {},
+                    onLoadTab = {},
+                    onCommentDraft = {},
+                    onDanmakuDraft = {},
+                    onSendComment = {},
+                    onSendDanmaku = {},
+                    onRefreshDanmaku = {},
+                    onRetryDanmaku = {},
+                    onOpenProfile = {},
+                    onUnavailable = {},
+                    onShare = {},
+                    onLogin = {},
+                    contentPadding = PaddingValues(0.dp),
+                    onViewCover = {},
+                    selectedPart = 0,
+                    onSelectPart = {},
+                    onOpenTag = {},
+                    playerHeight = maxWidth * 9 / 16,
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
         }
-    }
-}
-
-@Composable
-private fun ReactionAction(
-    checked: Boolean,
-    @DrawableRes icon: Int,
-    @StringRes label: Int,
-    count: Long?,
-    busy: Boolean,
-    onClick: () -> Unit,
-) {
-    val description = if (count != null) {
-        stringResource(R.string.video_action_count, stringResource(label), count)
-    } else {
-        stringResource(label)
-    }
-    val shapes = ToggleButtonDefaults.shapesFor(ToggleButtonDefaults.size)
-    val outline = rememberMorphingButtonShape(
-        targetShape = if (checked) shapes.checkedShape else shapes.shape,
-        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
-    )
-    ToggleButton(
-        checked = checked,
-        onCheckedChange = { onClick() },
-        enabled = !busy,
-        // One selection animation owns the outline; pressing this compact action row keeps it steady.
-        shapes = ToggleButtonShapes(outline, outline, outline),
-        modifier = Modifier.semantics { contentDescription = description },
-        icon = { Icon(painterResource(icon), null) },
-    ) {
-        if (count == null) Text("—") else AnimatedCountLabel(count, stringResource(R.string.animated_count))
     }
 }

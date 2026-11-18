@@ -3,8 +3,10 @@ package moe.kirakira.feature.video
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
@@ -37,6 +39,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import moe.kirakira.R
 import moe.kirakira.data.content.Reaction
@@ -45,6 +48,7 @@ import moe.kirakira.ui.components.AnimatedCountLabel
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.ContentStatusViewport
+import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.content.ContentState
 
 @Composable
@@ -73,19 +77,28 @@ internal fun VideoCommentsPage(
     composerActive: Boolean = true,
     recentKaomoji: List<String> = emptyList(),
     onKaomojiInserted: (String) -> Unit = {},
+    sending: Boolean = false,
 ) {
     val entries = remember(state.pages) { state.entries }
-    val showLoadingStatus = state.loading && !state.refreshing
     val showPosted = posted != null && entries.none { it.comment.id == posted.id }
     val commentStart = 3 + if (showPosted) 1 else 0
     val totalPages = state.totalPages
     val navigationEnabled = state.pages.isNotEmpty() && !busy
     var showJumpDialog by rememberSaveable { mutableStateOf(false) }
+    var submittedJumpPage by rememberSaveable { mutableStateOf<Int?>(null) }
+    val jumpInProgress = showJumpDialog && composerActive && submittedJumpPage != null &&
+        (state.loading || state.location?.page == submittedJumpPage)
+    val showLoadingStatus = state.loading && !state.refreshing && !jumpInProgress
+    fun closeJumpDialog() {
+        showJumpDialog = false
+        submittedJumpPage = null
+    }
     LaunchedEffect(composerActive) {
-        if (!composerActive) showJumpDialog = false
+        if (!composerActive) closeJumpDialog()
     }
     var toolbarSize by remember { mutableStateOf(IntSize.Zero) }
     var headerHeight by remember { mutableIntStateOf(0) }
+    var lastPageSpacing by remember(state.lastPage, totalPages) { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val currentPage by remember(entries, state.firstPage) {
         derivedStateOf {
@@ -115,22 +128,40 @@ internal fun VideoCommentsPage(
         }
         previousFirstPage = state.firstPage
     }
-    LaunchedEffect(state.location) {
-        state.location?.let { location ->
-            val index = entries.indexOfFirst { it.page == location.page }
-            val targetIndex = if (location.page == 1 || index < 0) 0 else commentStart + index
-            val targetKey = if (targetIndex == 0) "count" else entries[index].comment.id
-            // Apply the request during the next measure, with the new item provider. Keep
-            // adjacent loading paused until that provider has actually placed the target.
-            listState.requestScrollToItem(targetIndex)
-            snapshotFlow {
-                val layout = listState.layoutInfo
-                layout.totalItemsCount == commentStart + entries.size + 1 &&
-                    layout.visibleItemsInfo.any { it.index == targetIndex && it.key == targetKey } &&
-                    (listState.firstVisibleItemIndex == targetIndex || !listState.canScrollForward)
-            }.first { it }
-            onLocationConsumed(location.request)
+    LaunchedEffect(state.location, entries, commentStart, totalPages, lastPageSpacing) {
+        val location = state.location ?: return@LaunchedEffect
+        val index = entries.indexOfFirst { it.page == location.page }
+        val targetIndex = if (location.page == 1 || index < 0) 0 else commentStart + index
+        val targetKey = if (targetIndex == 0) "count" else entries[index].comment.id
+        val previousLayout = listState.layoutInfo
+        listState.requestScrollToItem(targetIndex)
+        val positionedLayout = snapshotFlow {
+            val layout = listState.layoutInfo
+            layout.takeIf {
+                it !== previousLayout && it.totalItemsCount == commentStart + entries.size + 1 &&
+                    it.visibleItemsInfo.any { item ->
+                        item.index == targetIndex && item.key == targetKey &&
+                            (item.offset == 0 || !listState.canScrollForward)
+                    }
+            }
+        }.filterNotNull().first()
+
+        if (location.page == totalPages && targetIndex != 0) {
+            val target = positionedLayout.visibleItemsInfo.first { it.index == targetIndex }
+            val last = positionedLayout.visibleItemsInfo.firstOrNull { it.index == commentStart + entries.lastIndex }
+            val spacing = if (last == null) 0 else {
+                val viewportHeight = positionedLayout.viewportEndOffset - positionedLayout.afterContentPadding
+                (viewportHeight - (last.offset + last.size - target.offset)).coerceAtLeast(0)
+            }
+            if (spacing != lastPageSpacing) {
+                // Give a short last page enough room to stay at the top when the previous page is prepended.
+                lastPageSpacing = spacing
+                return@LaunchedEffect
+            }
         }
+        // Keep adjacent loading paused until the target has been placed with the required space.
+        if (location.page == submittedJumpPage) closeJumpDialog()
+        onLocationConsumed(location.request)
     }
     LaunchedEffect(entries, state.firstPage, state.lastPage, state.loading, state.location,
         state.previous, state.next, composerActive) {
@@ -157,7 +188,7 @@ internal fun VideoCommentsPage(
         composer = { availableHeight ->
             ContentComposer(
                 draft, R.string.comment_write, onDraft, onSend,
-                enabled = canInteract, busy = busy, maxLength = 19999,
+                enabled = canInteract, busy = busy, sending = sending, maxLength = 19999,
                 state = composerState, active = composerActive, availableHeight = availableHeight,
                 contentPadding = contentPadding,
                 recent = recentKaomoji, onKaomojiInserted = onKaomojiInserted,
@@ -238,6 +269,9 @@ internal fun VideoCommentsPage(
                     }
                     item("next") {
                         ContentStatus(state.next, { onAdjacent(false, true) }, Modifier.fillMaxWidth(), empty = false)
+                        if (lastPageSpacing > 0) {
+                            Spacer(Modifier.height(with(density) { lastPageSpacing.toDp() }))
+                        }
                     }
                 }
                 CommentToolbar(
@@ -255,14 +289,17 @@ internal fun VideoCommentsPage(
         }
     }
     if (showJumpDialog && composerActive) {
+        val jumpError = state.error.takeIf { submittedJumpPage != null && !jumpInProgress }
         CommentJumpDialog(
             currentPage = currentPage,
             totalPages = totalPages,
-            enabled = navigationEnabled,
-            onDismiss = { showJumpDialog = false },
+            enabled = navigationEnabled && !state.loading && state.location == null,
+            loading = jumpInProgress,
+            errorMessage = jumpError?.let { stringResource(it.messageRes()) },
+            onDismiss = ::closeJumpDialog,
             onJump = {
+                submittedJumpPage = it
                 onPage(it)
-                showJumpDialog = false
             },
         )
     }

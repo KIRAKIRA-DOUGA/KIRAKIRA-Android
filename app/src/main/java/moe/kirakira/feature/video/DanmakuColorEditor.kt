@@ -11,7 +11,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -19,6 +18,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
 import moe.kirakira.ui.components.ColorEditorControls
+import moe.kirakira.ui.components.FlatTextButton
 import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.rememberColorEditorState
 
@@ -43,7 +43,7 @@ internal fun DanmakuColorEditor(
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.theme_color_cancel)) }
+            FlatTextButton(onClick = onDismiss) { Text(stringResource(R.string.theme_color_cancel)) }
             ShadowButton(onClick = { parsedColor?.let { onConfirm(it and 0xFFFFFF) } }, enabled = parsedColor != null) {
                 Text(stringResource(R.string.theme_color_apply))
             }

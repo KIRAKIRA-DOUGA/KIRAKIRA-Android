@@ -138,8 +138,8 @@ private fun DanmakuColorOption(
         label = "pressedShapeProgress",
     )
     val shapes = IconButtonDefaults.toggleableShapes(
-        shape = IconButtonDefaults.extraSmallRoundShape,
-        pressedShape = IconButtonDefaults.extraSmallPressedShape,
+        shape = IconButtonDefaults.extraSmallPressedShape,
+        pressedShape = IconButtonDefaults.extraSmallRoundShape,
         checkedShape = IconButtonDefaults.extraSmallSelectedRoundShape,
     )
     // The visible swatch and its outer outline read the same morph in the drawing phase.

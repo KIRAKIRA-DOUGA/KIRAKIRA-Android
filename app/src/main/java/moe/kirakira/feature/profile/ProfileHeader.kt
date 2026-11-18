@@ -1,12 +1,17 @@
 package moe.kirakira.feature.profile
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,7 +25,6 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButtonSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -29,10 +33,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
@@ -41,9 +48,11 @@ import moe.kirakira.data.content.FollowListKind
 import moe.kirakira.ui.components.AccountAvatar
 import moe.kirakira.ui.components.AnimatedCountLabel
 import moe.kirakira.ui.components.ExpandableText
+import moe.kirakira.ui.components.FlatTextButton
 import moe.kirakira.ui.components.FollowButton
 import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.UsernameText
+import moe.kirakira.ui.components.pressToRoundButtonShapes
 import moe.kirakira.ui.navigation.LocalImageSharedScope
 import moe.kirakira.ui.navigation.imageSharedBounds
 import moe.kirakira.ui.theme.ThemeColorDefaults
@@ -165,21 +174,22 @@ internal fun ProfileHeader(
             if (bio != null) {
                 ExpandableText(text = bio, expanded = bioExpanded, onExpandedChange = onBioExpandedChange)
             }
-            if (state.followingCount != null && state.followerCount != null) {
-                FlowRow(
+            if (state.statsLoading || (state.followingCount != null && state.followerCount != null)) {
+                Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     ProfileStat(
                         count = state.followingCount,
                         label = stringResource(R.string.me_following_count),
                         onClick = { onOpenFollowList(FollowListKind.FOLLOWING) },
+                        modifier = Modifier.weight(1f, fill = false),
                     )
                     ProfileStat(
                         count = state.followerCount,
                         label = stringResource(R.string.me_followers_count),
                         onClick = { onOpenFollowList(FollowListKind.FOLLOWERS) },
+                        modifier = Modifier.weight(1f, fill = false),
                     )
                 }
             }
@@ -190,7 +200,7 @@ internal fun ProfileHeader(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = buttonHeight),
-                    shapes = ButtonDefaults.shapesFor(buttonHeight),
+                    shapes = pressToRoundButtonShapes(buttonHeight),
                     contentPadding = ButtonDefaults.contentPaddingFor(buttonHeight),
                 ) {
                     Text(
@@ -202,6 +212,7 @@ internal fun ProfileHeader(
                 FollowButton(
                     following = state.following,
                     enabled = !state.busy && !state.profile.blockedByOther,
+                    loading = state.followingInProgress,
                     onFollowingChange = onFollowingChange,
                     modifier = Modifier.fillMaxWidth(),
                     buttonSize = ToggleButtonSize.Medium,
@@ -212,26 +223,56 @@ internal fun ProfileHeader(
 }
 
 @Composable
-private fun ProfileStat(count: Int, label: String, onClick: () -> Unit) {
-    val description = stringResource(R.string.profile_stat_description, count, label)
-    TextButton(
+private fun ProfileStat(count: Int?, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val description = count?.let { stringResource(R.string.profile_stat_description, it, label) }
+    val motion = MaterialTheme.motionScheme
+    FlatTextButton(
         onClick = onClick,
-        modifier = Modifier
+        enabled = count != null,
+        modifier = modifier
             .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-            .semantics { contentDescription = description },
+            .semantics {
+                if (description == null) {
+                    progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate
+                } else {
+                    contentDescription = description
+                }
+            },
         colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface),
         contentPadding = PaddingValues(0.dp),
     ) {
-        AnimatedCountLabel(
-            count = count.toLong(),
-            template = stringResource(R.string.animated_count),
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-        )
+        AnimatedContent(
+            targetState = count,
+            contentKey = { it != null },
+            contentAlignment = Alignment.CenterStart,
+            transitionSpec = {
+                (fadeIn(motion.fastEffectsSpec()) togetherWith fadeOut(motion.fastEffectsSpec()))
+                    .using(SizeTransform { _, _ -> motion.fastSpatialSpec() })
+            },
+            label = "profileStatCount",
+        ) { displayedCount ->
+            if (displayedCount == null) {
+                Spacer(
+                    Modifier
+                        .size(width = 24.dp, height = 8.dp)
+                        .background(MaterialTheme.colorScheme.outlineVariant, CircleShape),
+                )
+            } else {
+                AnimatedCountLabel(
+                    count = displayedCount.toLong(),
+                    template = stringResource(R.string.animated_count),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                    maxLines = 1,
+                )
+            }
+        }
         Spacer(Modifier.width(4.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
