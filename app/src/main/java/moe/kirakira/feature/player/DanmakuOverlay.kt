@@ -12,7 +12,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
@@ -36,8 +35,8 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.toSize
 import androidx.media3.common.Player
-import androidx.media3.common.VideoSize
 import kotlin.math.ceil
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.channels.Channel
@@ -69,16 +68,14 @@ internal fun DanmakuOverlay(
     val density = LocalDensity.current
     val measurer = rememberTextMeasurer(cacheSize = 128)
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
-    var videoSize by remember(player, contentKey) { mutableStateOf(player.videoSize) }
     val wake = remember(player, contentKey) { Channel<Unit>(Channel.CONFLATED) }
-    val viewport = remember(canvasSize, videoSize) { fittedVideoRect(canvasSize, videoSize) }
+    val viewport = canvasSize.toSize()
     // Replacing this state also removes an old frame immediately on pool/account/layout changes.
     val frame = remember(player, contentKey, entries, settings, viewport, density) { mutableStateOf(DanmakuFrame()) }
 
     DisposableEffect(player, wake) {
         val listener = object : Player.Listener {
             override fun onEvents(player: Player, events: Player.Events) {
-                videoSize = player.videoSize
                 wake.trySend(Unit)
             }
         }
@@ -157,40 +154,27 @@ internal fun DanmakuOverlay(
     Canvas(modifier.fillMaxSize().onSizeChanged { canvasSize = it }.clearAndSetSemantics { }) {
         val current = frame.value
         val opacity = settings.opacityPercent / 100f
-        translate(viewport.left, viewport.top) {
-            clipRect(right = viewport.width, bottom = viewport.height * settings.areaPercent / 100f) {
-                current.sprites.forEach { sprite ->
-                    val flight = sprite.flight
-                    translate(flight.leftAt(current.positionMs, viewport.width), flight.top) {
-                        val outline = sprite.outline
-                        if (outline != null) {
-                            drawText(
-                                sprite.text, brush = outline, topLeft = Offset.Zero,
-                                alpha = opacity, shadow = Shadow.None, drawStyle = Stroke(width = 4f),
-                            )
-                        }
-                        // Cached paragraphs retain paint state: null does not reset a previous Stroke to Fill.
+        clipRect(right = viewport.width, bottom = viewport.height * settings.areaPercent / 100f) {
+            current.sprites.forEach { sprite ->
+                val flight = sprite.flight
+                translate(flight.leftAt(current.positionMs, viewport.width), flight.top) {
+                    val outline = sprite.outline
+                    if (outline != null) {
                         drawText(
-                            sprite.text,
-                            color = Color(0xFF000000.toInt() or flight.entry.style.color),
-                            alpha = opacity,
-                            shadow = if (outline == null) Shadow(Color.Black, blurRadius = 3f) else Shadow.None,
-                            drawStyle = Fill,
+                            sprite.text, brush = outline, topLeft = Offset.Zero,
+                            alpha = opacity, shadow = Shadow.None, drawStyle = Stroke(width = 4f),
                         )
                     }
+                    // Cached paragraphs retain paint state: null does not reset a previous Stroke to Fill.
+                    drawText(
+                        sprite.text,
+                        color = Color(0xFF000000.toInt() or flight.entry.style.color),
+                        alpha = opacity,
+                        shadow = if (outline == null) Shadow(Color.Black, blurRadius = 3f) else Shadow.None,
+                        drawStyle = Fill,
+                    )
                 }
             }
         }
     }
-}
-
-private fun fittedVideoRect(canvas: IntSize, video: VideoSize): Rect {
-    if (canvas.width <= 0 || canvas.height <= 0 || video.width <= 0 || video.height <= 0) return Rect.Zero
-    val ratio = video.width.toFloat() * video.pixelWidthHeightRatio / video.height
-    if (!ratio.isFinite() || ratio <= 0) return Rect.Zero
-    val width = minOf(canvas.width.toFloat(), canvas.height * ratio)
-    val height = width / ratio
-    val left = (canvas.width - width) / 2f
-    val top = (canvas.height - height) / 2f
-    return Rect(left, top, left + width, top + height)
 }

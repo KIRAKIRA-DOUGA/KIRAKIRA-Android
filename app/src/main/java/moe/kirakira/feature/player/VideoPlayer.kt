@@ -45,7 +45,6 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RippleConfiguration
-import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -117,6 +116,7 @@ import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.SlashIconType
+import moe.kirakira.ui.components.SmoothSlider
 import moe.kirakira.ui.components.rememberSlashIconProgress
 import moe.kirakira.ui.components.video.VideoArtwork
 import moe.kirakira.ui.components.video.durationText
@@ -160,6 +160,8 @@ internal fun VideoPlayer(
     onFullscreen: () -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    fullscreenLayoutReady: Boolean = fullscreen,
+    inlinePlayerBottom: Dp = 0.dp,
     artworkPlaceholder: Painter? = null,
     active: Boolean = true,
     onReadVolume: () -> Float? = { null },
@@ -188,7 +190,9 @@ internal fun VideoPlayer(
         slashed = danmakuSettings?.enabled != true,
         ready = danmakuSettings != null,
     )
-    var settingsPanel by remember { mutableStateOf<PlayerSettingsPanel?>(null) }
+    val settingsAvailable = active && !pictureInPicture && !state.failed && (!fullscreen || fullscreenLayoutReady)
+    var settingsPanel by remember(fullscreen, settingsAvailable) { mutableStateOf<PlayerSettingsPanel?>(null) }
+    val fullscreenSheetOpen = fullscreen && settingsPanel != null
     var controlsVisible by remember { mutableStateOf(true) }
     var interaction by remember { mutableIntStateOf(0) }
     var dragged by remember(player) { mutableStateOf<Float?>(null) }
@@ -253,7 +257,7 @@ internal fun VideoPlayer(
     val gestureModifier = Modifier.playerGestures(gestures, gestureEnabled, gestureSeekable, gestureIdentity)
 
     fun controlAction(action: () -> Unit) {
-        if (controlsVisible) {
+        if (controlsVisible && (!fullscreen || settingsPanel == null)) {
             gestures.reset()
             interact()
             action()
@@ -262,8 +266,9 @@ internal fun VideoPlayer(
 
     val focusManager = LocalFocusManager.current
     var controlsHaveFocus by remember { mutableStateOf(false) }
-    LaunchedEffect(controlsVisible, active, pictureInPicture) {
-        if ((!controlsVisible || !active || pictureInPicture) && controlsHaveFocus) {
+    val controlsInteractive = controlsVisible && !fullscreenSheetOpen
+    LaunchedEffect(controlsInteractive, active, pictureInPicture) {
+        if ((!controlsInteractive || !active || pictureInPicture) && controlsHaveFocus) {
             focusManager.clearFocus(force = true)
         }
     }
@@ -277,25 +282,6 @@ internal fun VideoPlayer(
     LaunchedEffect(fullscreen, pictureInPicture, active, state.failed, state.initialLoading, waitingForArtwork) {
         settingsPanel = null
         interact()
-    }
-    if (active && !pictureInPicture && !state.failed) {
-        settingsPanel?.let { panel ->
-            PlayerSettingsSheet(
-                panel = panel,
-                state = state,
-                onDismiss = { settingsPanel = null; interact() },
-                onQuality = onQuality,
-                onSpeed = onSpeed,
-                onContinuousSpeed = onContinuousSpeed,
-                onPreservesPitch = onPreservesPitch,
-                playbackSettings = playbackSettings,
-                danmakuSettings = danmakuSettings,
-                onOutsideAppMiniPlayerChange = onOutsideAppMiniPlayerChange,
-                onInAppMiniPlayerChange = onInAppMiniPlayerChange,
-                onAutoplayChange = onAutoplayChange,
-                onDanmakuSettingsChange = onDanmakuSettingsChange,
-            )
-        }
     }
     val controlsLabel =
         stringResource(if (controlsVisible) R.string.player_hide_controls else R.string.player_show_controls)
@@ -314,7 +300,7 @@ internal fun VideoPlayer(
         indication = null,
         onClickLabel = controlsLabel,
     ) { latestSingleTap() }
-    val screenInteraction = if (pictureInPicture || !active) Modifier else tapInteraction
+    val screenInteraction = if (pictureInPicture || !active || fullscreenSheetOpen) Modifier else tapInteraction
     Box(
         modifier
             .background(Color.Black)
@@ -349,7 +335,7 @@ internal fun VideoPlayer(
         }
         if (active && !pictureInPicture) {
             // Keep the shield through a drag when revealing controls, preserving the pointer owner.
-            if (!controlsVisible || gestures.dragging) {
+            if (!fullscreenSheetOpen && (!controlsVisible || gestures.dragging)) {
                 Box(
                     Modifier
                         .fillMaxSize()
@@ -369,9 +355,9 @@ internal fun VideoPlayer(
                     Box(
                         Modifier
                             .fillMaxSize()
-                            .then(if (!controlsVisible) Modifier.clearAndSetSemantics { } else Modifier)
+                            .then(if (!controlsInteractive) Modifier.clearAndSetSemantics { } else Modifier)
                             .focusProperties {
-                                onEnter = { if (!controlsVisible) cancelFocusChange() }
+                                onEnter = { if (!controlsInteractive) cancelFocusChange() }
                             }
                             .onFocusChanged { controlsHaveFocus = it.hasFocus }
                             .focusGroup()
@@ -426,7 +412,7 @@ internal fun VideoPlayer(
                                     } else if (!showingInitialLoading) {
                                         PlayerSettingsButtons(
                                             state = state,
-                                            enabled = active,
+                                            enabled = settingsAvailable,
                                             onOpen = { panel -> controlAction { settingsPanel = panel } },
                                             settingsOpen = settingsPanel == PlayerSettingsPanel.GENERAL,
                                         )
@@ -578,7 +564,7 @@ internal fun VideoPlayer(
                                     }
                                 },
                                 progress = {
-                                    Slider(
+                                    SmoothSlider(
                                         state = slider,
                                         colors = sliderColors,
                                         onValueChange = { value ->
@@ -641,6 +627,26 @@ internal fun VideoPlayer(
                     }
                 }
             }
+        }
+        if (settingsAvailable) settingsPanel?.let { panel ->
+            PlayerSettingsSheet(
+                panel = panel,
+                state = state,
+                fullscreen = fullscreen,
+                inlinePlayerBottom = inlinePlayerBottom,
+                onDismiss = { settingsPanel = null; interact() },
+                onQuality = onQuality,
+                onSpeed = onSpeed,
+                onContinuousSpeed = onContinuousSpeed,
+                onPreservesPitch = onPreservesPitch,
+                playbackSettings = playbackSettings,
+                danmakuSettings = danmakuSettings,
+                onOutsideAppMiniPlayerChange = onOutsideAppMiniPlayerChange,
+                onInAppMiniPlayerChange = onInAppMiniPlayerChange,
+                onAutoplayChange = onAutoplayChange,
+                onDanmakuSettingsChange = onDanmakuSettingsChange,
+                modifier = if (fullscreen) Modifier.matchParentSize() else Modifier,
+            )
         }
     }
 }

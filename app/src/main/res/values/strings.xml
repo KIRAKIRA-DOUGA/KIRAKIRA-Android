@@ -513,7 +513,7 @@
     <string name="player_speed_value">%1$s×</string>
     <string name="player_quality_description">Quality: %1$s</string>
     <string name="player_speed_description">Playback speed: %1$s</string>
-    <string name="player_actual_speed_description">Current playback speed: %1$s</string>
+    <string name="player_speed_pitch_description">%1$s, pitch shift in semitones: %2$s</string>
     <string name="player_continuous_speed">Continuous speed control</string>
     <string name="player_preserves_pitch">Preserve pitch</string>
     <string name="player_quality_bitrate">%1$d Kbps</string>
@@ -556,6 +556,7 @@
     <string name="player_gesture_rewind">-%1$ds</string>
     <string name="player_gesture_volume_value">%1$d%%</string>
     <string name="player_settings">Player settings</string>
+    <string name="player_settings_sheet_close">Close playback panel</string>
     <string name="player_settings_playback">Player</string>
     <string name="profile_hide_user">Hide user</string>
     <string name="profile_unhide_user">Unhide user</string>

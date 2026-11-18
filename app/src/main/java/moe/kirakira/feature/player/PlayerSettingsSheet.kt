@@ -1,5 +1,8 @@
 package moe.kirakira.feature.player
 
+import androidx.activity.compose.BackHandler
+import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
@@ -10,13 +13,17 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -29,19 +36,20 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.BottomSheet
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Scrim
 import androidx.compose.material3.SegmentedListItem
+import androidx.compose.material3.SheetState
 import androidx.compose.material3.SheetValue
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -53,17 +61,24 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.dialog
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -72,16 +87,20 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.takeOrElse
 import java.math.BigDecimal
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 import moe.kirakira.R
 import moe.kirakira.data.settings.DanmakuSettings
 import moe.kirakira.data.settings.PlaybackSettings
+import moe.kirakira.ui.components.AppChipDefaults
 import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.ui.components.ShadowRadioButton
+import moe.kirakira.ui.components.SmoothSlider
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
@@ -219,6 +238,8 @@ internal fun PlayerSettingsButtons(
 internal fun PlayerSettingsSheet(
     panel: PlayerSettingsPanel,
     state: PlayerUiState,
+    fullscreen: Boolean,
+    inlinePlayerBottom: Dp,
     onDismiss: () -> Unit,
     onQuality: (Int?) -> Unit,
     onSpeed: (Float) -> Unit,
@@ -242,32 +263,45 @@ internal fun PlayerSettingsSheet(
                 else if (!scrolling) handlingPagerGesture = false
             }
     }
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        sheetState = rememberBottomSheetState(
-            initialValue = SheetValue.Hidden,
-            enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-        ),
-        sheetMaxWidth = 640.dp,
-        // Material 3's sheet post-fling handler also consumes the child's horizontal velocity.
-        // Keep it out of the Pager's gesture and fling; restore ordinary sheet dragging afterward.
-        sheetGesturesEnabled = panel != PlayerSettingsPanel.GENERAL ||
-            !(draggingPreferences || handlingPagerGesture),
-        contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
-        modifier = modifier,
-    ) {
+    val sheetColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val safeDrawing = WindowInsets.safeDrawing
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+    // Reserve equal space before the sheet's width cap so its content stays centered.
+    val sideInset = maxOf(safeDrawing.getLeft(density, layoutDirection), safeDrawing.getRight(density, layoutDirection))
+    val horizontalInsets = WindowInsets(left = sideInset, right = sideInset)
+    val contentWindowInsets: @Composable () -> WindowInsets = {
+        if (panel == PlayerSettingsPanel.GENERAL) WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
+        else WindowInsets(0, 0, 0, 0)
+    }
+    val sheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+    )
+    // Material 3's sheet post-fling handler also consumes the child's horizontal velocity.
+    // Keep it out of the Pager's gesture and fling, then restore ordinary sheet dragging.
+    val gesturesEnabled = panel != PlayerSettingsPanel.GENERAL || !(draggingPreferences || handlingPagerGesture)
+    val content: @Composable ColumnScope.() -> Unit = {
         when (panel) {
-            PlayerSettingsPanel.GENERAL -> PlayerPreferencesContent(
-                pagerState = preferencesPager,
-                playbackSettings = playbackSettings,
-                danmakuSettings = danmakuSettings,
-                onOutsideAppMiniPlayerChange = onOutsideAppMiniPlayerChange,
-                onInAppMiniPlayerChange = onInAppMiniPlayerChange,
-                onAutoplayChange = onAutoplayChange,
-                onDanmakuSettingsChange = onDanmakuSettingsChange,
-            )
+            PlayerSettingsPanel.GENERAL -> BoxWithConstraints {
+                // Keep the sheet's full height constraints for its bottom anchor.
+                // Leave room for the fixed header and scrollable options in short windows.
+                val minimumHeight = minOf(maxHeight, 192.dp)
+                val contentHeight = if (fullscreen) maxHeight
+                else (maxHeight - inlinePlayerBottom).coerceAtLeast(minimumHeight)
+                PlayerPreferencesContent(
+                    pagerState = preferencesPager,
+                    playbackSettings = playbackSettings,
+                    danmakuSettings = danmakuSettings,
+                    onOutsideAppMiniPlayerChange = onOutsideAppMiniPlayerChange,
+                    onInAppMiniPlayerChange = onInAppMiniPlayerChange,
+                    onAutoplayChange = onAutoplayChange,
+                    onDanmakuSettingsChange = onDanmakuSettingsChange,
+                    modifier = Modifier.height(contentHeight),
+                )
+            }
             PlayerSettingsPanel.QUALITY, PlayerSettingsPanel.SPEED -> PlaybackOptionsContent(
+                parentContainerColor = sheetColor,
                 panel = panel,
                 state = state,
                 onDismiss = onDismiss,
@@ -278,10 +312,91 @@ internal fun PlayerSettingsSheet(
             )
         }
     }
+    if (fullscreen) {
+        FullscreenPlayerSettingsSheet(
+            sheetState = sheetState,
+            gesturesEnabled = gesturesEnabled,
+            containerColor = sheetColor,
+            horizontalInsets = horizontalInsets,
+            contentWindowInsets = contentWindowInsets,
+            onDismiss = onDismiss,
+            modifier = modifier,
+            content = content,
+        )
+    } else {
+        ModalBottomSheet(
+            onDismissRequest = onDismiss,
+            modifier = modifier.windowInsetsPadding(horizontalInsets),
+            containerColor = sheetColor,
+            sheetState = sheetState,
+            sheetGesturesEnabled = gesturesEnabled,
+            contentWindowInsets = contentWindowInsets,
+            content = content,
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FullscreenPlayerSettingsSheet(
+    sheetState: SheetState,
+    gesturesEnabled: Boolean,
+    containerColor: Color,
+    horizontalInsets: WindowInsets,
+    contentWindowInsets: @Composable () -> WindowInsets,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    val currentOnDismiss by rememberUpdatedState(onDismiss)
+    val dismiss: () -> Unit = remember(sheetState, scope) {
+        {
+            scope.launch {
+                sheetState.hide()
+                currentOnDismiss()
+            }
+        }
+    }
+    val hasExpandedState = sheetState.hasExpandedState
+    LaunchedEffect(sheetState, hasExpandedState) {
+        if (hasExpandedState && sheetState.targetValue == SheetValue.Hidden) sheetState.show()
+    }
+    val scrimAlpha by animateFloatAsState(
+        targetValue = if (sheetState.targetValue == SheetValue.Hidden) 0f else 1f,
+        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+        label = "PlayerSettingsScrimAlpha",
+    )
+
+    // BottomSheet handles predictive back once visible. Cover the opening frames as well.
+    BackHandler(enabled = !sheetState.isVisible, onBack = dismiss)
+    Box(
+        modifier.clipToBounds().semantics {
+            dialog()
+            isTraversalGroup = true
+        },
+    ) {
+        Scrim(
+            contentDescription = stringResource(R.string.player_settings_sheet_close),
+            onClick = dismiss,
+            alpha = { scrimAlpha },
+        )
+        BottomSheet(
+            modifier = Modifier.align(Alignment.TopCenter).windowInsetsPadding(horizontalInsets),
+            state = sheetState,
+            onDismissRequest = onDismiss,
+            gesturesEnabled = gesturesEnabled,
+            containerColor = containerColor,
+            tonalElevation = 0.dp,
+            contentWindowInsets = contentWindowInsets,
+            content = content,
+        )
+    }
 }
 
 @Composable
 private fun PlaybackOptionsContent(
+    parentContainerColor: Color,
     panel: PlayerSettingsPanel,
     state: PlayerUiState,
     onDismiss: () -> Unit,
@@ -295,7 +410,7 @@ private fun PlaybackOptionsContent(
         modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
             .padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
@@ -356,8 +471,10 @@ private fun PlaybackOptionsContent(
                     playing = state.playing,
                     continuousSpeed = state.continuousSpeed,
                     onSpeed = onSpeed,
+                    sliderDragging = slider.isDragging,
+                    showPitchShift = !state.preservesPitch,
                 )
-                Slider(
+                SmoothSlider(
                     state = slider,
                     onValueChange = { onSpeed(PlaybackSpeedRules.speedAtProgress(it)) },
                     modifier = Modifier.fillMaxWidth().semantics {
@@ -376,6 +493,7 @@ private fun PlaybackOptionsContent(
                     Text(speedLabel(PlaybackSpeedRules.range.endInclusive), style = MaterialTheme.typography.labelMedium)
                 }
             }
+            val speedChipColors = AppChipDefaults.filterColors(parentContainerColor)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 playbackSpeeds.forEach { speed ->
                     FilterChip(
@@ -384,28 +502,38 @@ private fun PlaybackOptionsContent(
                         label = { Text(speedLabel(speed)) },
                         shape = CircleShape,
                         border = null,
-                        colors = FilterChipDefaults.filterChipColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            labelColor = MaterialTheme.colorScheme.onSurface,
-                            iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                            selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
-                            selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimary,
-                        ),
+                        colors = speedChipColors,
                     )
                 }
             }
             ConnectedListGroup {
-                SpeedSwitch(R.string.player_continuous_speed, state.continuousSpeed, 0, onContinuousSpeed)
-                SpeedSwitch(R.string.player_preserves_pitch, state.preservesPitch, 1, onPreservesPitch)
+                SpeedSwitch(
+                    label = R.string.player_continuous_speed,
+                    icon = R.drawable.ic_icon_slider_3,
+                    checked = state.continuousSpeed,
+                    index = 0,
+                    onChange = onContinuousSpeed,
+                )
+                SpeedSwitch(
+                    label = R.string.player_preserves_pitch,
+                    icon = R.drawable.ic_icon_tunning,
+                    checked = state.preservesPitch,
+                    index = 1,
+                    onChange = onPreservesPitch,
+                )
             }
         }
     }
 }
 
 @Composable
-private fun SpeedSwitch(label: Int, checked: Boolean, index: Int, onChange: (Boolean) -> Unit) {
+private fun SpeedSwitch(
+    @StringRes label: Int,
+    @DrawableRes icon: Int,
+    checked: Boolean,
+    index: Int,
+    onChange: (Boolean) -> Unit,
+) {
     SegmentedListItem(
         onClick = { onChange(!checked) },
         shapes = connectedListItemShapes(index, 2),
@@ -413,6 +541,7 @@ private fun SpeedSwitch(label: Int, checked: Boolean, index: Int, onChange: (Boo
             role = Role.Switch
             toggleableState = ToggleableState(checked)
         },
+        leadingContent = { Icon(painterResource(icon), contentDescription = null) },
         trailingContent = { Switch(checked = checked, onCheckedChange = null) },
         content = { Text(stringResource(label)) },
     )

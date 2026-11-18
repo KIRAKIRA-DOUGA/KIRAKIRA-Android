@@ -408,6 +408,8 @@ internal fun VideoPage(
                             image = if (accessBlocked) null else value?.summary?.image ?: initialImage,
                             artworkPlaceholder = artworkPlaceholder.takeUnless { accessBlocked },
                             fullscreen = fullscreenActive,
+                            fullscreenLayoutReady = playerFillsWindow,
+                            inlinePlayerBottom = inlineLayout.contentPadding.calculateTopPadding() + inlineLayout.height,
                             pictureInPicture = pip,
                             onToggle = playback::toggle,
                             onRetry = playback::play,

@@ -256,11 +256,8 @@ internal fun PlaybackHost(
     val closeSpec = remember {
         tween<Float>(durationMillis = 220, easing = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f))
     }
-    val visibility = remember { Animatable(1f) }
+    val closeScale = remember(player) { Animatable(1f) }
     var closing by remember(player) { mutableStateOf(false) }
-    LaunchedEffect(player) {
-        visibility.animateTo(1f, dockingSpec)
-    }
     val scope = rememberCoroutineScope()
     var dockingJob by remember { mutableStateOf<Job?>(null) }
     val restoreInteraction = remember { MutableInteractionSource() }
@@ -396,12 +393,6 @@ internal fun PlaybackHost(
 
         fun viewportFrame(): RectF = lerp(lerp(sourceBounds(), fullBounds, cardProgress.value), miniBounds(), miniProgress())
 
-        fun frameBounds(): RectF {
-            val bounds = viewportFrame()
-            val exitX = if (horizontal < 0.5f) -(widthPx + gap * 3f) else windowWidth + gap * 3f
-            return bounds.translate(Offset((exitX - bounds.left) * (1f - visibility.value) * miniProgress(), 0f))
-        }
-
         fun sourceScale(): Float {
             if (origin == null) return 1f
             val source = sourceBounds()
@@ -430,11 +421,11 @@ internal fun PlaybackHost(
         val dragMaxY by rememberUpdatedState(maxY)
         Box(
             Modifier.offset {
-                val bounds = frameBounds()
+                val bounds = viewportFrame()
                 IntOffset(bounds.left.roundToInt(), bounds.top.roundToInt())
             }
                 .layout { measurable, _ ->
-                    val bounds = frameBounds()
+                    val bounds = viewportFrame()
                     val child = measurable.measure(
                         Constraints.fixed(
                             if (visible) bounds.width.roundToInt().coerceAtLeast(1) else 0,
@@ -444,6 +435,10 @@ internal fun PlaybackHost(
                     layout(child.width, child.height) { child.place(0, 0) }
                 }
                 .graphicsLayer {
+                    val scale = 1f - (1f - closeScale.value) * miniProgress().coerceIn(0f, 1f)
+                    transformOrigin = TransformOrigin.Center
+                    scaleX = scale
+                    scaleY = scale
                     val sourceRadius = origin?.shape?.topStart?.toPx(origin.bounds.size, this) ?: 0f
                     val radius = sourceRadius * (1f - cardProgress.value) * (1f - miniProgress()) + 8.dp.toPx() * miniProgress()
                     shape = RoundedCornerShape(radius.coerceAtLeast(0f))
@@ -622,7 +617,7 @@ internal fun PlaybackHost(
                                 dockingJob?.cancel()
                                 playback.pause()
                                 scope.launch {
-                                    visibility.animateTo(0f, closeSpec)
+                                    closeScale.animateTo(0f, closeSpec)
                                     if (playback.player === player && playback.miniPlayer) {
                                         playback.closeMiniPlayer()
                                     }

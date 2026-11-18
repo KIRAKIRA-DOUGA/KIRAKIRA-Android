@@ -505,7 +505,7 @@
     <string name="player_speed_value">%1$s×</string>
     <string name="player_quality_description">画质：%1$s</string>
     <string name="player_speed_description">播放速度：%1$s</string>
-    <string name="player_actual_speed_description">实际播放速度：%1$s</string>
+    <string name="player_speed_pitch_description">%1$s，半音变化：%2$s</string>
     <string name="player_continuous_speed">无级调速</string>
     <string name="player_preserves_pitch">保持音调</string>
     <string name="player_quality_bitrate">%1$d Kbps</string>
@@ -548,6 +548,7 @@
     <string name="player_gesture_rewind">-%1$ds</string>
     <string name="player_gesture_volume_value">%1$d%%</string>
     <string name="player_settings">播放器设置</string>
+    <string name="player_settings_sheet_close">关闭播放面板</string>
     <string name="player_settings_playback">播放器</string>
     <string name="profile_hide_user">隐藏用户</string>
     <string name="profile_unhide_user">取消隐藏</string>

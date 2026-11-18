@@ -1,12 +1,10 @@
 package moe.kirakira.feature.player
 
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -49,51 +47,42 @@ internal fun PlayerPreferencesContent(
         (if (page == 0) playbackScroll else danmakuScroll).smoothScrollToTop()
     })
     val titles = listOf(stringResource(R.string.player_settings_playback), stringResource(R.string.settings_danmaku))
-    // Constrain content only: the sheet needs full window constraints to calculate its bottom anchor.
-    BoxWithConstraints(modifier.fillMaxWidth()) {
-        val contentHeight = maxHeight * 0.9f
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .height(contentHeight)
-                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
-        ) {
-            Text(
-                stringResource(R.string.player_settings),
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 16.dp)
-                    .semantics { heading() },
-            )
-            PagerTabRow(
-                pagerState = pagerState,
-                titles = titles,
-                onTabChange = changeTab,
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxWidth().weight(1f),
-            ) { page ->
-                Column(
-                    Modifier
-                        .fillMaxSize()
-                        .verticalScroll(if (page == 0) playbackScroll else danmakuScroll)
-                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
-                        .padding(24.dp),
-                ) {
-                    if (page == 0) {
-                        PlaybackSettingsContent(
-                            settings = playbackSettings,
-                            onOutsideAppMiniPlayerChange = onOutsideAppMiniPlayerChange,
-                            onInAppMiniPlayerChange = onInAppMiniPlayerChange,
-                            onAutoplayChange = onAutoplayChange,
-                        )
-                    } else {
-                        DanmakuSettingsContent(settings = danmakuSettings, onChange = onDanmakuSettingsChange)
-                    }
+    Column(modifier.fillMaxSize()) {
+        Text(
+            stringResource(R.string.player_settings),
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 16.dp)
+                .semantics { heading() },
+        )
+        PagerTabRow(
+            pagerState = pagerState,
+            titles = titles,
+            onTabChange = changeTab,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxWidth().weight(1f),
+        ) { page ->
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(if (page == 0) playbackScroll else danmakuScroll)
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
+                    .padding(24.dp),
+            ) {
+                if (page == 0) {
+                    PlaybackSettingsContent(
+                        settings = playbackSettings,
+                        onOutsideAppMiniPlayerChange = onOutsideAppMiniPlayerChange,
+                        onInAppMiniPlayerChange = onInAppMiniPlayerChange,
+                        onAutoplayChange = onAutoplayChange,
+                    )
+                } else {
+                    DanmakuSettingsContent(settings = danmakuSettings, onChange = onDanmakuSettingsChange)
                 }
             }
         }

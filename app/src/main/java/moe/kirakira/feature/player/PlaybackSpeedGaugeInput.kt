@@ -7,30 +7,52 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.sin
+import moe.kirakira.feature.player.PlaybackSpeedRules.MAX_ANGLE
+import moe.kirakira.feature.player.PlaybackSpeedRules.ZERO_ANGLE
 
-/** Claim only presses near the arc, leaving the rest of the sheet available for scrolling. */
+internal data class PlaybackSpeedGaugeGeometry(val center: Offset, val radius: Float) {
+    val needleLength = radius * 0.68f
+}
+
+/** Claim presses near the arc or needle, leaving the rest of the sheet available for scrolling. */
 internal fun Modifier.playbackSpeedDrag(
-    center: Offset,
-    radius: Float,
+    width: Float,
+    geometry: () -> PlaybackSpeedGaugeGeometry,
+    displayedNeedleAngle: () -> Float,
     onDraggingChange: (Boolean) -> Unit,
     onSpeed: (Float) -> Unit,
-): Modifier = pointerInput(center, radius) {
-    val touchRadius = 24.dp.toPx()
+): Modifier = pointerInput(width) {
+    val arcTouchRadius = 24.dp.toPx()
+    val needleTouchRadius = 12.dp.toPx()
+    val needlePivotRadius = 8.dp.toPx()
     awaitEachGesture {
         val down = awaitFirstDown()
+        // Keep the angular reference stable if the label animation moves the pivot mid-drag.
+        val gauge = geometry()
+        val (center, radius) = gauge
+        if (radius <= 0f) return@awaitEachGesture
         val offset = down.position - center
-        var previousAngle = pointerAngle(offset)
-        var angle = (if (previousAngle < 90f) previousAngle + 360f else previousAngle).coerceIn(PlaybackSpeedRules.ZERO_ANGLE, PlaybackSpeedRules.MAX_ANGLE)
-        val radians = Math.toRadians(angle.toDouble())
-        val nearest = Offset(cos(radians).toFloat() * radius, sin(radians).toFloat() * radius)
-        if (radius <= 0f || (offset - nearest).getDistance() > touchRadius) return@awaitEachGesture
+        val downAngle = pointerAngle(offset)
+        val arcAngle = (if (downAngle < 90f) downAngle + 360f else downAngle).coerceIn(ZERO_ANGLE, MAX_ANGLE)
+        val needleAngle = displayedNeedleAngle().coerceIn(ZERO_ANGLE, MAX_ANGLE)
+        val tip = gaugePoint(Offset.Zero, gauge.needleLength, needleAngle)
+        val fraction = ((offset.x * tip.x + offset.y * tip.y) / tip.getDistanceSquared()).coerceIn(0f, 1f)
+        val onNeedle = offset.getDistance() >= needlePivotRadius &&
+            (offset - tip * fraction).getDistance() <= needleTouchRadius
+        val arcPoint = gaugePoint(Offset.Zero, radius, arcAngle)
+        if (!onNeedle && (offset - arcPoint).getDistance() > arcTouchRadius) return@awaitEachGesture
 
+        val pivotRadius = if (onNeedle) needlePivotRadius else arcTouchRadius
+        var angle = if (onNeedle) needleAngle else arcAngle
+        var previousAngle: Float? = downAngle
+        var dragging = false
         down.consume()
-        onDraggingChange(true)
         try {
-            onSpeed(PlaybackSpeedRules.speedAtAngle(angle))
+            if (!onNeedle) {
+                dragging = true
+                onDraggingChange(true)
+                onSpeed(PlaybackSpeedRules.speedAtAngle(angle))
+            }
             while (true) {
                 val event = awaitPointerEvent()
                 val change = event.changes.firstOrNull { it.id == down.id } ?: break
@@ -40,18 +62,27 @@ internal fun Modifier.playbackSpeedDrag(
                     break
                 }
                 val position = change.position - center
-                // Ignore the pivot, where direction is undefined and small movements cause large jumps.
-                if (position.getDistance() >= touchRadius) {
-                    val nextAngle = pointerAngle(position)
-                    val delta = (nextAngle - previousAngle + 540f) % 360f - 180f
-                    angle = (angle + delta).coerceIn(PlaybackSpeedRules.ZERO_ANGLE, PlaybackSpeedRules.MAX_ANGLE)
-                    previousAngle = nextAngle
-                    onSpeed(PlaybackSpeedRules.speedAtAngle(angle))
+                // Rebase the touch angle after crossing the pivot, where direction is undefined.
+                if (position.getDistance() >= pivotRadius) {
+                    val touchAngle = pointerAngle(position)
+                    val delta = previousAngle?.let { (touchAngle - it + 540f) % 360f - 180f } ?: 0f
+                    previousAngle = touchAngle
+                    val nextAngle = (angle + delta).coerceIn(ZERO_ANGLE, MAX_ANGLE)
+                    if (nextAngle != angle) {
+                        angle = nextAngle
+                        if (!dragging) {
+                            dragging = true
+                            onDraggingChange(true)
+                        }
+                        onSpeed(PlaybackSpeedRules.speedAtAngle(angle))
+                    }
+                } else {
+                    previousAngle = null
                 }
                 change.consume()
             }
         } finally {
-            onDraggingChange(false)
+            if (dragging) onDraggingChange(false)
         }
     }
 }
