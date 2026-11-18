@@ -14,7 +14,7 @@
 
 ## 设置搜索
 
-设置首页的 `SettingsSearchBar` 使用官方 `SearchBar`，并与 `ExpandedFullScreenSearchBar` 共用 `rememberSearchBarState` 和 `SearchBarDefaults.InputField`。搜索栏放在 `FrostedScaffold.topBar` 内的 `CollapsibleTopAppBar` 下方，标题区域恢复「设置」、返回按钮和旋转齿轮底纹，并接入共享折叠滚动行为。搜索栏内容最大宽度与设置列表共用 640dp，胶囊左右使用相同的 16dp 页面内边距，顶部不额外留白，底部保留 12dp；系统顶端安全区由大标题栏承载，搜索栏只避让横向安全区，不重复添加状态栏高度。收起时胶囊左侧显示搜索图标，展开后改为关闭搜索的返回按钮；页面返回入口保留在大标题栏。顶栏背景与阴影由毛玻璃宿主提供；收起输入区域使用 `surfaceContainerLow`，展开页使用 `surface`（浅色白色），通过公开 `dividerColor` 隐藏顶部内容分隔线，并关闭搜索组件自身的色调高度与阴影，避免重复投影。查询与展开状态可恢复，结果只有一个内容组，使用普通 `LazyColumn` 与官方 `ListItem`，独立保存滚动位置；结果列表不添加整列表外层内边距；条目按 AndroidX `SearchBarSamples.SampleSearchResults` 的顺序使用 `clickable → fillMaxWidth → padding(horizontal = 16.dp, vertical = 4.dp)`，保留官方 `ListItem` 内部间距、透明条目背景与满宽点击反馈，不显示尾部箭头，主标题和辅助路径均沿用官方文本槽。面包屑按路径段渲染，省略最外层「设置」；多个路径段之间使用 Cerasus `chevron_right` 图标，不拼接分隔字符。一级入口没有剩余路径时不提供辅助文本槽，避免空行占位。系统安全区由搜索宿主处理。输入变化回到结果顶部。导航离开时移除搜索弹层，保留搜索状态，返回后恢复。
+设置首页的 `SettingsSearchBar` 使用官方 `SearchBar`，并与全屏 Dialog 内的 `PageSearchOverlay` 共用 `rememberSearchBarState` 和 `SearchBarDefaults.InputField`。搜索栏放在 `FrostedScaffold.topBar` 内的 `CollapsibleTopAppBar` 下方，标题区域恢复「设置」、返回按钮和旋转齿轮底纹，并接入共享折叠滚动行为。搜索栏内容最大宽度与设置列表共用 640dp，胶囊左右使用相同的 16dp 页面内边距，顶部不额外留白，底部保留 12dp；系统顶端安全区由大标题栏承载，搜索栏只避让横向安全区，不重复添加状态栏高度。收起时胶囊左侧显示搜索图标，展开后改为关闭搜索的返回按钮；页面返回入口保留在大标题栏。常驻顶栏的背景与阴影由毛玻璃宿主提供。展开页使用与历史搜索相同的透明输入行和顶栏高度，阴影位于结果区上沿。查询与展开状态可恢复，结果只有一个内容组，使用普通 `LazyColumn` 与官方 `ListItem`，独立保存滚动位置；结果列表不添加整列表外层内边距；条目按 AndroidX `SearchBarSamples.SampleSearchResults` 的顺序使用 `clickable → fillMaxWidth → padding(horizontal = 16.dp, vertical = 4.dp)`，保留官方 `ListItem` 内部间距、透明条目背景与满宽点击反馈，不显示尾部箭头，主标题和辅助路径均沿用官方文本槽。面包屑按路径段渲染，省略最外层「设置」；多个路径段之间使用 Cerasus `chevron_right` 图标，不拼接分隔字符。一级入口没有剩余路径时不提供辅助文本槽，避免空行占位。系统安全区由搜索宿主处理。输入变化回到结果顶部。导航离开时移除搜索弹层，保留搜索状态，返回后恢复。
 
 `SettingsSearchCatalog.kt` 只登记静态资源、分类路径、页面、稳定 ID 和可见条件，不读取账号字段或远端列表。空查询或仅空白输入直接返回空列表，界面保持空白；清空关键词也回到该状态，不展示一级入口或无结果 Logo。匹配使用当前语言，去除查询首尾空白、忽略大小写，所有空白分隔的词均需在名称或路径中命中。结果按完整标题、标题包含、路径匹配排序，同级保留目录顺序；系统强调色受系统版本限制，账号设置受登录状态限制。新增可搜索设置时同步登记目录及页面锚点。设置搜索无匹配时通过 `ContentUnavailableView.icon` 插槽展示 `SettingsSearchLogo`，移植 Cerasus 齿轮与反向内环的一次性 1 秒入场动画；持续无结果时不随每次输入重播，重新进入空结果才重播。关闭系统动画时显示最终姿态，历史搜索不使用该 Logo，来源见 [Cerasus 图标说明](../../third_party/cerasus-icons/README.md#设置搜索空结果-logo)。
 
@@ -28,9 +28,9 @@
 
 `ProfileEditorRoute` 使用 Navigation 3 条目级 `ProfileEditorViewModel`，资料通过 `data/profile/ProfileRepository` 访问，DTO 与凭据保持在数据层。`AccountProfile` 增加生日、性别和标签及兼容旧存储的默认值；读取本人资料时核对 UUID、UID。保存任务被取消后，错误处理与收尾不再更新页面状态，避免旧任务清除新账号任务的忙碌状态。
 
-页面最大宽度 640dp，与设置页同用 `surfaceContainer` 背景。表单使用无标题的 `SettingsSection`，保留字段标签和组间留白。顶部横幅使用 `Image` 与 `ContentScale.Crop` 展示个人主页共用的 `profile_banner_placeholder` 樱花图，并以 `MaterialTheme.shapes.large` 裁剪，与表单分组外角一致。保存时保留服务端背景字段。112dp 头像居中叠在横幅下沿，带背景色描边的编辑按钮固定在头像右下角。按钮的 `TooltipBox` 外层使用直接属于头像容器的 `Box(Modifier.align(Alignment.BottomEnd))`，避免 Tooltip 内部锚点截留父布局对齐参数。描边、阴影、提示、加载及禁用行为保持一致。
+页面最大宽度 640dp，与设置页同用 `surfaceContainer` 背景。表单使用无标题的 `SettingsSection`，保留字段标签和组间留白。顶部横幅使用 `Image` 与 `ContentScale.Crop` 展示个人主页共用的 `profile_banner_placeholder` 樱花图，并以 `MaterialTheme.shapes.large` 裁剪，与表单分组外角一致。保存时保留服务端背景字段。112dp 头像居中叠在横幅下沿，头像右下角的编辑按钮使用固定圆形轮廓和背景色描边。按钮的 `TooltipBox` 外层使用直接属于头像容器的 `Box(Modifier.align(Alignment.BottomEnd))`，避免 Tooltip 内部锚点截留父布局对齐参数。描边、阴影、提示、加载及禁用行为保持一致。
 
-基本资料与标签放在 `surface` 圆角卡片中，个人信息使用标准两行分段资料行，字段名使用主文本槽，当前值使用辅助文本槽并继承官方字号与次要文字色，整行可点击；尾部仅显示图标，生日保留向右箭头，性别使用向下箭头，菜单锚定右侧图标并随可用空间调整展开方向；保存操作接入[设置表单操作区](#设置表单操作区)。另含日期选择器与标签 Chips。性别选择与搜索排序共用 `ExpressiveMenuPopup` 宿主和官方 `DropdownMenuGroup`、`SelectableDropdownMenuItem`；动画图层通过 `LayerOutsets` 保留组外阴影，不增加布局边距，具体接入见[共享菜单说明](components.md#连接列表分组)。所有界面文本维护中英文资源，预览使用空表单。
+基本资料与标签放在 `surface` 圆角卡片中，个人信息使用标准两行分段资料行，字段名使用主文本槽，当前值使用辅助文本槽并继承官方字号与次要文字色，整行可点击；尾部仅显示图标，生日保留向右箭头，性别使用向下箭头，菜单锚定右侧图标并随可用空间调整展开方向；保存操作接入[设置表单操作区](#设置表单操作区)。另含日期选择器与标签 Chips。性别选择与搜索排序都使用单组[弹出菜单](components.md#弹出菜单)。所有界面文本维护中英文资源，预览使用空表单。
 
 用户名与昵称均为必填，注册与资料编辑共用 `data/auth/AccountNameRules.kt` 的 Cerasus 字符白名单，最长 20 个 UTF-16 单元；不允许首尾空格或连续空格，连字符与下划线沿用 Cerasus 规则。简介最长 200。客户端白名单与 Rosales 的现有校验范围有差异，最终提交仍由后端决定是否接受，不修改后端规则。保存统一 NFC 规范化，用户名执行 trim，重名校验由资料更新接口负责，使用服务端排除本人后的检查结果，不调用注册用的公开查重接口。标签保留顺序及已有 ID，新项使用最小可用非负 ID；生日未设置时发送空字符串，不默认写入当天。更新始终包含用户名与已有背景，其他不属于编辑表单的字段不主动发送。昵称必填由 Android 表单在提交前校验，服务端仍允许缺失昵称；资料回读、旧会话存储和名称展示保留兼容，旧账号下次保存资料时必须补填昵称。
 
@@ -54,7 +54,7 @@
 
 账号流程操作区以 `surface` 铺满宽度，根 `Surface` 通过 `shadowElevation = BarShadowElevation` 绘制固定 4dp 原生阴影，按钮可用、禁用及加载状态均保留底栏阴影。内容居中限制在 480dp，横向留白 24dp；主按钮通过 `fillMaxWidth` 占满区域内可用宽度。
 
-`ShadowButton` 使用 `ButtonDefaults.MediumContainerHeight` 及同高度的 `shapesFor`、`contentPaddingFor` 和 `textStyleFor`，默认仅显示单行文字，加载时使用 Material 3 `ButtonDefaults.iconSizeFor(height)` 尺寸／2dp 的圆形加载器，前景继承当前按钮内容色。普通操作沿用 `primary/onPrimary`，安全停用为 `error/onError`；保留本项目共享双层彩色阴影和禁用时无阴影的规则，这是相对 [Material 官方默认实心样式](https://m3.material.io/components/buttons/guidelines)的定制。
+`ShadowButton` 使用 `ButtonDefaults.MediumContainerHeight` 及同高度的 `shapesFor`、`contentPaddingFor` 和 `textStyleFor`，默认仅显示单行文字，加载时保留单行文字并显示[按钮底边进度条](components.md#按钮加载反馈)。普通操作沿用 `primary/onPrimary`，安全停用为 `error/onError`；保留本项目共享双层彩色阴影和禁用时无阴影的规则，这是相对 [Material 官方默认实心样式](https://m3.material.io/components/buttons/guidelines)的定制。
 
 完整操作说明可通过按钮无障碍描述提供，加载状态通过本地化状态描述表达。
 
@@ -104,7 +104,9 @@ Rosales `createUserTotpAuthenticatorService` 插入未启用记录，确认验�
 
 ViewModel 用 `confirmationPending` 暂停编辑并显示待确认状态，用户触发“重试同步”时只调用读取接口，不重发更新请求；读取成功后以服务端当前值建立新的比较基准，读取失败继续保留待确认状态。DTO 仅在数据层使用，领域模型交给 UI；显示状态和选择面板仅存流程内存。账号变化取消请求、清空状态；旋转保留 ViewModel，进程重建重新读取。隐私页复用 `ActivityNavDisplay` 回调，仅在请求期间阻止返回，完成后无需舍弃确认。
 
-界面使用连接式 `ShadowToggleButton` 组批量设置可见性，复用[选择按钮阴影](components.md#选择按钮阴影)的共享封装；未选中按钮使用 `surface/onSurface`，与设置页 `surfaceContainer` 底色区分，选中及禁用配色沿用官方默认；分段列表逐项选择，左侧使用对应项目的 24dp 裸图标：生日为蛋糕、年龄为日历、关注为添加用户、粉丝为群组、收藏为星标，继承列表默认内容色；副标题保留 16dp 可见性图标及文字。顶栏重置弹出确认框，明确五项将全部公开，确认后调用同一提交入口，已是默认值时禁用；请求中在原图标位置显示 24dp／2dp 加载器及本地化状态描述。底部选择面板保留按可见性着色的 MaterialShapes 形状图标容器。后端隐私限制缺陷及保存语义见[隐私设置](../features.md#隐私设置)，不改动 Rosales 或 Cerasus。
+顶部「全部设为」使用共享 `Segmented`。页面从五项显示值推导 `selected`，混合时传入 `null`。点击或拖动确认新选项后调用 `selectAll`，组件启用状态取 `state.editable`。 [分段选择](components.md#分段选择)
+
+分段列表逐项选择，左侧使用对应项目的 24dp 裸图标：生日为蛋糕、年龄为日历、关注为添加用户、粉丝为群组、收藏为星标，继承列表默认内容色；副标题保留 16dp 可见性图标及文字。顶栏重置弹出确认框，明确五项将全部公开，确认后调用同一提交入口，已是默认值时禁用；请求中在原图标位置显示 24dp／2dp 加载器及本地化状态描述。底部选择面板保留按可见性着色的 MaterialShapes 形状图标容器。后端隐私限制缺陷及保存语义见[隐私设置](../features.md#隐私设置)，不改动 Rosales 或 Cerasus。
 
 ### 屏蔽规则与邀请码
 
@@ -130,6 +132,10 @@ ViewModel 用 `confirmationPending` 暂停编辑并显示待确认状态，用�
 关键词与正则的客户端校验仅处理非空及 30 字符限制；正则不经 Kotlin 编译，语法与安全性由 Rosales 判断。
 
 邀请码筛选使用共享 `PagerTabRow` 与真实 `HorizontalPager`，点击和横向手势同时驱动内容与 Indicator。`InvitationsScaffold` 使用固定高度的 `TopAppBar`，标题始终显示；复用 `CollapsingTabLayout`，将统计卡与唯一的 Tab 放在同一张有背景及固定 4dp 原生投影的表面中，统计卡自身使用共享 `cardColorShadow` 的固定 2dp 彩色投影，绘制在分页上方。统计区随嵌套滚动移出，Tab 到达顶栏下沿时停止，内容仍保留拖拽和回弹；未吸顶时可拖动 Tab 区域，吸顶后该区域只保留点击。Tab 填满最大 640dp 的内容宽度，不继承卡片或列表的水平内边距。每页使用 `InvitationsScreen` 持有的独立 `ConnectedLazyColumn` 状态，通过 `onTabReselect` 只回顶当前列表，保留统计区折叠位置。空列表与有数据列表共用折叠范围。头部背景持续挂载只采样分页内容的毛玻璃与原生投影，吸顶仅在绘制阶段隐藏展开态实色遮层；前景 Tab 独立，不替换背景节点。分页覆盖完整视口，列表顶部 `contentPadding` 包含顶栏与 Tab 高度，滚动条同步避让；滚动内容可经过栏后供模糊采样。内容页使用自身 `Scaffold`，顶栏在 Tab 未吸顶或游客／首次加载占位时单独绘制毛玻璃背景，Tab 吸顶后由头部共享背景承托，不叠加第二层栏面。
+
+屏蔽管理通过 `SettingsScaffold` 复用可折叠顶栏、底纹和状态栏回顶的顶栏状态。管理页负责列表、下拉刷新和内容状态。
+
+标签管理的添加按钮打开共享的 [全屏标签选择器](components.md#全屏标签选择器)。`RuleManagementViewModel` 保留当前账号的查询和单个待添加标签。确认后按标签 ID 提交规则，成功关闭选择器并刷新列表，失败保留选中的标签并在选择器内提示。候选读取复用 `ContentRepository.searchTags` 的公开接口，规则提交沿用管理接口。
 
 规则列表与邀请码分页复用共享 `ContentStatusViewport`，接入规则见[统一内容状态](components.md#统一内容状态)。规则列表传入实际列表 padding 和实测数量标题高度；邀请码使用已扣除未折叠统计区的实际列表视口。两类列表无记录且读取失败时优先显示错误和重试入口，有记录时保留原列表及尾部错误提示。
 

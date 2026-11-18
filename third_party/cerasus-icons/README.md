@@ -19,7 +19,7 @@
 
 `ic_icon_<name>.xml` 从固定版本的同名 SVG 转为 Android VectorDrawable，保留原始画布、路径、填充规则和图层顺序。Compose 负责主题着色。许可沿用本目录的 GNU AGPL v3.0。 [Cerasus 图标库](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Cerasus/tree/dd5b8cdcabaac4d03ad190f6b7037bfab494c72b/assets/icons)
 
-- `star`、`download`、`history` 用于全项目对应操作与入口。视频详情操作区另用 `thumb_up`、`thumb_down`、`share`、`more_vert` 与 `photo`。
+- `star`、`download`、`history` 用于全项目对应操作与入口。视频详情操作区另用 `thumb_up`、`thumb_down`、`watch_later`、`share`、`more_vert`、`photo` 与 `flag`；新增的稍后再看和举报图标同样取自上述固定版本。
 - `autoplay` 用于播放设置。`arrow_up`／`arrow_down` 用于评论投票，搜索排序方向旋转复用 `arrow_down`。回复、发送和退出登录分别使用 `reply`、`send` 和 `logout`。
 - 应用外小窗图标 `ic_custom_pip` 将 `autoplay` 的圆角三角箭头旋转为右下方向并接上圆头直杆，窗框沿用 [Material Symbols 的 `pip`](../material-symbols/README.md#设置子页面图标)。
 - 返回箭头 `arrow_left`、列表尖括号 `chevron_right`、发送和退出登录沿用 Android 的 RTL 自动镜像。弹幕设置和样式面板共用四个 `danmaku_*` 方向图标，按绝对方向绘制。
@@ -39,6 +39,8 @@
 
 倍速入口从 `ic_icon_speed` 读取实心表盘与镂空指针。音量反馈读取 `ic_icon_volume_up` 的扬声器和两道声波轮廓，缩放声波以对应 `volume_none`、`volume_down` 与 `volume_up`。 [Cerasus 图标库](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Cerasus/tree/dd5b8cdcabaac4d03ad190f6b7037bfab494c72b/assets/icons)
 
+倍速面板的「无级调速」和「保持音调」分别使用 `ic_icon_slider_3` 与 `ic_icon_tunning`。两者以 24dp 显示，保留原 SVG 的路径、画布与填充规则，许可沿用本目录的 GNU AGPL v3.0。 [slider_3.svg](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Cerasus/blob/dd5b8cdcabaac4d03ad190f6b7037bfab494c72b/assets/icons/slider_3.svg) · [tunning.svg](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Cerasus/blob/dd5b8cdcabaac4d03ad190f6b7037bfab494c72b/assets/icons/tunning.svg)
+
 倍速码表 `feature/player/PlaybackSpeedGauge.kt` 为应用自绘组件：指针按用户提供的设计参考采用细尖、圆底的渐窄轮廓，以缓存的闭合路径绘制小圆角尖端和一体半圆底部，不叠加独立圆轴；外围参考 Material 3 Slider 的轨道、断口和轨道内圆点，大刻度为细圆头径向短杆，每段弧线中心均衡放置一个小圆点，复用 Slider 的圆点尺寸，与下方 Slider 共享官方默认的主题主色、次要容器色。弧段为填充环形路径，断口平整且有小圆角，不使用第三方轮廓，也不属于官方图标变体。零刻度位于 150°，避免与 0.25× 之间形成孤立圆点；指针按表盘半径缩放，并限制底部半宽以适应窄屏和大字体。
 
 ## 颜文字
@@ -52,6 +54,10 @@
 ## 播放器首次加载动画
 
 此前移植的 `LogoCover` 与 `PlayerVideoSplash` 几何加载动画已移除，播放器首次加载改为保留视频封面。
+
+## 不确定线形进度动画
+
+Compose 进度条沿用 Cerasus `ProgressBar` 的 2 秒周期、两段位移与长度关键帧及缓动参数，许可沿用本目录的 GNU AGPL v3.0。Material Components Android 的双段动画作为交互参考。 [Cerasus ProgressBar.vue](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Cerasus/blob/2153564397a9457652cb52153c22b8fbe8f1d5ea/components/Progress/ProgressBar.vue) · [Material Components Android](https://raw.githubusercontent.com/material-components/material-components-android/master/lib/java/com/google/android/material/progressindicator/LinearIndeterminateDisjointAnimatorDelegate.java)
 
 ## 危险按钮装饰
 

@@ -22,7 +22,9 @@
 
 播放器右上角在倍速入口右侧提供齿轮设置按钮，打开带“播放器／弹幕”页签的底部面板，每次打开默认选中播放器。齿轮根据通用设置面板的开合状态旋转，动画值仅在图层读取。页签复用 `PagerTabRow`、`rememberTabChangeHandler` 与 `HorizontalPager`，沿用项目的横向切换和弹性指示器。标题与页签固定，各页内容独立滚动，本次打开期间保留各页滚动位置。面板不主动暂停播放，打开时阻止控制栏自动隐藏，关闭后重新计时。
 
-画质、倍速和通用设置由 `PlayerSettingsSheet` 统一创建底部面板，按 `PlayerSettingsPanel` 的明确分支展示内容。通用设置的 `PlayerPreferencesContent` 仅接收状态与回调，使用 `BoxWithConstraints` 获取扣除拖动柄后实际可用的内容高度，使用其 90%，不再设置固定 dp 上限，也不随所选页签或内容长度改变。高度限制仅作用于内部内容 Column，外层保留完整窗口约束，供官方组件计算底部锚点。横向 Pager 保留默认边界回弹、共享 Tab 动画与默认页面缓存策略，各页纵向滚动的默认边界效果继续保留。PagerState 由弹层持有并传给内容组件；监听横向 DragInteraction 与滚动状态，从手动拖动开始至惯性结束临时关闭外层 sheetGesturesEnabled，避免当前 Material 3 的面板 onPostFling 把子 Pager 已消费的横向速度再次返回。仅滚动状态不会启动该隔离，保持普通纵向滚动与面板拖动；点击 Tab 的程序动画仍使用共享处理。
+画质、倍速和通用设置由 `PlayerSettingsSheet` 统一创建底部面板，按 `PlayerSettingsPanel` 的明确分支展示内容。通用设置面板全屏时占满可用高度。普通播放时在拖动柄下方的可用高度中扣除嵌入播放器的底边位置，内容区尽量保留至少 192dp，以便在短窗口内操作。标题和拖动柄避让顶部安全区。面板高度独立于所选页签及其内容长度，外层保留完整窗口约束供官方组件计算底部锚点。横向 Pager 保留默认边界回弹、共享 Tab 动画与默认页面缓存策略，各页纵向滚动的默认边界效果继续保留。PagerState 由弹层持有并传给内容组件；监听横向 DragInteraction 与滚动状态，从手动拖动开始至惯性结束临时关闭外层 sheetGesturesEnabled，避免当前 Material 3 的面板 onPostFling 把子 Pager 已消费的横向速度再次返回。仅滚动状态不会启动该隔离，保持普通纵向滚动与面板拖动；点击 Tab 的程序动画仍使用共享处理。
+
+三个面板在应用宽度上限前，按左右安全区的较大值对称留白。标题、页签和选项共用居中的可用宽度，滚动内容继续避让底部安全区。
 
 弹幕设置的范围与步长由 `DanmakuSettingRanges` 提供，模型归一化与界面 Slider 共用同一约束。
 
@@ -34,7 +36,7 @@
 
 `VideoPlayer` 接收播放状态、Media3 画面实例和事件回调，不持有 ViewModel。返回按钮和控制栏共享显隐状态与三秒计时器；缓冲、失败、进度交互、设置面板及触摸探索阻止自动隐藏，暂停与结束状态同样支持轻触显隐和三秒自动隐藏。控件使用主题效果动效，退出动画期间禁用交互并清除语义。控制层以黑色渐变遮罩衬托白色图标和文字，播放／暂停按钮居中，使用 60% 不透明度的黑色圆形容器和 Cerasus 白色图标，加载时同一 64dp 圆形容器内改为 40dp 白色 Material 2 圆角圆形加载器，不提供播放点击动作；底部不再使用主题 Surface。
 
-Slider 使用官方 `SliderDefaults.Thumb`（16dp 等宽高，保留默认按压／拖动形变），以两层 `SliderDefaults.Track` 显示缓冲和已播放位置；上层未播放轨道透明，底层只绘制、不添加交互或语义。两层使用相同圆头尺寸，保留官方定位手势与无障碍语义。`PlaybackViewModel` 在 Media3 事件及现有 500ms 进度轮询中读取 `bufferedPosition`，按有效时长限制范围；未知时长与播放器释放时显示零缓冲，不持久化缓冲位置。
+播放进度通过共享 [`SmoothSlider`](components.md#滑杆点击动画) 接入按压位移动画，使用官方 `SliderDefaults.Thumb`（16dp 等宽高，保留默认按压／拖动形变），以两层 `SliderDefaults.Track` 显示缓冲和已播放位置；上层未播放轨道透明，底层只绘制、不添加交互或语义。两层使用相同圆头尺寸，保留官方定位手势与无障碍语义。按下轨道即更新目标时间，滑块与已播放轨道开始平滑移动，拖动时直接跟手；缓冲轨道、正常播放进度和画面拖动预览直接同步。跳转仍在原有完成回调中提交，不等待动画结束。倍速面板的滑杆也复用该组件，按下即更新实际倍率，仍由原有规则归一化。`PlaybackViewModel` 在 Media3 事件及现有 500ms 进度轮询中读取 `bufferedPosition`，按有效时长限制范围；未知时长与播放器释放时显示零缓冲，不持久化缓冲位置。
 
 `data/content/ContentRepository` 将私有 serialization DTO 映射为 `VideoSummary`、`VideoDetail`、`PublicProfile`、`VideoComment` 和 `DanmakuEntry`，UI 不持有 Cookie 或 token。列表通过响应检查后，在解码调度器上逐条解析并省略无效记录。视频摘要要求 KVID 为正数，原样传递标题字符串，缺失标题映射为空。详情校验视频和作者身份，独立解析分 P 和标签。分 P 按 ID 保留首个可解码条目，缺失或无效地址标记为不可播放。资料映射拒绝非正 UID，以及响应中 UID 与目标不一致的结果，避免将异常资料归给目标用户。首页、视频、资料分别由 ViewModel 管理；视频与资料的 ViewModel 绑定 Navigation 3 条目。
 
@@ -99,13 +101,13 @@ fastSpatialSpec，颜色与透明度使用 fastEffectsSpec。格式沿用本地�
 
 `PlaybackSettings` 增加 `autoQuality` 和 `preferredVideoHeight`，由既有应用级设置存储保存为 `playback_auto_quality` 与 `playback_video_height`，默认自动且没有首选高度；UI 通过导航宿主回调更新。倍率、无级调速、保持音调由导航宿主 `PlaybackViewModel` 管理，以非敏感标量存入 SavedState；重建播放器时应用 `PlaybackParameters(speed, pitch)`，保持音调时 pitch 为 1，否则为 speed。无级值限制在 0.25–4 并保留两位小数，有级模式吸附既定倍率。
 
-`PlayerSettingsSheet` 使用官方 `ModalBottomSheet`，宽度上限 640dp，只允许展开和隐藏状态；内容滚动并承载底部安全内边距。画质单选及倍速开关使用官方分段列表；「无级调速」与「保持音调」沿用设置页普通开关规则，以 onClick 重载切换状态并提供 Switch 角色与 toggleableState 语义，尾部 Switch 不独立处理点击，整行背景和圆角不随选中状态变化。倍速滑杆以 log2 映射 -2–2，默认 1× 位于中心，并为无障碍有级调整提供相邻倍率操作。面板局部状态参与控制栏显隐计时，关闭后重新计时；全屏、画中画、失去活动状态或播放错误时关闭，不持久化面板打开状态。
+`PlayerSettingsSheet` 使用官方 `ModalBottomSheet`，宽度上限 640dp，只允许展开和隐藏状态；内容滚动并承载底部安全内边距。画质单选及倍速开关使用官方分段列表；「无级调速」与「保持音调」沿用设置页普通开关规则，以 onClick 重载切换状态并提供 Switch 角色与 toggleableState 语义，尾部 Switch 不独立处理点击，整行背景和圆角不随选中状态变化。两项分别在列表前置插槽显示 Cerasus 的 `ic_icon_slider_3` 和 `ic_icon_tunning`，沿用列表内容颜色与 24dp 尺寸。倍速滑杆以 log2 映射 -2–2，默认 1× 位于中心，并为无障碍有级调整提供相邻倍率操作。面板局部状态参与控制栏显隐计时，关闭后重新计时；全屏、画中画、失去活动状态或播放错误时关闭，不持久化面板打开状态。
 
-`PlaybackSpeedGauge(speed, playing, continuousSpeed, onSpeed, modifier)` 使用 Compose Canvas 绘制刻度与指针、Text 显示倍率读数，只消费现有 `PlayerUiState`，不持有播放器或修改业务状态。`playing` 来自 Media3 `isPlaying`，静止时实际倍率为 `if (playing) speed else 0f`，沿弧线拖动时临时显示设定倍率，不使用缓冲期间仍为真的 `showPauseIcon`。正倍率以 `180° + 180° × (log2(speed) + 2) / 4` 映射 0.25×–4×，1× 为 270°；零刻度单独设在 150°，为零刻度与 0.25× 之间保留足够弧长，不计算 `log2(0)`。
+`PlaybackSpeedGauge(speed, playing, continuousSpeed, onSpeed, modifier, sliderDragging, showPitchShift)` 使用 Compose Canvas 绘制刻度与指针、Text 显示倍率读数，只消费现有 `PlayerUiState`，不持有播放器或修改业务状态。`playing` 来自 Media3 `isPlaying`，静止时实际倍率为 `if (playing) speed else 0f`，拖动弧线、指针或滑杆时临时显示设定倍率，不使用缓冲期间仍为真的 `showPauseIcon`。正倍率以 `180° + 180° × (log2(speed) + 2) / 4` 映射 0.25×–4×，1× 为 270°；零刻度单独设在 150°，为零刻度与 0.25× 之间保留足够弧长，不计算 `log2(0)`。关闭保持音调时显示 `12 × log2(speed)` 半音变化，零刻度单独显示 −∞。半音值以较小的 `labelSmall` 居中放在速度刻度下方，成组测量和避让。半音标注透明度与表盘布局共用 220ms emphasized 过渡，动画进度在布局和绘制阶段读取。表盘随过渡为第二行腾出空间，窄屏或大字体下读数避让零刻度。码表的无障碍状态同时报告设定倍率和对应半音变化，半音数最多保留一位小数。
 
-码表通过 `Modifier.playbackSpeedDrag` 只接管距弧线最近点 24dp 内开始的单指按下／拖动，其他位置留给 Sheet 滚动；按下即调到对应倍率。触点以轴心 `atan2` 求角，累计最短角差以避免越过右端 360° 时跳到最小值，限制于 150°–360°，150°–180° 零位区映射为最低 0.25×；有效角度通过 `2^((angle - 270) / 45)` 还原倍率，经原有 `onSpeed` 交给 ViewModel 统一取两位小数或吸附分档。尺寸变化、取消、多指介入或离开组合结束拖动，保留已实时提交的倍率；回调通过 `rememberUpdatedState` 获取，倍率变化不重启手势。弧线不增加手柄；Canvas 提供 log2 倍率范围、`setProgress` 和焦点，方向键增减倍率，Home／End 选择两端值，无障碍分档增减沿用相邻预设规则。
+码表通过 `Modifier.playbackSpeedDrag` 接管在指针线段 12dp 内或弧线 24dp 内开始的单指手势，其他位置留给 Sheet 滚动。指针命中以按下时的绘制角度和长度计算，避开轴心周围 8dp，并优先于弧线。按下弧线立即定位，拨动指针从当前显示角度累计触点转角。触点以轴心 `atan2` 求角，经过轴心附近时重新建立触点角度基准。最短角差避免越过右端 360° 时跳到最小值，累计角度限制于 150°–360°，150°–180° 零位区映射为最低 0.25×；有效角度通过 `2^((angle - 270) / 45)` 还原倍率，经原有 `onSpeed` 交给 ViewModel 统一取两位小数或吸附分档。宽度变化、取消、多指介入或离开组合结束拖动，保留已实时提交的倍率。半音标注过渡期间，拖动从按下时的表盘位置取角；回调通过 `rememberUpdatedState` 获取，倍率变化不重启手势。弧线不增加手柄；Canvas 提供 log2 倍率范围、`setProgress` 和焦点，方向键增减倍率，Home／End 选择两端值，无障碍分档增减沿用相邻预设规则。
 
-`animateFloatAsState` 使用 300ms 的 `tween`，复用共享 `rememberEmphasizedEasing()` 的 Material 3 emphasized 无回弹曲线，不使用弹簧；首次直接采用当前角度，快速切换从当前动画位置继续，绘制角度限制在 150°–360°，动效遵循系统动画设置；码表拖动时切换为 `snap` 即时跟手，暂停时松手或取消后沿原动画归零，播放／暂停状态不变。指针与大刻度复用 `primary`，码表和滑杆直接使用 `SliderDefaults.colors()` 默认颜色：活动轨道与非活动圆点为 `primary`，非活动轨道与活动圆点为 `secondaryContainer`；经典强调色在主题层生成带强调色调的次要容器；刻度文字为 `onSurfaceVariant`。
+`animateFloatAsState` 使用 300ms 的 `tween`，复用共享 `rememberEmphasizedEasing()` 的 Material 3 emphasized 无回弹曲线，不使用弹簧；首次直接采用当前角度，快速切换从当前动画位置继续，绘制角度限制在 150°–360°，动效遵循系统动画设置；码表拖动时切换为 `snap` 即时跟手。未播放时，滑杆的 `SliderState.isDragging` 也启用同样的跟随行为。松手或取消后，指针沿原动画归零并保留设定倍率。指针与大刻度复用 `primary`，码表和滑杆直接使用 `SliderDefaults.colors()` 默认颜色：活动轨道与非活动圆点为 `primary`，非活动轨道与活动圆点为 `secondaryContainer`；经典强调色在主题层生成带强调色调的次要容器；刻度文字为 `onSurfaceVariant`。
 
 布局最大宽度 320dp，表盘几何以宽度／1.7 为基准高度，字体实测尺寸参与半径与标签位置计算；标签与弧线外缘留出 8dp 间隔，先保留 0、0.25、1、4 标签，仅在不重叠时显示 0.5、2。读数靠近轴心下方，以主题 `headlineLarge`、Medium 字重和 `onSurface` 显示；按 `0.25×`、`1.25×`、`3.99×` 等宽读数预留固定避让空间，避免倍率变化推动滑杆，暂停指针至少距读数 24dp，并根据固定字体高度增加布局高度，保持下方滑杆位置与读数不重叠。中英文码表可调节语义、Text 与滑杆均表达设定倍率，不受指针插值或归零影响。
 
@@ -125,6 +127,8 @@ fastSpatialSpec，颜色与透明度使用 fastEffectsSpec。格式沿用本地�
 
 `MainActivity` 复用状态栏与导航栏的两份 `SystemBarStyle.auto`，检测回调执行时读取当前启动覆盖层、页面、明暗模式与全屏状态。AndroidX 会保存首次传入的样式，并在视图收到配置变化时重新应用；回调不捕获启动时的固定值，避免旋转后将视频页黑底上的白色图标覆盖为黑色。启动覆盖层优先使用自己的明暗模式，视频页与图片查看器使用白色状态栏图标，图片查看器与视频全屏使用白色导航栏图标，其他情况跟随当前应用主题。Activity 配置变化时先立即更新，再通过 `decorView.post` 在视图配置分发结束后恢复最新的系统栏显示、交互行为与关闭导航栏对比度强制遮罩的设置；待执行恢复只保留一份，始终读取最新目标，销毁 Activity 时移除，不使用固定延时。
 
+画质、倍速和通用设置共用 `PlayerSettingsSheet`。满窗后在播放器窗口内使用 Material 3 的 `BottomSheet` 和 `Scrim`，由 Activity 持续控制系统栏。遮罩拦截后方触摸，播放器控件暂停接收焦点与无障碍操作，系统返回优先交给面板。普通播放使用 `ModalBottomSheet`。
+
 全屏转场交由 Android 默认窗口旋转处理，系统关闭动画时同样按实际窗口切换，不在应用中模拟旋转轨迹或修改旋转时长。此选择保留 [Media3 推荐优先使用的 SurfaceView](https://developer.android.com/media/media3/ui/surface)，使用系统默认的 [ROTATION_ANIMATION_ROTATE](https://developer.android.com/reference/android/view/WindowManager.LayoutParams#ROTATION_ANIMATION_ROTATE) 行为；具体效果取决于系统与设备实现。
 
 Compose [共享元素转场](https://developer.android.com/develop/ui/compose/animation/shared-elements#current-limitations)目前不支持 View／Compose 互操作，不能直接用于含 `AndroidView` 的视频输出。下方内容保持状态，不要求在窗口旋转时固定于原竖屏坐标。
@@ -135,7 +139,7 @@ Compose [共享元素转场](https://developer.android.com/develop/ui/compose/an
 
 `PlaybackHost` 统一管理 Activity 生命周期、屏幕常亮、系统画中画资格和来源矩形；小窗位置以可用区域的横纵比例保存，拖动结束通过 `Animatable` 和 300ms `tween` 动画贴左右边缘，复用共享 `rememberEmphasizedEasing()` 的 Material emphasized 无回弹曲线；动画逐帧更新实际横向位置，再次拖动时取消动画并从当前位置接手，遵循系统动画时长设置。小窗外框使用固定 8dp 原生 elevation 阴影，阴影与画面共用 8dp 圆角，裁剪只作用于画面；布局用 safeDrawing 与 IME Insets 并扣除实测主界面底栏高度；底栏额外避让高度通过 `animateDpAsState` 和同样的 300ms emphasized 曲线过渡，使进出主页时小窗平滑升降。拖动手势通过 `rememberUpdatedState` 读取最新可用范围，布局动画期间不重启手势。MainActivity 负责平台画中画桥接和系统栏，Android 12+ 使用 `setAutoEnterEnabled`，Android 8–11 在 `onUserLeaveHint` 检查应用外开关与播放资格；比例限制在系统支持区间。不新增悬浮窗权限、前台服务或后台音频播放。全屏使用 `SCREEN_ORIENTATION_SENSOR_LANDSCAPE`，退出恢复此前方向策略；进入系统画中画暂时解除方向请求，展开后恢复全屏。播放器弹幕开关继续使用官方 Switch 和 Cerasus 图标，暂停时保留，手动画中画按钮已移除。
 
-播放页与应用内小窗之间使用整页 Zoom：`PlaybackHost` 持续承载同一棵 `VideoPage`，页面始终按窗口尺寸测量，只动画改变外框位置、大小、圆角、阴影及整页图层的等比缩放。收缩时详情随页面一起缩小并逐步裁出外框，终点对齐视频区域；展开时反向恢复。`PlayerContentFrame` 在页面内的位置、实例和视频 Surface 均不因缩放切换而重建或迁移，不再进行页面／宿主之间的视频输出交接，视频输出不使用封面或截图替代。卡片与小窗的 Zoom 按方向选择曲线：放大进入播放页、从小窗恢复和取消返回手势时使用 450ms Material emphasized `tween`，到全屏不回弹；返回卡片或收为小窗时使用轻微欠阻尼弹簧，阻尼比 0.85、刚度 380、完成阈值 0.001。预测性返回提交或取消后，从当前进度继续；收缩弹簧被打断后保留当前速度。位移、缩放和裁剪保留弹簧超出目标的进度，圆角限制为非负，透明度与阴影进度限制在 0–1，避免回弹产生非法绘制值。帧级状态在布局和图层块中读取。关闭小窗使用独立 220ms 加速曲线（`CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)`）向最近侧滑出，完成后释放播放会话。系统画中画仍沿用平台窗口动画。
+播放页与应用内小窗之间使用整页 Zoom：`PlaybackHost` 持续承载同一棵 `VideoPage`，页面始终按窗口尺寸测量，只动画改变外框位置、大小、圆角、阴影及整页图层的等比缩放。收缩时详情随页面一起缩小并逐步裁出外框，终点对齐视频区域；展开时反向恢复。`PlayerContentFrame` 在页面内的位置、实例和视频 Surface 均不因缩放切换而重建或迁移，不再进行页面／宿主之间的视频输出交接，视频输出不使用封面或截图替代。卡片与小窗的 Zoom 按方向选择曲线：放大进入播放页、从小窗恢复和取消返回手势时使用 450ms Material emphasized `tween`，到全屏不回弹；返回卡片或收为小窗时使用轻微欠阻尼弹簧，阻尼比 0.85、刚度 380、完成阈值 0.001。预测性返回提交或取消后，从当前进度继续；收缩弹簧被打断后保留当前速度。位移、缩放和裁剪保留弹簧超出目标的进度，圆角限制为非负，透明度与阴影进度限制在 0–1，避免回弹产生非法绘制值。帧级状态在布局和图层块中读取。关闭小窗使用独立 220ms 加速曲线（`CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)`），以当前位置的中心为锚点等比缩小至零，完成后释放播放会话。系统画中画仍沿用平台窗口动画。
 
 首页、搜索、标签、资料作品与历史记录的视频卡片通过 `VideoZoomSource` 登记封面的实测矩形、圆角和已加载图片 Painter，整项仍可点击；文字与历史进度条保留在来源页。点击时同步按来源路由和视频 ID 关联目标，不获取位图，进场保留原卡片。回到卡片期间，确认驻留页已布局且有可绘制封面后，仅暂停当前来源封面的绘制，由动画层独占封面直至回弹结束；原卡片的布局、文字和触摸范围保留，避免回弹缩过终点时露出第二层静止封面。来源按当前登记节点匹配，兼容 Scene 重建；动画结束、取消或宿主销毁时恢复绘制，新来源和清理操作也会撤销旧隐藏状态。来源节点的登记随组合生命周期移除；点击时保留已加载的图片 Painter，导航替换来源 Scene 后仍可绘制，不依赖原节点的 GraphicsLayer。`PlaybackHost` 等待当前视频的完整页面完成布局后开始展开，以播放区域对齐来源封面，统一驱动整页的等比缩放、位移、外框裁剪和圆角；页面始终按窗口尺寸测量，详情随外框展开显露。入口冻结点击位置，返回优先读取原封面当前可用位置，没有可用节点时保留点击位置兜底。首帧直接用 Painter 重绘来源封面，随后随同一进度过渡到目标播放区域并渐隐，不添加页面底色叠层；目的地的图片请求完成前也以来源 Painter 作为 Coil 占位，避免重新加载时露出空白。部分超出视口的封面保留完整矩形与一致比例，由窗口裁剪可见部分；来源节点已移除时复用点击时保留的 Painter；尚未加载封面时退回页面渐隐，缺少来源时保持页面位置淡出。新来源取代旧来源，账号切换或不再保留视频／小窗时清理关联。详情由 VideoViewModel 在当前账号首次创建时加载，首次进场、从其他页面返回及从小窗恢复均只恢复交互，不自动重刷；后续由用户下拉刷新或失败重试，账号变化仍按会话隔离重新加载。视频输出仍使用驻留 Surface，不参与封面绘制。
 
@@ -143,7 +147,7 @@ Compose [共享元素转场](https://developer.android.com/develop/ui/compose/an
 
 `RetainedVideoPage` 保持当前视频的可保存页面状态和组合，ViewModelStore 由宿主级 `RetainedVideoPageViewModel` 按账号修订和视频 ID 持有，跨 Activity 配置重建保留已加载数据与内存草稿。其他保留的视频路由按 ID 保留 ViewModelStore，路由与小窗均不再引用时清理，账号修订变化时清理旧账号的 Store，宿主最终销毁时全部释放。缩为小窗时将页面生命周期限制到 STARTED，并停用详情；原播放器的控件层从组合中移除，连同进度条、设置入口、遮罩、焦点与语义一起关闭，视频 Surface 继续驻留；展开后恢复交互。图片查看器直接覆盖完整视频页时，页面和 Surface 持续绘制，详情交互与生命周期保持非活动状态，直到查看器的退出组合销毁后恢复交互；小窗被图片查看器覆盖时仍停止绘制并撤下视频输出，关闭后恢复。
 
-点击关闭小窗立即暂停播放、取消贴边动画并禁用交互与语义，整页缩略框从最近的左右边缘滑出，完成后仅在播放器实例仍匹配且仍为小窗时释放会话。账号切换、播放失败、后台释放及关闭设置仍立即清理；清理当前页或会话会取消未完成的动画，不延迟清理新会话。
+点击关闭小窗立即暂停播放、取消贴边动画并禁用交互与语义，整页缩略框通过外层 `graphicsLayer` 以中心为锚点从 1 等比缩小至 0，画面、控件和阴影同步缩小，位置与布局尺寸保持不变；缩放状态按播放器实例持有，完成后仅在播放器实例仍匹配且仍为小窗时释放会话。账号切换、播放失败、后台释放及关闭设置仍立即清理；清理当前页或会话会取消未完成的动画，不延迟清理新会话。
 
 应用内小窗的控件显隐与交互计数使用局部 `remember` 状态，每次小窗出现时默认显示；`LaunchedEffect` 在 3 秒无操作后隐藏，按钮按压与拖动期间暂停计时，操作结束后重新计时。自动隐藏与点击隐藏使用同一个更新入口，同步修改显隐状态与交互计数。缓冲、首次加载及其背景退场、TalkBack 触摸探索开启时强制显示，普通暂停不延长显示时间；触摸探索监听与视频页复用。单击画面切换显隐，左上角展开按钮调用原有 `onRestore`，中央播放按钮沿用播放图标动画和 24dp／2dp 加载器，右上角关闭沿用会话释放逻辑。
 
@@ -219,7 +223,7 @@ banner 来源通过 `sourceContentScale = ContentScale.Crop` 登记实际填充�
 
 缩放继续使用 [Telephoto](https://saket.github.io/telephoto/zoomableimage/) 的 `ZoomableImage`，图片请求由上述适配器控制。资源来源的导出仅支持能由 `BitmapFactory` 解码的位图 drawable，不支持 XML／vector drawable；资源仍以 `@DrawableRes` 标记，使用 `openRawResource()` 获取编码字节。保存和复制始终使用 `ViewerImage.source` 的原始字节和 MIME 类型，不导出缩略图或预览：Android 10+ 通过 `MediaStore.Images` 的 `IS_PENDING` 公开，Android 8–9 获得旧版写权限后写入公共 `Pictures/KIRAKIRA` 并扫描媒体。复制将原始字节写入专用缓存，通过 `FileProvider` 交给系统剪贴板，超过七天的复制缓存于下一次复制时清理。网络头像通过公开 HTTPS 来源接口加载和导出。
 
-[ImageExportRepository](../../app/src/main/java/moe/kirakira/data/image/ImageExportRepository.kt) 由宿主依赖容器注入独立、无认证的共享 OkHttp 客户端；保存与复制入口及底层字节复制函数都显式限定在 IO 调度器，逐块复制时检查取消。远程下载在可取消回调内完成响应头与流读取，取消时关闭请求，外层始终清理临时文件。保留 HTTPS 重定向限制和 32 MiB 文件上限。宿主作用域的 [ImageExportViewModel](../../app/src/main/java/moe/kirakira/feature/imageviewer/ImageExportViewModel.kt) 按查看器实例记录保存／复制状态，同一实例操作期间禁用两个导出按钮，只将对应图标替换为固定 24dp 的白色转圈。关闭和缩放仍可使用，中央转圈仅用于图片加载。已开始的导出不随图片页出栈取消；导航宿主收集完成事件，以宿主级 Snackbar 提示成功或失败，包括 Android 13+ 的复制成功；查看器关闭后仍可显示结果，并避让主页底栏、系统安全区域与键盘，系统画中画内不显示。权限拒绝继续使用带设置入口的 Snackbar。任务只在宿主生命周期内保留，不保证 Activity 结束或进程终止后完成。
+[ImageExportRepository](../../app/src/main/java/moe/kirakira/data/image/ImageExportRepository.kt) 由宿主依赖容器注入独立、无认证的共享 OkHttp 客户端；保存与复制入口及底层字节复制函数都显式限定在 IO 调度器，逐块复制时检查取消。远程下载在可取消回调内完成响应头与流读取，取消时关闭请求，外层始终清理临时文件。保留 HTTPS 重定向限制和 32 MiB 文件上限。宿主作用域的 [ImageExportViewModel](../../app/src/main/java/moe/kirakira/feature/imageviewer/ImageExportViewModel.kt) 按查看器实例记录保存／复制状态，同一实例操作期间禁用两个导出按钮，保留图标，只在执行操作的按钮底边显示白色进度条。关闭和缩放仍可使用，中央转圈仅用于图片加载。已开始的导出不随图片页出栈取消；导航宿主收集完成事件，以宿主级 Snackbar 提示成功或失败，包括 Android 13+ 的复制成功；查看器关闭后仍可显示结果，并避让主页底栏、系统安全区域与键盘，系统画中画内不显示。权限拒绝继续使用带设置入口的 Snackbar。任务只在宿主生命周期内保留，不保证 Activity 结束或进程终止后完成。
 
 不同查看器实例的图片复制共用宿主 `Mutex`，按发起顺序执行缓存准备、剪贴板提交及成功反馈，避免慢速旧任务覆盖后一次复制。排队期间保留对应按钮的加载状态；失败或取消会释放锁，后续复制可继续，图片保存不受此锁限制。
 
@@ -231,9 +235,13 @@ banner 来源通过 `sourceContentScale = ContentScale.Crop` 登记实际填充�
 
 评论和弹幕发送栏的容器色由共用 `ContentComposer` 内部统一使用 `MaterialTheme.colorScheme.surface`（浅色为纯白，深色遵循主题深灰），页面不单独覆盖。弹幕发送栏复用 `ContentComposer` 的可选尾部插槽。样式使用官方 ModalBottomSheet，自定义选色在同一面板内进入子页，复用已有 HSV 选色依赖；确认才应用颜色。面板打开时清除输入焦点并隐藏键盘。
 
-`DanmakuStyleContent` 采用紧凑分组：标题与重置固定在顶部，100dp 预览、颜色、渐变开关、字号及位置选项放在可滚动的内容区，标题与控件间距为 8dp、组间为 18dp。内容区使用 `weight(1f, fill = false)`，短内容按实际高度显示，受限高度下独立滚动，底部保留 20dp 随内容滚动的留白。关闭沿用 ModalBottomSheet 的默认拖动手柄、下滑手势、遮罩点击与系统返回。系统栏及 IME Insets 由 ModalBottomSheet 处理，内容不重复追加。位置与方向按左右滚动、上下固定排列为等宽 2×2 FilterChip，复用 Rounded `west`、`east`、`vertical_align_top` 和 `vertical_align_bottom`，选中配色沿用 `primary/onPrimary`。
+`DanmakuStyleContent` 采用紧凑分组：标题与重置固定在顶部，100dp 预览、颜色、渐变开关、字号及位置选项放在可滚动的内容区，标题与控件间距为 8dp、组间为 18dp。内容区使用 `weight(1f, fill = false)`，短内容按实际高度显示，受限高度下独立滚动，底部保留 20dp 随内容滚动的留白。关闭沿用 ModalBottomSheet 的默认拖动手柄、下滑手势、遮罩点击与系统返回。系统栏及 IME Insets 由 ModalBottomSheet 处理，内容不重复追加。
 
-`DanmakuColorPalette` 将九种预设色与自定义入口排成两排五列，保持每格至少 48dp 的点击区域。可见色块使用官方 Extra Small `IconToggleButton` 容器，`IconButtonDefaults.toggleableShapes` 提供未选中圆形、选中圆角矩形及按压形状。色块与外描边共用动画 `Shape` 和交互源，使用主题 `defaultEffectsSpec` 插值，按压形状优先；色块传入官方组件的 `shape` 重载，描边按当前可见色块轮廓向外扩张 4dp，并同步扩张圆角，保持 2dp 主题色描边。未选中时不绘制边框；描边淡入和勾选的淡入缩放由同一选择 Transition 驱动，采用主题 `fastEffectsSpec` 与 `fastSpatialSpec`。动画值在轮廓绘制及 `graphicsLayer` 中读取，不改变色板测量尺寸。自定义颜色选中后以实际颜色显示，并将调色板图标过渡为勾选标记；当前 HEX 显示在颜色标题尾侧。默认样式下禁用重置。
+字号使用通栏 `Segmented`，以 `DanmakuFontSize.entries` 提供小、中、大三档，选中时通过 `onStyle` 更新字号。轨道按弹层背景取色，控件最小高度为 48dp。[分段选择](components.md#分段选择)
+
+位置与方向使用同一 `Segmented` 轨道，按 `DanmakuMode.entries` 的顺序提供四档。每段将 Cerasus 图标置于本地化标签上方，标签允许两行。按等宽分段扣除组件内边距后的实际宽度，以当前字号和 `labelLarge` 测量标签。任一标签超过两行或分段宽度小于 48dp 时，整组改用纵向 `ListItem` 和尾部 `ShadowRadioButton`，整行处理点击并提供单选语义。两种布局均根据 `style.mode` 显示选中项，经 `onStyle` 更新预览。
+
+`DanmakuColorPalette` 将九种预设色与自定义入口排成两排五列，保持每格至少 48dp 的点击区域。可见色块使用官方 Extra Small `IconToggleButton` 容器，`IconButtonDefaults.toggleableShapes` 为未选中和选中状态配置不同的圆角矩形，按住时变为圆形。色块与外描边共用动画 `Shape` 和交互源，使用主题 `defaultEffectsSpec` 插值，按压形状优先；色块传入官方组件的 `shape` 重载，描边按当前可见色块轮廓向外扩张 4dp，并同步扩张圆角，保持 2dp 主题色描边。未选中时不绘制边框；描边淡入和勾选的淡入缩放由同一选择 Transition 驱动，采用主题 `fastEffectsSpec` 与 `fastSpatialSpec`。动画值在轮廓绘制及 `graphicsLayer` 中读取，不改变色板测量尺寸。自定义颜色选中后以实际颜色显示，并将调色板图标过渡为勾选标记；当前 HEX 显示在颜色标题尾侧。默认样式下禁用重置。
 
 色板之后的开关沿用 Cerasus `FlyoutDanmakuFormat.vue` 的「创作者专属渐变」／「Creator's Gradient」文案与 `rainbow-example`：24dp 前导区域内绘制 20dp、3dp 边框的粉蓝空心圆角示例。开关使用 `SegmentedListItem` 的 `onClick` 重载与 `Role.Switch`、`toggleableState` 语义，尾部 Switch 不独立处理点击，整行背景及形状不随开启状态变化。预览使用 14／20／28sp，彩虹描边参考 Cerasus 的粉蓝渐变，播放器、预览及开关示例共用 `ui/components/video/DanmakuColors.rainbowOutline` 的颜色定义；关闭系统动画时静态显示。预览独立于播放器，播放器使用更紧凑的三档字号与相同粉蓝描边，见下方弹幕显示实现。
 
@@ -241,11 +249,11 @@ banner 来源通过 `sourceContentScale = ContentScale.Crop` 登记实际填充�
 
 `DanmakuEntry.style` 保留 Rosales 的颜色、字号、模式与彩虹标记；缺失或未知样式回退为白色、中号、右向左、无彩虹，非法时间及空白正文不进入列表。`VideoViewModel` 在账号就绪时与视频详情一起加载弹幕，列表与播放器共用同一 Flow。刷新及发送成功后的重新读取遵循现有账号修订与错误保留逻辑；渲染层不发请求、不维护本地发送副本。后端没有分 P 字段，弹幕池仍以视频 ID 为单位，按当前分 P 的进度解释；请求仍为公共读取，不扩展个性化过滤。
 
-`DanmakuOverlay` 使用单个 Compose Canvas，放在 `ContentFrame` 上方、控制层下方，不拦截触摸也不逐条播报。视口按视频像素宽高比和容器尺寸执行 Fit，裁剪到实际视频区域顶部所选比例；未知视频尺寸时不绘制。`DanmakuTimeline` 按时间稳定排序、预先排轨，帧查询按当前弹幕池的最长显示时长，以二分定位候选时间窗口，覆盖低滚动倍率下最长 16 秒的弹幕；左右滚动位置按播放时间线性计算。同向弹幕检查共享生命期两端的间距以防追尾，反向和固定弹幕不与尚未离开的其他类型共享轨道；按每条文字布局的实际高度分配垂直空间，仅在横向运动可能相撞的弹幕之间保留 2dp 垂直间距，上下边缘各留 1dp。取消最大字号统一行高、整行倍数占位与均摊剩余高度；顶部和滚动模式从上向下寻找空隙，底部模式从所选区域底边向上寻找空隙。放不下则跳过，不延迟补发。横向追尾安全间距仍为 6dp。
+`DanmakuOverlay` 使用单个 Compose Canvas，放在 `ContentFrame` 上方、控制层下方，不拦截触摸也不逐条播报。视口直接使用整个播放器画布尺寸，包含视频画面外的黑边；排轨、横向移动和裁剪使用同一视口，显示区域按播放器高度取顶部所选比例。`DanmakuTimeline` 按时间稳定排序、预先排轨，帧查询按当前弹幕池的最长显示时长，以二分定位候选时间窗口，覆盖低滚动倍率下最长 16 秒的弹幕；左右滚动位置按播放时间线性计算。同向弹幕检查共享生命期两端的间距以防追尾，反向和固定弹幕不与尚未离开的其他类型共享轨道；按每条文字布局的实际高度分配垂直空间，仅在横向运动可能相撞的弹幕之间保留 2dp 垂直间距，上下边缘各留 1dp。取消最大字号统一行高、整行倍数占位与均摊剩余高度；顶部和滚动模式从上向下寻找空隙，底部模式从所选区域底边向上寻找空隙。放不下则跳过，不延迟补发。横向追尾安全间距仍为 6dp。
 
 播放器文字使用 12／16／22sp 与全局缩放，继续遵循系统字体缩放；显式使用 1.25em 行高、居中对齐、保留行高且关闭额外字体内边距。发送预览保持 14／20／28sp。颜色和描边样式与发送预览一致：普通弹幕为原色实心文字加黑色阴影（3px 模糊），彩虹弹幕先绘制粉蓝渐变描边（4px），再以原色填充，不加阴影。每次绘制显式设置 `Fill`／`Stroke` 和阴影；同一缓存文字布局会保留画笔状态，不能依赖空 `drawStyle` 将描边恢复为填充。TextMeasurer 使用 128 项缓存，帧循环只持有当前可见文字的布局；池布局分批让出协程，取消时终止计算。多行正文仅在画面中转为空格；超过 32,760px 的极长文字在绘制层省略，避免超出文字布局尺寸，列表保留完整正文。
 
-滚动弹幕保留 Cerasus 的等时长模型：基准时长为 `clamp(实际视频宽度 px / (144dp 对应的 px) × 1000, 6000, 8000)` 毫秒，先限制基准时长，再除以用户滚动倍率并四舍五入为整数毫秒。6–8 秒是本客户端的体验参数，用于延长窄视口的阅读时间，并限制宽视口的停留时长。同一画面内所有左右滚动弹幕共享显示时长，实际移动路程为视口宽度加文字宽度，因此长句移动更快。默认 1× 时，360dp 宽显示 6000 毫秒，960dp 为 6667 毫秒，1440dp 为 8000 毫秒；0.5× 时为 12000–16000 毫秒，2× 时为 3000–4000 毫秒。固定弹幕保持 4000 毫秒，均采用媒体时间。默认倍率仍为 1×，已有用户倍率保持不变。
+滚动弹幕保留 Cerasus 的等时长模型：基准时长为 `clamp(播放器宽度 px / (144dp 对应的 px) × 1000, 6000, 8000)` 毫秒，先限制基准时长，再除以用户滚动倍率并四舍五入为整数毫秒。6–8 秒是本客户端的体验参数，用于延长窄视口的阅读时间，并限制宽视口的停留时长。同一画面内所有左右滚动弹幕共享显示时长，实际移动路程为视口宽度加文字宽度，因此长句移动更快。默认 1× 时，360dp 宽显示 6000 毫秒，960dp 为 6667 毫秒，1440dp 为 8000 毫秒；0.5× 时为 12000–16000 毫秒，2× 时为 3000–4000 毫秒。固定弹幕保持 4000 毫秒，均采用媒体时间。默认倍率仍为 1×，已有用户倍率保持不变。
 
 帧循环直接读取 Media3 `currentPosition`，不使用页面 500ms 轮询。暂停／缓冲时冻结并等待 Player 事件；空白区等待下一条的播放时间，seek、恢复、倍速变化通过监听器唤醒。池、尺寸和设置变化重建当前布局，视频／分 P／账号修订构成内容标识。画中画、页面非活动、播放器释放和播放失败时移除绘制层，取消协程及移除监听器；退出画中画后按真实进度重建，不补发错过的弹幕。
 
@@ -285,6 +293,6 @@ banner 来源通过 `sourceContentScale = ContentScale.Crop` 登记实际填充�
 
 高度过渡使用 `clip = false`，保留面板上沿及圆角外的原生投影；面板靠屏幕底部对齐，超出动画高度的内容向窗口底部延伸，由窗口边界约束，面板本身仍由 `Surface` 按形状裁剪。投影与面板共用淡入淡出过渡，输入框与发送按钮的阴影保留在其外。退出开始时清除面板无障碍语义并禁用分类切换与条目插入；快速反向切换由同一过渡接续，动效遵循系统动画设置。颜色和排版继承 `KIRAKIRATheme`。
 
-`AppDependenciesViewModel` 持有唯一的 `RecentKaomojiStore`，导航宿主级 `KaomojiViewModel` 暴露最近记录并在自己的 `viewModelScope` 内启动读取及选择写入，视频条目共享该模型。Store 不创建 scope、单例或事件队列，只提供挂起读写；挂起入口先取得 Mutex，再切换 IO 调度器读写，以串行化首次读取与后续写入并保留连续选择顺序。独立 `kirakira_kaomoji.xml` 保存最多 24 项去重记录，只接受目录中存在的值；初始或格式损坏记录回退为空。写入检查 commit 结果并通过只读 `persistenceFailed` 暴露失败，内存保留最新列表，后续选择重新写入完整列表；读取权限失败不发布已加载状态，下次调用可重试。最近记录不属于账号私有数据，不保存草稿，不加入备份白名单，也不请求网络。来源与许可见 [Cerasus 资源](../../third_party/cerasus-icons/README.md)。
+`AppDependenciesViewModel` 持有唯一的 `RecentKaomojiStore`，导航宿主级 `KaomojiViewModel` 暴露最近记录并在自己的 `viewModelScope` 内启动读取及选择写入，视频条目共享该模型。Store 不创建 scope、单例或事件队列，只提供挂起读写；挂起入口先取得 Mutex，再切换 IO 调度器读写，以串行化首次读取与后续写入并保留连续选择顺序。独立 `kirakira_kaomoji.xml` 保存最多 24 项去重记录，只接受目录中存在的值；初始或格式损坏记录回退为空。写入前更新内存列表，再同步提交。写入失败时保留内存列表，下次选择重新提交完整记录。读取权限失败时保留未加载状态，下次调用可重试。最近记录不属于账号私有数据，不保存草稿，不加入备份白名单，也不请求网络。来源与许可见 [Cerasus 资源](../../third_party/cerasus-icons/README.md)。
 
 视频赞踩及评论净评分复用共享数字动画，未知的视频互动数保持破折号，收藏仍为占位。评论、弹幕总数与评论当前页／总页数、跳页上限复用本地化计数标签，只滚动数字。评论标题继续测量完整标签与工具栏宽度决定同排或上下排布，页码继续受工具栏宽度约束。计数变化来自原有操作确认与刷新，不改变业务状态或请求时序；组件约束见[数字动画与字数计数](components.md#数字动画与字数计数)。

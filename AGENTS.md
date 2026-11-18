@@ -18,14 +18,17 @@
 | 涉及内容 | 复用入口 | 详细规范 |
 | --- | --- | --- |
 | 按钮、FAB、单选框、彩色卡片、危险操作 | `ShadowButtons`、`ShadowFloatingActionButton`、`FollowButton`、`ShadowRadioButton`、`cardColorShadow`、`ShadowButton(destructive = true)` | [按钮、单选框与阴影](CONTRIBUTING.md#按钮单选框与阴影) |
-| 列表、分组、菜单、Dialog、数量标题 | 官方 `ListItem`／`SegmentedListItem`、`ConnectedListGroup`、`ConnectedLazyColumn`、`ExpressiveMenuPopup`、`ActionDialog` | [列表、开关与弹层](CONTRIBUTING.md#列表开关与弹层) |
+| 带滑动指示块的分段单选 | `Segmented` | [按钮、单选框与阴影](CONTRIBUTING.md#按钮单选框与阴影) |
+| 列表、分组、菜单、Dialog、数量标题 | 官方 `ListItem`／`SegmentedListItem`、`ConnectedListGroup`、`ConnectedLazyColumn`、`MenuPopup`（组间用 `MenuDivider`）、`ActionDialog`；危险确认图标复用 `DestructiveActionIcon` | [列表、开关与弹层](CONTRIBUTING.md#列表开关与弹层) |
 | 账号、认证、资料与隐私表单 | `AccountFlowScaffold`、`FilledTextField`、`PasswordTextField`、`OtpInputField` | [账号表单与保存](CONTRIBUTING.md#账号表单与保存) |
-| 加载、刷新与错误 | `IndeterminateCircularProgressIndicator`、`ContentPullToRefresh`、`ContentUnavailableView`、Snackbar（禁止 Toast） | [加载与刷新](CONTRIBUTING.md#加载与刷新) |
+| 加载、刷新与错误 | `IndeterminateCircularProgressIndicator`、`ContentPullToRefresh`、`ContentUnavailableView`、Snackbar（禁止 Toast）；操作按钮使用底边横向进度条，资料页关注／粉丝数用骨架占位 | [加载与刷新](CONTRIBUTING.md#加载与刷新) |
 | 应用栏与滚动 | `FrostedScaffold` | [毛玻璃应用栏](CONTRIBUTING.md#毛玻璃应用栏) |
-| 图标、用户名、文案 | 优先使用 Cerasus 图标、`@username`；中英文字符串同步 | [图标与用户名](CONTRIBUTING.md#图标与用户名)、[文案、本地化与无障碍](CONTRIBUTING.md#文案本地化与无障碍) |
+| 图标、用户名、文案 | 优先使用 Cerasus 图标，错误图标使用主题 `error`，用户名使用 `@username`，中英文字符串同步 | [图标与用户名](CONTRIBUTING.md#图标与用户名)、[文案、本地化与无障碍](CONTRIBUTING.md#文案本地化与无障碍) |
 | 配色 | `rememberSeedColorScheme`、`MaterialTheme.colorScheme` | [主题配色约束](CONTRIBUTING.md#主题配色约束) |
 
-Chip 使用官方 Material 3 组件，外观统一为 Material Design 2 风格的无描边胶囊、灰色普通背景和中性图标，选中时保留强调色实底；具体颜色见[主题配色约束](CONTRIBUTING.md#主题配色约束)。
+视频详情操作条复用官方按钮，采用固定轮廓与无阴影样式，布局与菜单见[视频简介](docs/implementation/content.md#视频简介)。
+
+普通输入框、带底色的搜索框、`Segmented` 轨道和 Chip 普通态通过 `ThemeColorDefaults.controlContainerColor` 按紧贴的背景取色，纯白用 `surfaceContainerLow`，灰底用 `surfaceContainerHigh`。设置和历史展开后的搜索输入透明，阴影位于顶栏下沿。Chip 复用官方 Material 3 组件，使用无描边胶囊、中性图标与强调色选中态。`FilterChip` 和 `InputChip` 共用 `AppChipDefaults` 配色。具体颜色见[主题配色约束](CONTRIBUTING.md#主题配色约束)。
 
 ## 认证、API 与敏感材料
 

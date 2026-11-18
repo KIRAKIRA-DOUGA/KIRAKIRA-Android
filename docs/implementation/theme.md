@@ -2,9 +2,10 @@
 
 [实现索引](../implementation.md) · [功能现状](../features.md) · [开发指南](../development.md) · [贡献规范](../../CONTRIBUTING.md)
 
-本文维护主题圆角、语义配色、颜色偏好、弹层背景与投影参数。开发约束以贡献指南为准。
+本文维护主题圆角、品牌标题字体、语义配色、颜色偏好、弹层背景与投影参数。开发约束以贡献指南为准。
 
 - [主题实现](#主题实现)
+  - [品牌标题字体](#品牌标题字体)
   - [成功语义色](#成功语义色)
   - [配色生成](#配色生成)
   - [弹层背景](#弹层背景)
@@ -21,6 +22,14 @@
 `KIRAKIRATheme` 通过 `MaterialExpressiveTheme` 的 `shapes` 参数提供八档圆角。`extraSmall`、`small`、`medium`、`large`、`largeIncreased`、`extraLarge`、`extraLargeIncreased` 和 `extraExtraLarge` 依次为 2、4、6、8、10、14、16、24dp。网格视频封面、共享输入框和连接列表外角使用 `large`，默认对话框使用 `extraLarge`。头像与胶囊 Chip 通过 `CircleShape` 随组件尺寸形成轮廓。[主题入口](../../app/src/main/java/moe/kirakira/ui/theme/Theme.kt)
 
 [ThemeSettingsStore](../../app/src/main/java/moe/kirakira/data/settings/ThemeSettingsStore.kt) 负责 `kirakira_settings` 的读取、写入与旧预设颜色迁移，仅处理字符串、布尔值及 ARGB 数值。[ThemeViewModel](../../app/src/main/java/moe/kirakira/ui/theme/ThemeViewModel.kt) 提供当前主题的默认色和迁移映射，将存储结果映射为 UI 状态；保留后台首次读取、就绪门控、无效明暗模式回退和不透明颜色处理。
+
+### 品牌标题字体
+
+[Type.kt](../../app/src/main/java/moe/kirakira/ui/theme/Type.kt) 在 `BrandTitleFontFamily` 中注册两份随 APK 打包的 Montserrat 正体 TTF：SemiBold（600）和 Bold（700）。两份字体保留上游完整字符集。固定来源与校验值见 [Montserrat 来源记录](../../third_party/montserrat/README.md)，OFL 许可全文可在应用的[开源组件](../../third_party/aboutlibraries/README.md)中离线查看。
+
+静态页面顶栏标题使用 SemiBold（600）。共享 `CollapsibleTopAppBar` 覆盖设置、历史、收藏、标签及账号切换等页面，展开和收起时使用同一字重。关注、我、资料占位、关注／粉丝列表、开源组件、邀请码和头像裁剪的独立顶栏在调用处接入。关于页的 `for Android` 同样使用 SemiBold，字号、行高和字距沿用 `titleSmall`。`AccountFlowHeader` 的流程大标题使用 Bold（700）。
+
+中文等未包含的字形由 Android 系统字体回退显示；混排中的拉丁字母、数字及受支持标点使用 Montserrat，不按界面语言切换字体或拆分字符串。全局 `Typography()` 仍使用 Material 3 默认排版，正文、普通控件、用户昵称（含资料页吸顶顶栏）、视频标题、评论及统计数字不在品牌字体范围内。`@username`、验证码和代码保留现有等宽字体；KIRAKIRA 字标仍为矢量图，关于页的 `Alpha!` 与版本信息保留原样。
 
 ### 成功语义色
 
@@ -40,7 +49,9 @@
 
 [ClassicAccentColorScheme](../../app/src/main/java/moe/kirakira/ui/theme/ClassicAccentColorScheme.kt) 从灰阶角色构建经典强调色，并将 `secondaryContainer` 和 `onSecondaryContainer` 映射到同色主色容器与配套前景。默认 Slider、RangeSlider 的未经过轨道自动采用强调色调，活动圆点采用同一容器色；使用次要容器的导航指示器同样着色，不添加组件专用配色接口。
 
-Chip 保留官方 Material 3 组件及其尺寸、排版和交互，通过公开参数提供 Material Design 2 风格外观：`shape = CircleShape`、`border = null`；普通／未选中背景为 `surfaceContainerHigh`，文字为 `onSurface`，前后图标为中性的 `onSurfaceVariant`。`FilterChipDefaults.filterChipColors` 的 `iconColor` 同时设置两端图标；`InputChipDefaults.inputChipColors` 分别设置 `leadingIconColor` 与 `trailingIconColor`；`AssistChip` 和 `SuggestionChip` 使用各自官方配色 API 的图标参数。可选择的 `FilterChip` 与 `InputChip` 保留项目现有的选中实色：`selectedContainerColor` 为当前主题 `primary`，`selectedLabelColor`、`selectedLeadingIconColor` 与 `selectedTrailingIconColor` 为 `onPrimary`；禁用配色保留官方默认。搜索模式与已选标签、播放速度、视频分 P 和标签、弹幕样式、资料标签及组件展示页共用此规则，搜索历史的只读标签容器同步胶囊轮廓与灰底。配色直接在调用处配置，无需更改主题语义角色或新增组件配色封装。
+[`ThemeColorDefaults.controlContainerColor`](../../app/src/main/java/moe/kirakira/ui/theme/ThemeColorDefaults.kt) 为普通输入框、搜索框、`Segmented` 轨道和 Chip 普通态选择共用底色。默认父背景为主题 `surface`，直接放在灰色页面或弹层上的调用处传入该层颜色。纯白映射到 `surfaceContainerLow`，浅灰和深灰映射到 `surfaceContainerHigh`。
+
+Chip 通过公开参数设置 `shape = CircleShape` 和 `border = null`，保留官方 Material 3 尺寸、排版和交互。普通／未选中状态使用共用底色，文字为 `onSurface`，前后图标为 `onSurfaceVariant`。[`AppChipDefaults`](../../app/src/main/java/moe/kirakira/ui/components/AppChipDefaults.kt) 的 `filterColors` 和 `inputColors` 在各自的 Material 3 默认配色上应用同一套启用态配色。选中背景使用 `primary`，文字与图标使用 `onPrimary`，禁用态沿用组件默认配色。默认父背景为主题 `surface`，其他场景通过 `parentContainerColor` 传入实际底色。`AssistChip` 和 `SuggestionChip` 直接使用各自的官方配色 API，搜索历史的只读标签按列表行底色取色。
 
 `MainBottomBar` 将选中图标与文字映射到 `primary`，覆盖整个按钮的选中胶囊映射到 `primaryContainer`。主题统一通过 `LocalTonalElevationEnabled` 关闭色调高度叠加，`surfaceTint` 与 `surface` 同色，避免直接计算高度色时重新染色。原色保留、`onPrimary` 对比度阈值、组件配色接口与视觉取舍统一见[主题配色约束](../../CONTRIBUTING.md#主题配色约束)。
 
@@ -54,7 +65,9 @@ Chip 保留官方 Material 3 组件及其尺寸、排版和交互，通过公开
 
 播放器画质与倍速面板、隐私可见性面板始终包含连接列表，固定使用灰底。全屏标签选择器根据候选是否非空、标签名称根据是否存在非空名称组、屏蔽规则编辑根据是否有用户预览或非空标签结果选择背景。弹幕样式的 `custom` 状态保留在弹层打开分支、提升到 `ModalBottomSheet` 调用之前：样式页用灰底，自定义颜色编辑用 `surface`；关闭后重新打开仍进入样式页，编辑器草稿和确认／取消逻辑保持原有归属。
 
-普通 `AlertDialog` 与 `DropdownMenu` 显式使用 `surface`。生日选择将同一份 `DatePickerDefaults.colors(containerColor = surface)` 传给 `DatePickerDialog` 和内部 `DatePicker`，确保日历、年份选择和输入模式与外层同色。开源组件通过 `LibraryDefaults.m3VariantColors(sheetSurface = surface)` 配置详情 Sheet，通过 `libraryColors(dialogBackgroundColor = surface)` 配置许可证对话框，保留上游组件与列表页面背景。弹层内列表项、输入框和选中态继续使用原有配色；媒体查看器不适用该规则。
+普通 `AlertDialog` 使用 `surface`。生日选择将同一份 `DatePickerDefaults.colors(containerColor = surface)` 传给 `DatePickerDialog` 和内部 `DatePicker`，确保日历、年份选择和输入模式与外层同色。开源组件通过 `LibraryDefaults.m3VariantColors(sheetSurface = surface)` 配置详情 Sheet，通过 `libraryColors(dialogBackgroundColor = surface)` 配置许可证对话框，保留上游组件与列表页面背景。弹层内列表项、输入框和选中态继续使用原有配色；媒体查看器不适用该规则。
+
+共享弹出菜单用 `surface` 为毛玻璃染色，Android 8.1–11 使用同色半透明底。[弹出菜单](components.md#弹出菜单)
 
 ### 选色与持久保存
 
@@ -78,7 +91,7 @@ Chip 保留官方 Material 3 组件及其尺寸、排版和交互，通过公开
 
 角色、系统强调色与自定义卡片继续使用 `ThemeSelectionCard` 的官方可点击 `Card` 管理涟漪、焦点与交互。预览区保持 `surface` 底色及原始图片／原色图标，仅下方文字区在选中时使用 `primary` 背景，标题和副标题同步使用 `onPrimary`；未选中文字区使用 `surface/onSurface`，副标题使用 `onSurfaceVariant`。`ThemeColorCard` 为角色名副标题传入 `LocaleList("ja")`，`ThemeSelectionCard` 将其合并进该行的 `bodySmall` 样式，由 Android 选择日文字形。
 
-两类卡片均使用主题 large 形状，原生阴影的静止／按压／悬停或聚焦高度为 1dp／8dp／4dp，按压优先；选中状态只控制配色与勾选标记，不决定交互高度。两类卡片均配置官方 `CardDefaults.cardElevation` 的各状态高度，保留官方过渡。卡片不绘制描边，背景、图标与个性色标签和勾选沿用主题 Expressive effects 动效。卡片提供单选角色与选中状态，合并主题／角色名称或 HEX 色值，子预览与标签清除独立语义。明暗卡片的图标区域固定高 64dp，使图标与文字间距不随卡片宽度增大；跟随系统／浅色／深色分别居中显示 32dp 的 `hdr_auto`／`light_mode`／`dark_mode`；标题使用 `labelLarge` 居中排列并允许换行。`ThemeViewModel` 初始值、缺失或无效偏好的回退均为 `ThemeMode.SYSTEM`，有效的 `theme_mode` 偏好按已保存值恢复。
+两类卡片共用 `ThemeOptionCard` 的主题 large 形状、单选语义和官方卡片阴影。静止／按压／悬停或聚焦高度为 1dp／8dp／4dp，按压优先。卡片不绘制描边，背景、图标与个性色标签和勾选沿用主题 Expressive effects 动效。卡片提供单选角色与选中状态，合并主题／角色名称或 HEX 色值，子预览与标签清除独立语义。明暗卡片的图标区域固定高 64dp，使图标与文字间距不随卡片宽度增大；跟随系统／浅色／深色分别居中显示 32dp 的 `hdr_auto`／`light_mode`／`dark_mode`；标题使用 `labelLarge` 居中排列并允许换行。`ThemeViewModel` 初始值、缺失或无效偏好的回退均为 `ThemeMode.SYSTEM`，有效的 `theme_mode` 偏好按已保存值恢复。
 
 七张角色卡片的图片区域固定为 1:1，继续按 `BiasAlignment(0f, -0.84f)` 靠上裁切。文字区保留 24dp 原色色标、`titleSmall` 主题名与 `bodySmall` 日文角色名；选中时在色标内显示 24dp 的 Rounded `check`，前景使用 `onPrimary`，不在图片上叠加标记或为尾部勾选预留宽度。色标与图标共享固定的 24dp 槽位，垂直居中且不随选中状态改变尺寸。文字区通过 Column weight 填满行等高后的剩余空间，保持底边对齐；标题允许换行和增高，选中变化仅影响绘制。角色图片通过 Coil `AsyncImage` 按卡片约束在后台解码并复用内存缓存；首次加载透出卡片原有底色，禁用额外 crossfade，图片出现不改变布局。角色图片离线打包，来源与转换方式见 [Cerasus 个性色资源](../../third_party/cerasus-palettes/README.md)。
 
@@ -88,7 +101,7 @@ Chip 保留官方 Material 3 组件及其尺寸、排版和交互，通过公开
 
 MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引入 View 组件库；两项配色依赖的实际 APK 增量需通过同构建配置比较，不以依赖包大小代替。
 
-页面顶栏的标题槽通过 `TopAppBarDefaults.topAppBarColors(titleContentColor = MaterialTheme.colorScheme.primary)` 使用当前主题主色；共享 `CollapsibleTopAppBar` 与主界面的公共颜色配置集中设置，独立顶栏在调用处设置。顶栏标题文字显式使用 `FontWeight.Bold`（700），保持组件默认字号与行高；使用系统默认字体，由平台负责字重匹配与必要的加粗合成。可折叠标题在展开与折叠时保持相同颜色与字重，背景与导航图标沿用各页面配置。
+页面顶栏的标题槽通过 `TopAppBarDefaults.topAppBarColors(titleContentColor = MaterialTheme.colorScheme.primary)` 使用当前主题主色。共享 `CollapsibleTopAppBar` 与主界面的公共颜色配置集中设置，独立顶栏在调用处设置。静态页面标题使用[品牌标题字体](#品牌标题字体)，字号与行高沿用组件默认值。资料页吸顶顶栏中的用户昵称使用系统默认字体和 `FontWeight.Bold`（700）。背景与导航图标沿用各页面配置。
 
 ### 栏面阴影
 
@@ -108,21 +121,23 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 
 ### 按钮动态阴影
 
+`Segmented` 的强调色指示块共用普通按钮的高度动画与双层彩色投影。投影跟随指示块的可见边界和圆角，悬停或焦点位于已选分段时使用对应高度，按压和拖动使用按压高度。禁用时立即移除投影。 [分段选择](components.md#分段选择)
+
 通用选择按钮复用 [ShadowToggleButton](../../app/src/main/java/moe/kirakira/ui/components/ShadowToggleButton.kt)，内部保留官方 `ToggleButton`，按选中状态读取 `colors.containerColor` 或 `colors.checkedContainerColor`，并通过共享 `buttonShadow` 绘制投影。选中与按压形变使用主题 `fastSpatialSpec` 插值，表面和阴影共用当前轮廓，官方 elevation 设为 `null`；可用时沿用普通实心按钮的交互高度和强度，禁用时立即移除阴影。尺寸、图标、形状和颜色由调用方配置，接入见[选择按钮阴影](components.md#选择按钮阴影)。
 
-个人主页与视频页复用 [FollowButton](../../app/src/main/java/moe/kirakira/ui/components/FollowButton.kt)，内部使用官方 `ToggleButton` 与官方尺寸配套 API。未关注状态显式使用 `primary/onPrimary`，接入共享 `buttonShadow` 的双层投影；已关注状态使用灰色 `surfaceContainerHigh/onSurfaceVariant`，稳定时投影不透明度为零，官方 elevation 同时设为 `null`。禁用时保留官方禁用配色与语义，不绘制阴影。选中状态与按压状态通过公开 `Interpolatable` API 及主题 `fastSpatialSpec` 插值，所得轮廓同时传给表面和投影，官方组件的三种形状设为同一当前轮廓以避免二次动画；关注布尔值、提交条件与回调继续由原页面拥有。
+个人主页与视频页通过 `FollowButton` 复用 `ShadowToggleButton`。未关注时使用 `primary/onPrimary` 和双层投影，已关注时使用灰色 `surfaceContainerHigh/onSurfaceVariant`，投影淡出至零。禁用时显示官方禁用配色并隐藏投影。关注状态、提交条件和回调由调用方提供。 [选择按钮阴影](components.md#选择按钮阴影)
 
 关注按钮的背景、文字和图标共用可反向衔接的圆形遮罩，加载后播放，并按本地化文案实际尺寸平滑伸缩；首次组合直接展示当前状态。按钮提供唯一的当前本地化无障碍标签，保留官方选中及禁用语义。扩散起点、时长、前景裁剪与宽度动画详见[选择按钮阴影](components.md#选择按钮阴影)。
 
-[ShadowButtons](../../app/src/main/java/moe/kirakira/ui/components/ShadowButtons.kt) 为填充、浅色填充、实心图标按钮及 FAB 封装官方 Material 3 组件；文字、描边及裸图标按钮不使用投影。调用方保留现有颜色、尺寸、形状、内容内边距、语义及点击逻辑，官方高度投影设为零，避免重复叠加。按钮不增加缩放、位移或布局空间，也不保存阴影偏好。投影读取官方 `MinimumInteractiveLeftAlignmentLine` 和 `MinimumInteractiveTopAlignmentLine`，按实际可见轮廓内缩并平移，不把最小触摸目标的留白当作按钮表面；测量及触摸区域保持原样。
+[ShadowButtons](../../app/src/main/java/moe/kirakira/ui/components/ShadowButtons.kt) 为填充、浅色填充、实心图标按钮及 FAB 封装官方 Material 3 组件；文字、描边及裸图标按钮不使用投影。调用方保留现有颜色、尺寸、形状、内容内边距、语义及点击逻辑，官方高度投影设为零，避免重复叠加。按钮不增加缩放、位移或布局空间，也不保存阴影偏好。投影读取官方 `MinimumInteractiveLeftAlignmentLine` 和 `MinimumInteractiveTopAlignmentLine`，按实际可见轮廓内缩并平移，不把最小触摸目标的留白当作按钮表面；测量及触摸区域保持原样。状态提示、账号流程、头像裁剪及评论／弹幕的登录操作在各自容器内预留投影空间。普通按钮按压时的环境层向下延伸 20dp，由模糊半径、扩张量和向下偏移相加得出。
 
 播放器黑底控制按钮不接入共享阴影或背景模糊，静止、按压、悬停、聚焦及禁用时均无投影。返回、全屏和倍速图标直接使用官方 `FilledIconButton`，清晰度与带数值的倍速入口使用 `TextButton`，中央播放／缓冲容器使用半透明黑底；小窗继续使用无投影的官方 `IconButton`。资料页 Tab 未吸顶时的顶部按钮保留[黑底毛玻璃按钮](components.md#黑底毛玻璃按钮)。
 
 [VideoScreen](../../app/src/main/java/moe/kirakira/feature/video/VideoScreen.kt) 的下载、分享、更多按钮直接使用官方 `FilledTonalIconButton`，在调用处通过 `IconButtonDefaults.filledTonalIconButtonColors` 将容器与前景设为 `surfaceContainer/onSurfaceVariant`，与未选中的赞踩 `ToggleButton` 一致；不接入共享投影，所有交互及禁用状态均无阴影。整排按钮固定按压轮廓，赞踩与收藏按钮单独插值选中形状，并将当前轮廓同时用于官方组件的静止、按压和选中形状，保留选中动画与配色反馈。
 
-`ShadowFloatingActionButton` 默认使用 `CircleShape` 与主题 `primary` 背景，`contentColorFor(containerColor)` 为默认背景匹配 `onPrimary` 前景，与实心按钮配色一致。保留官方 FAB 尺寸及显式覆盖形状、背景和前景的参数；当前规则管理页直接继承默认值，仅显示本地化无障碍描述的 Cerasus `add` 加号。
+`ShadowFloatingActionButton` 默认使用 `CircleShape` 与主题 `primary` 背景，`contentColorFor(containerColor)` 为默认背景匹配 `onPrimary` 前景，与实心按钮配色一致。保留官方 FAB 尺寸及显式覆盖形状、背景和前景的参数；当前规则管理页直接继承默认值，仅显示本地化无障碍描述的 Cerasus `add` 加号。规则管理页在 Scaffold 留白上补足 FAB 按压投影需要的末端 18dp、底部 26dp。
 
-共享交互源驱动投影和形状。普通按钮静止／按压／悬停或聚焦使用 2dp／8dp／4dp 等效高度，FAB 使用 6dp／12dp／8dp；按下 120ms、松开或取消 180ms，无弹跳，系统动画设置由 Compose 处理。普通按钮和 FAB 禁用时立即移除投影，优先于按压、悬停与聚焦；FAB 通过封装的 `enabled` 参数同时阻止操作并声明禁用语义。四类普通共享按钮默认使用官方 Expressive `shapes`，静止和按压形状通过公开 `Interpolatable` API 与主题 `defaultEffectsSpec` 插值，同一动画形状用于按钮轮廓、投影和装饰裁剪；固定轮廓例外提供相同的两种形状并跳过插值。选择按钮继续使用主题 `fastSpatialSpec`。形变和阴影分别管理，固定轮廓不关闭原有动态阴影；场景规则与接入见[按钮按压轮廓](components.md#按钮按压轮廓)，不访问 Material 3 内部 API。
+共享交互源驱动投影和形状。普通按钮静止／按压／悬停或聚焦使用 2dp／8dp／4dp 等效高度，FAB 使用 6dp／12dp／8dp；按下 120ms、松开或取消 180ms，无弹跳，系统动画设置由 Compose 处理。普通按钮和 FAB 禁用时立即移除投影，优先于按压、悬停与聚焦；FAB 通过封装的 `enabled` 参数同时阻止操作并声明禁用语义。带文字的共享按钮使用交换后的官方 Expressive 静止和按压形状，通过公开 `Interpolatable` API 与主题 `defaultEffectsSpec` 插值，同一动画形状用于按钮轮廓、投影和装饰裁剪。实心与浅色图标按钮默认使用固定圆形，表面与投影共用该轮廓。选择按钮继续使用主题 `fastSpatialSpec`。形变和阴影分别管理，固定轮廓不关闭原有动态阴影；场景规则与接入见[按钮按压轮廓](components.md#按钮按压轮廓)，不访问 Material 3 内部 API。
 
 双层投影由 [MaterialColorShadow](../../app/src/main/java/moe/kirakira/ui/components/MaterialColorShadow.kt) 通过官方 `ShadowContext` 和 `DropShadowPainter` 统一绘制，在最低支持版本同样绘制彩色投影，几何参数采用 Google 官方 [Material Web 双层 elevation 实现](https://github.com/material-components/material-web/blob/main/elevation/internal/_elevation.scss)，高度映射采用官方 [elevation tokens](https://github.com/material-components/material-web/blob/main/tokens/versions/v0_192/_md-sys-elevation.scss)。
 
