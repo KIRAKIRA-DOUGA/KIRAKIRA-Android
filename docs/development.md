@@ -31,6 +31,7 @@ Material 3 单独使用公开 Expressive 主题与分段列表 API 的版本，�
 | --- | --- |
 | `./gradlew :app:assembleDebug` | 默认检查：编译并生成 `app/build/outputs/apk/debug/` 下的 APK，不运行测试 |
 | `./gradlew :app:installDebug` | 安装到设备，随后从设备桌面打开应用 |
+| `./gradlew :app:assembleRelease` | 在 `app/build/outputs/apk/release/` 生成未签名通用包 `KIRAKIRA-<versionName>-release.apk` |
 | `./gradlew :app:assemblePerformance` | 生成非调试、可采样且启用 R8 优化的本地性能 APK，不运行测试 |
 | `./gradlew :app:installPerformance` | 安装本地性能 APK，使用默认 Debug 签名与相同应用 ID |
 | `./gradlew verify` | 仅在用户明确要求时：构建 Debug、单元测试、Android Lint |
@@ -39,6 +40,8 @@ Material 3 单独使用公开 Expressive 主题与分段列表 API 的版本，�
 | `./gradlew :app:connectedDebugAndroidTest` | 仅在用户明确要求时：在设备或模拟器上运行仪器测试 |
 
 检查政策以[贡献指南](../CONTRIBUTING.md#构建与检查)为准：代码或构建变更默认只执行 Debug 构建，纯文档修改只检查内容和链接。测试、`verify`、额外 Lint 和设备／截图检查仅按用户明确要求执行，不因查阅上述命令而自动运行。
+
+Release 在[应用构建配置](../app/build.gradle.kts)中启用 R8 代码和资源优化。发布时保留同次构建生成的 `app/build/outputs/mapping/release/mapping.txt`，用于还原该版本的混淆堆栈。
 
 `verify` 在[根构建脚本](../build.gradle.kts)中聚合 Debug 构建、单元测试和 Android Lint，不包含设备测试，也不检查全部 Kotlin 格式规则。测试和 Lint 报告位于 `app/build/reports/`。设备测试需要模拟器或连接的设备；已有用例和历史结果不代表当前版本已经验证。
 
@@ -52,7 +55,7 @@ Material 3 单独使用公开 Expressive 主题与分段列表 API 的版本，�
 
 两个专项属性互斥，普通 JVM 命令不带这些属性。认证 UI 中的部分旧断言已不对应当前界面，适用范围见[专项说明](auth-testing.md#认证体验与系统密码专项)。
 
-仓库未配置 CI 工作流、ktlint、Detekt 或覆盖率门槛；远端 CI 和分支保护需维护者自行配置。PR 默认报告构建结果，纯文档修改报告内容与链接检查结果。
+PR 默认报告构建结果，纯文档修改报告内容与链接检查结果。远端分支保护由维护者配置。
 
 ### Compose 布局预览
 
@@ -95,6 +98,40 @@ Android Studio 的 Build Variants 可选择 `performance`，再以 Run 启动；
 性能包包含依赖提供的 Baseline Profiles，不新增采集测试或依赖。Gradle 安装时同时提交 APK 和 `.dm` 编译元数据；安装后的实际 ART 编译状态由设备决定。每次采样仍应使用 `adb shell dumpsys package moe.kirakira` 核对实际 Dexopt 状态，并记录首次进入和重复进入。未预编译的设备也可在应用启动并等待 ProfileInstaller 写入后执行 `adb shell cmd package compile -m speed-profile -f moe.kirakira`，冷启动重录；预编译前后的样本分开报告。Debug 请求编译可能被设备限制为 `verify`，命令返回成功不代表代码已预编译。
 
 `performance` 使用本机默认 Debug 密钥，仅供本地采样，禁用真实系统凭据提供者。它与 Debug 使用相同应用 ID 和签名，互相覆盖安装时保留同一后端的数据；不要将此 APK 作为正式发行包。采样完成后可通过 `:app:installDebug` 恢复调试包。默认检查入口仍是 `:app:assembleDebug`，性能采样只在用户要求时执行。
+
+## GitHub Actions 发版
+
+[Android distribution](../.github/workflows/android-distribution.yml) 使用同一套 Release 构建和签名流程。每次 `main` 推送触发的构建成功后，Releases 中的 [CI build](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/releases/tag/ci) 预发行会更新到最新成功构建。CI 的 APK 文件名包含版本号、运行序号和提交 SHA 的前 7 位，例如 `KIRAKIRA-0.4-ci-12-a659b8b.apk`。每次运行的 APK 和同次生成的 `mapping.txt` 可从 Actions 的 **Artifacts** 下载，保留 90 天。
+
+正式版与 CI 版共享应用 ID 和签名。分发包使用 `3 + GITHUB_RUN_NUMBER` 作为 `versionCode`，其中 3 是已发布的 `0.3` APK 的版本号。CI 的版本名包含运行序号，例如 `0.4-ci.12`。如果手机已安装构建序号更高的 CI，需要等序号更高的正式版才能覆盖更新。两个渠道使用同一个工作流计数。迁移工作流前应确保新计数生成的版本号高于已分发的 APK。
+
+### 首次配置
+
+1. 保护 `main`，要求通过审核的 PR 才能合并。在仓库 **Settings → Rules → Rulesets** 启用独立的 tag 规则集，匹配 `[0-9]*.[0-9]*`，限制创建、更新和删除，仅允许发布维护者绕过。`ci` 不属于正式版本规则；不要给发布工作流绕过正式版本规则的权限。
+2. 在仓库 **Settings → Environments** 新建 `android-signing`。选择 **Selected branches and tags**，仅允许 `main` 分支和 `[0-9]*.[0-9]*` 标签。tag 规则集必须覆盖环境允许的全部标签，而不只是当前工作流匹配的两段或三段数字版本。工作流从触发它的 tag 读取，仅限制名称不能阻止未经审核的工作流访问签名密钥。
+3. 确认前两项已生效，并核对所有已存在的匹配 tag 都指向经审核进入 `main` 的提交。然后使用发布 `0.3` 的原密钥，仅在该 Environment 中设置以下 Secrets，不要设为仓库级 Secrets。Base64 编码应为一行。
+
+   | Secret | 值 |
+   | --- | --- |
+   | `ANDROID_KEYSTORE_BASE64` | 原 keystore 文件的 Base64 |
+   | `ANDROID_KEYSTORE_PASSWORD` | keystore 密码 |
+   | `ANDROID_KEY_ALIAS` | 签名密钥别名 |
+   | `ANDROID_KEY_PASSWORD` | 签名密钥密码 |
+
+4. 下载 [0.3 APK](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/releases/tag/0.3)，用 `apksigner verify --print-certs` 核对证书指纹，用 `aapt2 dump badging` 核对应用 ID 和版本号。工作流已固定该 APK 的公开证书 SHA-256 指纹，签名不匹配时该次构建会失败。
+5. 确认仓库与组织的 Release 设置允许替换 `ci` 附件，tag 规则允许工作流移动 `ci` tag。发布任务使用内置 `GITHUB_TOKEN`。首次推送 `main` 后，核对 Actions 产物和 CI 预发行中的 APK，再确认预发行记录的提交与 `ci` tag 一致。
+
+### 发布正式版
+
+1. 把 [应用构建配置](../app/build.gradle.kts) 的 `appVersionName` 更新为版本号，例如 `0.4`。推送到 `main` 并等该提交的 CI 完成。
+2. 在该提交创建并推送同名 tag。
+
+   ```sh
+   git tag -a 0.4 -m "0.4"
+   git push origin refs/tags/0.4
+   ```
+
+3. 在 Releases 打开生成的草稿，核对 `KIRAKIRA-0.4-release.apk`，补充中文说明并点击 **Publish release**。从对应 Actions 产物长期保存同一 APK 的 `mapping.txt`，可用 APK 的 SHA-256 对照 Release 附件和构建产物。重跑会补齐缺失的草稿附件，保留已有 APK 和说明。
 
 ## API 环境配置
 

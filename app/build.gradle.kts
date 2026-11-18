@@ -23,6 +23,10 @@ val cryptoCheck = providers.gradleProperty("kirakira.cryptoCheck").map { it.toBo
 val authUiCheck = providers.gradleProperty("kirakira.authUiCheck").map { it.toBooleanStrict() }.orElse(false).get()
 require(!cryptoCheck || !authUiCheck) { "Select one isolated instrumentation variant at a time" }
 
+val appVersionName = "0.3"
+val distributionVersionCode = providers.gradleProperty("kirakira.distributionVersionCode").map { it.toInt() }
+val ciRunNumber = providers.gradleProperty("kirakira.ciRunNumber").map { it.toInt() }
+
 android {
     namespace = "moe.kirakira"
     compileSdk {
@@ -36,7 +40,7 @@ android {
         minSdk = 27
         targetSdk = 37
         versionCode = 3
-        versionName = "0.3"
+        versionName = appVersionName
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
         buildConfigField("String", "IMAGE_DELIVERY_BASE_URL", "\"$imageDeliveryBaseUrl\"")
         buildConfigField("boolean", "SYSTEM_CREDENTIALS_ENABLED", (apiBaseUrl == "https://rosales.kirakira.moe/").toString())
@@ -61,7 +65,7 @@ android {
         }
         release {
             optimization {
-                enable = false
+                enable = true
             }
         }
         create("performance") {
@@ -100,6 +104,15 @@ android {
     buildFeatures {
         buildConfig = true
         compose = true
+    }
+}
+
+androidComponents {
+    onVariants(selector().withBuildType("release")) { variant ->
+        val output = variant.outputs.single()
+        distributionVersionCode.orNull?.let { output.versionCode.set(it) }
+        ciRunNumber.orNull?.let { output.versionName.set("$appVersionName-ci.$it") }
+        output.outputFileName.set(output.versionName.map { "KIRAKIRA-$it-release.apk" })
     }
 }
 

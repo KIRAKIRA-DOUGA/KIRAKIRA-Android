@@ -1,0 +1,144 @@
+name: Android distribution
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - '[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: ${{ !github.event.deleted }}
+    runs-on: ubuntu-24.04
+    # Before adding secrets, protect main and every tag allowed by this environment.
+    # See docs/development.md, GitHub Actions 发版.
+    environment: android-signing
+    outputs:
+      apk: ${{ steps.sign.outputs.apk }}
+      commit: ${{ steps.sign.outputs.commit }}
+      artifact-id: ${{ steps.artifact.outputs.artifact-id }}
+    env:
+      ANDROID_BUILD_TOOLS: '37.0.0'
+      # The APK published as 0.3 has versionCode 3.
+      ANDROID_BASE_VERSION_CODE: '3'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: gradle
+      - name: Install Android SDK
+        run: sdkmanager 'platforms;android-37.2' "build-tools;$ANDROID_BUILD_TOOLS"
+      - name: Build release APK
+        shell: bash
+        run: |
+          version_code=$((ANDROID_BASE_VERSION_CODE + GITHUB_RUN_NUMBER))
+          gradle_args=("-Pkirakira.distributionVersionCode=$version_code")
+          if [[ "$GITHUB_REF" == refs/heads/main ]]; then
+            gradle_args+=("-Pkirakira.ciRunNumber=$GITHUB_RUN_NUMBER")
+          fi
+          ./gradlew :app:assembleRelease --console=plain --no-scan "${gradle_args[@]}"
+      - name: Sign and verify APK
+        id: sign
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          # Public certificate fingerprint of KIRAKIRA-0.3-release.apk.
+          ANDROID_CERT_SHA256: 6437f1a566ed55aca9e1cda0e0b7850db7fae6d21ce698225467531e004d3f3b
+        run: |
+          apk_dir=app/build/outputs/apk/release
+          metadata="$apk_dir/output-metadata.json"
+          version_code=$((ANDROID_BASE_VERSION_CODE + GITHUB_RUN_NUMBER))
+          jq -e --argjson code "$version_code" '
+            .applicationId == "moe.kirakira" and
+            (.elements | length == 1) and
+            .elements[0].versionCode == $code
+          ' "$metadata" >/dev/null
+          version_name=$(jq -er '.elements[0].versionName' "$metadata")
+          commit=$(git rev-parse HEAD)
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            if [[ "$version_name" != "$GITHUB_REF_NAME" ]]; then
+              echo "::error::The release tag must match the APK versionName ($version_name)."
+              exit 1
+            fi
+            apk="KIRAKIRA-$version_name-release.apk"
+          else
+            if [[ ! "$version_name" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?-ci\.$GITHUB_RUN_NUMBER$ ]]; then
+              echo "::error::Unexpected CI versionName ($version_name)."
+              exit 1
+            fi
+            apk="KIRAKIRA-${version_name%-ci.*}-ci-$GITHUB_RUN_NUMBER-${commit:0:7}.apk"
+          fi
+
+          : "${ANDROID_KEYSTORE_BASE64:?Missing ANDROID_KEYSTORE_BASE64}"
+          : "${ANDROID_KEYSTORE_PASSWORD:?Missing ANDROID_KEYSTORE_PASSWORD}"
+          : "${ANDROID_KEY_ALIAS:?Missing ANDROID_KEY_ALIAS}"
+          : "${ANDROID_KEY_PASSWORD:?Missing ANDROID_KEY_PASSWORD}"
+          umask 077
+          signing_dir=$(mktemp -d "$RUNNER_TEMP/android-signing.XXXXXX")
+          trap 'rm -rf -- "$signing_dir"' EXIT
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$signing_dir/release.keystore"
+          unset ANDROID_KEYSTORE_BASE64
+
+          build_tools="$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS"
+          unsigned_apk=$(jq -er '.elements[0].outputFile' "$metadata")
+          mkdir -p dist
+          "$build_tools/zipalign" -P 16 -f 4 "$apk_dir/$unsigned_apk" "$signing_dir/aligned.apk"
+          "$build_tools/apksigner" sign --ks "$signing_dir/release.keystore" \
+            --ks-key-alias "$ANDROID_KEY_ALIAS" \
+            --ks-pass env:ANDROID_KEYSTORE_PASSWORD --key-pass env:ANDROID_KEY_PASSWORD \
+            --out "dist/$apk" "$signing_dir/aligned.apk"
+          certificate=$("$build_tools/apksigner" verify --print-certs "dist/$apk")
+          if [[ $(awk '/^Signer #[0-9]+ certificate SHA-256 digest:/ {print $NF}' <<< "$certificate") != "$ANDROID_CERT_SHA256" ]]; then
+            echo "::error::APK signing certificate does not match the published 0.3 APK."
+            exit 1
+          fi
+          badging=$("$build_tools/aapt2" dump badging "dist/$apk")
+          if [[ "$badging" != "package: name='moe.kirakira' versionCode='$version_code' versionName='$version_name' "* ]]; then
+            echo "::error::The signed APK package or version does not match the build."
+            exit 1
+          fi
+
+          cp app/build/outputs/mapping/release/mapping.txt dist/
+          printf 'apk=%s\ncommit=%s\n' "$apk" "$commit" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        id: artifact
+        with:
+          name: android-${{ github.run_number }}-${{ github.run_attempt }}
+          path: dist/
+          retention-days: 90
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    concurrency:
+      group: android-distribution-${{ github.ref }}
+      queue: max
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact-id }}
+          path: dist
+          merge-multiple: true
+      - name: Publish APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APK_NAME: ${{ needs.build.outputs.apk }}
+          SOURCE_COMMIT: ${{ needs.build.outputs.commit }}
+        run: bash .github/scripts/publish-android.sh
