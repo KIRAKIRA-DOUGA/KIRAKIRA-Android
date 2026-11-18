@@ -1,11 +1,6 @@
 package moe.kirakira.feature.main
 
 import androidx.annotation.StringRes
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Easing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -31,26 +26,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.RoundRect
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -62,14 +44,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
 import moe.kirakira.R
-import moe.kirakira.ui.components.TabIndicatorLeadingEasing
-import moe.kirakira.ui.components.TabIndicatorTrailingEasing
+import moe.kirakira.ui.components.awaitSlidingSelectionChange
 import moe.kirakira.ui.components.frostedBarBackground
-import moe.kirakira.ui.components.rememberEmphasizedEasing
-import moe.kirakira.ui.components.tabTransitionDurationMillis
+import moe.kirakira.ui.components.rememberSlidingSelection
+import moe.kirakira.ui.components.rememberSlidingSelectionPressProgress
+import moe.kirakira.ui.components.slidingSelectionIndicator
 import moe.kirakira.ui.theme.BarShadowElevation
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -101,75 +81,10 @@ internal fun MainBottomBar(
     val latestOnDestinationReselect by rememberUpdatedState(onDestinationReselect)
     val interactionSources = AppDestination.entries.map { remember { MutableInteractionSource() } }
     val tabPressStates = interactionSources.map { it.collectIsPressedAsState() }
-    var pointerPressed by remember { mutableStateOf(false) }
-    val indicatorPressProgress = animateFloatAsState(
-        targetValue = if (pointerPressed || tabPressStates.any { it.value }) 1f else 0f,
-        animationSpec = MaterialTheme.motionScheme.slowSpatialSpec(),
-        label = "Navigation indicator press",
+    val motion = rememberSlidingSelection(destination.ordinal)
+    val pressProgress = rememberSlidingSelectionPressProgress(
+        motion.pressedPosition != null || tabPressStates.any { it.value },
     )
-    var pressedPosition by remember { mutableFloatStateOf(Float.NaN) }
-    // Pointer samples retarget the spring without recomposing the bar.
-    val dragPosition = remember { mutableFloatStateOf(Float.NaN) }
-    var isDragging by remember { mutableStateOf(false) }
-    // Drag release and cancellation settle without starting a new Elastic click animation.
-    var dragSettlement by remember { mutableStateOf<AppDestination?>(null) }
-    val indicatorStart = remember { Animatable(destination.ordinal.toFloat(), visibilityThreshold = 0.001f) }
-    val indicatorEnd = remember { Animatable(destination.ordinal.toFloat(), visibilityThreshold = 0.001f) }
-    val emphasizedEasing = rememberEmphasizedEasing()
-    val leadingEasing = remember(emphasizedEasing) {
-        Easing { TabIndicatorLeadingEasing.transform(emphasizedEasing.transform(it)) }
-    }
-    val trailingEasing = remember(emphasizedEasing) {
-        Easing { TabIndicatorTrailingEasing.transform(emphasizedEasing.transform(it)) }
-    }
-    val targetPosition = if (pressedPosition.isNaN()) destination.ordinal.toFloat() else pressedPosition
-    LaunchedEffect(targetPosition, isDragging, dragSettlement, leadingEasing, trailingEasing) {
-        if (isDragging) {
-            val followSpec = spring<Float>(dampingRatio = 1f, stiffness = 1600f, visibilityThreshold = 0.001f)
-            coroutineScope {
-                snapshotFlow { dragPosition.floatValue }.collect { position ->
-                    if (!position.isNaN()) {
-                        // Animatable interrupts the previous target with its current position and velocity.
-                        launch { indicatorStart.animateTo(position, followSpec) }
-                        launch { indicatorEnd.animateTo(position, followSpec) }
-                    }
-                }
-            }
-            return@LaunchedEffect
-        }
-
-        val settlement = dragSettlement
-        val stretch = settlement != destination
-        if (indicatorStart.value != targetPosition || indicatorEnd.value != targetPosition) {
-            val currentPosition = (indicatorStart.value + indicatorEnd.value) / 2f
-            val forward = targetPosition >= currentPosition
-            val duration = tabTransitionDurationMillis(abs(targetPosition - currentPosition))
-            val dragSpec = spring<Float>(dampingRatio = 1f, stiffness = 600f, visibilityThreshold = 0.001f)
-            coroutineScope {
-                launch {
-                    indicatorStart.animateTo(
-                        targetValue = targetPosition,
-                        animationSpec = if (stretch) {
-                            tween(duration, easing = if (forward) trailingEasing else leadingEasing)
-                        } else {
-                            dragSpec
-                        },
-                    )
-                }
-                launch {
-                    indicatorEnd.animateTo(
-                        targetValue = targetPosition,
-                        animationSpec = if (stretch) {
-                            tween(duration, easing = if (forward) leadingEasing else trailingEasing)
-                        } else {
-                            dragSpec
-                        },
-                    )
-                }
-            }
-        }
-        if (!isDragging && dragSettlement == settlement) dragSettlement = null
-    }
     val colorScheme = MaterialTheme.colorScheme
     val indicatorColor = if (colorScheme.surface.luminance() < colorScheme.onSurface.luminance()) {
         colorScheme.onSurface.copy(alpha = DarkSelectedBackgroundAlpha)
@@ -179,85 +94,50 @@ internal fun MainBottomBar(
     val selectedContentColor = colorScheme.primary
     val contentColor = colorScheme.onSurface
 
-    val gestures = Modifier.pointerInput(layoutDirection) {
-        try {
-            awaitEachGesture {
-                val down = awaitFirstDown(pass = PointerEventPass.Initial)
-                val padding = BarContentPadding.toPx()
-                val itemWidth = (size.width - padding * 2) / AppDestination.entries.size
-                if (itemWidth <= 0f) return@awaitEachGesture
+    val gestures = Modifier.pointerInput(layoutDirection, motion) {
+        awaitEachGesture {
+            val down = awaitFirstDown(pass = PointerEventPass.Initial)
+            val padding = BarContentPadding.toPx()
+            val itemWidth = (size.width - padding * 2) / AppDestination.entries.size
+            if (itemWidth <= 0f) return@awaitEachGesture
 
-                fun logicalX(x: Float): Float =
-                    if (layoutDirection == LayoutDirection.Rtl) size.width - x else x
+            fun logicalX(x: Float): Float =
+                if (layoutDirection == LayoutDirection.Rtl) size.width - x else x
 
-                fun positionFor(x: Float): Float =
-                    ((logicalX(x) - padding) / itemWidth - 0.5f)
-                        .coerceIn(0f, AppDestination.entries.lastIndex.toFloat())
+            fun positionFor(x: Float): Float =
+                ((logicalX(x) - padding) / itemWidth - 0.5f)
+                    .coerceIn(0f, AppDestination.entries.lastIndex.toFloat())
 
-                val downX = logicalX(down.position.x)
-                val startIndex = ((downX - padding) / itemWidth).toInt()
-                    .coerceIn(0, AppDestination.entries.lastIndex)
-                down.consume()
-                // Use the existing Elastic edges to preview the exact pointer position.
-                pointerPressed = true
-                pressedPosition = if (startIndex == latestDestination.ordinal) {
-                    latestDestination.ordinal.toFloat()
-                } else {
-                    positionFor(down.position.x)
-                }
-                dragSettlement = null
-                dragPosition.floatValue = Float.NaN
-                var dragging = false
-                var released = false
-                try {
-                    while (true) {
-                        val event = awaitPointerEvent(pass = PointerEventPass.Initial)
-                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                        val cancelled = change.isConsumed ||
-                            event.changes.any { it.id != down.id && it.pressed } ||
-                            change.position.y < -viewConfiguration.touchSlop ||
-                            change.position.y > size.height + viewConfiguration.touchSlop
-                        event.changes.forEach { it.consume() }
-                        if (cancelled) break
+            val downX = logicalX(down.position.x)
+            val startIndex = ((downX - padding) / itemWidth).toInt()
+                .coerceIn(0, AppDestination.entries.lastIndex)
+            down.consume()
+            val pressedPosition = if (startIndex == latestDestination.ordinal) startIndex.toFloat()
+            else positionFor(down.position.x)
+            motion.press(pressedPosition)
+            var settlement: Int? = null
+            try {
+                while (true) {
+                    val change = awaitSlidingSelectionChange(down.id, consumeEvent = true) ?: break
 
-                        val distance = logicalX(change.position.x) - downX
-                        if (!dragging && abs(distance) > viewConfiguration.touchSlop) {
-                            dragging = true
-                            isDragging = true
-                            dragSettlement = null
-                        }
-                        val position = positionFor(change.position.x)
-                        if (dragging) dragPosition.floatValue = position
-                        if (!change.pressed) {
-                            val target = AppDestination.entries[if (dragging) position.roundToInt() else startIndex]
-                            dragSettlement = if (dragging) target else null
-                            released = true
-                            if (target != latestDestination) {
-                                latestOnDestinationChange(target)
-                            } else if (!dragging) {
-                                latestOnDestinationReselect(target)
-                            }
-                            break
-                        }
+                    val position = positionFor(change.position.x)
+                    if (motion.isDragging || abs(logicalX(change.position.x) - downX) > viewConfiguration.touchSlop) {
+                        motion.dragTo(position)
                     }
-                } finally {
-                    pointerPressed = false
-                    pressedPosition = Float.NaN
-                    if (dragging) {
-                        if (!released) {
-                            dragSettlement = latestDestination
+                    if (!change.pressed) {
+                        val dragging = motion.isDragging
+                        val target = AppDestination.entries[if (dragging) position.roundToInt() else startIndex]
+                        settlement = target.ordinal
+                        if (target != latestDestination) {
+                            latestOnDestinationChange(target)
+                        } else if (!dragging) {
+                            latestOnDestinationReselect(target)
                         }
-                        isDragging = false
+                        break
                     }
                 }
-            }
-        } finally {
-            // Also restore the committed selection when the bar leaves composition or RTL changes.
-            pointerPressed = false
-            pressedPosition = Float.NaN
-            if (isDragging) {
-                dragSettlement = latestDestination
-                isDragging = false
+            } finally {
+                motion.release(settlement ?: latestDestination.ordinal)
             }
         }
     }
@@ -284,58 +164,25 @@ internal fun MainBottomBar(
                     .height(IntrinsicSize.Min)
                     .selectableGroup()
                     .then(gestures)
-                    .drawWithCache {
-                        val padding = BarContentPadding.toPx()
-                        val itemWidth = ((size.width - padding * 2) / AppDestination.entries.size)
-                            .coerceAtLeast(0f)
-                        val height = (size.height - padding * 2).coerceAtLeast(0f)
-                        val foregroundBounds = Rect(Offset.Zero, size)
-                        val foregroundPaint = Paint()
-                        val mask = Path()
-                        onDrawWithContent {
-                            val start = indicatorStart.value
-                                .coerceIn(0f, AppDestination.entries.lastIndex.toFloat())
-                            val end = indicatorEnd.value
-                                .coerceIn(start, AppDestination.entries.lastIndex.toFloat())
-                            val logicalStart = padding + start * itemWidth
-                            val fullWidth = (end - start + 1f) * itemWidth
-                            val pressProgress = indicatorPressProgress.value.coerceIn(0f, 1f)
-                            val width = fullWidth * (1f - 0.1f * pressProgress)
-                            val pressedHeight = height * (1f - 0.1f * pressProgress)
-                            val top = padding + (height - pressedHeight) / 2f
-                            val pressInset = (fullWidth - width) / 2f
-                            val left = if (layoutDirection == LayoutDirection.Rtl) {
-                                size.width - logicalStart - fullWidth + pressInset
-                            } else {
-                                logicalStart + pressInset
+                    .slidingSelectionIndicator(
+                        shape = CircleShape,
+                        bounds = {
+                            val padding = BarContentPadding.toPx()
+                            val itemWidth = ((size.width - padding * 2) / AppDestination.entries.size)
+                                .coerceAtLeast(0f)
+                            motion.bounds(AppDestination.entries.lastIndex, pressProgress.value) { position ->
+                                val start = padding + position * itemWidth
+                                val left = if (layoutDirection == LayoutDirection.Rtl) {
+                                    size.width - start - itemWidth
+                                } else start
+                                Rect(left, padding, left + itemWidth, size.height - padding)
                             }
-                            mask.reset()
-                            mask.addRoundRect(
-                                RoundRect(
-                                    rect = Rect(left, top, left + width, top + pressedHeight),
-                                    cornerRadius = CornerRadius(minOf(width, pressedHeight) / 2),
-                                ),
-                            )
-                            drawPath(
-                                path = mask,
-                                color = indicatorColor.copy(
-                                    alpha = indicatorColor.alpha * (1f + 0.5f * pressProgress),
-                                ),
-                            )
-
-                            // Isolate foreground alpha so the tint affects only glyphs under the pill.
-                            val canvas = drawContext.canvas
-                            canvas.saveLayer(foregroundBounds, foregroundPaint)
-                            try {
-                                drawContent()
-                                clipPath(mask) {
-                                    drawRect(color = selectedContentColor, blendMode = BlendMode.SrcAtop)
-                                }
-                            } finally {
-                                canvas.restore()
-                            }
-                        }
-                    }
+                        },
+                        containerColor = {
+                            indicatorColor.copy(alpha = indicatorColor.alpha * (1f + 0.5f * pressProgress.value))
+                        },
+                        contentColor = selectedContentColor,
+                    )
                     .padding(BarContentPadding),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -354,7 +201,7 @@ internal fun MainBottomBar(
                                 indication = ripple(),
                                 onClick = {
                                     if (!selected) {
-                                        dragSettlement = null
+                                        motion.clearSettlement()
                                         onDestinationChange(item)
                                     } else {
                                         onDestinationReselect(item)

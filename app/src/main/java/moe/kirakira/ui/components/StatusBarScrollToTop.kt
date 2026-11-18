@@ -10,6 +10,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -191,6 +192,19 @@ internal fun StatusBarScrollToTopEffect(
             // A header can be collapsed before this lazy list has ever been laid out.
             header?.smoothExpand()
         }
+    }
+}
+
+@Composable
+internal fun StatusBarScrollToTopEffect(state: LazyGridState) {
+    val header = LocalScrollToTopHeader.current
+    val dragging by state.interactionSource.collectIsDraggedAsState()
+    StatusBarScrollToTopEffect(
+        identity = state,
+        canScrollToTop = { state.canScrollBackward || header?.canExpand() == true },
+        enabled = !dragging && header?.isDragging() != true,
+    ) {
+        state.smoothScrollToTop(header)
     }
 }
 

@@ -39,6 +39,13 @@ internal fun Modifier.frostedBarBackground(
     shape: Shape = RectangleShape,
     hazeState: HazeState? = LocalAppBarHazeState.current,
     shadowElevation: Dp = 0.dp,
+): Modifier = frostedSurfaceBackground(shape, hazeState, shadowElevation)
+
+@Composable
+internal fun Modifier.frostedSurfaceBackground(
+    shape: Shape,
+    hazeState: HazeState?,
+    shadowElevation: Dp,
 ): Modifier {
     val surface = MaterialTheme.colorScheme.surface.copy(alpha = 1f)
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || hazeState == null) {

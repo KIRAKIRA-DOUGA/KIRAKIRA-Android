@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
+import moe.kirakira.ui.theme.BrandTitleFontFamily
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 private val CollapsibleTopAppBarExpandedHeight = 136.dp
@@ -37,7 +38,13 @@ fun CollapsibleTopAppBar(
     // Render the shared offset while the modifier owns the drag and its completion.
     val layoutScrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(scrollBehavior.state)
     LargeFlexibleTopAppBar(
-        title = { Text(title, fontWeight = FontWeight.Bold) },
+        title = {
+            Text(
+                text = title,
+                fontWeight = FontWeight.SemiBold,
+                fontFamily = BrandTitleFontFamily,
+            )
+        },
         modifier = if (scrollBehavior.isPinned) modifier else modifier.dragCollapsibleTopAppBar(scrollBehavior),
         expandedHeight = CollapsibleTopAppBarExpandedHeight,
         scrollBehavior = layoutScrollBehavior,

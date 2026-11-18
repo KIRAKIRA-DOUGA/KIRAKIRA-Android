@@ -56,6 +56,7 @@ import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.ShadingIcon
 import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.components.appTopAppBarColors
+import moe.kirakira.ui.theme.BrandTitleFontFamily
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 internal sealed interface LicensesUiState {
@@ -119,7 +120,13 @@ internal fun LicensesContent(
                     offset = DpOffset(32.dp, 32.dp),
                 )
                 TopAppBar(
-                    title = { Text(stringResource(R.string.about_licenses), fontWeight = FontWeight.Bold) },
+                    title = {
+                        Text(
+                            text = stringResource(R.string.about_licenses),
+                            fontWeight = FontWeight.SemiBold,
+                            fontFamily = BrandTitleFontFamily,
+                        )
+                    },
                     navigationIcon = {
                         IconButton(onClick = onBack, modifier = Modifier.testTag("licenses_back")) {
                             Icon(

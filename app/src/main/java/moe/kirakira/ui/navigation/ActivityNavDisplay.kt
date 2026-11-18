@@ -17,6 +17,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -61,6 +62,9 @@ import moe.kirakira.ui.components.LocalStatusBarScrollToTopEnabled
 import moe.kirakira.ui.components.video.LocalVideoZoomOwner
 import moe.kirakira.ui.components.windowCornerRadius
 
+/** Tracks the committed destination, including while another entry is being previewed. */
+internal val LocalDestinationActive = compositionLocalOf { true }
+
 /**
  * Navigation 3 owns entries, saved state and ordinary navigation. A two-entry Scene keeps both
  * pages alive through AOSP's gesture and post-commit phases before changing the back stack.
@@ -87,6 +91,7 @@ internal fun <T : Any> ActivityNavDisplay(
         PredictiveBackMotion(scope) { interpolator.getInterpolation(it) }
     }
     val currentEntryProvider by rememberUpdatedState(entryProvider)
+    val topDestination by rememberUpdatedState(backStack.lastOrNull())
     val entries = rememberDecoratedNavEntries(
         backStack = backStack,
         entryDecorators = listOf(
@@ -96,7 +101,10 @@ internal fun <T : Any> ActivityNavDisplay(
         // Navigation 3 caches entries by back stack, so their content must read the latest provider.
         entryProvider = { route ->
             NavEntry(navEntry = currentEntryProvider(route)) { key ->
-                CompositionLocalProvider(LocalVideoZoomOwner provides key) {
+                CompositionLocalProvider(
+                    LocalVideoZoomOwner provides key,
+                    LocalDestinationActive provides (key == topDestination),
+                ) {
                     currentEntryProvider(key).Content()
                 }
             }

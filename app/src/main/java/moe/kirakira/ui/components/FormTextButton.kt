@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -21,6 +20,7 @@ internal fun FormTextButton(
     edge: FormButtonEdge,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    loading: Boolean = false,
     content: @Composable RowScope.() -> Unit,
 ) {
     val padding = ButtonDefaults.TextButtonContentPadding
@@ -29,10 +29,11 @@ internal fun FormTextButton(
         FormButtonEdge.START -> -padding.calculateStartPadding(direction)
         FormButtonEdge.END -> padding.calculateEndPadding(direction)
     }
-    TextButton(
+    FlatTextButton(
         onClick = onClick,
         modifier = modifier.offset(x = offset).defaultMinSize(minWidth = 48.dp),
         enabled = enabled,
+        loading = loading,
         contentPadding = padding,
         content = content,
     )

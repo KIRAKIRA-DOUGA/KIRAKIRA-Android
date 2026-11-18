@@ -1,12 +1,15 @@
 package moe.kirakira.ui.components
 
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.graphics.shadow.ShadowContext
 import androidx.compose.ui.unit.Density
@@ -31,12 +34,17 @@ internal fun Modifier.materialColorShadow(
     opacityScale: Float = 1f,
     opacity: () -> Float = { 1f },
     tint: () -> Color = { materialShadowColor(containerColor) },
+    bounds: (() -> Rect?)? = null,
     elevation: () -> Float,
 ): Modifier {
+    // Translation alone can reuse the cached shadow painters.
+    val animatedSize = bounds?.let { readBounds -> derivedStateOf { readBounds()?.size ?: Size.Zero } }
     return drawWithCache {
+        val shadowSize = animatedSize?.value ?: size
+        if (shadowSize.isEmpty()) return@drawWithCache onDrawBehind {}
         // Observe animated shape state before consulting Compose's shadow cache. A stable,
         // mutable Shape is otherwise cached by identity and can keep an old pressed outline.
-        val resolvedShape = ResolvedShadowShape(shape.createOutline(size, layoutDirection, this))
+        val resolvedShape = ResolvedShadowShape(shape.createOutline(shadowSize, layoutDirection, this))
         val shadowContext = ShadowContext()
         val level = materialShadowLevel(elevation())
         val upperLevels = (level - 2f).coerceIn(0f, 3f)
@@ -67,8 +75,11 @@ internal fun Modifier.materialColorShadow(
             val shadowOpacity = (opacity() * shadowColor.alpha).coerceIn(0f, 1f)
             if (shadowOpacity == 0f) return@onDrawBehind
             val colorFilter = ColorFilter.tint(shadowColor.copy(alpha = 1f))
-            with(ambient) { draw(size, alpha = shadowOpacity, colorFilter = colorFilter) }
-            with(key) { draw(size, alpha = shadowOpacity, colorFilter = colorFilter) }
+            val origin = if (bounds != null) bounds()?.topLeft ?: return@onDrawBehind else null
+            translate(origin?.x ?: 0f, origin?.y ?: 0f) {
+                with(ambient) { draw(shadowSize, alpha = shadowOpacity, colorFilter = colorFilter) }
+                with(key) { draw(shadowSize, alpha = shadowOpacity, colorFilter = colorFilter) }
+            }
         }
     }
 }

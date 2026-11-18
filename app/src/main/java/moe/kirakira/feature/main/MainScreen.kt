@@ -74,7 +74,9 @@ import moe.kirakira.ui.components.video.VideoCardLayout
 import moe.kirakira.ui.components.video.VideoCardRow
 import moe.kirakira.ui.components.video.VideoCardRowSpacing
 import moe.kirakira.ui.content.ContentState
+import moe.kirakira.ui.navigation.LocalDestinationActive
 import moe.kirakira.ui.navigation.rememberNavigationMotion
+import moe.kirakira.ui.theme.BrandTitleFontFamily
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorDefaults
 
@@ -157,6 +159,7 @@ internal fun MainScreen(
         ) { page ->
             tabStateHolder.SaveableStateProvider(page.name) {
                 CompositionLocalProvider(
+                    LocalDestinationActive provides (LocalDestinationActive.current && page == destination),
                     LocalStatusBarScrollToTopEnabled provides (
                         LocalStatusBarScrollToTopEnabled.current && page == destination &&
                             transition.currentState == EnterExitState.Visible &&
@@ -305,12 +308,24 @@ private fun MainTopBar(
         AppDestination.HOME -> HomeTopBar(onOpenMe = onOpenMe, avatar = avatar)
 
         AppDestination.FOLLOWING -> TopAppBar(
-            title = { Text(stringResource(R.string.nav_following), fontWeight = FontWeight.Bold) },
+            title = {
+                Text(
+                    text = stringResource(R.string.nav_following),
+                    fontWeight = FontWeight.SemiBold,
+                    fontFamily = BrandTitleFontFamily,
+                )
+            },
             colors = appTopAppBarColors(),
         )
 
         AppDestination.ME -> TopAppBar(
-            title = { Text(stringResource(R.string.nav_me), fontWeight = FontWeight.Bold) },
+            title = {
+                Text(
+                    text = stringResource(R.string.nav_me),
+                    fontWeight = FontWeight.SemiBold,
+                    fontFamily = BrandTitleFontFamily,
+                )
+            },
             colors = appTopAppBarColors(),
         )
 

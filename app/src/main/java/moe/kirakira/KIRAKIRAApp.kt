@@ -3,15 +3,19 @@ package moe.kirakira
 import android.app.Application
 import android.content.res.Configuration
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import dev.chrisbanes.haze.rememberHazeState
 import moe.kirakira.data.auth.SessionState
 import moe.kirakira.feature.account.SessionViewModel
+import moe.kirakira.ui.components.LocalMenuHazeState
 import moe.kirakira.ui.components.StatusBarScrollToTopHost
+import moe.kirakira.ui.components.menuHazeSource
 import moe.kirakira.ui.navigation.AppNavHost
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorSettings
@@ -35,28 +39,31 @@ fun KIRAKIRAApp(
         viewModel { SessionViewModel(context.applicationContext as Application, it.auth, it.credentials) }
     }
     val accountState = sessionViewModel?.state?.collectAsStateWithLifecycle()?.value ?: SessionState(isLoading = false)
+    val menuHazeState = rememberHazeState()
 
     StatusBarScrollToTopHost {
-        AppNavHost(
-            themeMode = themeMode,
-            onThemeModeChange = onThemeModeChange,
-            themeColors = themeColors,
-            onThemeColorsChange = onThemeColorsChange,
-            predictiveBackEnabled = predictiveBackEnabled,
-            onPredictiveBackEnabledChange = onPredictiveBackEnabledChange,
-            onVideoPageActiveChange = onVideoPageActiveChange,
-            onImageViewerActiveChange = onImageViewerActiveChange,
-            accountState = accountState,
-            dependencies = dependencies,
-            onSelectAccount = { sessionViewModel?.select(it) },
-            onRemoveAccount = { sessionViewModel?.remove(it) },
-            onLogout = { sessionViewModel?.logout() },
-            onResetLocalAccounts = { sessionViewModel?.resetLocalAccounts() },
-            onRetrySession = { sessionViewModel?.retry() },
-            onDismissSessionError = { sessionViewModel?.dismissError() },
-            onDismissSessionNotice = { sessionViewModel?.dismissNotice() },
-            modifier = modifier,
-        )
+        CompositionLocalProvider(LocalMenuHazeState provides menuHazeState) {
+            AppNavHost(
+                themeMode = themeMode,
+                onThemeModeChange = onThemeModeChange,
+                themeColors = themeColors,
+                onThemeColorsChange = onThemeColorsChange,
+                predictiveBackEnabled = predictiveBackEnabled,
+                onPredictiveBackEnabledChange = onPredictiveBackEnabledChange,
+                onVideoPageActiveChange = onVideoPageActiveChange,
+                onImageViewerActiveChange = onImageViewerActiveChange,
+                accountState = accountState,
+                dependencies = dependencies,
+                onSelectAccount = { sessionViewModel?.select(it) },
+                onRemoveAccount = { sessionViewModel?.remove(it) },
+                onLogout = { sessionViewModel?.logout() },
+                onResetLocalAccounts = { sessionViewModel?.resetLocalAccounts() },
+                onRetrySession = { sessionViewModel?.retry() },
+                onDismissSessionError = { sessionViewModel?.dismissError() },
+                onDismissSessionNotice = { sessionViewModel?.dismissNotice() },
+                modifier = modifier.menuHazeSource(menuHazeState),
+            )
+        }
     }
 }
 

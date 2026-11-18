@@ -19,7 +19,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -117,7 +116,7 @@ fun ExpandableText(
                 enter = expandVertically(spatial, expandFrom = Alignment.Top),
                 exit = shrinkVertically(spatial, shrinkTowards = Alignment.Top),
             ) {
-                TextButton(
+                FlatTextButton(
                     onClick = { onExpandedChange(!expanded) },
                     modifier = Modifier
                         .defaultMinSize(minWidth = 48.dp)

@@ -13,14 +13,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconButtonShapes
 import androidx.compose.material3.MaterialTheme
@@ -70,6 +68,7 @@ import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.LoadingIconButton
 import moe.kirakira.ui.components.ShadowFilledIconButton
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
@@ -291,27 +290,21 @@ fun ImageViewerScreen(
                 ),
                 modifier = Modifier.onFocusChanged { toolbarFocused = it.hasFocus }.focusGroup(),
             ) {
-                IconButton(
+                LoadingIconButton(
                     onClick = onSave,
                     enabled = controlsVisible && available,
-                    modifier = Modifier.semantics { contentDescription = saveLabel },
+                    loading = saving,
+                    indicatorColor = Color.White,
                 ) {
-                    if (saving) {
-                        IndeterminateCircularProgressIndicator(Modifier.size(24.dp), Color.White, 2.dp)
-                    } else {
-                        Icon(painterResource(R.drawable.ic_icon_download), null)
-                    }
+                    Icon(painterResource(R.drawable.ic_icon_download), saveLabel)
                 }
-                IconButton(
+                LoadingIconButton(
                     onClick = onCopy,
                     enabled = controlsVisible && available,
-                    modifier = Modifier.semantics { contentDescription = copyLabel },
+                    loading = copying,
+                    indicatorColor = Color.White,
                 ) {
-                    if (copying) {
-                        IndeterminateCircularProgressIndicator(Modifier.size(24.dp), Color.White, 2.dp)
-                    } else {
-                        Icon(painterResource(R.drawable.ic_icon_copy), null)
-                    }
+                    Icon(painterResource(R.drawable.ic_icon_copy), copyLabel)
                 }
             }
         }

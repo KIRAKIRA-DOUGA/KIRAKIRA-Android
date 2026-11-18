@@ -6,12 +6,10 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.defaultMinSize
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TextFieldColors
@@ -23,12 +21,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.innerShadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.graphics.takeOrElse
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
@@ -38,18 +36,22 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
+import moe.kirakira.ui.theme.ThemeColorDefaults
 
 internal object FilledTextFieldDefaults {
     val IndicatorThickness = 2.dp
 
     @Composable
-    fun colors(): TextFieldColors = TextFieldDefaults.colors(
-        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        errorContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
-    )
+    fun colors(parentContainerColor: Color = MaterialTheme.colorScheme.surface): TextFieldColors {
+        val containerColor = ThemeColorDefaults.controlContainerColor(parentContainerColor)
+        return TextFieldDefaults.colors(
+            focusedContainerColor = containerColor,
+            unfocusedContainerColor = containerColor,
+            disabledContainerColor = containerColor,
+            errorContainerColor = containerColor,
+            unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+        )
+    }
 }
 
 @Composable
@@ -126,7 +128,7 @@ internal fun FilledTextField(
     label: @Composable (() -> Unit)? = null,
     placeholder: @Composable (() -> Unit)? = null,
     leadingIcon: @Composable (() -> Unit)? = null,
-    trailingIcon: @Composable (() -> Unit)? = if (isError) { { TextFieldErrorIcon() } } else null,
+    trailingIcon: @Composable (() -> Unit)? = if (isError) { { ErrorIcon() } } else null,
     supportingText: @Composable (() -> Unit)? = textFieldSupportingError(errorMessage),
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -188,14 +190,4 @@ internal fun FilledTextField(
             },
         )
     }
-}
-
-@Composable
-internal fun TextFieldErrorIcon(modifier: Modifier = Modifier) {
-    Icon(
-        painter = painterResource(R.drawable.ic_icon_error),
-        contentDescription = null,
-        tint = MaterialTheme.colorScheme.error,
-        modifier = modifier.size(24.dp),
-    )
 }

@@ -21,6 +21,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -72,6 +73,7 @@ internal fun OtpInputField(
     onRecoveryCodePaste: ((String) -> Unit)? = null,
     onNext: (() -> Unit)? = null,
     onDone: (() -> Unit)? = null,
+    colors: TextFieldColors = FilledTextFieldDefaults.colors(),
 ) {
     // Selection and focus are local; the flow owns the code and never saves it to disk.
     var selection by remember { mutableStateOf(TextRange(value.length)) }
@@ -130,7 +132,7 @@ internal fun OtpInputField(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (error != null) TextFieldErrorIcon()
+            if (error != null) ErrorIcon()
         }
         BasicTextField(
             value = TextFieldValue(value, editorSelection),
@@ -206,7 +208,7 @@ internal fun OtpInputField(
                             ) {
                                 FilledTextFieldContainer(
                                     indicatorThickness = 0.dp,
-                                    colors = FilledTextFieldDefaults.colors(),
+                                    colors = colors,
                                     enabled = enabled,
                                     isError = error != null,
                                     interactionSource = if (index == activeCell) interaction else idleInteraction,

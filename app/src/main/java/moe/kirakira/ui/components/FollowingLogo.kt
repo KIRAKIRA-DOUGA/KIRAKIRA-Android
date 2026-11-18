@@ -29,7 +29,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asAndroidPath
@@ -53,9 +52,8 @@ import moe.kirakira.ui.theme.KIRAKIRATheme
 
 /**
  * A Material Design 1 product icon: a themed paper circle on the 176 / 192 circle keyline, carrying
- * the bottom bar's signal and its raised center in the same light grey paper. Every sheet has a 1dp
- * white top tint and Blue Grey 900 bottom shade, casts a 45° long shadow that fades toward the bottom
- * right, and the whole icon receives the top-left radial finish.
+ * the bottom bar's signal and its raised center in light grey paper. The signal casts a 45° long
+ * shadow that fades toward the bottom right, and the whole icon receives the top-left radial finish.
  */
 @Composable
 internal fun FollowingLogo(modifier: Modifier = Modifier) {
@@ -123,7 +121,6 @@ private fun FollowingLogoArtwork(layerScale: (Int) -> Float, modifier: Modifier 
                         canvas.restore()
                     }
                 }
-                drawMaterialEdges(paper)
             }
         }
         signals.forEachIndexed { index, signal ->
@@ -137,7 +134,6 @@ private fun FollowingLogoArtwork(layerScale: (Int) -> Float, modifier: Modifier 
             ) {
                 followingArtworkScale {
                     drawPath(signal.path, followingSignalColor)
-                    drawMaterialEdges(signal)
                 }
             }
         }
@@ -148,21 +144,11 @@ private fun FollowingLogoArtwork(layerScale: (Int) -> Float, modifier: Modifier 
     }
 }
 
-/** One sheet of paper with its 1dp top tint and bottom shade, all in the 960-unit artwork space. */
 private class FollowingMaterial(val path: Path) {
-    val tint: Path = Path.combine(PathOperation.Difference, path, path.shifted(FOLLOWING_EDGE))
-    val shade: Path = Path.combine(PathOperation.Difference, path, path.shifted(-FOLLOWING_EDGE))
     val shape: Shape = GenericShape { size, _ ->
         addPath(path)
         transform(Matrix().apply { scale(size.width / FOLLOWING_VIEWPORT, size.height / FOLLOWING_VIEWPORT) })
     }
-}
-
-private fun Path.shifted(y: Float) = Path().also { it.addPath(this, Offset(0f, y)) }
-
-private fun DrawScope.drawMaterialEdges(material: FollowingMaterial) {
-    drawPath(material.tint, followingTintColor)
-    drawPath(material.shade, followingShadeColor.copy(alpha = 0.2f))
 }
 
 private inline fun DrawScope.followingArtworkScale(block: DrawScope.() -> Unit) =
@@ -227,8 +213,6 @@ private fun followingPulseSpec(layer: FollowingPaperLayer) = keyframes {
 
 private const val FOLLOWING_VIEWPORT = 960f
 
-// 1dp of the 128dp artwork.
-private const val FOLLOWING_EDGE = FOLLOWING_VIEWPORT / 128f
 private const val FOLLOWING_SIGNAL_SCALE = 0.86f
 
 // Material product icon circle keyline: 176 of 192 units, centered.
@@ -236,7 +220,6 @@ private val followingKeyline = Rect(40f, 40f, 920f, 920f)
 private val followingCenter = followingKeyline.center
 
 private val followingSignalColor = Color(0xFFF5F5F5)
-private val followingTintColor = Color.White.copy(alpha = 0.2f)
 private val followingShadeColor = Color(0xFF263238)
 private val followingLongShadowFade = Brush.linearGradient(
     colors = listOf(Color.Black.copy(alpha = 0.2f), Color.Transparent),

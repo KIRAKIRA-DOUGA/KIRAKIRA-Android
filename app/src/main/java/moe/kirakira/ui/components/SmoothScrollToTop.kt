@@ -26,10 +26,13 @@ internal suspend fun LazyListState.smoothScrollToTop(header: ScrollToTopHeader? 
     }
 }
 
-internal suspend fun LazyGridState.smoothScrollToTop() {
-    if (!canScrollBackward) return
+internal suspend fun LazyGridState.smoothScrollToTop(header: ScrollToTopHeader? = null) {
+    if (!canScrollBackward) {
+        header?.smoothExpand()
+        return
+    }
     scroll {
-        lazyGridScrollScope(this@smoothScrollToTop, this).smoothScrollToTop(layoutInfo.viewportSize.height, null)
+        lazyGridScrollScope(this@smoothScrollToTop, this).smoothScrollToTop(layoutInfo.viewportSize.height, header)
     }
 }
 

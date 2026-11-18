@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,6 +28,7 @@ internal fun PasswordTextField(
     errorMessage: String? = null,
     keyboardOptions: KeyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
     keyboardActions: KeyboardActions = KeyboardActions.Default,
+    colors: TextFieldColors = FilledTextFieldDefaults.colors(),
     label: @Composable (() -> Unit)? = null,
 ) {
     val visible = passwordVisible && enabled
@@ -40,13 +42,14 @@ internal fun PasswordTextField(
         visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
         keyboardOptions = keyboardOptions,
         keyboardActions = keyboardActions,
+        colors = colors,
         label = label,
         trailingIcon = {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (errorMessage != null) TextFieldErrorIcon()
+                if (errorMessage != null) ErrorIcon()
                 IconButton(onClick = onPasswordVisibilityChange, enabled = enabled) {
                     AnimatedSlashIcon(
                         type = SlashIconType.VISIBILITY,

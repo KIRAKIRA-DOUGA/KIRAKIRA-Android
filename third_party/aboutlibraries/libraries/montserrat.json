@@ -1,0 +1,15 @@
+{
+  "uniqueId": "third-party:montserrat",
+  "name": "Montserrat",
+  "artifactVersion": "9.000",
+  "developers": [
+    {
+      "name": "The Montserrat Project Authors"
+    }
+  ],
+  "website": "https://github.com/JulietaUla/Montserrat/tree/cc8daf2e7085006b9c112542fc82b58afc13521d",
+  "description": "Montserrat SemiBold (600) for static app bar titles and the About label, and Bold (700) for account flow headings.",
+  "licenses": [
+    "kirakira-montserrat-ofl-1.1"
+  ]
+}

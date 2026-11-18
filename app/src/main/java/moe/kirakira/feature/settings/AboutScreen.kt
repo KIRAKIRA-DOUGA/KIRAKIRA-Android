@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.pm.PackageInfoCompat
 import moe.kirakira.R
 import moe.kirakira.ui.components.cardColorShadow
+import moe.kirakira.ui.theme.BrandTitleFontFamily
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import kotlin.math.PI
 import kotlin.math.abs
@@ -146,7 +147,7 @@ private fun AboutHeader(versionName: String?, versionCode: Long, onLogoLongClick
                         interactionSource = logoInteraction,
                         indication = null,
                         onClick = {},
-                        onLongClickLabel = "打开组件测试",
+                        onLongClickLabel = stringResource(R.string.component_gallery_open),
                         onLongClick = onLogoLongClick,
                     ),
             ) {
@@ -175,7 +176,8 @@ private fun AboutHeader(versionName: String?, versionCode: Long, onLogoLongClick
                     Text(
                         text = stringResource(R.string.about_for_android),
                         style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.SemiBold,
+                        fontFamily = BrandTitleFontFamily,
                         color = Color.White,
                     )
                 }
