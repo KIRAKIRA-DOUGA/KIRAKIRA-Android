@@ -28,6 +28,7 @@ internal data class PrivacySettingsState(
     val values: Map<PrivacyItem, PrivacyVisibility> = emptyMap(),
     val loading: Boolean = false,
     val saving: Boolean = false,
+    val resetting: Boolean = false,
     val confirmationPending: Boolean = false,
     val error: ApiFailure? = null,
     val message: Int? = null,
@@ -88,7 +89,7 @@ internal class PrivacySettingsViewModel(private val repository: AccountSettingsR
         }
     }
 
-    private fun apply(values: Map<PrivacyItem, PrivacyVisibility>) {
+    private fun apply(values: Map<PrivacyItem, PrivacyVisibility>, resetting: Boolean = false) {
         val current = _state.value
         val original = current.original ?: return
         if (!ready || !current.editable) return
@@ -98,7 +99,7 @@ internal class PrivacySettingsViewModel(private val repository: AccountSettingsR
         }
         val expected = revision
         _state.update {
-            it.copy(values = values, saving = true, message = null, messageFailure = null,
+            it.copy(values = values, saving = true, resetting = resetting, message = null, messageFailure = null,
                 sheetOpen = false, confirmReset = false)
         }
         request = viewModelScope.launch {
@@ -119,7 +120,7 @@ internal class PrivacySettingsViewModel(private val repository: AccountSettingsR
                 _state.update { it.copy(values = original.values, messageFailure = error.failure) }
             } finally {
                 if (currentCoroutineContext().isActive && expected == session.value.revision) {
-                    _state.update { it.copy(saving = false) }
+                    _state.update { it.copy(saving = false, resetting = false) }
                 }
             }
         }
@@ -152,7 +153,7 @@ internal class PrivacySettingsViewModel(private val repository: AccountSettingsR
 
     fun reset() {
         if (!_state.value.confirmReset) return
-        selectAll(PrivacyVisibility.PUBLIC)
+        apply(PrivacyItem.entries.associateWith { PrivacyVisibility.PUBLIC }, resetting = true)
     }
 
     val canNavigateBack: Boolean get() = !_state.value.busy

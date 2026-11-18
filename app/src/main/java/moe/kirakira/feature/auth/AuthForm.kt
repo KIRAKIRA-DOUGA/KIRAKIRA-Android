@@ -181,6 +181,7 @@ internal fun AuthForm(
                             {
                                 FormTextButton(
                                     onClick = onResend,
+                                    loading = state.resending,
                                     enabled = state.canEdit && isActive && state.resendSeconds == 0,
                                     edge = FormButtonEdge.END,
                                 ) {

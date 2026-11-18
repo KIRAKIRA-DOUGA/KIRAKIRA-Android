@@ -4,10 +4,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -17,11 +15,12 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalResources
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import moe.kirakira.R
 import moe.kirakira.ui.components.ActionDialog
+import moe.kirakira.ui.components.DestructiveActionIcon
+import moe.kirakira.ui.components.FlatTextButton
 import moe.kirakira.ui.components.ShadowButton
 
 @Composable
@@ -43,7 +42,7 @@ internal fun ProfileEditorPage(model: ProfileEditorViewModel, onBack: () -> Unit
     }
     if (state.confirmDiscard) ActionDialog(
         onDismissRequest = model::dismissDiscard,
-        icon = { Icon(painterResource(R.drawable.ic_icon_edit), contentDescription = null) },
+        icon = { DestructiveActionIcon(R.drawable.ic_icon_edit) },
         title = { Text(stringResource(R.string.profile_discard_title)) },
         text = { Text(stringResource(when {
             state.saveUnconfirmed -> R.string.write_leave_confirmation_message
@@ -55,7 +54,7 @@ internal fun ProfileEditorPage(model: ProfileEditorViewModel, onBack: () -> Unit
                 onClick = onBack,
                 destructive = true,
             ) { Text(stringResource(R.string.profile_discard)) }
-            TextButton(
+            FlatTextButton(
                 contentPadding = ButtonDefaults.ContentPadding,
                 onClick = model::dismissDiscard,
             ) {

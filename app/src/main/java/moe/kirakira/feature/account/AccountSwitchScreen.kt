@@ -38,7 +38,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -69,6 +68,7 @@ import moe.kirakira.data.auth.SessionOperationType
 import moe.kirakira.ui.components.AccountAvatar
 import moe.kirakira.ui.components.CollapsibleTopAppBar
 import moe.kirakira.ui.components.ConnectedListGroup
+import moe.kirakira.ui.components.FlatTextButton
 import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.ShadingIcon
@@ -138,7 +138,7 @@ internal fun AccountSwitchScreen(
                     backButtonModifier = Modifier.testTag("account_back"),
                     actions = {
                         if (accounts.any { it.id != GUEST_ACCOUNT_ID }) {
-                            TextButton(
+                            FlatTextButton(
                                 enabled = !busy,
                                 onClick = {
                                     swipedAccountId = null

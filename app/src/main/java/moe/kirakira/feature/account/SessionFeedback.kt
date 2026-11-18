@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -19,7 +18,10 @@ import moe.kirakira.core.network.ApiFailure
 import moe.kirakira.data.auth.SessionNotice
 import moe.kirakira.data.auth.SessionState
 import moe.kirakira.ui.components.ActionDialog
+import moe.kirakira.ui.components.DestructiveActionIcon
 import moe.kirakira.ui.components.DestructiveTextButton
+import moe.kirakira.ui.components.ErrorIcon
+import moe.kirakira.ui.components.FlatTextButton
 import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.messageRes
 
@@ -47,7 +49,7 @@ internal fun SessionFeedback(
                             onLogin("")
                         },
                     ) { Text(stringResource(R.string.auth_sign_in)) }
-                    TextButton(
+                    FlatTextButton(
                         contentPadding = ButtonDefaults.ContentPadding,
                         onClick = onDismissNotice,
                     ) {
@@ -64,7 +66,7 @@ internal fun SessionFeedback(
     if (confirmingReset) {
         ActionDialog(
             onDismissRequest = { confirmingReset = false },
-            icon = { Icon(painterResource(R.drawable.ic_icon_delete), contentDescription = null) },
+            icon = { DestructiveActionIcon(R.drawable.ic_icon_delete) },
             title = { Text(stringResource(R.string.account_reset_local)) },
             text = { Text(stringResource(R.string.account_reset_local_message)) },
             actions = {
@@ -78,7 +80,7 @@ internal fun SessionFeedback(
                 ) {
                     Text(stringResource(R.string.account_remove))
                 }
-                TextButton(
+                FlatTextButton(
                     contentPadding = ButtonDefaults.ContentPadding,
                     onClick = { confirmingReset = false },
                 ) { Text(stringResource(R.string.account_cancel)) }
@@ -88,7 +90,7 @@ internal fun SessionFeedback(
     }
     ActionDialog(
         onDismissRequest = onDismissError,
-        icon = { Icon(painterResource(R.drawable.ic_icon_error), contentDescription = null) },
+        icon = { ErrorIcon() },
         title = {
             val title = when (error) {
                 ApiFailure.NETWORK -> R.string.account_connection_error_title
@@ -130,7 +132,7 @@ internal fun SessionFeedback(
                         onLogin(email)
                     },
                 ) { Text(stringResource(R.string.auth_sign_in)) }
-                TextButton(
+                FlatTextButton(
                     onClick = retry,
                     contentPadding = ButtonDefaults.ContentPadding,
                 ) {
@@ -147,7 +149,7 @@ internal fun SessionFeedback(
                     onClick = { confirmingReset = true },
                 ) { Text(stringResource(R.string.account_reset_local)) }
             }
-            TextButton(
+            FlatTextButton(
                 onClick = onDismissError,
                 contentPadding = ButtonDefaults.ContentPadding,
             ) {

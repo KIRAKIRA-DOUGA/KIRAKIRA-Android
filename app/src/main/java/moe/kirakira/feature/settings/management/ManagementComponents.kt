@@ -4,7 +4,6 @@ package moe.kirakira.feature.settings.management
 
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
@@ -23,16 +22,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
 import moe.kirakira.data.settings.RuleCategory
 import moe.kirakira.feature.settings.PrepareSettingsSearchList
-import moe.kirakira.ui.components.CollapsibleTopAppBar
+import moe.kirakira.feature.settings.SettingsDefaults
+import moe.kirakira.feature.settings.SettingsScaffold
 import moe.kirakira.ui.components.ConnectedLazyColumn
 import moe.kirakira.ui.components.ConnectedLazyListScope
 import moe.kirakira.ui.components.ContentLoadingView
@@ -42,13 +40,9 @@ import moe.kirakira.ui.components.ContentUnavailableAction
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
-import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.IconBadge
 import moe.kirakira.ui.components.IconBadgeTone
-import moe.kirakira.ui.components.ShadingIcon
 import moe.kirakira.ui.components.StatusBarScrollToTopEffect
-import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
-import moe.kirakira.ui.theme.ThemeColorDefaults
 
 @StringRes
 internal fun RuleCategory.titleRes(): Int = when (this) {
@@ -100,14 +94,8 @@ internal fun ManagementFrame(
     floatingActionButton: @Composable () -> Unit = {},
     content: ConnectedLazyListScope.(Modifier) -> Unit,
 ) {
-    val scrollBehavior = rememberCollapsibleTopAppBarScrollBehavior()
     val direction = LocalLayoutDirection.current
     val listState = rememberLazyListState()
-    StatusBarScrollToTopEffect(
-        listState,
-        scrollBehavior = scrollBehavior,
-        scrollContentAvailable = signedIn && (loaded || !loading),
-    )
     val snackbar = remember { SnackbarHostState() }
     val messageText = message?.let { stringResource(it) }
     LaunchedEffect(messageText) {
@@ -116,24 +104,18 @@ internal fun ManagementFrame(
             onDismissMessage()
         }
     }
-    FrostedScaffold(
-        modifier = modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
-        containerColor = ThemeColorDefaults.settingsBackgroundColor(),
-        topBar = {
-            Box {
-                ShadingIcon(
-                    icon = shadingIcon,
-                    modifier = Modifier.matchParentSize(),
-                    alignment = Alignment.BottomEnd,
-                    endPadding = 0.dp,
-                    offset = DpOffset(32.dp, 32.dp),
-                )
-                CollapsibleTopAppBar(title = title, onBack = onBack, scrollBehavior = scrollBehavior)
-            }
-        },
+    SettingsScaffold(
+        title = title,
+        onBack = onBack,
+        shadingIcon = shadingIcon,
+        modifier = modifier,
         snackbarHost = { SnackbarHost(snackbar) },
         floatingActionButton = { if (signedIn) floatingActionButton() },
     ) { padding ->
+        StatusBarScrollToTopEffect(
+            listState,
+            scrollContentAvailable = signedIn && (loaded || !loading),
+        )
         ContentPullToRefresh(
             isRefreshing = signedIn && loaded && loading && !appending,
             onRefresh = onRefresh,
@@ -142,9 +124,9 @@ internal fun ManagementFrame(
             modifier = Modifier.fillMaxSize().consumeWindowInsets(padding),
         ) {
             val listContentPadding = PaddingValues(
-                start = padding.calculateStartPadding(direction) + 16.dp,
-                end = padding.calculateEndPadding(direction) + 16.dp,
-                top = padding.calculateTopPadding() + 16.dp,
+                start = padding.calculateStartPadding(direction) + SettingsDefaults.HorizontalPadding,
+                end = padding.calculateEndPadding(direction) + SettingsDefaults.HorizontalPadding,
+                top = padding.calculateTopPadding() + SettingsDefaults.TopPadding,
                 bottom = padding.calculateBottomPadding() + 104.dp,
             )
             if (!signedIn) {
@@ -162,7 +144,9 @@ internal fun ManagementFrame(
             } else {
                 PrepareSettingsSearchList(listState, searchItemKeys, searchItemKey)
                 ContentStatusViewport(
-                    modifier = Modifier.align(Alignment.TopCenter).widthIn(max = 640.dp).fillMaxSize(),
+                    modifier = Modifier.align(Alignment.TopCenter)
+                        .widthIn(max = SettingsDefaults.MaxContentWidth)
+                        .fillMaxSize(),
                     contentPadding = listContentPadding,
                     leadingContentHeight = leadingContentHeight,
                 ) { statusModifier ->

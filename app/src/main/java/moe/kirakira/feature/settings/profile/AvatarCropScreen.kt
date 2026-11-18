@@ -52,8 +52,10 @@ import moe.kirakira.R
 import moe.kirakira.feature.settings.SettingsPrimaryButton
 import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.ButtonShadowBottomPadding
 import moe.kirakira.ui.components.ShadowFilledTonalIconButton
 import moe.kirakira.ui.components.appTopAppBarColors
+import moe.kirakira.ui.theme.BrandTitleFontFamily
 import moe.kirakira.ui.theme.ThemeColorDefaults
 
 /** Only the proven crop engine is a View; controls, state and surrounding UI are Compose. */
@@ -115,7 +117,11 @@ internal fun AvatarCropScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(stringResource(R.string.profile_edit_avatar), fontWeight = FontWeight.Bold)
+                    Text(
+                        text = stringResource(R.string.profile_edit_avatar),
+                        fontWeight = FontWeight.SemiBold,
+                        fontFamily = BrandTitleFontFamily,
+                    )
                 },
                 colors = appTopAppBarColors(),
                 navigationIcon = {
@@ -136,7 +142,7 @@ internal fun AvatarCropScreen(
                     Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding()
-                        .padding(16.dp),
+                        .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = ButtonShadowBottomPadding),
                     horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically,
                 ) {
                     TooltipBox(
@@ -163,7 +169,7 @@ internal fun AvatarCropScreen(
                         label = stringResource(R.string.profile_done),
                         onClick = onConfirm,
                         icon = R.drawable.ic_icon_check,
-                        enabled = state.cropReady && !state.cropBusy,
+                        enabled = state.cropReady,
                         busy = state.cropBusy,
                         modifier = Modifier.weight(1f),
                     )
@@ -224,7 +230,7 @@ internal fun AvatarCropScreen(
                         }
                     },
             )
-            if (!state.cropReady || state.cropBusy) IndeterminateCircularProgressIndicator()
+            if (!state.cropReady) IndeterminateCircularProgressIndicator()
         }
     }
 }

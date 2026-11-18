@@ -177,8 +177,10 @@ internal fun SecurityCodeField(
         actionContent = if (!totp) {
             {
                 val cooldown = if (newEmail) state.newCooldown else state.currentCooldown
+                val recipient = if (newEmail) CodeRecipient.NEW_EMAIL else CodeRecipient.CURRENT_EMAIL
                 FormTextButton(
                     onClick = { onSend(newEmail) },
+                    loading = state.codeRecipient == recipient,
                     enabled = isActive && !state.working && !state.completionPending && cooldown == 0 &&
                         (!newEmail || state.form[SecurityField.EMAIL].isNotBlank()),
                     edge = FormButtonEdge.END,

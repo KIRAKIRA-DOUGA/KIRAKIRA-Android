@@ -27,7 +27,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -54,15 +53,17 @@ import kotlin.math.roundToInt
 import moe.kirakira.R
 import moe.kirakira.ui.components.CollapsibleTopAppBar
 import moe.kirakira.ui.components.ConnectedListGroup
+import moe.kirakira.ui.components.ErrorIcon
 import moe.kirakira.ui.components.FrostedScaffold
-import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
 import moe.kirakira.ui.components.SectionHeader
 import moe.kirakira.ui.components.ShadingIcon
 import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.ShadowRadioButton
+import moe.kirakira.ui.components.SmoothSlider
 import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.components.StatusBarScrollToTopHeader
 import moe.kirakira.ui.components.connectedListItemShapes
+import moe.kirakira.ui.components.pressToRoundButtonShapes
 import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.theme.ThemeColorDefaults
 
@@ -407,7 +408,7 @@ internal fun SettingsSliderItem(
             }
         },
         supportingContent = {
-            Slider(
+            SmoothSlider(
                 state = slider,
                 onValueChange = { onValueChange((it / step).roundToInt() * step) },
                 enabled = enabled,
@@ -436,7 +437,7 @@ internal fun SettingsErrorCard(message: String, modifier: Modifier = Modifier) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(painterResource(R.drawable.ic_icon_error), contentDescription = null)
+            ErrorIcon()
             Text(message, style = MaterialTheme.typography.bodyMedium)
         }
     }
@@ -460,15 +461,11 @@ internal fun SettingsFormCard(modifier: Modifier = Modifier, content: @Composabl
 
 /** Icon + label content using the official Medium button size. */
 @Composable
-private fun PrimaryButtonContent(@DrawableRes icon: Int?, label: String, busy: Boolean) {
+private fun PrimaryButtonContent(@DrawableRes icon: Int?, label: String) {
     val height = ButtonDefaults.MediumContainerHeight
     val iconSize = ButtonDefaults.iconSizeFor(height)
-    if (busy) IndeterminateCircularProgressIndicator(
-        modifier = Modifier.size(iconSize),
-        strokeWidth = 2.dp,
-    )
-    else if (icon != null) Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(iconSize))
-    if (busy || icon != null) Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(height)))
+    if (icon != null) Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(iconSize))
+    if (icon != null) Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(height)))
     Text(label, style = ButtonDefaults.textStyleFor(height), maxLines = 1, softWrap = false)
 }
 
@@ -487,13 +484,14 @@ internal fun SettingsPrimaryButton(
     ShadowButton(
         onClick = onClick,
         enabled = enabled,
+        loading = busy,
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = height),
-        shapes = ButtonDefaults.shapesFor(height),
+        shapes = pressToRoundButtonShapes(height),
         colors = colors,
-        contentPadding = ButtonDefaults.contentPaddingFor(height, hasStartIcon = icon != null || busy),
+        contentPadding = ButtonDefaults.contentPaddingFor(height, hasStartIcon = icon != null),
     ) {
-        PrimaryButtonContent(icon, label, busy)
+        PrimaryButtonContent(icon, label)
     }
 }

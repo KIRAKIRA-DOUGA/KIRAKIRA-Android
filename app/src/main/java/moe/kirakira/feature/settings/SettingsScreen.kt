@@ -16,9 +16,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,7 +29,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpOffset
@@ -41,6 +38,8 @@ import moe.kirakira.R
 import moe.kirakira.ui.components.ActionDialog
 import moe.kirakira.ui.components.CollapsibleTopAppBar
 import moe.kirakira.ui.components.ConnectedListGroup
+import moe.kirakira.ui.components.DestructiveActionIcon
+import moe.kirakira.ui.components.FlatTextButton
 import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.SectionHeader
 import moe.kirakira.ui.components.SegmentedMenuItem
@@ -77,7 +76,7 @@ fun SettingsScreen(
     if (confirmLogout && signedIn) {
         ActionDialog(
             onDismissRequest = { confirmLogout = false },
-            icon = { Icon(painterResource(R.drawable.ic_icon_logout), contentDescription = null) },
+            icon = { DestructiveActionIcon(R.drawable.ic_icon_logout) },
             title = { Text(stringResource(R.string.settings_log_out)) },
             text = { Text(stringResource(R.string.account_logout_message)) },
             actions = {
@@ -91,7 +90,7 @@ fun SettingsScreen(
                 ) {
                     Text(stringResource(R.string.settings_log_out))
                 }
-                TextButton(
+                FlatTextButton(
                     onClick = { confirmLogout = false },
                     contentPadding = ButtonDefaults.ContentPadding,
                 ) {

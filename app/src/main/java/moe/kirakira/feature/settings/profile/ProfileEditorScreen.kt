@@ -8,33 +8,24 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconButtonShapes
 import androidx.compose.material3.InputChip
-import androidx.compose.material3.InputChipDefaults
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.PlainTooltip
@@ -44,7 +35,6 @@ import androidx.compose.material3.SelectableDropdownMenuItem
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
@@ -60,14 +50,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -85,20 +72,22 @@ import moe.kirakira.feature.settings.SettingsFormCard
 import moe.kirakira.feature.settings.SettingsScaffold
 import moe.kirakira.feature.settings.SettingsSection
 import moe.kirakira.feature.settings.settingsSearchAnchor
+import moe.kirakira.ui.components.AppChipDefaults
 import moe.kirakira.ui.components.AccountAvatar
 import moe.kirakira.ui.components.CharacterCount
 import moe.kirakira.ui.components.ContentLoadingView
 import moe.kirakira.ui.components.ContentUnavailableAction
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
-import moe.kirakira.ui.components.ExpressiveMenuPopup
 import moe.kirakira.ui.components.FilledTextField
-import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.FlatTextButton
+import moe.kirakira.ui.components.MenuPopup
 import moe.kirakira.ui.components.ShadowFilledIconButton
 import moe.kirakira.ui.components.UsernameText
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.dateOnlyText
 import moe.kirakira.ui.components.dismissKeyboardOnBlankTap
+import moe.kirakira.ui.components.menuItemColors
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorDefaults
@@ -125,7 +114,6 @@ internal fun ProfileEditorScreen(
         },
     )
     val saveDescription = if (state.completionOnly && !state.saveUnconfirmed) stringResource(R.string.profile_finish_save) else null
-    val workingDescription = stringResource(R.string.auth_working)
     SettingsScaffold(
         title = stringResource(R.string.settings_profile),
         onBack = onBack,
@@ -135,23 +123,19 @@ internal fun ProfileEditorScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         actions = {
             if (state.draft != null) {
-                TextButton(
+                FlatTextButton(
                     onClick = onSave,
-                    enabled = state.dirty && !state.loading && !state.busy && !state.preparingImage,
-                    modifier = Modifier.semantics {
-                        saveDescription?.let { contentDescription = it }
-                        if (state.busy) stateDescription = workingDescription
-                    },
+                    enabled = state.dirty && !state.loading && !state.preparingImage,
+                    loading = state.busy,
                 ) {
-                    if (state.busy) {
-                        IndeterminateCircularProgressIndicator(
-                            modifier = Modifier.size(ButtonDefaults.iconSizeFor(ButtonDefaults.MinHeight)).clearAndSetSemantics {},
-                            color = LocalContentColor.current,
-                            strokeWidth = 2.dp,
-                        )
-                        Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(ButtonDefaults.MinHeight)))
-                    }
-                    Text(saveLabel, maxLines = 1, softWrap = false)
+                    Text(
+                        text = saveLabel,
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = if (saveDescription == null) Modifier else Modifier.clearAndSetSemantics {
+                            contentDescription = saveDescription
+                        },
+                    )
                 }
             }
         },
@@ -226,13 +210,13 @@ private fun ProfileIdentity(state: ProfileEditorState, onPick: () -> Unit) {
                     ) {
                         // The ring keeps the button legible over both the avatar and the banner.
                         Box(Modifier.background(ring, CircleShape).padding(AvatarRing)) {
-                            ShadowFilledIconButton(onClick = onPick, enabled = state.editable && !state.preparingImage,
-                                shapes = IconButtonDefaults.shapes()) {
-                                if (state.preparingImage) {
-                                    IndeterminateCircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
-                                } else {
-                                    ProfileIcon(R.drawable.ic_icon_edit, stringResource(R.string.profile_edit_avatar))
-                                }
+                            ShadowFilledIconButton(
+                                onClick = onPick,
+                                enabled = state.editable,
+                                loading = state.preparingImage,
+                                shapes = IconButtonShapes(CircleShape, CircleShape),
+                            ) {
+                                ProfileIcon(R.drawable.ic_icon_edit, stringResource(R.string.profile_edit_avatar))
                             }
                         }
                     }
@@ -288,14 +272,6 @@ private fun PersonalInformation(state: ProfileEditorState, onEdit: (String, Stri
     val birthday = runCatching { LocalDate.parse(draft.birthday) }.getOrNull()
     val genderValues = listOf("", "male", "female", "other")
     val genderLabels = listOf(R.string.profile_not_set, R.string.profile_male, R.string.profile_female, R.string.profile_other)
-    val genderItemColors = MenuDefaults.selectableItemColors(
-        containerColor = Color.Transparent,
-        disabledContainerColor = Color.Transparent,
-        selectedContainerColor = MaterialTheme.colorScheme.primary,
-        selectedTextColor = MaterialTheme.colorScheme.onPrimary,
-        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
-        selectedTrailingContentColor = MaterialTheme.colorScheme.onPrimary,
-    )
     if (showBirthday) BirthdayDialog(draft.birthday, onDismiss = { showBirthday = false }, onSelect = {
         onEdit("birthday", it); showBirthday = false
     })
@@ -333,31 +309,26 @@ private fun PersonalInformation(state: ProfileEditorState, onEdit: (String, Stri
                         contentDescription = null,
                         modifier = Modifier.size(24.dp).rotate(90f),
                     )
-                    ExpressiveMenuPopup(
+                    MenuPopup(
                         expanded = showGender,
                         onDismissRequest = { showGender = false },
                     ) {
-                        DropdownMenuGroup(
-                            shapes = MenuDefaults.groupShape(index = 0, count = 1),
-                            modifier = Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()),
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            contentPadding = PaddingValues(vertical = 4.dp),
-                        ) {
-                            genderValues.forEachIndexed { index, value ->
-                                SelectableDropdownMenuItem(
-                                    selected = draft.gender == value,
-                                    text = { Text(stringResource(genderLabels[index])) },
-                                    onClick = {
-                                        onEdit("gender", value)
-                                        showGender = false
-                                    },
-                                    shapes = MenuDefaults.itemShape(index = index, count = genderValues.size),
-                                    colors = genderItemColors,
-                                    trailingContent = if (draft.gender == value) {
-                                        { ProfileIcon(R.drawable.ic_icon_check) }
-                                    } else null,
-                                )
-                            }
+                        val colors = menuItemColors()
+                        val shapes = MenuDefaults.itemShapes()
+                        genderValues.forEachIndexed { index, value ->
+                            SelectableDropdownMenuItem(
+                                selected = draft.gender == value,
+                                text = { Text(stringResource(genderLabels[index])) },
+                                onClick = {
+                                    onEdit("gender", value)
+                                    showGender = false
+                                },
+                                shapes = shapes,
+                                colors = colors,
+                                trailingContent = if (draft.gender == value) {
+                                    { ProfileIcon(R.drawable.ic_icon_check) }
+                                } else null,
+                            )
                         }
                     }
                 }
@@ -379,12 +350,12 @@ private fun BirthdayDialog(value: String, onDismiss: () -> Unit, onSelect: (Stri
     val dateColors = DatePickerDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
     DatePickerDialog(onDismissRequest = onDismiss,
         colors = dateColors,
-        confirmButton = { TextButton(onClick = {
+        confirmButton = { FlatTextButton(onClick = {
             dateState.selectedDateMillis?.let { onSelect(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString()) }
         }, enabled = dateState.selectedDateMillis != null) { Text(stringResource(R.string.profile_done)) } },
         dismissButton = { Row {
-            TextButton(onClick = { onSelect("") }) { Text(stringResource(R.string.profile_clear)) }
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.account_cancel)) }
+            FlatTextButton(onClick = { onSelect("") }) { Text(stringResource(R.string.profile_clear)) }
+            FlatTextButton(onClick = onDismiss) { Text(stringResource(R.string.account_cancel)) }
         } },
     ) {
         DatePicker(
@@ -409,16 +380,7 @@ private fun ProfileLabels(state: ProfileEditorState, onAdd: (String) -> Unit, on
                     InputChip(selected = false, onClick = { onRemove(index) }, enabled = state.editable,
                         shape = CircleShape,
                         border = null,
-                        colors = InputChipDefaults.inputChipColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            labelColor = MaterialTheme.colorScheme.onSurface,
-                            leadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            trailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                            selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
-                            selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimary,
-                        ),
+                        colors = AppChipDefaults.inputColors(),
                         label = { Text(label.labelName, maxLines = 3, overflow = TextOverflow.Ellipsis) },
                         trailingIcon = { ProfileIcon(R.drawable.ic_icon_close,
                             stringResource(R.string.profile_remove_label, label.labelName)) })

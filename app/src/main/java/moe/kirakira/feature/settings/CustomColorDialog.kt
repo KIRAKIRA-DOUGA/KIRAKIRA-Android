@@ -8,16 +8,20 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import dev.chrisbanes.haze.rememberHazeState
 import moe.kirakira.R
 import moe.kirakira.ui.components.ActionDialog
 import moe.kirakira.ui.components.ColorEditorControls
+import moe.kirakira.ui.components.FlatTextButton
+import moe.kirakira.ui.components.LocalMenuHazeState
 import moe.kirakira.ui.components.ShadowButton
+import moe.kirakira.ui.components.menuHazeSource
 import moe.kirakira.ui.components.rememberColorEditorState
 
 @Composable
@@ -28,9 +32,11 @@ internal fun CustomColorDialog(
 ) {
     val state = rememberColorEditorState(seedColorArgb)
     val parsedColor = state.parsedColor
+    val menuHazeState = rememberHazeState()
 
     ActionDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.menuHazeSource(menuHazeState),
         icon = { Icon(painterResource(R.drawable.ic_icon_palette), contentDescription = null) },
         title = { Text(stringResource(R.string.theme_color_custom)) },
         text = {
@@ -43,7 +49,9 @@ internal fun CustomColorDialog(
                     state = state,
                     brightnessLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     inputContent = { onColorChanged ->
-                        CustomColorInput(state = state, onColorChanged = onColorChanged)
+                        CompositionLocalProvider(LocalMenuHazeState provides menuHazeState) {
+                            CustomColorInput(state = state, onColorChanged = onColorChanged)
+                        }
                     },
                 )
             }
@@ -55,7 +63,7 @@ internal fun CustomColorDialog(
             ) {
                 Text(stringResource(R.string.theme_color_apply))
             }
-            TextButton(
+            FlatTextButton(
                 contentPadding = ButtonDefaults.ContentPadding,
                 onClick = onDismiss,
             ) { Text(stringResource(R.string.theme_color_cancel)) }

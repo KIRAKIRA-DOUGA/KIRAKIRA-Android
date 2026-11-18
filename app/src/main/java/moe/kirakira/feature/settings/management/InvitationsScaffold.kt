@@ -61,6 +61,7 @@ import moe.kirakira.ui.components.frostedBarBackground
 import moe.kirakira.ui.components.rememberCollapsingTabState
 import moe.kirakira.ui.components.rememberTabChangeHandler
 import moe.kirakira.ui.theme.BarShadowElevation
+import moe.kirakira.ui.theme.BrandTitleFontFamily
 import moe.kirakira.ui.theme.ThemeColorDefaults
 
 /** One persistent tab row and a pager, with the statistics scrolling away before each page. */
@@ -123,7 +124,8 @@ internal fun InvitationsScaffold(
                         title = {
                             Text(
                                 text = stringResource(R.string.settings_invitation_code),
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.SemiBold,
+                                fontFamily = BrandTitleFontFamily,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )

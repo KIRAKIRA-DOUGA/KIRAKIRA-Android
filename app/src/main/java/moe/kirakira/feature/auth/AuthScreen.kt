@@ -133,8 +133,7 @@ internal fun AuthScreen(
                         ),
                         onClick = onSubmit,
                         enabled = state.canSubmit,
-                        busy = state.isSubmitting,
-                        actionDescription = heading.takeIf { state.isSubmitting },
+                        busy = state.isSubmitting && !state.resending,
                         modifier = Modifier.testTag("auth_submit"),
                     )
                 }

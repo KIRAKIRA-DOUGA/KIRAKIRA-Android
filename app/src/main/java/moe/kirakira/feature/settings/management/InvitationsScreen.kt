@@ -30,7 +30,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
@@ -64,13 +63,15 @@ import moe.kirakira.ui.components.ContentStatusViewport
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
+import moe.kirakira.ui.components.FlatTextButton
 import moe.kirakira.ui.components.IconBadgeTone
-import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.ButtonLoadingIndicator
 import moe.kirakira.ui.components.LazyListScrollbar
 import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.components.cardColorShadow
 import moe.kirakira.ui.components.connectedListItemShapes
+import moe.kirakira.ui.components.pressToRoundButtonShapes
 import moe.kirakira.ui.components.smoothScrollToTop
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
@@ -103,7 +104,7 @@ private fun InvitationRetryDialog(
             ShadowButton(onClick = { onDismiss(); onCheck() }, enabled = !busy) {
                 Text(stringResource(R.string.security_check_status))
             }
-            TextButton(onClick = onCreate, enabled = !busy) {
+            FlatTextButton(onClick = onCreate, enabled = !busy) {
                 Text(stringResource(R.string.invitation_generate_again))
             }
         },
@@ -220,29 +221,32 @@ private fun InvitationStatistics(
                 InvitationStatistic(stringResource(R.string.invitation_total), state.data?.size, accountRevision)
                 InvitationStatistic(stringResource(R.string.invitation_used), state.data?.let { it.size - unused }, accountRevision)
             }
-            Button(
-                onClick = onCreate,
-                enabled = !busy,
+            val shapes = pressToRoundButtonShapes(ButtonDefaults.MediumContainerHeight)
+            ButtonLoadingIndicator(
+                loading = busy,
+                shape = shapes.shape,
                 modifier = Modifier.fillMaxWidth().heightIn(min = ButtonDefaults.MediumContainerHeight),
-                shapes = ButtonDefaults.shapesFor(ButtonDefaults.MediumContainerHeight),
-                contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight, hasStartIcon = true),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = MaterialTheme.colorScheme.primary,
-                    disabledContainerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.12f),
-                    disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.38f),
-                ),
-                elevation = null,
-            ) {
-                Icon(painterResource(R.drawable.ic_icon_add), null,
-                    Modifier.size(ButtonDefaults.iconSizeFor(ButtonDefaults.MediumContainerHeight)))
-                Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(ButtonDefaults.MediumContainerHeight)))
-                Text(stringResource(R.string.invitation_generate),
-                    style = ButtonDefaults.textStyleFor(ButtonDefaults.MediumContainerHeight))
-            }
-            if (busy) {
-                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    IndeterminateCircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
+                color = MaterialTheme.colorScheme.onPrimary,
+            ) { buttonModifier ->
+                Button(
+                    onClick = onCreate,
+                    enabled = !busy,
+                    modifier = buttonModifier,
+                    shapes = shapes,
+                    contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight, hasStartIcon = true),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White,
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        disabledContainerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.12f),
+                        disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.38f),
+                    ),
+                    elevation = null,
+                ) {
+                    Icon(painterResource(R.drawable.ic_icon_add), null,
+                        Modifier.size(ButtonDefaults.iconSizeFor(ButtonDefaults.MediumContainerHeight)))
+                    Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(ButtonDefaults.MediumContainerHeight)))
+                    Text(stringResource(R.string.invitation_generate),
+                        style = ButtonDefaults.textStyleFor(ButtonDefaults.MediumContainerHeight))
                 }
             }
         }

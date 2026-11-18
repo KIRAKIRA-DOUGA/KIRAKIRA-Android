@@ -23,6 +23,7 @@ internal data class AuthUiState(
     val passwordHint: String = "",
     val code: String = "",
     val resendSeconds: Int = 0,
+    val resending: Boolean = false,
     val emailInvalid: Boolean = false,
     val fieldErrors: Map<AuthField, Int> = emptyMap(),
     val focusField: AuthField? = null,

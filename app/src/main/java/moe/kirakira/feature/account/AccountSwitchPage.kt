@@ -1,10 +1,8 @@
 package moe.kirakira.feature.account
 
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -13,11 +11,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import moe.kirakira.R
 import moe.kirakira.data.auth.SessionState
 import moe.kirakira.ui.components.ActionDialog
+import moe.kirakira.ui.components.DestructiveActionIcon
+import moe.kirakira.ui.components.FlatTextButton
 import moe.kirakira.ui.components.ShadowButton
 
 @Composable
@@ -66,7 +65,7 @@ internal fun AccountSwitchPage(
     if (pendingAccount != null) {
         ActionDialog(
             onDismissRequest = { pendingRemovalId = null },
-            icon = { Icon(painterResource(R.drawable.ic_icon_logout), contentDescription = null) },
+            icon = { DestructiveActionIcon(R.drawable.ic_icon_logout) },
             title = { Text(stringResource(R.string.account_remove_title)) },
             text = { Text(stringResource(R.string.account_remove_message, pendingAccount.name)) },
             actions = {
@@ -81,7 +80,7 @@ internal fun AccountSwitchPage(
                 ) {
                     Text(stringResource(R.string.settings_log_out))
                 }
-                TextButton(
+                FlatTextButton(
                     contentPadding = ButtonDefaults.ContentPadding,
                     onClick = { pendingRemovalId = null },
                 ) {

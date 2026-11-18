@@ -307,7 +307,7 @@ private fun SecuritySubmitButton(
         ),
         onClick = if (step == SecurityStep.SECRETS) onFinish else onSubmit,
         enabled = state.canSubmit,
-        busy = state.busy,
+        busy = state.busy && state.codeRecipient == null,
         modifier = modifier,
         destructive = destructive,
         actionDescription = when {

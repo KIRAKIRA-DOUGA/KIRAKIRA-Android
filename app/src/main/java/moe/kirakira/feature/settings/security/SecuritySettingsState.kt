@@ -91,6 +91,8 @@ internal sealed interface TwoFactorMutation {
     class ConfirmTotp(val draft: TotpDraft) : TwoFactorMutation
 }
 
+internal enum class CodeRecipient { CURRENT_EMAIL, NEW_EMAIL }
+
 internal data class SecuritySettingsState(
     val revision: Long = 0,
     val status: SecurityStatus? = null,
@@ -108,6 +110,7 @@ internal data class SecuritySettingsState(
     val message: Int? = null,
     val currentCooldown: Int = 0,
     val newCooldown: Int = 0,
+    val codeRecipient: CodeRecipient? = null,
     val loginEmail: String? = null,
 ) {
     val working: Boolean get() = loading || busy

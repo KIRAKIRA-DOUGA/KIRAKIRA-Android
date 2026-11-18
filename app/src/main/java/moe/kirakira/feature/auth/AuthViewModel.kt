@@ -205,6 +205,7 @@ internal class AuthViewModel(
                 credentialOperation = null,
                 emailInvalid = false,
                 submission = AuthSubmission.IDLE,
+                resending = false,
                 errorRes = null,
                 noticeRes = null,
             )
@@ -330,7 +331,7 @@ internal class AuthViewModel(
             AuthStep.RESET_PASSWORD -> VerificationPurpose.PASSWORD_RESET
             else -> return
         }
-        perform { sendCode(purpose, language) }
+        perform(resending = true) { sendCode(purpose, language) }
     }
 
     private suspend fun sendCode(purpose: VerificationPurpose, language: String) {
@@ -436,9 +437,9 @@ internal class AuthViewModel(
         _uiState.update { it.copy(errorRes = message, submission = AuthSubmission.FAILED) }
     }
 
-    private fun perform(block: suspend () -> Unit) {
+    private fun perform(resending: Boolean = false, block: suspend () -> Unit) {
         val generation = ++requestGeneration
-        _uiState.update { it.copy(submission = AuthSubmission.SUBMITTING, errorRes = null, noticeRes = null) }
+        _uiState.update { it.copy(submission = AuthSubmission.SUBMITTING, resending = resending, errorRes = null, noticeRes = null) }
         requestJob = viewModelScope.launch {
             try {
                 block()
@@ -482,6 +483,7 @@ internal class AuthViewModel(
                         it.copy(
                             submission = if (it.isSubmitting) AuthSubmission.IDLE else it.submission,
                             resendSeconds = repository.resendSeconds(it.email.trim()),
+                            resending = false,
                         )
                     }
                 }

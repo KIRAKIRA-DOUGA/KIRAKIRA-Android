@@ -2,11 +2,11 @@ package moe.kirakira.feature.settings
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
@@ -27,7 +28,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.key
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -73,6 +73,34 @@ internal fun <T> ThemeCardRow(
 }
 
 @Composable
+internal fun ThemeOptionCard(
+    description: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    colors: CardColors,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Card(
+        onClick = onClick,
+        modifier = modifier.semantics(mergeDescendants = true) {
+            role = Role.RadioButton
+            this.selected = selected
+            contentDescription = description
+        },
+        shape = MaterialTheme.shapes.large,
+        colors = colors,
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 1.dp,
+            pressedElevation = 8.dp,
+            focusedElevation = 4.dp,
+            hoveredElevation = 4.dp,
+        ),
+        content = content,
+    )
+}
+
+@Composable
 internal fun ThemeSelectionCard(
     title: String,
     selected: Boolean,
@@ -84,7 +112,6 @@ internal fun ThemeSelectionCard(
     preview: @Composable BoxScope.() -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
-    val interactionSource = remember { MutableInteractionSource() }
     val labelContainer = animateColorAsState(
         if (selected) scheme.primary else scheme.surface,
         animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
@@ -105,25 +132,14 @@ internal fun ThemeSelectionCard(
         animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
         label = "themeCardCheck",
     ).value
-    Card(
+    ThemeOptionCard(
+        description = listOfNotNull(title, subtitle).joinToString(", "),
+        selected = selected,
         onClick = onClick,
-        interactionSource = interactionSource,
-        modifier = modifier
-            .semantics(mergeDescendants = true) {
-                role = Role.RadioButton
-                this.selected = selected
-                contentDescription = listOfNotNull(title, subtitle).joinToString(", ")
-            },
-        shape = MaterialTheme.shapes.large,
+        modifier = modifier,
         colors = CardDefaults.cardColors(
             containerColor = scheme.surface,
             contentColor = contentColor,
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 1.dp,
-            pressedElevation = 8.dp,
-            focusedElevation = 4.dp,
-            hoveredElevation = 4.dp,
         ),
     ) {
         CompositionLocalProvider(LocalContentColor provides scheme.primary) {

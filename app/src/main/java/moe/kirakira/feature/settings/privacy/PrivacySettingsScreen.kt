@@ -20,21 +20,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
@@ -50,12 +46,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -74,15 +70,18 @@ import moe.kirakira.ui.components.ContentUnavailableAction
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
+import moe.kirakira.ui.components.DestructiveActionIcon
+import moe.kirakira.ui.components.FlatTextButton
 import moe.kirakira.ui.components.IconBadge
 import moe.kirakira.ui.components.IconBadgeTone
-import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.LoadingIconButton
+import moe.kirakira.ui.components.Segmented
 import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.ShadowRadioButton
-import moe.kirakira.ui.components.ShadowToggleButton
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.theme.KIRAKIRATheme
+import moe.kirakira.ui.theme.ThemeColorDefaults
 
 @Composable
 internal fun PrivacySettingsPage(model: PrivacySettingsViewModel, onBack: () -> Unit, onLogin: () -> Unit) {
@@ -137,7 +136,6 @@ internal fun PrivacySettingsScreen(
     }
     val resetVisible = signedIn && !sessionBusy && state.original != null
     val resetLabel = stringResource(R.string.privacy_reset)
-    val workingDescription = stringResource(R.string.auth_working)
     SettingsScaffold(
         title = stringResource(R.string.settings_privacy),
         onBack = onBack,
@@ -151,23 +149,12 @@ internal fun PrivacySettingsScreen(
                     tooltip = { PlainTooltip { Text(resetLabel) } },
                     state = rememberTooltipState(),
                 ) {
-                    IconButton(
+                    LoadingIconButton(
                         onClick = onRequestReset,
                         enabled = state.canReset,
-                        modifier = Modifier.semantics {
-                            contentDescription = resetLabel
-                            if (state.busy) stateDescription = workingDescription
-                        },
+                        loading = state.resetting,
                     ) {
-                        if (state.busy) {
-                            IndeterminateCircularProgressIndicator(
-                                modifier = Modifier.size(24.dp).clearAndSetSemantics {},
-                                color = LocalContentColor.current,
-                                strokeWidth = 2.dp,
-                            )
-                        } else {
-                            Icon(painterResource(R.drawable.ic_icon_history), null, Modifier.size(24.dp))
-                        }
+                        Icon(painterResource(R.drawable.ic_icon_history), resetLabel, Modifier.size(24.dp))
                     }
                 }
             }
@@ -175,10 +162,9 @@ internal fun PrivacySettingsScreen(
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         val initialLoading = sessionBusy || (state.loading && state.original == null)
-        if (initialLoading) {
-            ContentLoadingView(modifier = Modifier.fillMaxSize().padding(padding))
-        } else if (!signedIn) {
-            ContentUnavailableView(
+        when {
+            initialLoading -> ContentLoadingView(modifier = Modifier.fillMaxSize().padding(padding))
+            !signedIn -> ContentUnavailableView(
                 state = ContentUnavailableState.EMPTY,
                 modifier = Modifier.padding(padding),
                 title = stringResource(R.string.management_sign_in),
@@ -187,37 +173,34 @@ internal fun PrivacySettingsScreen(
                 presentation = ContentUnavailablePresentation.PAGE,
                 primaryAction = ContentUnavailableAction(stringResource(R.string.management_login), onLogin),
             )
-        } else {
-            SettingsColumn(padding = padding) {
-                when {
-                    state.confirmationPending -> ContentUnavailableView(
-                        state = ContentUnavailableState.ERROR,
-                        title = stringResource(R.string.privacy_confirmation_pending),
-                        description = state.error?.let { stringResource(it.messageRes()) },
-                        presentation = ContentUnavailablePresentation.INLINE,
-                        primaryAction = ContentUnavailableAction(
-                            stringResource(R.string.settings_retry_sync), onRefresh, enabled = !state.busy,
-                        ),
-                    )
-                    state.error != null -> ContentUnavailableView(
-                        state = ContentUnavailableState.ERROR,
-                        description = stringResource(state.error.messageRes()),
-                        presentation = ContentUnavailablePresentation.INLINE,
-                        onRetry = onRefresh,
-                    )
-                    state.original != null -> {
-                        PrivacySetAllGroup(state, onSelectAll)
-                        PrivacyGroup(
-                            R.string.privacy_personal_information,
-                            listOf(PrivacyItem.BIRTHDAY, PrivacyItem.AGE), state, onOpenSelector,
-                        )
-                        PrivacyGroup(
-                            R.string.privacy_social_collections,
-                            listOf(PrivacyItem.FOLLOWING, PrivacyItem.FOLLOWERS, PrivacyItem.FAVORITES),
-                            state, onOpenSelector,
-                        )
-                    }
-                }
+            state.confirmationPending -> ContentUnavailableView(
+                state = ContentUnavailableState.ERROR,
+                modifier = Modifier.padding(padding),
+                title = stringResource(R.string.privacy_confirmation_pending),
+                description = state.error?.let { stringResource(it.messageRes()) },
+                presentation = ContentUnavailablePresentation.PAGE,
+                primaryAction = ContentUnavailableAction(
+                    stringResource(R.string.settings_retry_sync), onRefresh, enabled = !state.busy,
+                ),
+            )
+            state.error != null -> ContentUnavailableView(
+                state = ContentUnavailableState.ERROR,
+                modifier = Modifier.padding(padding),
+                description = stringResource(state.error.messageRes()),
+                presentation = ContentUnavailablePresentation.PAGE,
+                onRetry = onRefresh,
+            )
+            state.original != null -> SettingsColumn(padding = padding) {
+                PrivacySetAllGroup(state, onSelectAll)
+                PrivacyGroup(
+                    R.string.privacy_personal_information,
+                    listOf(PrivacyItem.BIRTHDAY, PrivacyItem.AGE), state, onOpenSelector,
+                )
+                PrivacyGroup(
+                    R.string.privacy_social_collections,
+                    listOf(PrivacyItem.FOLLOWING, PrivacyItem.FOLLOWERS, PrivacyItem.FAVORITES),
+                    state, onOpenSelector,
+                )
             }
         }
     }
@@ -227,7 +210,7 @@ internal fun PrivacySettingsScreen(
     if (state.confirmReset && signedIn && !sessionBusy) {
         ActionDialog(
             onDismissRequest = onCancelReset,
-            icon = { Icon(painterResource(R.drawable.ic_icon_shield), contentDescription = null) },
+            icon = { DestructiveActionIcon(R.drawable.ic_icon_shield) },
             title = { Text(stringResource(R.string.privacy_reset_title)) },
             text = { Text(stringResource(R.string.privacy_reset_message)) },
             actions = {
@@ -238,7 +221,7 @@ internal fun PrivacySettingsScreen(
                 ) {
                     Text(stringResource(R.string.privacy_reset))
                 }
-                TextButton(
+                FlatTextButton(
                     contentPadding = ButtonDefaults.ContentPadding,
                     onClick = onCancelReset,
                 ) {
@@ -272,37 +255,20 @@ private fun PrivacySetAllGroup(state: PrivacySettingsState, onSelectAll: (Privac
     val uniformVisibility = state.values.values.distinct().singleOrNull()
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SettingsSectionHeader(stringResource(R.string.privacy_set_all))
-        Row(
+        Segmented(
+            items = PrivacyVisibility.entries,
+            selected = uniformVisibility,
+            onSelectedChange = onSelectAll,
+            parentContainerColor = ThemeColorDefaults.settingsBackgroundColor(),
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
-        ) {
-            PrivacyVisibility.entries.forEachIndexed { index, visibility ->
-                val checked = uniformVisibility == visibility
-                val label = stringResource(visibility.titleRes())
-                val shapes = when (index) {
-                    0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                    PrivacyVisibility.entries.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
-                }
-                ShadowToggleButton(
-                    checked = checked,
-                    onCheckedChange = { onSelectAll(visibility) },
-                    enabled = state.editable,
-                    icon = { Icon(painterResource(visibility.iconRes()), contentDescription = null) },
-                    colors = ToggleButtonDefaults.colors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        contentColor = MaterialTheme.colorScheme.onSurface,
-                    ),
-                    // Preserve the connected contour on press while retaining selection feedback.
-                    shapes = shapes.copy(pressedShape = if (checked) shapes.checkedShape else shapes.shape),
-                    modifier = Modifier.weight(1f).semantics {
-                        role = Role.RadioButton
-                        selected = checked
-                    },
-                ) {
-                    Text(label, maxLines = 1)
-                }
-            }
+            enabled = state.editable,
+        ) { visibility ->
+            Icon(
+                painterResource(visibility.iconRes()),
+                contentDescription = null,
+                modifier = Modifier.size(SegmentedButtonDefaults.IconSize),
+            )
+            Text(stringResource(visibility.titleRes()), textAlign = TextAlign.Center)
         }
     }
 }

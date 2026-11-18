@@ -1,20 +1,15 @@
 package moe.kirakira.feature.settings.security
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import moe.kirakira.R
 import moe.kirakira.data.auth.SecondFactor
@@ -28,6 +23,8 @@ import moe.kirakira.ui.components.ContentUnavailableAction
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
+import moe.kirakira.ui.components.DestructiveActionIcon
+import moe.kirakira.ui.components.FlatTextButton
 import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.messageRes
 
@@ -76,34 +73,31 @@ internal fun SecuritySettingsScreen(
                 modifier = Modifier.fillMaxSize(),
                 indicatorTopPadding = padding.calculateTopPadding(),
             ) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                    when {
-                        sessionBusy || (state.loading && state.status == null && !state.statusPending) -> ContentLoadingView(modifier = Modifier.fillMaxSize().padding(padding))
-                        email == null -> ContentUnavailableView(
-                            state = ContentUnavailableState.EMPTY,
-                            modifier = Modifier.padding(padding),
-                            title = stringResource(R.string.security_sign_in),
-                            description = null,
-                            iconRes = R.drawable.ic_icon_lock,
-                            presentation = ContentUnavailablePresentation.PAGE,
-                            primaryAction = ContentUnavailableAction(
-                                stringResource(R.string.management_login), onLogin,
-                            ),
-                        )
-                        else -> SettingsColumn(padding = padding) {
-                            when {
-                                state.status != null || state.statusPending -> {
-                                    SecurityOverview(state, email, onOpen)
-                                    state.error?.let { SettingsErrorCard(stringResource(it.messageRes())) }
-                                }
-                                else -> ContentUnavailableView(
-                                    state = ContentUnavailableState.ERROR,
-                                    description = state.error?.let { stringResource(it.messageRes()) },
-                                    presentation = ContentUnavailablePresentation.INLINE,
-                                    onRetry = onRefresh,
-                                )
-                            }
-                        }
+                when {
+                    sessionBusy || (state.loading && state.status == null && !state.statusPending) -> {
+                        ContentLoadingView(modifier = Modifier.padding(padding))
+                    }
+                    email == null -> ContentUnavailableView(
+                        state = ContentUnavailableState.EMPTY,
+                        modifier = Modifier.padding(padding),
+                        title = stringResource(R.string.security_sign_in),
+                        description = null,
+                        iconRes = R.drawable.ic_icon_lock,
+                        presentation = ContentUnavailablePresentation.PAGE,
+                        primaryAction = ContentUnavailableAction(
+                            stringResource(R.string.management_login), onLogin,
+                        ),
+                    )
+                    state.status == null && !state.statusPending -> ContentUnavailableView(
+                        state = ContentUnavailableState.ERROR,
+                        modifier = Modifier.padding(padding),
+                        description = state.error?.let { stringResource(it.messageRes()) },
+                        presentation = ContentUnavailablePresentation.PAGE,
+                        onRetry = onRefresh,
+                    )
+                    else -> SettingsColumn(padding = padding) {
+                        SecurityOverview(state, email, onOpen)
+                        state.error?.let { SettingsErrorCard(stringResource(it.messageRes())) }
                     }
                 }
             }
@@ -131,7 +125,7 @@ internal fun SecuritySettingsScreen(
     if (state.confirmDiscardCodes && isActive) {
         ActionDialog(
             onDismissRequest = onCancelDiscard,
-            icon = { Icon(painterResource(R.drawable.ic_icon_lock), contentDescription = null) },
+            icon = { DestructiveActionIcon(R.drawable.ic_icon_lock) },
             title = { Text(stringResource(R.string.security_leave_codes_title)) },
             text = { Text(stringResource(R.string.security_leave_codes_message)) },
             actions = {
@@ -139,7 +133,7 @@ internal fun SecuritySettingsScreen(
                     onClick = onFinishCodes,
                     destructive = true,
                 ) { Text(stringResource(R.string.privacy_discard)) }
-                TextButton(
+                FlatTextButton(
                     contentPadding = ButtonDefaults.ContentPadding,
                     onClick = onCancelDiscard,
                 ) {
@@ -151,7 +145,7 @@ internal fun SecuritySettingsScreen(
     if (state.confirmDiscardCredentials && isActive) {
         ActionDialog(
             onDismissRequest = onCancelDiscardCredentials,
-            icon = { Icon(painterResource(R.drawable.ic_icon_lock), contentDescription = null) },
+            icon = { DestructiveActionIcon(R.drawable.ic_icon_lock) },
             title = { Text(stringResource(if (state.confirmAbandonCompletion) R.string.write_leave_confirmation_title
                 else R.string.security_leave_changes_title)) },
             text = { Text(stringResource(if (state.confirmAbandonCompletion) R.string.write_leave_confirmation_message
@@ -161,7 +155,7 @@ internal fun SecuritySettingsScreen(
                     onClick = onDiscardCredentials,
                     destructive = true,
                 ) { Text(stringResource(R.string.privacy_discard)) }
-                TextButton(
+                FlatTextButton(
                     contentPadding = ButtonDefaults.ContentPadding,
                     onClick = onCancelDiscardCredentials,
                 ) {

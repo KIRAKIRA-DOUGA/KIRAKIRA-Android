@@ -330,7 +330,7 @@ internal class SecuritySettingsViewModel(private val repository: SecurityReposit
         _state.update { it.copy(
             credentials = if (repository.needsCompletion) current.credentials.forSync() else CredentialFlow.Idle,
             completionUncertain = repository.completionUncertain,
-            twoFactor = flow, loading = false, busy = false,
+            twoFactor = flow, loading = false, busy = false, codeRecipient = null,
             status = it.status.takeIf { pendingMutation == null },
             page = if (repository.needsCompletion) it.page else SecurityPage.OVERVIEW,
             fieldErrors = emptyMap(), validation = null, error = null, message = null,
@@ -353,7 +353,8 @@ internal class SecuritySettingsViewModel(private val repository: SecurityReposit
             SecurityStep.DISABLE_EMAIL -> SecurityEmailPurpose.DISABLE_EMAIL
             else -> return
         }
-        runOperation {
+        val recipient = if (newEmail) CodeRecipient.NEW_EMAIL else CodeRecipient.CURRENT_EMAIL
+        runOperation(codeRecipient = recipient) {
             repository.sendCode(revision, purpose, language, email, current.status?.factor ?: return@runOperation)
             _state.update { it.copy(message = R.string.auth_code_sent) }
         }
@@ -576,11 +577,13 @@ internal class SecuritySettingsViewModel(private val repository: SecurityReposit
     private fun runOperation(
         loading: Boolean = false,
         mutation: TwoFactorMutation? = null,
+        codeRecipient: CodeRecipient? = null,
         block: suspend () -> Unit,
     ) {
         if (!ready || _state.value.working) return
         factorMutation = mutation
-        _state.update { it.copy(loading = loading, busy = !loading, error = null, validation = null, fieldErrors = emptyMap()) }
+        _state.update { it.copy(loading = loading, busy = !loading, codeRecipient = codeRecipient,
+            error = null, validation = null, fieldErrors = emptyMap()) }
         request = viewModelScope.launch {
             try {
                 block()
@@ -600,7 +603,7 @@ internal class SecuritySettingsViewModel(private val repository: SecurityReposit
             } finally {
                 if (currentCoroutineContext().isActive) {
                     factorMutation = null
-                    _state.update { it.copy(loading = false, busy = false) }
+                    _state.update { it.copy(loading = false, busy = false, codeRecipient = null) }
                 }
             }
         }

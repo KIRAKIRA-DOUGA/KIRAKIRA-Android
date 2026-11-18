@@ -54,6 +54,7 @@ import moe.kirakira.data.security.TotpSetup
 import moe.kirakira.ui.components.AccountFlowDefaults
 import moe.kirakira.ui.components.AccountFlowSection
 import moe.kirakira.ui.components.accountFlowCodeTextStyle
+import moe.kirakira.ui.components.pressToRoundButtonShapes
 
 @Composable
 internal fun TotpSetupContent(
@@ -113,7 +114,7 @@ internal fun TotpSetupContent(
                         if (!opened) onCopied(false)
                     },
                     enabled = isActive && !state.working,
-                    shapes = ButtonDefaults.shapes(),
+                    shapes = pressToRoundButtonShapes(),
                     modifier = Modifier.align(Alignment.End),
                 ) {
                     Text(stringResource(R.string.security_open_authenticator))
@@ -268,7 +269,7 @@ private fun CopyButton(
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
-    OutlinedButton(onClick = onClick, shapes = ButtonDefaults.shapes(), modifier = modifier, enabled = enabled) {
+    OutlinedButton(onClick = onClick, shapes = pressToRoundButtonShapes(), modifier = modifier, enabled = enabled) {
         Icon(painterResource(R.drawable.ic_icon_copy), null, Modifier.size(ButtonDefaults.IconSize))
         Spacer(Modifier.width(ButtonDefaults.IconSpacing))
         Text(label)

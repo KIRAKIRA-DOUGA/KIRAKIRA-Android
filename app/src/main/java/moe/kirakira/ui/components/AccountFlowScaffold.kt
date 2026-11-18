@@ -39,7 +39,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -51,7 +50,6 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -60,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import moe.kirakira.R
 import moe.kirakira.ui.theme.BarShadowElevation
+import moe.kirakira.ui.theme.BrandTitleFontFamily
 
 internal object AccountFlowDefaults {
     val MaxContentWidth = 480.dp
@@ -137,8 +136,10 @@ internal fun AccountFlowActionBar(
         Box(
             modifier = Modifier
                 .padding(
-                    horizontal = AccountFlowDefaults.ContentPadding,
-                    vertical = AccountFlowDefaults.ActionBarVerticalPadding,
+                    start = AccountFlowDefaults.ContentPadding,
+                    end = AccountFlowDefaults.ContentPadding,
+                    top = AccountFlowDefaults.ActionBarVerticalPadding,
+                    bottom = ButtonShadowBottomPadding,
                 )
                 .widthIn(max = AccountFlowDefaults.MaxContentWidth)
                 .fillMaxWidth(),
@@ -195,6 +196,7 @@ internal fun AccountFlowHeader(
             style = MaterialTheme.typography.headlineLarge,
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold,
+            fontFamily = BrandTitleFontFamily,
             modifier = Modifier.semantics { heading() },
         )
         if (progressContent != null) {
@@ -320,46 +322,27 @@ internal fun AccountFlowSubmitButton(
     actionDescription: String? = null,
 ) {
     val height = ButtonDefaults.MediumContainerHeight
-    val workingDescription = stringResource(R.string.auth_working)
     ShadowButton(
         onClick = onClick,
-        enabled = enabled && !busy,
+        enabled = enabled,
+        loading = busy,
         destructive = destructive,
-        shapes = ButtonDefaults.shapesFor(height),
+        shapes = pressToRoundButtonShapes(height),
         contentPadding = ButtonDefaults.contentPaddingFor(height),
         colors = colors,
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = height)
-            .semantics {
-                actionDescription?.let { contentDescription = it }
-                if (busy) {
-                    contentDescription = actionDescription ?: label
-                    stateDescription = workingDescription
-                    progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate
-                    liveRegion = LiveRegionMode.Polite
-                }
-            },
+
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            // Keep the label measured at the current font scale while the spinner replaces it.
-            Text(
-                text = label,
-                style = ButtonDefaults.textStyleFor(height),
-                maxLines = 1,
-                softWrap = false,
-                modifier = if (busy) Modifier
-                    .alpha(0f)
-                    .clearAndSetSemantics { } else Modifier,
-            )
-            if (busy) {
-                IndeterminateCircularProgressIndicator(
-                    modifier = Modifier
-                        .size(ButtonDefaults.iconSizeFor(height))
-                        .clearAndSetSemantics { },
-                    strokeWidth = 2.dp,
-                )
-            }
-        }
+        Text(
+            text = label,
+            style = ButtonDefaults.textStyleFor(height),
+            maxLines = 1,
+            softWrap = false,
+            modifier = if (actionDescription == null) Modifier else Modifier.clearAndSetSemantics {
+                contentDescription = actionDescription
+            },
+        )
     }
 }
