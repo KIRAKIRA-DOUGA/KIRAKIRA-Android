@@ -2,186 +2,263 @@
 
 [实现索引](../implementation.md) · [功能现状](../features.md) · [开发指南](../development.md) · [贡献规范](../../CONTRIBUTING.md)
 
-本文维护搜索、标签、视频列表、关注列表与分页布局。开发约束以贡献指南为准。
+本文记录内容页如何把请求绑定到账号、搜索与标签的接口和本机历史、视频列表的布局选择、评论分页、资料页与视频页的吸顶分页，以及读取失败和访问失效的处理。播放器、弹幕与图片见[播放、图片与弹幕](media.md)。
 
-最近搜索标题、搜索结果数量、评论／弹幕总数及标签页视频数量沿用同一[列表标题与数量规范](../../CONTRIBUTING.md#列表开关与弹层)，保留各自的列表布局和标题语义。搜索结果的空文字占位、标签页数量未知时的“相关视频”与已知数量使用一致排版；评论标题的操作区避让使用同一文字样式测量与绘制，数字动画及受限宽度下的换行仍由共享计数组件处理。
-
+- [账号任务与请求归属](#账号任务与请求归属)
+- [读取失败与访问失效](#读取失败与访问失效)
 - [视频搜索](#视频搜索)
-- [视频简介](#视频简介)
 - [视频标签](#视频标签)
+- [视频简介](#视频简介)
 - [视频列表布局](#视频列表布局)
+- [评论与弹幕列表](#评论与弹幕列表)
 - [关注与粉丝列表](#关注与粉丝列表)
 - [视频页与资料页分页](#视频页与资料页分页)
+- [用户页的关系操作与分享](#用户页的关系操作与分享)
+- [历史搜索与收藏](#历史搜索与收藏)
 
-内容页的 `ContentViewModel` 与管理设置的 `SettingsViewModel` 共用 `core/coroutines/AccountTasks`，以挂在各自 `viewModelScope` 下的 `SupervisorJob` 管理当前批次任务；账号重置时取消子任务，宿主销毁时取消整个任务树，不维护手工 Job 集合。内容页保留会话就绪后的 revision 观察；管理设置等待会话加载与忙碌结束后按 revision 去重，仅账号修订变化时清空和重载。同账号临时忙碌保留已确认数据及正在执行的读写，切换失败后继续使用原状态；隐私与安全设置采用相同规则，保留待核对或待同步的保存状态，安全流程仍接纳自身提交产生的修订。
+## 账号任务与请求归属
 
-个人主页的 `ProfileAvatar` 为共享 `AccountAvatar` 开启 `showLoadingIndicator`，由后者按实际图片 URL 记住局部加载状态，并通过 Coil 的加载、成功与失败回调更新。加载期间用共享 `IndeterminateCircularProgressIndicator` 替代默认人形图标，背景沿用 `surfaceContainerHigh`，加载器沿用人形图标的 `onSurfaceVariant`；无有效图片地址时不显示加载器，其他头像入口保持默认行为。
+内容页的 [ContentViewModel](../../app/src/main/kotlin/moe/kirakira/ui/content/ContentViewModel.kt) 和管理设置的 `SettingsViewModel` 共用 [AccountTasks](../../app/src/main/kotlin/moe/kirakira/core/coroutines/AccountTasks.kt)：当前批次的任务挂在 `viewModelScope` 下的一个 `SupervisorJob` 上。账号重置时取消这批子任务，宿主销毁时取消整棵任务树，不需要手工维护 Job 集合。
 
-`ContentRepository` 的视频与评论赞踩共用私有 `submitVote`，统一根据原状态和目标状态选择赞／踩方向及 POST／DELETE；公开入口分别构建原有路径和请求体。公开媒体地址统一经 `core/image/DeliveryImage.kt` 的 `publicMediaHttpUrl` 校验 HTTPS 及空用户名、密码，头像完整 URL、普通媒体 URL 和 `ImageSource.RemoteUrl` 共用此规则，Cloudflare 图片 ID 仍按原有规则构造。
+- 每个请求在发出前取得账号快照，返回时再核对会话的 revision，旧账号的响应不能覆盖新页面。
+- 内容加载要等 `SessionState.isReadyForContent`。启动时会话先发布本地恢复的账号，校验完成后再发布一次；如果不等校验结束，这两次 revision 会让列表清空重载、加载指示器闪回。
+- 同一账号的临时忙碌不清空已确认的数据；只有账号的修订变化才清空并重载。
+- 公开读取（搜索、标签、作者作品）不携带 Cookie，但仍然捕获 revision，切换账号时照样取消旧请求。
+
+`ContentRepository` 把私有的序列化 DTO 映射为领域模型，界面不接触 DTO 或会话。列表逐条解码，无效记录被省略并按 ID 去重。公开媒体地址统一经 [DeliveryImage.kt](../../app/src/main/kotlin/moe/kirakira/core/image/DeliveryImage.kt) 的 `publicMediaHttpUrl` 校验：必须是 HTTPS，且不含用户名和密码。
+
+## 读取失败与访问失效
+
+规则见[加载与刷新](../ui-guidelines.md#加载与刷新)。判定集中在 `ApiFailure.retainsContent`，组件侧的接入见[统一内容状态](components.md#统一内容状态)。
+
+| 失败 | 分类 | 是否保留已有内容 |
+| --- | --- | --- |
+| 网络、超时、限流、响应异常、未区分原因的业务拒绝 | 各自的类型 | 保留 |
+| HTTP 403／404／410，或接口明确返回 `isBlocked` | `CONTENT_UNAVAILABLE` | 撤下 |
+| HTTP 401 | `SESSION_EXPIRED` | 撤下 |
+
+不根据服务端的消息文本推断隐私或资源状态。
+
+**视频详情失去访问权限时**的连锁处理：
+
+- 取消并清除评论、弹幕的读取和评论的发布回显。
+- 撤下已确认的分 P 和播放输出，关闭对应的应用内小窗。
+- ViewModel 分别保留“访问失效”和“播放器待清理”两个状态，后者要等播放器完成清理才确认。合成一个状态的话，快速重试会覆盖失效信号。
+- 子内容的加载、重试、翻页和写操作后的刷新都先检查访问状态。失效期间点击评论或弹幕的重试，会先重新读取视频详情；只有详情成功返回才恢复子请求。
+
+**用户屏蔽变更**按账号和作者通知仍保留着的视频页：屏蔽时立即撤下内容和播放，解除后重新核对详情。评论赞踩之后的页内核对失败时保持待核对状态，在重试或刷新成功前不允许按旧的赞踩状态继续提交。
 
 ## 视频搜索
 
-`feature/search/SearchViewModel` 复用共享 [ContentViewModel](../../app/src/main/java/moe/kirakira/ui/content/ContentViewModel.kt) 的会话就绪与 revision 防护，在主导航宿主创建；`SearchPage` 与导航宿主的顶栏插槽收集同一个 ViewModel 的状态，`SearchTopBar`、`SearchScreen` 与共享的 [全屏标签选择器](components.md#全屏标签选择器) 仅接收状态和回调。UI 不接触 DTO 或会话，结果使用现有 `VideoSummary`、`VideoCardRow` 与 `VideoRoute`，标签复用 `VideoTag.displayName` 的多语言回退。
+[SearchViewModel](../../app/src/main/kotlin/moe/kirakira/feature/search/SearchViewModel.kt) 在主导航宿主创建，`SearchPage` 与顶栏插槽收集同一个 ViewModel 的状态。
 
-关键词输入与全屏标签选择器共用 `SearchQueryField`，以 Material 3 单行 `TextField(state = …)` 持有本地编辑状态，ViewModel 继续接收查询字符串。键盘提交或重试先读取最新输入；关键词仍在提交时搜索，标签查询仍按原有规则防抖。关键词结果在同页展示，标签候选在独立全屏 Dialog 中展示。`SearchFieldContainer` 以 `Surface`、共用控件底色和 `large` 圆角统一承载关键词、已选标签与全屏标签选择器的输入区域；标签模式使用 `TagSearchField` 的标签及添加动作槽位。标签框以 `SearchBarDefaults.InputFieldHeight` 为最小高度，复用官方 Chip 与图标按钮触摸区域并保留横向 4dp 容器内边距，纵向由官方最小高度和居中对齐提供留白；标签框空白或单行时与关键词输入框同高。已选标签区按当前宽度和字号实测前两行，滚动视口以实测高度为上限。`SelectedSearchTags` 将 Chip 的布局预留高度设为 `InputChipDefaults.Height`，由 `FlowRow` 在可见胶囊之间统一留出 8dp 横纵间距。额外的触摸留白移至标签组上下边缘，Compose 的触摸目标扩展继续生效。
-
-`MainScreen.searchTopBar` 插槽将 `SearchTopBar` 放入搜索 Tab 的 `FrostedScaffold.topBar`，随页面转场。关键词和标签模式使用 `AnimatedContent` 过渡搜索框内容和高度，下方保留紧凑 FilterChip 模式选项。提交搜索后，`SearchScreen` 在结果列表顶部将数量与 `SearchResultControls` 并排显示，排序菜单与布局切换图标随结果列表滚动；未提交时只展示历史，不提供结果操作。排序菜单通过 `SortChanged` 事件统一选择排序字段与切换方向，单组显示四种排序，以强调色和选中语义标记当前选择，不显示勾选图标；选择未选中的非默认字段从降序开始，重复选择当前非默认字段切换方向，默认顺序重复选择不改变状态。非默认字段尾部复用向下箭头，通过 `animateFloatAsState` 配合主题 `fastSpatialSpec` 在 0°／180° 间过渡，`graphicsLayer` 读取动画值；未选中字段显示降序箭头，首次打开直接呈现当前方向，方向描述复用本地化字符串。点击选项不关闭菜单，外部点击和返回仍关闭。菜单展开状态仅存局部 UI 内存，搜索 generation 或就绪状态变化时关闭。
-
-栏面铺满正文区域，输入区与当前历史列表或结果网格共用宽度上限和居中位置，并保留 16dp 横向内边距，顶部与横向系统 Insets 使用 `TopAppBarDefaults.windowInsets` 避让一次；模式选项可换行，栏高随内容增高。结果操作图标保留完整触摸区域，并使用 `onSurfaceVariant`。顶栏背景与固定 4dp 阴影均由既有宿主管理。已提交标签显示在顶栏搜索框内部，添加入口打开 `TagSearchDialog`。它与设置的全页搜索共用 Dialog 宿主。折叠屏按来源页的分区展开，书本式连续页面使用整个窗口。选择器的返回箭头关闭选择器，独立于底层页面的侧栏。草稿与查询仅在选择器内展示，结果数量保留在列表内容区，图标操作保留 Tooltip 和本地化描述。列表顶部留白与刷新指示器使用宿主返回的实际栏高；结果状态通过共享 `ContentStatusViewport` 扣除实际列表 padding、实测结果标题与历史错误提示及条目间距；接入规则见[统一内容状态](components.md#统一内容状态)。
+### 接口
 
 | 请求 | 请求字段／关键响应 | 用途 |
 | --- | --- | --- |
-| GET `video/search` | `keyword`；`success`, `videos` | 关键词视频搜索，没有分页或排序参数 |
-| GET `video/tag/search` | `tagName`；`success`, `result` | 查找已有标签，没有分页参数 |
-| POST `video/search/tag` | `tagId: [id, …]`；`success`, `videos` | 同时包含所有标签的视频，没有分页参数 |
+| GET `video/search` | `keyword`；`success`、`videos` | 关键词搜索 |
+| GET `video/tag/search` | `tagName`；`success`、`result` | 查找已有标签 |
+| POST `video/search/tag` | `tagId: [id, …]`；`success`、`videos` | 同时包含全部标签的视频 |
 
-以上公开读取不携带 Cookie，查询通过共享 URL builder 编码。数据层检查业务成功和必要列表字段，将缺失列表与空列表区分，分别按视频／标签 ID 去重；多标签 ID 去重并要求为正数，单标签关联视频保留原调用入口。Rosales 关键词查询使用 Elasticsearch `query_string`，标签名称查询使用不区分大小写的正则表达式，客户端保留查询内容，不添加新的查询语法或全站过滤规则。未知业务拒绝映射为统一错误，取消继续传播到 HTTP Call。
+- **三个接口都没有分页和排序参数。** 结果数量是实际返回并去重后的列表长度；排序在客户端完成，可按上传时间、播放量或时长稳定排序，缺失值始终排在末尾，默认顺序保留接口顺序。
+- Rosales 的关键词查询使用 Elasticsearch 的 `query_string`，标签名称查询使用不区分大小写的正则。客户端原样传递查询内容，不添加查询语法。
+- 按标签查询时，上传者关联查询未匹配到用户会返回 `uploaderInfo: false`。视频摘要把这个布尔值归一化为“资料缺失”，保留视频和 `uploaderId`。
+- 视频 DTO 的 `duration` 以秒计，在数据层统一换算为毫秒；非有限值、负数或超出范围的值按缺失处理。
+- 数据层区分“列表缺失”和“空列表”。
 
-Rosales 按标签查询视频时，上传者关联查询未匹配到用户会返回 `uploaderInfo: false`。视频摘要将该布尔值归一化为缺失资料，保留视频及 `uploaderId`，作者名称沿用既有回退。摘要和标签候选逐条解码，省略无效记录并按 ID 去重。视频卡片只解码摘要字段，分 P 和完整标签交由详情解析。
+### 状态
 
-ViewModel 分离关键词草稿、所选标签和已提交条件。视频读取按请求版本和账号 revision 检查结果归属，新条件、模式切换或清空会取消旧视频任务。标签候选读取复用 `TagSearchLookup`，发布前确认任务仍有效且账号 revision 一致。打开全屏选择器时复制已选标签到 `draftTags`，勾选和移除只更新草稿；`ApplyTags` 才应用并查询，关闭时丢弃草稿，底层搜索结果及滚动列表保持组合；系统返回先收起键盘，再关闭选择器。全屏窗口使用官方 `Dialog`，设置 `usePlatformDefaultWidth = false` 与 `decorFitsSystemWindows = false`；窗口内复用 `FrostedScaffold`、系统 Insets 和独立的 `NavigationBackHandler`，固定顶栏复用 `PageTopAppBar` 与 `ShadingIcon`，采用主题色标题、返回箭头与标签底纹，并保留平面“搜索”文字按钮。候选输入与草稿 Chip 共用 `SearchFieldContainer` 的底色和内阴影，Chip 按容器取色。候选区在无候选时的 `surface` 与有候选时的 `surfaceContainerLow` 之间平滑过渡。搜索框外侧横向留白为 16dp，栏底留白为 8dp。草稿标签沿用主搜索的 `SelectedSearchTags`，在触摸留白外保留上下各 4dp 内边距。增删时使用主题 `fastSpatialSpec` 平滑调整容器高度。`MainEntries` 按账号 revision 记住 `TagSearchAnchor`，记录主搜索框的实测屏幕边界与标签滚动位置。Dialog 将边界换算为本地坐标，绘制副本期间隐藏 Activity 上的同一搜索框。圆角底色和内阴影通过 `sharedElement` 共用一个持续可见的图层，前景通过 `sharedBounds` 和 `fastEffectsSpec` 交叉淡入淡出。前景保留各自目标尺寸下的换行布局，过渡期间按共享轮廓裁剪。两层均使用主题 `defaultSpatialSpec`，坐标与返回预览只用于 UI。系统动画缩放同时作用于两种过渡。窗口默认动画和遮罩关闭，避免与共享过渡叠加。关闭／确认暂存为 UI 退出意图，反向动画完全结束后才发送对应业务事件，期间忽略重复操作；确认时先用草稿标签预布局主搜索框，再按实测宽高收回。放弃时收回至已提交的标签。收拢端以主搜索框的当前滚动位置初始化，缺少来源边界时沿用 Dialog 淡入淡出。`FocusRequester` 仅在展开和共享边界动画均完成后由窗口内容的 `LaunchedEffect` 请求查询框焦点，不保存在 ViewModel；账号 revision 改变仍立即销毁整个窗口，不等待退出动画。未展开选择时移除顶栏标签仍即时查询，以去重排序后的 ID 列表识别相同条件。相同条件正在请求时不重复提交，刷新只读已提交条件，不将未提交草稿当作刷新条件。
+ViewModel 把关键词草稿、所选标签和已提交的条件分开保存。
 
-首次搜索只显示首次加载状态，同条件刷新保留视频、已加载空状态及列表位置，使用 `ContentPullToRefresh` 覆盖式指示器，失败保留已有数据。标签选择器的候选查询也以 trim 后的查询识别结果归属：同查询重新提交保留已确认候选及空结果，读取失败复用 `readFailed` 保留内容并提供重试；查询变化立即清空旧结果，关闭选择器或账号重置时清除查询归属。候选有内容时，加载与失败提示显示在列表顶部；无候选时通过共享 `ContentStatusViewport` 在剩余视口内垂直居中。结果数量为实际返回并去重后的列表长度。视频 DTO 的 `duration` 以秒计，统一在数据层换算为 `VideoSummary.durationMs` 的毫秒值；非有限值、负数或超出转换范围的值作为缺失时长处理。排序稳定地按上传时间、播放量或时长比较，两个方向均将缺失值排末尾，默认顺序保留接口顺序；不请求不存在的服务端排序和分页能力。
+- 新条件、模式切换或清空会取消旧的视频任务；结果按请求版本（generation）和账号 revision 核对归属。相同条件正在请求时不重复提交。
+- 刷新只读已提交的条件，不把未提交的草稿当作刷新条件。
+- 标签在全屏选择器里编辑的是草稿（`draftTags`），`ApplyTags` 才应用并查询，关闭即丢弃。候选的查询复用 `TagSearchLookup`，以 trim 后的查询识别结果归属：同一查询重新提交时保留已确认的候选，查询变化立即清空旧结果。
+- 清空按钮无论是否已提交都发送同一个 `Clear` 事件，一次性清掉当前模式的条件、已提交的条件、结果和滚动位置，避免“先退出、再清空”的中间状态。
+- 搜索草稿、结果、排序选项和滚动位置只存 ViewModel 内存。旋转、切换标签页和从视频页返回时保留；进程重建后回到未提交状态。结果网格按条目键和偏移恢复位置，位置事件带着条件的 generation，旧页面的位置事件覆盖不了新条件。
 
-当前搜索草稿、结果、控制选项及滚动位置只存 ViewModel 内存，不进入 SavedState、磁盘或日志；明确提交的搜索条件另按下述历史规则持久保存。结果区的 `LazyGridState` 按内存中的条目键及偏移初始化，并通过带条件 generation 的事件回传位置；新条件重置位置，旧页面位置事件不能覆盖新条件。主界面搜索分支与首页一样将底栏占位放入滚动内容，键盘内边距由搜索页面处理。旋转、Tab 切换与视频页返回保留状态，进程重建回到未提交状态并加载本机历史；账号 revision 改变清空临时搜索状态并重新加载历史。
+选择器的界面与共享过渡见[全屏标签选择器](components.md#全屏标签选择器)。
 
-`data/search/SearchHistoryRepository` 由应用依赖容器持有并注入搜索 ViewModel，使用独立的 `kirakira_search_history` SharedPreferences 保存版本化 JSON，不在系统备份允许列表中。存储键由后端地址及账号 UUID（游客独立标识）生成；每个分区最多 30 条，关键词 trim 后精确去重，标签以排序去重后的 ID 标识组合，保留 `VideoTag` 多语言名称快照。读取及修改通过 Mutex 串行化并在 IO 调度器执行，确认写入成功后才发布新列表，失败保留原列表并反馈。有效提交在视频请求前记录，故失败与空结果也保留；候选查询、模式切换和刷新不记录。持久化任务由 ViewModel 生命周期持有并捕获发起账号，不因账号 HTTP 任务取消而误归属；回写同时核对 revision 和历史操作版本。读取到无法解码或版本不受支持的分区时删除该分区并回到空历史，避免损坏数据永久阻塞；仅真实存储失败保留原列表并反馈。
+### 搜索历史
 
-`SearchHistoryContent` 以普通 `LazyColumn` 与官方 `ListItem` 混排最近搜索，作为仓库连接列表规范的场景例外：记录仅按时间排列，没有连接分组关系。列表不设置额外横向外边距，条目与点击反馈铺满列表视口，内容使用起始侧 16dp、末端 4dp、纵向 4dp 内边距，补偿尾部 48dp 按钮内居中 24dp 图标的留白，使两侧图标画布距列表边缘均为 16dp，并保留完整触摸区域；历史顶部额外留白为 4dp；标题与操作各自设置内容留白。空历史与首次加载共用 `ContentStatusViewport` 提供的状态区域，传入实际列表 padding 和实测历史标题高度，不使用固定视口比例。标题使用次要文字色，标签历史组合通过 `FlowRow` 展示无描边的胶囊形 `Surface` 标签，底色按标签紧贴的列表行取色。标签复用 `SuggestionChipDefaults` 的最小高度和内容内边距，采用 8dp 行距；标签不处理点击、不拥有独立按钮语义，按压反馈由整行统一提供。条目使用官方 `ListItem.onClick` 处理整行交互，各交互态保留矩形外观；关键词与标签共用内容槽内的同一横排布局、16dp 列间距和相同删除按钮触摸占位，避免原生图标槽缩减最小交互占位后造成尾部横向错位及单行行高差异；关键词与标签区域不再叠加上下内边距，常规单行由统一按钮占位决定内容高度。关键词与标签行统一使用 `Row` 垂直居中，两侧图标与标签组整体对齐；标签组换行或字体缩放时仍按实际高度居中，不以固定偏移补偿。点击整行恢复整组条件，标签区域也属于该行点击范围。标题与清空操作直接参与正常列表布局，首次显示及滚回标题时不单独播放入场动画。历史条目使用稳定条件 key 与 `animateItem`，历史区域整体切换时使用 `AnimatedVisibility` 淡入及轻微位移，复用主题 motion scheme 并遵循系统动画缩放。屏幕按账号 revision 重建动画子树，切换身份时不保留旧账号的退出动画；公开 UI 状态同时过滤未就绪或过期的账号状态。单条移除的叉号与行首图标共用主题 `onSurfaceVariant`，禁用时沿用标准图标按钮配色。清空记录使用共享 `ActionDialog`、危险操作图标和危险主按钮确认。删除与清空不影响当前搜索条件；结果内容区顶部保留数量、排序与布局切换，下方展示结果，不放置历史返回按钮；关键词与标签输入框末端的叉号统一提供返回入口。无论是否已提交，叉号均发送同一个 `Clear` 事件；`resetResults(clearConditions = true)` 先取消视频任务并递增版本，再一次发布清空当前模式条件、已提交条件、结果和滚动位置后的状态，避免“先退出、再清空”的两次点击及中间状态。叉号统一使用“清空搜索”的本地化描述，标签模式同时保留加号和各 Chip 的独立移除操作。
+[SearchHistoryRepository](../../app/src/main/kotlin/moe/kirakira/data/search/SearchHistoryRepository.kt) 由应用依赖容器持有。
 
-## 视频简介
+| 项目 | 说明 |
+| --- | --- |
+| 存储 | 独立的 `kirakira_search_history` SharedPreferences，版本化 JSON；**不参与系统备份** |
+| 分区键 | 由后端地址和账号 UUID 生成，游客使用独立标识 |
+| 容量 | 每个分区最多 30 条 |
+| 去重 | 关键词 trim 后精确去重；标签组合以排序去重后的 ID 标识，并保存 `VideoTag` 的多语言名称快照 |
 
-`VideoScreen` 将操作条作为 `metadata` 后的独立 `actions` 懒列表条目，数字动画身份继续由账号修订和视频 ID 提供。`VideoActions` 接收领域状态与事件回调，以五个连续等宽单元排列操作，操作条最多 360dp。沿用 `VideoPage` 的宽窗口判定，安全窗口达到 600 × 480 dp 时与简介内容的起始侧对齐，其余窗口居中。官方按钮填满各单元，按钮宽度从 72dp 随空间收缩至 48dp。总可用宽度不足 240dp 时横向滚动，按钮高度随标签和字体缩放增长。按钮内容统一为 24dp 图标和主题 `labelMedium` 标签，具体尺寸与配色遵循[按钮规范](../../CONTRIBUTING.md#按钮单选框与阴影)。赞踩由官方 `ToggleButton` 提供勾选与禁用语义，其他操作使用固定圆形 `TextButton`；根按钮提供完整操作名称和已知计数，内部图标及标签清除重复语义。
+- 读取和修改通过 Mutex 串行化，在 IO 调度器执行；确认写入成功后才发布新列表。
+- 有效的提交在发出视频请求**之前**记录，所以搜索失败或空结果也会留下历史。候选查询、模式切换和刷新不记录。
+- 持久化任务由 ViewModel 的生命周期持有并捕获发起账号，不随账号的 HTTP 任务一起取消；回写时同时核对 revision 和历史操作的版本。
+- 读到无法解码或版本不受支持的分区时，删除该分区并回到空历史，避免损坏的数据永久卡住；只有真实的存储失败才保留原列表并报错。
 
-`VideoActions` 的分享按钮直接触发页面的分享回调。`VideoActionsMenu` 以更多按钮为锚点复用 `MenuPopup`，共享一个分组，依次提供稍后再看、查看封面、下载和举报，选择后先关闭菜单再触发回调。查看封面交给页面处理，可用性由规范化后的图片地址决定。收藏、稍后再看、下载和举报共用原有暂不可用回调，不拥有本地选择状态、不产生计数，也不新增请求。
-
-`VideoScreen` 的 `description` 懒列表条目复用共享 [`ExpandableText`](../../app/src/main/java/moe/kirakira/ui/components/ExpandableText.kt)，设置 `collapsedMaxLines = 3` 并沿用 `bodyLarge` 正文样式。展开状态由条目内的 `rememberSaveable(detail.summary.id)` 持有，默认收起，按视频 ID 隔离；同一视频刷新、切换 Tab 和旋转时保留。文字选择、溢出测量、展开／收起动画与中英文操作及无障碍文案由共享组件提供，不额外嵌套 `SelectionContainer`。
+最近搜索是按时间排列的单组列表，使用普通 `LazyColumn` 和官方 `ListItem`，不使用连接列表。
 
 ## 视频标签
 
-视频详情的 `videoTagList` 与屏蔽设置共用 `data/content/VideoTag.kt` 的领域模型和 DTO 映射。显示名称优先使用当前语言的默认名、同语言首个非空名称；无匹配语言时回退到 `other`、首个语言组，最后使用标签编号。简繁中文映射为 Cerasus 的 `zhs`／`zht`；原名与主名称相同时不重复显示。
+视频详情的 `videoTagList` 与屏蔽设置共用 [VideoTag.kt](../../app/src/main/kotlin/moe/kirakira/data/content/VideoTag.kt) 的领域模型和 DTO 映射。
 
-`TagRoute` 仅保存标签 ID，`TagViewModel` 绑定 Navigation 3 条目，标签信息与关联视频使用独立状态。公开读取使用共享 API 客户端、不携带 Cookie，仍捕获账号 revision，切换账号取消旧请求并清理状态；不增加磁盘缓存。
+**显示名称的回退顺序**：当前语言的默认名、同语言的首个非空名称、`other`、首个语言组，最后是标签编号。简繁中文分别映射到 Cerasus 的 `zhs`／`zht`。原名与主名称相同时不重复显示。
+
+`TagRoute` 只保存标签 ID，`TagViewModel` 绑定导航条目，标签信息和关联视频各有独立的状态，不做磁盘缓存。
 
 | 请求 | 请求字段／关键响应 | 用途 |
 | --- | --- | --- |
-| POST `video/tag/get` | `tagId: [id]`；`success`, `result` | 读取标签名称，空结果表示标签不存在 |
-| POST `video/search/tag` | `tagId: [id, …]`；`success`, `videos` | 标签页传单个 ID，搜索页可传多个 ID；当前没有分页参数 |
+| POST `video/tag/get` | `tagId: [id]`；`success`、`result` | 读取标签名称；空结果表示标签不存在 |
+| POST `video/search/tag` | `tagId: [id, …]`；`success`、`videos` | 标签页传单个 ID；没有分页参数 |
 
-标签页复用固定顶栏和视频卡片，正文顶部展示标签名称与原名；视频列表无内容时复用共享 `ContentStatusViewport`，传入实际列表 padding、实测名称与数量标题高度、可见标签状态及条目间距；名称面板使用官方 `ModalBottomSheet` 与只读 `SegmentedListItem`，底部 Insets 放入滚动内容。只接入现有只读接口，不使用视频上传接口模拟标签编辑。
+只接入了只读接口，不借用视频上传接口来模拟标签编辑。
+
+## 视频简介
+
+简介是 [VideoScreen](../../app/src/main/kotlin/moe/kirakira/feature/video/VideoScreen.kt) 里的懒列表，操作条是其中独立的一项。
+
+- [VideoActions](../../app/src/main/kotlin/moe/kirakira/feature/video/VideoActions.kt) 接收领域状态与回调，以五个等宽单元排列。可用宽度不足时横向滚动，按钮高度随标签和字体缩放增长。尺寸与配色见[按钮规范](../ui-guidelines.md#按钮单选框与阴影)。
+- 根按钮提供完整的操作名称和已知计数，内部的图标和标签清除重复语义。
+- 分享直接触发页面回调。[VideoActionsMenu](../../app/src/main/kotlin/moe/kirakira/feature/video/VideoActionsMenu.kt) 以“更多”按钮为锚点复用 `MenuPopup`，提供稍后再看、查看封面、下载和举报。
+- **收藏、稍后再看、下载和举报尚未接入业务**：它们共用“暂不可用”回调，没有本地选择状态和计数，也不发请求。
+- 简介正文复用共享的 [ExpandableText](../../app/src/main/kotlin/moe/kirakira/ui/components/text/ExpandableText.kt)。展开状态由 `rememberSaveable(视频 ID)` 持有，同一视频刷新、切换标签页和旋转时保留。
 
 ## 视频列表布局
 
-首页、搜索结果和播放历史复用 `VideoFeedGrid`。海报网格按扣除侧栏、系统 Insets 与内容内边距后的宽度选择列数。不到 600 dp 为两列，600–839 dp 为三列，从 840 dp 起为四列。浏览页跨无遮挡折痕时，`VideoFeedGrid` 继续使用同一个懒网格和滚动状态。两侧都能容纳一张至少 128 dp 宽的卡片和半个列间距时启用折痕分列。每侧容得下两张卡片和列间距时显示两列，否则一列。网格模式取两侧可分配列宽的较小值作为统一列宽，封面保持 16:9。两组列与各自的页面外缘对齐，组内保留 16 dp 间距，多余宽度留在折痕处，跨列条目仍占满内容宽度。列表模式在折痕两侧各排一列，各列填满所在侧的可用宽度。连续窗口内，可用宽度除以字体缩放达到 840 dp 时显示两列横排条目，其余宽度使用单列。搜索顶栏的背景和阴影覆盖侧栏外的整个页面。输入区、最近搜索和结果共用浏览页面宽度及水平留白。结果数量与排序控件分居结果行两端，空状态在当前内容区中居中。列表内容按视频 ID 定位；搜索结果离开再回来时用条目键与偏移恢复，不以旧网格的行号恢复。
+首页、搜索结果和播放历史复用 [VideoFeedGrid](../../app/src/main/kotlin/moe/kirakira/ui/components/video/VideoFeedGrid.kt)；卡片、封面和格式化函数集中在 `ui/components/video/`，不依赖具体的功能包。
 
-跨功能的视频列表展示集中在 `ui/components/video/`：`VideoCard`、`VideoCardRow`、`VideoArtwork`、`VideoCardLayout` 与内容格式化函数由首页、搜索、标签、资料、历史和播放器按需复用。首页向 `FeedVideoCard` 传入 `showUploadTime = false`，网格和列表布局都省略上传时间字段。通用加载状态与账号请求协调位于 `ui/content/`，会话就绪条件 `SessionState.isReadyForContent` 由 `data/auth` 定义；共享组件不依赖具体功能包。
+| 可用宽度（扣除侧栏、系统 Insets 和内容内边距） | 海报网格的列数 |
+| --- | --- |
+| 小于 600 dp | 2 |
+| 600–839 dp | 3 |
+| 840 dp 及以上 | 4 |
 
-首页、搜索、标签页、作者主页和 Preview 的卡片行距统一由 [`VideoCardRowSpacing`](../../app/src/main/java/moe/kirakira/ui/components/video/VideoCardLayout.kt) 定义。各页面分别设置标题、状态提示和列表边缘的留白。
+- **列表模式**在可用宽度除以字体缩放达到 840 dp 时显示两列横排条目，否则单列。
+- **跨折痕时**仍是同一个懒网格和同一份滚动状态。两侧都容得下卡片时按折痕分列，两组列各自对齐页面外缘，多余的宽度留在折痕处；跨列的条目仍占满内容宽度。
+- 内容按视频 ID 定位。搜索结果离开再回来时用条目键和偏移恢复，不使用旧网格的行号——列数变化后行号就不对了。
+- 首页向 `FeedVideoCard` 传入 `showUploadTime = false`，两种布局都省略上传时间。
+- 卡片行距统一由 `VideoCardRowSpacing` 定义。
 
-[评论页](../../app/src/main/java/moe/kirakira/feature/video/VideoCommentsPage.kt)与[弹幕条目](../../app/src/main/java/moe/kirakira/feature/video/DanmakuListItem.kt)使用透明背景的普通 `Row`／`Column` 布局，不使用分段背景、首尾圆角或分段间距，也不添加卡片或分割线；保留条目内边距、评论头像与操作按钮，以及弹幕左侧时间和右侧正文的对齐。
+## 评论与弹幕列表
 
-视频简介、评论和弹幕三个标签页不指定页面背景，保持透明并显示外层 `Scaffold` 默认的 `MaterialTheme.colorScheme.surface` 背景；输入框等独立组件保留各自的容器色。评论和弹幕使用 8dp 外边距；评论复用 `HorizontalFloatingToolbar` 与 `CommentJumpDialog`，在右上角悬浮显示快速前后页定位和页码跳转；计数标题按 Toolbar 实测尺寸避让，窄屏和大字体自动上下排列。不实现本地排序与楼层跳转。底部系统内边距放入 LazyColumn 的 contentPadding，输入框使用 IME 内边距。
+### 评论分页
 
-评论翻页工具栏采用 48dp 紧凑高度，横向内边距为 4dp、纵向为 0dp；高度取 48dp 与页码实测文字高度加官方 TextButton 上下内边距的较大值，保留标准触摸区域并适应字体缩放。背景使用主题 `surface`（浅色纯白、深色跟随主题），箭头继承 `onSurfaceVariant`，页码按钮保留官方强调色和禁用配色；展开与折叠的原生阴影均通过工具栏官方 elevation 参数固定为 4dp，沿默认胶囊形状投影。页码按钮按剩余宽度测量，过长时单行省略，完整页码仍由无障碍描述提供；两端箭头优先保留布局空间，标题继续按工具栏实测尺寸避让。
+评论通过 [CommentListLoader](../../app/src/main/kotlin/moe/kirakira/feature/video/CommentListState.kt) 保存一个**连续的页区间**，使用服务端每页 20 条的接口。
 
-弹幕接口一次读取并按播放时间排序，弹幕 Tab 的长列表复用共享 `LazyListScrollbar`，与邀请码页使用相同的贴边滑块及按压宽度／透明度动画。快滚条绑定原有 `danmakuListState`，叠加绘制且不改变条目宽度；滑轨顶部避让 Tab，底部使用 `FloatingComposerLayout` 提供的 `listBottomPadding` 避让发送栏与系统区域，随输入面板变化更新。仅有弹幕且列表可滚动时显示，不增加位置提示、时间提示或额外请求。
+- 请求用 `CommentRequest` 和 `CommentOperation` 明确区分跳转、刷新、末页、向前、向后和页内更新。失败后的重试保存的是原请求，而不是几个布尔参数的组合。
+- 各页合并后按评论 ID 去重，并记住每条评论所属的页。
+- 可见评论距离已加载区间的边缘不超过 3 条时请求相邻页。同页请求去重；空页或首末页停止对应方向的加载；失败后不自动重试。
+- 分页边界按服务端的**原始条数**和总页数判断。过滤后没有可显示评论的页仍参与分页；当前窗口里没有任何可显示评论时，在定位完成后继续尝试相邻页，否则会因为没有可见条目而卡住。
+- 请求代次和账号版本一起拒绝过期响应；跳转、刷新和账号切换取消失效的请求。
 
-视频评论与弹幕发布超时、网络故障、服务异常或响应异常时保留草稿及未确认标记，刷新对应内容并显示共享 `ActionDialog`，主操作查看最新内容，次操作明确再次发送可能重复。取消弹层后再次提交相同评论正文或相同弹幕正文与样式仍须确认；只有用户明确确认才再次发送，不按正文相同自动认定服务端已发布，也不自动重放写请求。标记仅存当前账号的视频 ViewModel 内存，账号重置时清除。评论与弹幕草稿只暴露只读 StateFlow，页面通过 ViewModel 的更新方法提交输入，忙碌时不改写草稿。
+**保持阅读位置**：
 
-评论通过 `CommentListLoader` 保存连续页区间，继续使用服务端每页 20 条的 API。`CommentPages` 将分页数据与排序、展开、去重后的条目绑定，仅页数据变化时重建；加载、错误与定位状态的复制复用同一份派生数据。分页请求用 `CommentRequest` 与 `CommentOperation` 明确区分跳转、刷新、末页、向前、向后和页内更新，失败重试保存原请求，不组合多个操作布尔参数。各页合并后按评论 ID 去重并保留所属页；`snapshotFlow` 在可见评论距离已加载区间边缘不超过 3 条时请求相邻页，同页请求去重，空页或首末页停止对应方向加载。上下加载具有独立状态和显式失败重试，不自动重复失败请求。列表使用稳定评论 key；向前插入时额外按旧可见评论及像素偏移保持锚点，避免顶部计数或状态条目成为锚点后引起跳动。翻页器页码来自逻辑滚动锚点之后的首条可见评论，忽略仅处于顶部 contentPadding 中的上一页尾项；自动加载不发出定位事件。显式跳转使用可消费的定位请求，已加载页直接定位，其他页成功后重建窗口。列表在下一次测量定位并核对目标 key；跳转到不足一屏的末页时，按实测评论高度补足列表底部空间并重新定位，防止补入前页后末页被挤离顶部。确认定位后才消费请求并恢复相邻页加载。跳页弹窗保留已提交页码，加载和定位期间由确认按钮显示进度，目标页定位完成后关闭；加载失败则使用现有错误文案在弹窗内反馈，评论仍可访问时允许再次提交。请求代次和账号版本共同拒绝过期响应，跳转、刷新及账号切换取消失效请求。
+- 向前插入一页时，按旧的可见评论和像素偏移保持锚点。只靠稳定 key 不够：顶部的计数或状态条目可能成为锚点，导致列表跳动。
+- 翻页器显示的页码来自逻辑滚动锚点之后的首条可见评论，忽略只露在顶部 `contentPadding` 里的上一页尾项。
+- 显式跳转使用可消费的定位请求：已加载的页直接定位，其他页加载成功后重建窗口，列表在下一次测量时定位并核对目标 key，确认后才消费请求、恢复相邻页加载。跳到不足一屏的末页时，按实测高度补足列表底部的空间再定位，否则补进前一页后末页会被挤离顶部。
+- 回顶：第 1 页已加载且没有待处理的跳转时直接滚动；否则交给 `jump(1)`，避免向前补页时又恢复旧锚点。
 
-评论 Tab 重选和系统状态栏共用回顶操作。第 1 页已加载且没有待处理的跳转时，复用 `smoothScrollToTop` 滚到评论数量标题。回顶需要跨页或取代其他待处理的跳转时，交由 `CommentListLoader.jump(1)` 取消旧请求并定位，避免向前补页恢复旧锚点。加载中的同一跳页请求去重。
+**刷新与互动**：
 
-评论逐条解码，分页边界按服务端原始条数与总页数判断。服务端返回零条时停止对应方向加载。过滤后没有可显示评论的页仍参与分页；当前已加载窗口没有可显示评论时，在跳转定位完成后继续尝试前后相邻页，不依赖可见评论触发。页区间变化会重新触发加载，仍由加载器按首末页、原始零条返回、进行中的请求及失败状态停止对应方向，不自动重试失败请求；页码工具栏仍可跳转到其他页。
+- 下拉刷新只在第 1 页已加载且位于顶部时启用；中间页的上边缘留给向前加载。
+- 局部赞踩只重读所属的页，保留其他页和阅读位置，重读期间禁用该页的互动。
+- 发布成功后按最新总数读取末页并定位；回传的评论已经出现在列表里时隐藏发布回显。
 
-评论下拉刷新仅在第 1 页已加载且滚动处于顶部时启用（空列表同样允许）；中间页的上边缘只用于前页加载。刷新成功后重建第 1 页，失败保留原内容；局部赞踩只重读所属页，保留其他页和阅读位置，重读期间禁用该页互动。发布成功后根据最新总数读取末页并定位，回传评论已出现在列表时隐藏发布回显。首页、视频当前标签页、弹幕和作者资料继续使用 Material 3 `PullToRefreshBox`；共享包装器的 `enabled` 默认保持开启。加载与错误状态独立于现有内容，不使用演示数据回填，错误状态提供重试按钮。
+### 发布结果不确定
+
+评论与弹幕的发布遇到超时、网络故障、服务异常或响应异常时，保留草稿和“未确认”标记，刷新对应内容，并弹出对话框：主操作是查看最新内容，次操作是再次发送，并明确提示可能重复。之后再提交相同的评论正文（或相同的弹幕正文与样式）仍然需要确认。不因为正文相同就认定服务端已发布，也不自动重放。标记只存当前账号的视频 ViewModel 内存。
+
+### 弹幕列表
+
+弹幕接口一次读完并按播放时间排序。弹幕标签页的长列表复用共享的 `LazyListScrollbar`；滑轨的底部跟随 `FloatingComposerLayout` 提供的留白，避让发送栏。
+
+评论的翻页工具栏使用 `HorizontalFloatingToolbar`，计数标题按工具栏的实测尺寸避让，窄屏和大字体下自动上下排列。不实现本地排序和楼层跳转。
 
 ## 关注与粉丝列表
 
-`FollowListRoute(uid, kind)` 为可序列化的 Navigation 3 路由，两种列表共享 `feature/follow/` 页面和导航条目级 `FollowListViewModel`。主页统计通过事件回调进入列表，列表行按 UID 打开 `ProfileRoute`，导航宿主防止重复入栈；返回沿用该条目的数据和滚动状态。
+`FollowListRoute(uid, kind)` 的两种列表共用 [feature/follow](../../app/src/main/kotlin/moe/kirakira/feature/follow) 的页面和条目级的 `FollowListViewModel`。
 
-`ContentRepository.followList` 复用账号快照与 revision 守卫，检查 `success`、必需的 `result` 和非负 `totalCount`，逐条解码并保留 UID 为正的用户摘要。分页模型同时记录原始条数，整页过滤后仍可用同一滚动触发器读取下一页。昵称缺失时回退到用户名；头像复用公开图片客户端。页面不逐行补读关注关系，不保存 Cookie 或列表缓存。
-
-ViewModel 从第 1 页开始，每页 50 条，保留后端顺序并按 UID 去重；结束判断使用原始返回条数的累计值与最新总数，空页直接结束。单个请求任务和请求序号协调刷新、分页与取消，过期结果不能覆盖最新状态。刷新成功替换第一页并重置分页进度；读取失败按共享 `ApiFailure.retainsContent` 保留旧内容和原分页进度，刷新失败需重试刷新，分页失败需手动重试该页。只有明确内容不可访问或会话失效时清除内容及分页状态，通用业务拒绝与响应异常不再清空旧结果。账号 revision 变化取消任务、清空内容并重新请求，UI 以 revision 校验展示状态并重建滚动状态。
-
-列表复用 `FrostedScaffold`，正文使用普通 `LazyColumn` 与官方 `ListItem`，按稳定 UID 逐项懒加载。条目容器透明，整行点击保留水波纹及禁用语义，不使用分段圆角、卡片背景或分组阴影；头像为 48dp，内容横向内边距采用 `ListItem` 默认值。首次加载与尾部分页使用共享圆形加载器；刷新使用 `ContentPullToRefresh` 覆盖式指示器，空状态也保留占位。底部系统内边距放入列表 `contentPadding`。可见行接近末尾时请求下一页，仅前台页面触发自动分页；分页错误期间停止自动触发。
+- `ContentRepository.followList` 检查 `success`、必需的 `result` 和非负的 `totalCount`，逐条解码并保留 UID 为正的用户。昵称缺失时回退到用户名。
+- 从第 1 页开始，每页 50 条，保留后端顺序并按 UID 去重。
+- **结束判断使用原始返回条数的累计值**与最新的总数；分页模型同时记录原始条数，所以整页都被过滤掉时仍能继续读下一页。空页直接结束。
+- 刷新成功后替换第一页并重置分页进度；失败时保留旧内容和原来的分页进度。刷新失败要重试刷新，分页失败要手动重试该页。
+- 只有前台页面触发自动分页，分页出错期间停止自动触发。
+- 页面不逐行补读关注关系，也不做列表缓存。
 
 ## 视频页与资料页分页
 
-两页的 Primary Tab 显式设置选中内容色为 `MaterialTheme.colorScheme.primary`、未选中内容色为 `onSurfaceVariant`，遵循 [Material Tabs 配色规范](https://m3.material.io/components/tabs/specs)。不使用 `Tab` 默认的选中与未选中同色参数，颜色随当前主题更新。
+### 吸顶布局
 
-资料页与邀请码页复用 `CollapsingTabLayout`：分页内容位于下层，资料／统计信息与 Tab 组成上层的一张完整表面。头部的 `CollapsingHeaderBackground` 持续挂载 `frostedBarBackground(shadowElevation = BarShadowElevation)`，背景、透明度和唯一的固定 4dp 原生投影位于同一背景节点，资料文字与 Tab 前景独立绘制。吸顶前后不替换背景 Modifier 或投影节点；展开态封面／实色遮层保持组合，只按同一折叠状态在绘制阶段决定是否绘制。页面不使用空投影图层、阴影补偿裁剪、外层懒列表占位项或第二份 Tab。
+资料页和邀请码页复用 [CollapsingTabLayout](../../app/src/main/kotlin/moe/kirakira/ui/components/scaffold/CollapsingTabLayout.kt)：分页内容在下层，资料（或统计）区与 Tab 组成上层的一张完整表面。
 
-`CollapsingTabState` 保存折叠距离，以实测头部高度为范围。分页的 `NestedScrollConnection` 在上滑时优先折叠头部，下滑时先由当前列表消费，剩余距离再展开头部；惯性滚动沿用滚动组件的嵌套分发。头部可直接拖动，未吸顶的 Tab 区域也可驱动折叠；吸顶后 Tab 不发起纵向滚动。分页使用完整视口高度，顶部栏和 Tab 高度经布局的 `topContentPadding` 放入各列表的 `contentPadding`；初始条目避让栏面，滚动后条目可进入栏后供毛玻璃采样，吸顶时分页上沿位于视口顶部。展开时分页只下移尚未折叠的正文高度。各 Tab 保留独立列表位置和原有回弹效果，底部系统安全区域与展开态遮挡高度按列表／滚动条各自规则避让。刷新指示器从页面顶部滑入。
+- `CollapsingTabState` 保存折叠距离，范围是实测的头部高度；简介展开、字体变化和错误条目都会更新这个范围。
+- 嵌套滚动：上滑时优先折叠头部，下滑时先由当前列表消费，剩余的距离再展开头部。未吸顶时头部和 Tab 区域都能驱动折叠，吸顶后 Tab 不发起纵向滚动。
+- 分页使用**完整的视口高度**，顶栏和 Tab 的高度放进各列表的 `contentPadding`。这样条目滚动后能进入栏后，供毛玻璃采样。
+- 头部背景始终挂载，吸顶前后不替换背景 Modifier 或投影节点；展开态的封面和实色遮层保持组合，只在绘制阶段决定画不画。背景与投影的承载方式见[栏面阴影](theme.md#栏面阴影)。
+- 各 Tab 保留独立的列表位置。
 
-资料页使用页面自身管理的 `Scaffold`，以 `CollapsingTabState.isCollapsed` 同步顶栏昵称、返回／更多按钮和表面背景。未吸顶时背景绘制封面与不透明页面底色，资料可滚过透明顶栏，按钮使用 `BackdropIconButton`。吸顶后头部正文移出可用内容区域并隐藏，停止绘制展开态封面／实色遮层，显露已挂载且仅采样 Pager 的毛玻璃背景，顶栏恢复普通图标按钮。顶栏与 Tab 不重复投影。封面随表面滚动，渐变补偿相同折叠距离以保持在视口顶部；简介展开、字体变化及错误条目以实测头部高度更新折叠范围。
+资料页以 `CollapsingTabState.isCollapsed` 同步顶栏昵称、按钮样式和背景：未吸顶时按钮使用[黑底毛玻璃按钮](components.md#黑底毛玻璃按钮)，吸顶后恢复普通图标按钮并显示昵称。
 
-资料页顶部 banner 使用本地 `profile_banner_placeholder.webp`，以 `cwebp -q 90 -m 6` 编码并保留 2543 × 320 的原始尺寸。点击区域位于资料头前景，避开头像和顶栏按钮；图片本身位于滚动背景，通过独立的 `banner` 共享键与查看器连接。`ProfilePage` 使用 `ImageSource.Resource` 打开同一张位图，复用缩放、保存、复制和下拉退出。共享来源声明为矩形，头像继续使用圆形轮廓；服务端 `userBannerImage` 字段仍只保留，不用于显示远程封面。
+资料页的顶部横幅是本地图片 `profile_banner_placeholder`，点击后通过独立的共享键进入图片查看器。服务端的 `userBannerImage` 字段只是在保存资料时原样带回，**没有用来显示远程封面**。
 
-资料页的顶栏昵称直接复用 Tab 吸顶状态，与毛玻璃背景和图标按钮样式同步：吸顶后显示单行昵称，超长省略，解除吸顶后立即隐藏。不再测量正文昵称位置或向资料头传递坐标回调。
+首次读取关注／粉丝数时显示骨架并禁用入口；已有的计数在刷新期间继续显示。
 
-`ProfilePage` 将首次统计请求及其等待资料读取的阶段传给 `ProfileHeader`。统计行保持单行，数字未返回时显示 `outlineVariant` 色的静态圆角骨架，入口暂时禁用并提供不确定进度的无障碍语义。`AnimatedContent` 以是否已有数字为切换条件，按主题动效淡出骨架、淡入数字，并将数字区过渡到实测宽度。过渡结束后，数字与标签之间留 4dp。已有计数在刷新期间继续显示，后续数字变化由 `AnimatedCountLabel` 处理。失败仍通过资料页的内嵌错误入口重试。
+### 视频页
 
-两页的 Tab 通过共享 [PagerTabRow](../../app/src/main/java/moe/kirakira/ui/components/PagerTabRow.kt) 使用官方 `PrimaryTabRow`，颜文字分类通过同一组件使用 `PrimaryScrollableTabRow`；组件统一选中／未选中内容色、[PagerTabIndicator](../../app/src/main/java/moe/kirakira/ui/components/PagerTabIndicator.kt) 与空分隔线，调用方保留 Pager 状态、标题、点击事件及背景／布局修饰符。
+视频页的播放器由常驻节点绘制，`VideoScreen` 只保留同样高度的占位区域。`VideoContentLayout` 用一个 `Layout` 承载三个同级节点，按“分页内容、顶部共享背景、Tab 前景”的顺序绘制。测量时先量 Tab，用它的实际高度确定背景下沿，所以不需要额外的坐标回调或尺寸状态。实际的播放器、原生视频表面和控件不参与背景的模糊或透明度处理。
 
-评论与弹幕共用 `ContentComposer`，在各自 `ComposerState` 中保留仅供事件读取的输入焦点、发送行及颜文字面板布局坐标；这些运行时引用不保存，组件离开组合时释放。`VideoPage` 根容器通过 `dismissComposersOnOutsideTap` 在指针 Initial 阶段观察外部短按，使用窗口坐标排除发送行和颜文字面板，忽略超过触摸阈值的移动、长按、多指手势和系统取消事件。外部点击关闭面板、清除焦点并隐藏键盘，不消费指针事件，不改动正文、光标或分类；页面非交互态时停用。
+### Tab 与指示器
 
-颜文字面板展开使用与官方 `BottomSheet` 弹出相同的主题 `defaultSpatialSpec` 弹簧，收起沿用相同的空间弹簧；不叠加淡入淡出，避免透明度过渡改变可见节奏。高度限制放在面板内容上，动画外层不以展开高度设置上限，避免 `expandVertically` 的逐帧尺寸约束截断弹簧超调；实际回弹空间仍受页面可用高度限制。
+两页的 Tab 通过共享的 [PagerTabRow](../../app/src/main/kotlin/moe/kirakira/ui/components/scaffold/PagerTabRow.kt) 使用官方 `PrimaryTabRow`（颜文字分类用 `PrimaryScrollableTabRow`），调用方保留 Pager 状态、标题和点击事件。
 
-颜文字条目不添加横向滚动，使用 `TextAutoSize.StepBased` 在单元格宽度约束内缩小字号，字号范围最低至 1sp，保证长条目完整显示。网格内左右拖动交给分类 Pager；面板打开期间，外层视频 Pager 关闭手势分页并使用空的页面嵌套滚动连接，保留顶部 Tab 点击切换，让越界位移留给分类 Pager 的原生 overscroll，而不带动视频 Tab。分类 Pager 在首尾类别继续拖动时显示系统边缘反馈（Android 12 起为拉伸，旧系统为边缘光晕）；分类 Pager 与网格使用组件默认的 overscroll 效果，网格保留纵向滚动及上下边界的原生拉伸反馈。
+- [PagerTabIndicator](../../app/src/main/kotlin/moe/kirakira/ui/components/scaffold/PagerTabIndicator.kt) 直接跟随拖动、回弹和点击切页的实际进度。前缘和后缘的插值参考 [Material Components 的 Elastic 指示器](https://github.com/material-components/material-components-android/blob/master/lib/java/com/google/android/material/tabs/ElasticTabIndicatorInterpolator.java)，形状采用它的上圆下平样式，而不是 Compose 默认的完整胶囊。
+- **可滚动栏的居中补偿**。官方的固定 Tab 栏把指示器容器约束为单个 Tab 的宽度；可滚动栏则约束为选中 Tab 的内容宽度，并额外按该 Tab 居中。指示器自己的左右边界已经用了含居中偏移的栏内坐标，所以放置时要扣掉父级的那一段居中位移，否则可滚动栏里会重复居中。固定栏两种宽度相同，补偿为零。
+- 选中索引在组合时读取，滑动进度在测量阶段读取。
 
-视频页由 `VideoPage` 的常驻 `VideoPlayerViewport` 绘制顶部播放器，`VideoScreen` 保留对应高度的占位区域，下方 Pager 与透明 Tab 栏叠放；播放器占位区域与 Tab 共用顶部背景的固定 4dp 原生投影，文字与指示器独立绘制。资料页 Tab 保留不透明配色、吸顶布局与绘制层级，固定 4dp 原生 elevation 由封面、资料区和 Tab 共用的 `CollapsingHeaderBackground` 承载。在测量阶段读取 `currentPage + currentPageOffsetFraction`。
+点击切页共用 [rememberTabChangeHandler](../../app/src/main/kotlin/moe/kirakira/ui/components/scaffold/TabTransition.kt)：取消上一次点击启动的滚动，从 Pager 的当前位置转向新目标。Pager 停稳后重复点击当前页时调用 `onTabReselect` 执行回顶；用户手动滚动可以中断回顶。
 
-参考 [Material Components 的 Elastic 指示器](https://github.com/material-components/material-components-android/blob/master/lib/java/com/google/android/material/tabs/ElasticTabIndicatorInterpolator.java)，分别以 `sin(πt/2)` 和 `1−cos(πt/2)` 插值前缘、后缘，使其先伸长再收缩；RTL 下通过相对布局镜像。
+缓动来自 [EmphasizedEasing](../../app/src/main/kotlin/moe/kirakira/ui/components/motion/EmphasizedEasing.kt)，它提供 [Material 3 emphasized easing](https://github.com/material-components/material-components-android/blob/master/docs/theming/Motion.md#curves-easing--duration)：API 28+ 读取路径相同的公开系统资源 `fast_out_extra_slow_in`，API 27 用 Compose 的 `PathEasing` 兼容。
 
-`PagerTabRow` 为各 Tab 复用显式 `MutableInteractionSource`，读取当前选中项的按压状态；指示器通过共享 `rememberTabIndicatorWidthScale` 和主题 `fastSpatialSpec` 将宽度动画缩至 70%，松开或取消后恢复。宽度状态在指示器测量阶段读取，左右边界按中心对称内收，保留 RTL 和可滚动栏的父级偏移补偿，文字和触摸区域不缩放。
+### 输入区与颜文字面板
 
-指示器直接跟随拖动、回弹和点击切页的实际进度，保留 Compose 官方主 Tab 指示器的默认高度与主题颜色；形状显式采用 Material Components 主 Tab 的上圆下平样式，顶部左右圆角为 3dp、底部左右为直角，底边贴齐 Tab 栏底部，不使用 Compose 默认的完整胶囊形状。
+评论与弹幕共用 `ContentComposer`。
 
-官方固定 Tab 栏将指示器容器约束为单个 Tab 的宽度并从栏起点放置；可滚动 Tab 栏则将容器约束为选中 Tab 的内容宽度，并额外按该 Tab 居中。`PagerTabIndicator` 的目标左右边界已经使用包含文字居中偏移的 `TabPosition` 栏内坐标，放置时扣除父级的 `max(0, (选中 Tab 宽度 − 指示器容器宽度) / 2)` 像素位移，避免可滚动栏重复居中。选中索引在组合时读取，与官方宿主使用的索引一致；滑动进度仍在测量时读取。固定栏两种宽度相同，补偿为零；滚动位移由官方滚动容器统一处理，RTL 继续使用相对放置，不添加额外像素偏移常量。
+- **点击外部关闭**。`VideoPage` 的根容器通过 `dismissComposersOnOutsideTap` 在指针的 Initial 阶段观察外部短按，用窗口坐标排除发送行和颜文字面板，并且不消费事件。它关闭面板、清除焦点并隐藏键盘，不改动正文和光标。
+- **面板与两个 Pager**。颜文字面板打开期间，外层的视频 Pager 关闭手势分页并使用空的嵌套滚动连接，越界的横向位移才会留给分类 Pager 自己的 overscroll，而不是带动视频的标签页。
+- **面板的高度动画**。高度上限设在面板内容上，而不是动画外层；否则 `expandVertically` 的逐帧尺寸约束会截掉弹簧的超调。
 
-视频页的 `VideoContentLayout` 使用同一个 `Layout` 承载分页 Column、顶部共享背景与 Tab 前景三个同级节点，按此顺序绘制：分页内容在最下层，背景覆盖经过栏后的滚动内容，Tab 文字、指示器与触摸区域位于背景之上。测量时先测量播放器下方剩余空间内的 Tab，以当前 placeable 高度确定背景下沿，再测量分页和背景；背景高度为播放器高度与实测 Tab 高度之和，限制在视口范围内，零尺寸不绘制。背景复用 `frostedBarBackground(hazeState = …, shadowElevation = BarShadowElevation)`，统一承载透明度和 elevation，并在播放器占位区域绘制黑底；Tab 不再有独立背景投影。实际播放器、原生视频表面与控件仍由常驻播放器节点独立绘制，不参与背景模糊或透明度处理。分页位置、列表留白及刷新避让继续使用原有 Tab 高度状态，不新增坐标回调或尺寸状态。
+## 用户页的关系操作与分享
 
-点击切页共用 [rememberTabChangeHandler](../../app/src/main/java/moe/kirakira/ui/components/TabTransition.kt)，取消上一次点击启动的滚动任务后从当前 Pager 位置转向新目标。 Pager 停稳后重复点击当前页时调用可选的挂起回调 `onTabReselect`，不再启动横向切页；切页途中仍按原有转向逻辑处理。共享 `rememberTabReselectHandler` 在组合协程作用域内取消前一次回顶任务并执行最新操作，切换目标页时取消回顶。视频页三组列表状态由 `VideoScreen` 持有，用户主页复用各 Tab 独立列表，播放器设置复用独立 `ScrollState`，颜文字按分类持有网格状态；列表回顶复用 `smoothScrollToTop`，用户手动滚动可中断动画。评论跨页回顶使用上文的分页定位流程。用户主页不滚动外层资料列表。
+### 屏蔽与隐藏
 
-滚动与图片查看器复用 [EmphasizedEasing](../../app/src/main/java/moe/kirakira/ui/components/EmphasizedEasing.kt) 提供的 [Material 3 emphasized easing](https://github.com/material-components/material-components-android/blob/master/docs/theming/Motion.md#curves-easing--duration) 双段路径：API 28+ 读取路径相同的公开系统资源 `fast_out_extra_slow_in`，API 27 使用 Compose `PathEasing` 兼容。
+`ContentRepository.profileDetails` 读取用户资料以及 `isBlocked`、`isHidden`、`isBlockedByOther`。只有明确屏蔽时才允许资料为空。
 
-动画快速推进后平缓收尾，不越过目标页；相邻页为 500ms，跨页按距离延长至最多 650ms。Tab 的选中状态统一使用 `currentPage`。
+[ProfileViewModel](../../app/src/main/kotlin/moe/kirakira/feature/profile/ProfileViewModel.kt) 通过共享的 `AccountSettingsRepository.changeRule` 提交，并监听 `ruleVersion`，让设置页里的变更同步过来。
 
-搜索与标签页的已加载结果数量使用共享 `AnimatedCountLabel`，英文单复数仍由实际数量选择，标签和单位保持静态，数值逐位滚动并平滑调整宽度。搜索切换 generation 后重置数字动画，标签沿用既有路由与会话隔离；加载、空状态、失败和数量来源均沿用原逻辑，不将已加载数量改为服务端总数。实现约束见[数字动画与字数计数](components.md#数字动画与字数计数)。
-
-### 用户页关系操作
-
-`ContentRepository.profileDetails` 读取用户资料及 `isBlocked`、`isHidden`、`isBlockedByOther`；仅明确屏蔽时允许资料为空，保留 `profile()` 对设置页查询的既有契约。`ProfileViewModel` 接收共享 `AccountSettingsRepository`，通过 `changeRule` 提交用户 UID，并监听 `ruleVersion` 同步设置页变更。详情读取、提交和提示绑定会话 revision；切换账号取消旧任务并清理页面关系状态。写入不自动重试，失败后重新读取详情，核对成功前禁用关系操作。
-
-资料读取失败时，结束当前仍在加载的作品与关注统计状态，按共享规则保留已有数据并记录本次失败，避免首次加载或上一轮子请求被取消后刷新指示器持续显示；已经完成的子请求结果保持不变。明确失去资料访问权限时同时清除资料、作品与统计；成功读取到屏蔽状态时保留关系标记和取消屏蔽入口，撤下公开资料与关联内容。被取消的旧刷新不得执行失败收尾或覆盖新一轮状态。
-
-`ProfilePage` 负责生命周期收集、Snackbar 与导航，`ProfileScreen` 和 `ProfileActionsMenu` 通过状态及回调渲染。更多菜单使用共享[弹出菜单](components.md#弹出菜单)，分享与关系操作同时显示时用分割线区分。本地展开状态随账号 revision 重置。屏蔽空态保留相同菜单，避免资料为空时失去取消屏蔽入口。
+- 写入不自动重试。失败后重新读取详情，核对成功之前禁用关系操作。
+- 成功读到屏蔽状态时，保留关系标记和取消屏蔽的入口，撤下公开资料和关联内容。屏蔽空态保留同一个菜单，否则资料为空时就没有取消屏蔽的入口了。
+- 资料读取失败时，同时结束仍在加载的作品与统计状态；否则子请求被取消后刷新指示器会一直显示。已完成的子请求结果保持不变。被取消的旧刷新不执行失败收尾。
 
 ### 系统分享
 
-共享 `core/share/ContentSharing.kt` 构造固定官网域名的用户与视频链接，并通过 `ACTION_SEND`、`text/plain` 和 `Intent.createChooser` 打开系统分享面板。正文包含非空名称与链接，名称缺失时只发送链接；可用名称同时放入 `EXTRA_TITLE`，不发送账号身份、认证参数或播放进度。辅助方法仅报告分享面板是否成功打开，处理无可用 Activity 或系统拒绝启动的情况，不推断分享完成或取消。
+[ContentSharing.kt](../../app/src/main/kotlin/moe/kirakira/core/share/ContentSharing.kt) 构造固定官网域名的用户和视频链接，通过 `ACTION_SEND` 和 `Intent.createChooser` 打开系统分享面板。
 
-用户菜单接收分享回调及关系操作可见性参数，点击后先关闭菜单再通知页面；本人仅显示分享组，他人额外显示关系操作组。`ProfilePage` 与 `VideoPage` 负责系统调用及失败 Snackbar，分享不经过认证写请求。用户昵称仅从当前账号 revision 的页面资料读取，跨账号或资料缺失时退回纯链接；`VideoScreen` 将独立 `onShare` 回调交给现有分享按钮，其余占位操作保持原有行为。
+- 正文是非空的名称加链接；名称缺失时只发链接。不发送账号身份、认证参数或播放进度。
+- 辅助方法只报告分享面板是否成功打开，不推断分享完成还是取消。
+- 用户昵称只从当前账号 revision 的页面资料读取，跨账号或资料缺失时退回纯链接。
+- 分享不经过认证写请求，游客也可以使用。
 
-### 读取失败与访问失效
+## 历史搜索与收藏
 
-`ApiClient` 将 HTTP 403／404／410 映射为 `CONTENT_UNAVAILABLE`，其余未区分原因的业务拒绝继续为 `REJECTED`，不根据服务端消息文本推断隐私或资源状态。视频详情及作者作品接口明确返回 `isBlocked` 时也使用 `CONTENT_UNAVAILABLE`；用户详情保留独立的屏蔽关系结果。错误文案继续由 `ApiFailure.messageRes()` 统一提供中英文映射。
+### 历史搜索
 
-已确认的用户屏蔽变更按账号和作者通知保留的视频页面，屏蔽时立即撤下相关内容及播放，解除后重新核对详情。评论赞踩后的页内核对失败时保留待核对状态，阻止继续按旧赞踩状态提交，直到重试或刷新成功。
+历史页与设置页共用 `PageSearchBarAnchor` 和 `PageSearchOverlay`（见[可复用的顶栏搜索](components.md#可复用的顶栏搜索)）。两者的差别在宿主：
 
-内容页、搜索、资料、关注／粉丝、历史、评论与管理列表的读取失败共用保留规则。视频详情失去访问权限时，取消并清除评论与弹幕读取及评论发布回显，视频页撤下已确认的分 P 和播放输出，并关闭对应的应用内小窗。ViewModel 分别保留访问失效与待清理播放器状态，后者只在播放器完成清理后确认，避免快速重试覆盖失效信号；确认访问恢复及清理完成前不显示旧封面或播放输出。子内容加载、重试、翻页及写操作后的列表刷新均检查访问状态；重新读取详情期间及核对失败后仍禁止子请求，只有详情成功返回才恢复。失效时点击评论或弹幕重试会先重新读取视频详情，重复点击不会重启正在进行的核对；按钮重试显示页内加载，下拉重试显示覆盖式刷新指示器并暂时禁用重试按钮。核对失败在子页面显示实际错误，详情成功后重新加载弹幕供播放器叠加，并按当前标签页恢复评论加载；评论读取独立失去访问权限时，清空该列表并把重试定位回第一页评论。资料编辑、隐私与安全设置的读取分支也只在明确访问失效时撤下旧资料；写入失败的草稿保留、已提交后的同步及结果不确定时的只读核对沿用各流程原有约定。
+- 设置搜索在单栏时使用全屏 Dialog。
+- **历史搜索在 Activity 窗口内展开**，不使用独立窗口。从搜索结果打开视频时，独立窗口会被销毁；留在同一窗口里，搜索层和封面才能由 Navigation 3 的来源 Scene 保留在播放层下方，封面 Zoom 可以直接开始，返回后也恢复到同样的搜索内容和位置。
 
-## 历史记录搜索顶栏
+搜索层的可见性只由 `SearchBarState` 决定，不随页面是否激活而变；页面失活时只释放输入焦点并停用局部的返回处理。展开与收回的几何规则来自官方的 `FullScreenSearchBarLayout`，来源与适配边界见 [AndroidX 搜索展开布局](../../third_party/android-search/README.md)。
 
-历史页与设置页共用 `PageSearchBarAnchor` 和官方搜索输入组件，搜索栏位于固定标题栏及静止历史底纹下方。历史顶栏前景、搜索栏和记录列表共用首页与主搜索的浏览页面宽度。设置与历史结果共用 `PageSearchOverlay`。单栏设置搜索使用全屏 Dialog，双栏设置搜索在目录内展开。历史搜索在 Activity 窗口内展开，避免视频导航时销毁独立窗口。覆盖层可见期间，底层历史列表和顶栏暂停触摸、键盘和无障碍交互。页面分别持有普通列表与搜索列表的 `LazyGridState`，并复用 `HistoryContent` 渲染日期分组、加载／空态、刷新和视频入口；查询仅通过现有账号查询回调保留在内存，账号 revision 改变时重建。
+页面分别持有普通列表和搜索列表的滚动状态；查询只存内存，账号 revision 变化时重建。空状态图形见[搜索空结果图形](components.md#搜索空结果图形)。
 
-历史搜索层的可见性仅由 `SearchBarState` 决定，不随页面 `isActive` 改变。视频导航使历史页失活时只释放输入焦点并停用局部返回处理，搜索层与封面仍由 Navigation 3 的来源 Scene 保留在播放层下方；点击可直接启动同窗口的封面 Zoom，返回视频后恢复同一搜索内容与位置。展开／收回按官方 `FullScreenSearchBarLayout` 的普通几何规则，从胶囊实际位置和大小插值到全屏；圆角、输入框、顶栏高度与结果透明度同步变化，时序由公开 `SearchBarState` 驱动，逐帧进度在布局和绘制阶段读取，来源与适配边界见 [AndroidX 搜索展开布局](../../third_party/android-search/README.md)。清空、提交与键盘返回策略沿用共享输入组件，不使用独立窗口、位图背景或跨窗口坐标补偿。
+### 收藏
 
-`ContentStatus.emptyDescription` 允许调用方省略空状态辅助说明；主搜索空结果、主搜索首页空历史、历史页普通空记录及历史搜索空结果传入 `null`，加载与错误分支沿用原有提示。
-
-历史页的普通空记录和搜索无匹配通过 `ContentStatus.emptyIcon` 展示 `HistorySearchLogo`，游客登录提示通过 `ContentUnavailableView.icon` 展示同一 Logo。时钟保留经典 Android Clock 的三根指针和斜向长阴影，外沿参考回溯时钟采用随主题配色的宽纸片式逆时针箭头，带独立投影；进入空结果时指针回拨、箭头展开一次。普通空记录与游客提示均保留原有文案及操作，首次加载和错误状态保留原有提示。图形实现见[搜索空结果图形](components.md#搜索空结果图形)。
-
-## 收藏占位页
-
-[`FavoritesPage`](../../app/src/main/java/moe/kirakira/feature/favorites/FavoritesPage.kt) 由 `FavoritesRoute` 注册到 `ContentEntries`，从“我”的收藏条目经 `MainScreen.onOpenFavorites` 打开，沿用 `NavigationPage` 和宿主返回转场。页面复用 `FrostedScaffold`、`PageTopAppBar` 与 `ContentUnavailableView.icon`，展示已有的未开放文案，无数据请求或占位 ViewModel。正文承担 Scaffold Insets，图形由 [`FavoritesLogo`](../../app/src/main/java/moe/kirakira/ui/components/FavoritesLogo.kt) 绘制。
+[FavoritesPage](../../app/src/main/kotlin/moe/kirakira/feature/favorites/FavoritesPage.kt) 是占位页：只显示“尚未开放”的说明，没有数据请求，也没有 ViewModel。

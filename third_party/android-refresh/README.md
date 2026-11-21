@@ -1,6 +1,6 @@
 # Android 下拉刷新指示器
 
-共享实现位于 [ContentPullToRefresh.kt](../../app/src/main/java/moe/kirakira/ui/components/ContentPullToRefresh.kt)，其余加载场景继续复用官方 Material 2 不确定进度组件。
+共享实现位于 [ContentPullToRefresh.kt](../../app/src/main/kotlin/moe/kirakira/ui/components/status/ContentPullToRefresh.kt)，其余加载场景继续复用官方 Material 2 不确定进度组件。
 
 ## 官方来源
 
