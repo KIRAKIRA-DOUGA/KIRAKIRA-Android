@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -23,7 +24,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -42,6 +42,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import moe.kirakira.R
@@ -49,7 +51,7 @@ import moe.kirakira.feature.settings.SettingsDefaults
 import moe.kirakira.feature.settings.SettingsScaffold
 import moe.kirakira.ui.components.FlatTextButton
 import moe.kirakira.ui.components.StatusBarScrollToTopEffect
-import moe.kirakira.ui.components.cardColorShadow
+import moe.kirakira.ui.theme.ThemeColorDefaults
 
 @Composable
 internal fun ComponentDetailScreen(
@@ -97,7 +99,8 @@ private fun ComponentDetailPage(
         shadingIcon = R.drawable.ic_icon_palette,
         modifier = modifier,
         imePadding = component == GalleryComponent.TEXT_FIELD ||
-            component == GalleryComponent.PASSWORD || component == GalleryComponent.OTP,
+            component == GalleryComponent.PASSWORD || component == GalleryComponent.OTP ||
+            component == GalleryComponent.COLOR_PICKER,
         actions = { FlatTextButton(onClick = onReset) { Text(stringResource(R.string.component_gallery_reset)) } },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
@@ -167,46 +170,44 @@ private fun ComponentExample(
     onSnackbarAction: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val containerColor = MaterialTheme.colorScheme.surface
-    val shape = MaterialTheme.shapes.large
-    Surface(
-        modifier = modifier.fillMaxWidth().cardColorShadow(shape, containerColor),
-        shape = shape,
-        color = containerColor,
+    val pageBackgroundColor = ThemeColorDefaults.settingsBackgroundColor()
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(SettingsDefaults.SectionSpacing),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            when (component) {
-                GalleryComponent.TEXT_BUTTON -> TextButtonSamples(onFeedback)
-                GalleryComponent.ICON_BUTTON -> IconButtonSamples(onFeedback)
-                GalleryComponent.FAB -> FabSample(onFeedback)
-                GalleryComponent.TOGGLE_BUTTON -> ToggleButtonSamples()
-                GalleryComponent.FOLLOW_BUTTON -> FollowButtonSamples()
-                GalleryComponent.SEGMENTED -> SegmentedSample(containerColor)
-                GalleryComponent.SWITCH -> SwitchSamples()
-                GalleryComponent.CHECKBOX -> CheckboxSamples()
-                GalleryComponent.RADIO -> RadioSamples()
-                GalleryComponent.SLIDER -> SliderSamples()
-                GalleryComponent.TEXT_FIELD, GalleryComponent.PASSWORD, GalleryComponent.OTP ->
-                    InputSamples(component, containerColor)
-                GalleryComponent.PROGRESS -> ProgressSamples()
-                GalleryComponent.CONTENT_STATE -> ContentStateSamples(onFeedback)
-                GalleryComponent.NUMBER -> NumberSamples()
-                GalleryComponent.EXPANDABLE_TEXT -> ExpandableTextSamples()
-                GalleryComponent.AVATAR -> AvatarSamples()
-                GalleryComponent.BADGE -> BadgeSamples()
-                GalleryComponent.CONNECTED_LIST -> ConnectedListSamples()
-                GalleryComponent.CHIP -> ChipSamples(containerColor, onFeedback)
-                GalleryComponent.DIALOG -> DialogSamples(option, onOpenOverlay)
-                GalleryComponent.MENU -> MenuSample(
-                    expanded = overlay == ComponentOverlay.MENU,
-                    option = option,
-                    onExpandedChange = { onOpenOverlay(if (it) ComponentOverlay.MENU else null) },
-                    onChoose = onChooseMenu,
-                    onFeedback = onFeedback,
-                )
-                GalleryComponent.SHEET -> SheetSample { onOpenOverlay(ComponentOverlay.SHEET) }
-                GalleryComponent.SNACKBAR -> SnackbarSamples(onFeedback, onSnackbarAction)
-            }
+        when (component) {
+            GalleryComponent.TEXT_BUTTON -> TextButtonSamples(onFeedback)
+            GalleryComponent.ICON_BUTTON -> IconButtonSamples(onFeedback)
+            GalleryComponent.FAB -> FabSample(onFeedback)
+            GalleryComponent.TOGGLE_BUTTON -> ToggleButtonSamples()
+            GalleryComponent.FOLLOW_BUTTON -> FollowButtonSamples()
+            GalleryComponent.SEGMENTED -> SegmentedSample(pageBackgroundColor)
+            GalleryComponent.SWITCH -> SwitchSamples()
+            GalleryComponent.CHECKBOX -> CheckboxSamples()
+            GalleryComponent.RADIO -> RadioSamples()
+            GalleryComponent.SLIDER -> SliderSamples()
+            GalleryComponent.TEXT_FIELD, GalleryComponent.PASSWORD, GalleryComponent.OTP ->
+                InputSamples(component, pageBackgroundColor)
+            GalleryComponent.COLOR_PICKER -> ColorPickerSample(pageBackgroundColor)
+            GalleryComponent.PROGRESS -> ProgressSamples()
+            GalleryComponent.CONTENT_STATE -> ContentStateSamples(onFeedback)
+            GalleryComponent.NUMBER -> NumberSamples()
+            GalleryComponent.EXPANDABLE_TEXT -> ExpandableTextSamples()
+            GalleryComponent.AVATAR -> AvatarSamples()
+            GalleryComponent.BADGE -> BadgeSamples()
+            GalleryComponent.CONNECTED_LIST -> ConnectedListSamples()
+            GalleryComponent.CHIP -> ChipSamples(pageBackgroundColor, onFeedback)
+            GalleryComponent.PAGER_TABS -> PagerTabsSample()
+            GalleryComponent.DIALOG -> DialogSamples(option, onOpenOverlay)
+            GalleryComponent.MENU -> MenuSample(
+                expanded = overlay == ComponentOverlay.MENU,
+                option = option,
+                onExpandedChange = { onOpenOverlay(if (it) ComponentOverlay.MENU else null) },
+                onChoose = onChooseMenu,
+                onFeedback = onFeedback,
+            )
+            GalleryComponent.SHEET -> SheetSample { onOpenOverlay(ComponentOverlay.SHEET) }
+            GalleryComponent.SNACKBAR -> SnackbarSamples(onFeedback, onSnackbarAction)
         }
     }
 }
@@ -217,14 +218,40 @@ internal fun SampleSection(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(modifier.fillMaxWidth()) {
         Text(
             text = stringResource(title),
-            modifier = Modifier.semantics { heading() },
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.fillMaxWidth().semantics { heading() },
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
         )
-        content()
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            content = content,
+        )
+    }
+}
+
+@Composable
+internal fun SampleLabeledItem(
+    label: String,
+    modifier: Modifier = Modifier,
+    minPreviewHeight: Dp = Dp.Unspecified,
+    content: @Composable () -> Unit,
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(Modifier.heightIn(min = minPreviewHeight), contentAlignment = Alignment.Center) { content() }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 

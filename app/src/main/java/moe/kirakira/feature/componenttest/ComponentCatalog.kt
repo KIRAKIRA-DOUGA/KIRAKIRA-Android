@@ -33,6 +33,7 @@ internal enum class GalleryComponent(val group: GalleryGroup, @param:StringRes v
     TEXT_FIELD(GalleryGroup.CONTROLS, R.string.component_gallery_text_field),
     PASSWORD(GalleryGroup.CONTROLS, R.string.component_gallery_password),
     OTP(GalleryGroup.CONTROLS, R.string.component_gallery_otp),
+    COLOR_PICKER(GalleryGroup.CONTROLS, R.string.component_gallery_color_picker),
 
     PROGRESS(GalleryGroup.CONTENT, R.string.component_gallery_progress),
     CONTENT_STATE(GalleryGroup.CONTENT, R.string.component_gallery_content_state),
@@ -43,6 +44,7 @@ internal enum class GalleryComponent(val group: GalleryGroup, @param:StringRes v
 
     CONNECTED_LIST(GalleryGroup.LISTS, R.string.component_gallery_connected_list),
     CHIP(GalleryGroup.LISTS, R.string.component_gallery_chip),
+    PAGER_TABS(GalleryGroup.LISTS, R.string.component_gallery_pager_tabs),
 
     DIALOG(GalleryGroup.OVERLAYS, R.string.component_gallery_dialog),
     MENU(GalleryGroup.OVERLAYS, R.string.component_gallery_menu),

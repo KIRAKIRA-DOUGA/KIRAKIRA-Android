@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledIconToggleButton
@@ -48,20 +49,16 @@ import moe.kirakira.ui.components.pressToRoundButtonShapes
 internal fun TextButtonSamples(onFeedback: (String) -> Unit) {
     val click = { onFeedback("已点击按钮") }
     SampleSection(R.string.component_gallery_variant_styles) {
-        Text("带文字按钮：按压变形")
         SampleRow {
             ShadowButton(onClick = click) { Text("实心按钮") }
             ShadowFilledTonalButton(onClick = click) { Text("浅色按钮") }
             OutlinedButton(onClick = click, shapes = pressToRoundButtonShapes()) { Text("描边按钮") }
             ShadowButton(onClick = click, destructive = true) { Text("危险操作") }
-        }
-        Text("平面文字按钮：按压变形")
-        SampleRow {
             FlatTextButton(onClick = click) { Text("文字按钮") }
             DestructiveTextButton(onClick = click) { Text("危险文字按钮") }
         }
     }
-    SampleSection(R.string.component_gallery_variant_disabled_loading) {
+    SampleSection(R.string.component_gallery_variant_disabled) {
         SampleRow {
             ShadowButton(onClick = {}, enabled = false) { Text("禁用按钮") }
             ShadowFilledTonalButton(onClick = {}, enabled = false) { Text("禁用浅色按钮") }
@@ -69,38 +66,41 @@ internal fun TextButtonSamples(onFeedback: (String) -> Unit) {
             ShadowButton(onClick = {}, enabled = false, destructive = true) { Text("禁用危险操作") }
             FlatTextButton(onClick = {}, enabled = false) { Text("禁用文字按钮") }
         }
+    }
+    SampleSection(R.string.component_gallery_variant_loading) {
         SampleRow {
-            ShadowButton(onClick = {}, loading = true) { Text("提交") }
-            ShadowFilledTonalButton(onClick = {}, loading = true) { Text("确认") }
-            FlatTextButton(onClick = {}, loading = true) { Text("保存") }
-            ShadowFilledIconButton(onClick = {}, loading = true) {
-                Icon(painterResource(R.drawable.ic_icon_send), "发送")
-            }
+            ShadowButton(onClick = click, enabled = false, loading = true) { Text("提交") }
+            ShadowFilledTonalButton(onClick = click, loading = true) { Text("确认") }
+            FlatTextButton(onClick = click, loading = true) { Text("保存") }
+            ShadowButton(onClick = click, destructive = true, loading = true) { Text("危险操作") }
         }
     }
     SampleSection(R.string.component_gallery_variant_sizes) {
-        Text("Small / Medium / Large")
-        SampleRow {
-            listOf(ButtonDefaults.MinHeight, ButtonDefaults.MediumContainerHeight, ButtonDefaults.LargeContainerHeight)
-                .zip(listOf("Small", "Medium", "Large"))
-                .forEach { (height, label) ->
-                    ShadowButton(
-                        onClick = click,
-                        modifier = Modifier.heightIn(min = height),
-                        shapes = pressToRoundButtonShapes(height),
-                        contentPadding = ButtonDefaults.contentPaddingFor(height),
-                    ) {
-                        Text(label, style = ButtonDefaults.textStyleFor(height))
-                    }
-                    FlatTextButton(
-                        onClick = click,
-                        modifier = Modifier.heightIn(min = height),
-                        shapes = pressToRoundButtonShapes(height),
-                        contentPadding = ButtonDefaults.contentPaddingFor(height),
-                    ) {
-                        Text(label, style = ButtonDefaults.textStyleFor(height))
-                    }
+        val sizes = listOf(
+            ButtonDefaults.MinHeight to R.string.component_gallery_size_small,
+            ButtonDefaults.MediumContainerHeight to R.string.component_gallery_size_medium,
+            ButtonDefaults.LargeContainerHeight to R.string.component_gallery_size_large,
+        )
+        sizes.forEach { (height, labelRes) ->
+            val label = stringResource(labelRes)
+            SampleRow {
+                ShadowButton(
+                    onClick = click,
+                    modifier = Modifier.heightIn(min = height),
+                    shapes = pressToRoundButtonShapes(height),
+                    contentPadding = ButtonDefaults.contentPaddingFor(height),
+                ) {
+                    Text(label, style = ButtonDefaults.textStyleFor(height))
                 }
+                FlatTextButton(
+                    onClick = click,
+                    modifier = Modifier.heightIn(min = height),
+                    shapes = pressToRoundButtonShapes(height),
+                    contentPadding = ButtonDefaults.contentPaddingFor(height),
+                ) {
+                    Text(label, style = ButtonDefaults.textStyleFor(height))
+                }
+            }
         }
     }
 }
@@ -109,7 +109,6 @@ internal fun TextButtonSamples(onFeedback: (String) -> Unit) {
 internal fun IconButtonSamples(onFeedback: (String) -> Unit) {
     val click = { onFeedback("已点击按钮") }
     SampleSection(R.string.component_gallery_variant_styles) {
-        Text("图标按钮：固定圆形")
         SampleRow {
             ShadowFilledIconButton(onClick = click) { SampleIcon(description = "实心图标按钮") }
             ShadowFilledTonalIconButton(onClick = click) { SampleIcon(description = "浅色图标按钮") }
@@ -117,17 +116,27 @@ internal fun IconButtonSamples(onFeedback: (String) -> Unit) {
                 SampleIcon(description = "描边图标按钮")
             }
             IconButton(onClick = click) { SampleIcon(description = "普通图标按钮") }
-            ShadowFilledTonalIconButton(
-                onClick = click,
-                shapes = IconButtonShapes(IconButtonDefaults.filledShape, IconButtonDefaults.filledShape),
-            ) { SampleIcon(description = "固定轮廓工具按钮") }
         }
     }
-    SampleSection(R.string.component_gallery_variant_states) {
+    SampleSection(R.string.component_gallery_variant_disabled) {
         SampleRow {
             ShadowFilledIconButton(onClick = {}, enabled = false) { SampleIcon(description = "禁用实心图标按钮") }
             ShadowFilledTonalIconButton(onClick = {}, enabled = false) { SampleIcon(description = "禁用浅色图标按钮") }
             IconButton(onClick = {}, enabled = false) { SampleIcon(description = "禁用裸图标按钮") }
+        }
+    }
+    SampleSection(R.string.component_gallery_variant_loading) {
+        ShadowFilledIconButton(onClick = click, loading = true) {
+            Icon(painterResource(R.drawable.ic_icon_send), stringResource(R.string.component_gallery_sending))
+        }
+    }
+    SampleSection(R.string.component_gallery_variant_toolbar) {
+        ShadowFilledTonalIconButton(
+            onClick = click,
+            modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
+            shapes = IconButtonShapes(IconButtonDefaults.filledShape, IconButtonDefaults.filledShape),
+        ) {
+            Icon(painterResource(R.drawable.ic_custom_rotate_right), stringResource(R.string.profile_rotate))
         }
     }
 }
@@ -142,7 +151,7 @@ internal fun ToggleButtonSamples() {
     var toggled by rememberSaveable { mutableStateOf(false) }
     var toggledWithIcon by rememberSaveable { mutableStateOf(false) }
     var iconToggled by rememberSaveable { mutableStateOf(false) }
-    SampleSection(R.string.component_gallery_variant_states) {
+    SampleSection(R.string.component_gallery_variant_text_only) {
         SampleRow {
             ShadowToggleButton(checked = toggled, onCheckedChange = { toggled = it }) { checked ->
                 Text(if (checked) "已切换" else "切换按钮")
@@ -202,7 +211,7 @@ private fun ToggleSampleIcon(contentDescription: String? = null) {
 @Composable
 internal fun FollowButtonSamples() {
     var following by rememberSaveable { mutableStateOf(false) }
-    SampleSection(R.string.component_gallery_variant_states) {
+    SampleSection(R.string.component_gallery_variant_availability) {
         SampleRow {
             FollowButton(following = following, onFollowingChange = { following = it })
             FollowButton(following = true, onFollowingChange = {}, enabled = false)

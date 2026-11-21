@@ -17,9 +17,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
 import moe.kirakira.core.network.ApiFailure
+import moe.kirakira.feature.settings.SettingsDefaults
 import moe.kirakira.ui.components.AccountAvatar
 import moe.kirakira.ui.components.AnimatedCountLabel
 import moe.kirakira.ui.components.AnimatedNumberText
@@ -36,15 +38,19 @@ import moe.kirakira.ui.content.ContentState
 internal fun ContentStateSamples(onFeedback: (String) -> Unit, modifier: Modifier = Modifier) {
     var state by rememberSaveable { mutableIntStateOf(1) }
     var presentation by rememberSaveable { mutableIntStateOf(1) }
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SampleRow {
-            listOf("加载", "空状态", "错误").forEachIndexed { index, label ->
-                FlatTextButton(onClick = { state = index }, enabled = state != index) { Text(label) }
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(SettingsDefaults.SectionSpacing)) {
+        SampleSection(R.string.component_gallery_variant_content_state) {
+            SampleRow {
+                listOf("加载", "空状态", "错误").forEachIndexed { index, label ->
+                    FlatTextButton(onClick = { state = index }, enabled = state != index) { Text(label) }
+                }
             }
         }
-        SampleRow {
-            listOf("页面", "列表", "媒体").forEachIndexed { index, label ->
-                FlatTextButton(onClick = { presentation = index }, enabled = presentation != index) { Text(label) }
+        SampleSection(R.string.component_gallery_variant_presentation) {
+            SampleRow {
+                listOf("页面", "列表", "媒体").forEachIndexed { index, label ->
+                    FlatTextButton(onClick = { presentation = index }, enabled = presentation != index) { Text(label) }
+                }
             }
         }
         Box(Modifier.fillMaxWidth().height(280.dp)) {
@@ -112,24 +118,34 @@ internal fun ExpandableTextSamples(modifier: Modifier = Modifier) {
 
 @Composable
 internal fun AvatarSamples() {
-    SampleSection(R.string.component_gallery_variant_sizes) {
-        Text("游客头像：24dp / 40dp / 64dp")
-        SampleRow {
-            listOf(24.dp, 40.dp, 64.dp).forEach { size -> AccountAvatar(url = null, size = size) }
+    SampleRow {
+        listOf(24, 40, 64).forEach { size ->
+            SampleLabeledItem(stringResource(R.string.component_gallery_size_dp, size), minPreviewHeight = 64.dp) {
+                AccountAvatar(url = null, size = size.dp)
+            }
         }
     }
 }
 
 @Composable
 internal fun BadgeSamples() {
-    SampleSection(R.string.component_gallery_variant_styles) {
-        Text("强调 / 次要 / 第三色 / 中性 / 错误")
+    SampleSection(R.string.component_gallery_variant_badge_colors) {
+        val tones = listOf(
+            IconBadgeTone.PRIMARY to R.string.component_gallery_tone_primary,
+            IconBadgeTone.SECONDARY to R.string.component_gallery_tone_secondary,
+            IconBadgeTone.TERTIARY to R.string.component_gallery_tone_tertiary,
+            IconBadgeTone.NEUTRAL to R.string.component_gallery_tone_neutral,
+            IconBadgeTone.ERROR to R.string.component_gallery_tone_error,
+        )
         SampleRow {
-            IconBadgeTone.entries.forEach { tone -> IconBadge(icon = R.drawable.ic_icon_info, tone = tone) }
+            tones.forEach { (tone, label) ->
+                SampleLabeledItem(stringResource(label)) {
+                    IconBadge(icon = R.drawable.ic_icon_info, tone = tone)
+                }
+            }
         }
     }
-    SampleSection(R.string.component_gallery_variant_states) {
-        Text("禁用徽章")
+    SampleSection(R.string.component_gallery_variant_disabled) {
         IconBadge(icon = R.drawable.ic_icon_lock, enabled = false)
     }
 }

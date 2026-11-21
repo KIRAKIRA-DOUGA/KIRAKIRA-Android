@@ -15,7 +15,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SelectableDropdownMenuItem
 import androidx.compose.material3.SegmentedListItem
@@ -41,6 +40,7 @@ import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.ShadowRadioButton
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.menuItemColors
+import moe.kirakira.ui.components.menuItemShapes
 
 internal enum class ComponentOverlay { PLAIN, ICON, DANGER, CHOICE, LONG_BUTTONS, THREE_ACTIONS, MENU, SHEET }
 
@@ -81,7 +81,7 @@ internal fun MenuSample(
             },
         ) {
             val colors = menuItemColors()
-            val shapes = MenuDefaults.itemShapes()
+            val shapes = menuItemShapes()
             repeat(4) { index ->
                 if (index == 2) MenuDivider()
                 SelectableDropdownMenuItem(

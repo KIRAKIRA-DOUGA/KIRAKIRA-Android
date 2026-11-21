@@ -167,8 +167,6 @@
     <string name="settings_account">Account</string>
     <string name="settings_general">General</string>
     <string name="settings_appearance">Appearance</string>
-    <string name="settings_playback">Playback</string>
-    <string name="settings_danmaku">Danmaku</string>
     <string name="settings_language">Language</string>
     <string name="language_system">Follow system</string>
     <string name="language_system_current">Currently %1$s</string>
@@ -181,6 +179,8 @@
     <string name="language_native_chinese_simplified" translatable="false">简体中文</string>
     <string name="language_native_chinese_traditional" translatable="false">繁體中文</string>
     <string name="language_native_japanese" translatable="false">日本語</string>
+    <string name="settings_playback">Playback</string>
+    <string name="settings_danmaku">Danmaku</string>
     <string name="settings_about">About</string>
     <string name="settings_switch_account">Switch account</string>
     <string name="settings_log_out">Log out</string>
@@ -605,7 +605,7 @@
     <string name="component_gallery_group_buttons">Buttons</string>
     <string name="component_gallery_group_controls">Input and selection</string>
     <string name="component_gallery_group_content">Content</string>
-    <string name="component_gallery_group_lists">Lists and chips</string>
+    <string name="component_gallery_group_lists">Lists, chips, and tabs</string>
     <string name="component_gallery_group_overlays">Overlays and feedback</string>
     <string name="component_gallery_text_button">Text buttons</string>
     <string name="component_gallery_icon_button">Icon buttons</string>
@@ -633,14 +633,9 @@
     <string name="component_gallery_sheet">Bottom sheet</string>
     <string name="component_gallery_snackbar">Snackbar</string>
     <string name="component_gallery_variant_styles">Styles</string>
-    <string name="component_gallery_variant_editable">Editable</string>
-    <string name="component_gallery_variant_read_only_disabled">Read-only and disabled</string>
-    <string name="component_gallery_show_error">Show error</string>
-    <string name="component_gallery_variant_states">States</string>
     <string name="component_gallery_variant_icon_and_text">Icon and text</string>
     <string name="component_gallery_variant_icon_only">Icon only</string>
     <string name="component_gallery_variant_sizes">Sizes</string>
-    <string name="component_gallery_variant_disabled_loading">Disabled and loading</string>
     <string name="component_gallery_variant_after_loading">Update after loading</string>
     <string name="component_gallery_variant_during_loading">Update during loading</string>
     <string name="component_gallery_variant_continuous">Continuous</string>
@@ -651,4 +646,32 @@
     <string name="component_gallery_variant_grouped_items">Grouped items</string>
     <string name="component_gallery_variant_standard_dialogs">Standard variants</string>
     <string name="component_gallery_variant_dialog_actions">Action layouts</string>
+    <string name="component_gallery_color_picker">Color picker</string>
+    <string name="component_gallery_pager_tabs">Pager tabs</string>
+    <string name="component_gallery_variant_availability">Enabled and disabled</string>
+    <string name="component_gallery_variant_badge_colors">Badge colors</string>
+    <string name="component_gallery_variant_content_state">Preview state</string>
+    <string name="component_gallery_variant_disabled">Disabled</string>
+    <string name="component_gallery_variant_editable">Editable</string>
+    <string name="component_gallery_variant_loading">Loading</string>
+    <string name="component_gallery_variant_presentation">Placement</string>
+    <string name="component_gallery_variant_read_only_disabled">Read-only and disabled</string>
+    <string name="component_gallery_variant_text_only">Text only</string>
+    <string name="component_gallery_variant_toolbar">Toolbar button</string>
+    <string name="component_gallery_sending">Sending</string>
+    <string name="component_gallery_show_error">Show error</string>
+    <string name="component_gallery_size_small">Small</string>
+    <string name="component_gallery_size_medium">Medium</string>
+    <string name="component_gallery_size_large">Large</string>
+    <string name="component_gallery_size_dp">%1$d dp</string>
+    <string name="component_gallery_percent">%1$d%%</string>
+    <string name="component_gallery_tab_first">First</string>
+    <string name="component_gallery_tab_second">Second</string>
+    <string name="component_gallery_tab_third">Third</string>
+    <string name="component_gallery_tab_page">Page %1$d of %2$d</string>
+    <string name="component_gallery_tone_primary">Primary</string>
+    <string name="component_gallery_tone_secondary">Secondary</string>
+    <string name="component_gallery_tone_tertiary">Tertiary</string>
+    <string name="component_gallery_tone_neutral">Neutral</string>
+    <string name="component_gallery_tone_error">Error</string>
 </resources>

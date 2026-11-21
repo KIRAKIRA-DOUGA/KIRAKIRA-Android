@@ -155,6 +155,12 @@ internal fun ComponentThumbnail(component: GalleryComponent, modifier: Modifier 
                     }
                 }
             }
+            GalleryComponent.COLOR_PICKER -> Box(
+                modifier = Modifier.size(48.dp).background(colors.primary, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                PreviewIcon(R.drawable.ic_icon_palette, tint = colors.onPrimary)
+            }
             GalleryComponent.PROGRESS -> LinearProgressIndicator(
                 progress = { 0.6f },
                 modifier = Modifier.width(92.dp),
@@ -181,6 +187,17 @@ internal fun ComponentThumbnail(component: GalleryComponent, modifier: Modifier 
             GalleryComponent.CONNECTED_LIST -> ConnectedListPreview()
             GalleryComponent.CHIP -> PreviewButton(shape = CircleShape) {
                 PreviewIcon(R.drawable.ic_icon_tag, modifier = Modifier.size(16.dp))
+            }
+            GalleryComponent.PAGER_TABS -> Column(
+                modifier = Modifier.width(94.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PreviewLine(colors.primary, Modifier.weight(1f))
+                    PreviewLine(colors.onSurfaceVariant, Modifier.weight(1f))
+                }
+                PreviewLine(colors.primary, Modifier.width(36.dp), height = 3)
+                PreviewLine(colors.surface, Modifier.fillMaxWidth(), height = 20)
             }
             GalleryComponent.DIALOG -> PreviewPanel(Modifier.width(94.dp)) {
                 PreviewIcon(R.drawable.ic_icon_info, modifier = Modifier.align(Alignment.CenterHorizontally))

@@ -21,7 +21,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SuggestionChip
@@ -50,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlin.math.roundToInt
 import moe.kirakira.R
 import moe.kirakira.ui.components.AppChipDefaults
 import moe.kirakira.ui.components.CharacterCount
@@ -57,51 +57,47 @@ import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.ui.components.FilledTextField
 import moe.kirakira.ui.components.FilledTextFieldDefaults
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.IndeterminateLinearProgressIndicator
 import moe.kirakira.ui.components.OtpInputField
 import moe.kirakira.ui.components.PasswordTextField
 import moe.kirakira.ui.components.ShadowRadioButton
 import moe.kirakira.ui.components.SmoothSlider
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.theme.ThemeColorDefaults
-import kotlin.math.roundToInt
 
 @Composable
 internal fun SwitchSamples() {
     var checked by rememberSaveable { mutableStateOf(false) }
-    SampleSection(R.string.component_gallery_variant_states) {
-        SampleRow {
-            Switch(
-                checked = checked,
-                onCheckedChange = { checked = it },
-                modifier = Modifier.semantics { contentDescription = "开关" },
-            )
-            Switch(
-                checked = true,
-                onCheckedChange = {},
-                enabled = false,
-                modifier = Modifier.semantics { contentDescription = "禁用开关" },
-            )
-        }
+    SampleRow {
+        Switch(
+            checked = checked,
+            onCheckedChange = { checked = it },
+            modifier = Modifier.semantics { contentDescription = "开关" },
+        )
+        Switch(
+            checked = true,
+            onCheckedChange = {},
+            enabled = false,
+            modifier = Modifier.semantics { contentDescription = "禁用开关" },
+        )
     }
 }
 
 @Composable
 internal fun CheckboxSamples() {
     var checked by rememberSaveable { mutableStateOf(false) }
-    SampleSection(R.string.component_gallery_variant_states) {
-        SampleRow {
-            Checkbox(
-                checked = checked,
-                onCheckedChange = { checked = it },
-                modifier = Modifier.semantics { contentDescription = "复选框" },
-            )
-            Checkbox(
-                checked = true,
-                onCheckedChange = {},
-                enabled = false,
-                modifier = Modifier.semantics { contentDescription = "禁用复选框" },
-            )
-        }
+    SampleRow {
+        Checkbox(
+            checked = checked,
+            onCheckedChange = { checked = it },
+            modifier = Modifier.semantics { contentDescription = "复选框" },
+        )
+        Checkbox(
+            checked = true,
+            onCheckedChange = {},
+            enabled = false,
+            modifier = Modifier.semantics { contentDescription = "禁用复选框" },
+        )
     }
 }
 
@@ -130,10 +126,7 @@ internal fun SliderSamples() {
     var continuous by rememberSaveable { mutableFloatStateOf(0.4f) }
     var stepped by rememberSaveable { mutableFloatStateOf(0.5f) }
     SampleSection(R.string.component_gallery_variant_continuous) {
-        Text(
-            text = "连续滑块 ${(continuous * 100).roundToInt()}%",
-            style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"),
-        )
+        SamplePercent(continuous)
         SampleSlider(
             value = continuous,
             onValueChange = { continuous = it },
@@ -141,10 +134,7 @@ internal fun SliderSamples() {
         )
     }
     SampleSection(R.string.component_gallery_variant_discrete) {
-        Text(
-            text = "分段滑块 ${(stepped * 100).roundToInt()}%",
-            style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"),
-        )
+        SamplePercent(stepped)
         SampleSlider(
             value = stepped,
             onValueChange = { stepped = it },
@@ -242,22 +232,18 @@ private fun InputErrorToggle(checked: Boolean, onCheckedChange: (Boolean) -> Uni
 internal fun ProgressSamples() {
     var progress by rememberSaveable { mutableFloatStateOf(0.4f) }
     SampleSection(R.string.component_gallery_variant_indeterminate) {
-        Text("40dp / 24dp / 20dp")
         SampleRow {
-            IndeterminateCircularProgressIndicator(Modifier.size(40.dp).semantics { contentDescription = "页面加载" })
-            IndeterminateCircularProgressIndicator(
-                Modifier.size(24.dp).semantics { contentDescription = "图标加载" }, strokeWidth = 2.dp,
-            )
-            IndeterminateCircularProgressIndicator(
-                Modifier.size(20.dp).semantics { contentDescription = "刷新加载" }, strokeWidth = 2.5.dp,
-            )
+            val sizes = listOf(40 to 4.dp, 24 to 2.dp, 20 to 2.5.dp)
+            sizes.forEach { (size, strokeWidth) ->
+                SampleLabeledItem(stringResource(R.string.component_gallery_size_dp, size), minPreviewHeight = 40.dp) {
+                    IndeterminateCircularProgressIndicator(Modifier.size(size.dp), strokeWidth = strokeWidth)
+                }
+            }
         }
+        IndeterminateLinearProgressIndicator(Modifier.fillMaxWidth())
     }
     SampleSection(R.string.component_gallery_variant_determinate) {
-        Text(
-            text = "确定进度 ${(progress * 100).roundToInt()}%",
-            style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"),
-        )
+        SamplePercent(progress)
         CircularProgressIndicator(progress = { progress }, modifier = Modifier.size(40.dp))
         LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
         SampleSlider(
@@ -347,6 +333,15 @@ internal fun ChipSamples(parentContainerColor: Color, onFeedback: (String) -> Un
         FilterChip(selected = true, onClick = {}, enabled = false, label = { Text("禁用标签") },
             shape = CircleShape, border = null)
     }
+}
+
+@Composable
+private fun SamplePercent(value: Float) {
+    Text(
+        text = stringResource(R.string.component_gallery_percent, (value * 100).roundToInt()),
+        style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @Composable
