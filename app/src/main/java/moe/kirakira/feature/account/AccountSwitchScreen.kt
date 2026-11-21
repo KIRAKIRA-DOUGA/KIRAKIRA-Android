@@ -47,7 +47,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -66,18 +65,20 @@ import moe.kirakira.R
 import moe.kirakira.data.auth.SessionOperation
 import moe.kirakira.data.auth.SessionOperationType
 import moe.kirakira.ui.components.AccountAvatar
-import moe.kirakira.ui.components.CollapsibleTopAppBar
 import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.ui.components.FlatTextButton
 import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.PageTopAppBar
 import moe.kirakira.ui.components.ShadingIcon
 import moe.kirakira.ui.components.ShadowRadioButton
 import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.components.UsernameText
+import moe.kirakira.ui.components.centeredTopAppBarContent
 import moe.kirakira.ui.components.connectedListItemShapes
-import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.theme.KIRAKIRATheme
+
+private val AccountSwitchContentWidth = 640.dp
 
 @Composable
 internal fun AccountSwitchScreen(
@@ -94,11 +95,10 @@ internal fun AccountSwitchScreen(
     busy: Boolean = false,
     operation: SessionOperation? = null,
 ) {
-    val scrollBehavior = rememberCollapsibleTopAppBarScrollBehavior()
     val layoutDirection = LocalLayoutDirection.current
     var swipedAccountId by remember { mutableStateOf<String?>(null) }
     val scrollState = rememberScrollState()
-    StatusBarScrollToTopEffect(scrollState, scrollBehavior = scrollBehavior)
+    StatusBarScrollToTopEffect(scrollState)
     val motion = MaterialTheme.motionScheme
     val addContainerColor by animateColorAsState(
         targetValue = if (editing) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
@@ -119,7 +119,6 @@ internal fun AccountSwitchScreen(
     FrostedScaffold(
         modifier = modifier
             .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection)
             .testTag("account_switch_screen"),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
@@ -131,10 +130,10 @@ internal fun AccountSwitchScreen(
                     endPadding = 0.dp,
                     offset = DpOffset(32.dp, 32.dp),
                 )
-                CollapsibleTopAppBar(
+                PageTopAppBar(
                     title = stringResource(R.string.settings_switch_account),
                     onBack = onBack,
-                    scrollBehavior = scrollBehavior,
+                    modifier = Modifier.centeredTopAppBarContent(AccountSwitchContentWidth),
                     backButtonModifier = Modifier.testTag("account_back"),
                     actions = {
                         if (accounts.any { it.id != GUEST_ACCOUNT_ID }) {
@@ -181,7 +180,7 @@ internal fun AccountSwitchScreen(
         ) {
             Column(
                 modifier = Modifier
-                    .widthIn(max = 640.dp)
+                    .widthIn(max = AccountSwitchContentWidth)
                     .fillMaxSize()
                     .verticalScroll(scrollState)
                     // Bottom inset scrolls with the content so the viewport reaches behind the navigation bar.

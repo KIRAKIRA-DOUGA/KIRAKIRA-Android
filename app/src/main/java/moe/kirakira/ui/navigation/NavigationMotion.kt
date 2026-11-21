@@ -11,12 +11,21 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -44,11 +53,28 @@ internal fun activityInterpolatorResource(): Int =
     }
 
 internal class NavigationMotion(
-    val forward: ContentTransform,
-    val backward: ContentTransform,
-    val pageOffset: Float,
-    val pageSlideSpec: TweenSpec<Float>,
-)
+    horizontalOffset: Int,
+    private val distance: Int,
+    easing: Easing,
+) {
+    private val slideSpec = tween<IntOffset>(durationMillis = ACTIVITY_TRANSITION_MILLIS, easing = easing)
+    private val openFade = fadeIn(tween(durationMillis = 83, delayMillis = 50, easing = LinearEasing))
+    private val closeFade = fadeOut(activityCloseFadeSpec())
+
+    val pageOffset = horizontalOffset.toFloat()
+    val pageSlideSpec = tween<Float>(durationMillis = ACTIVITY_TRANSITION_MILLIS, easing = easing)
+    val forward = (slideInHorizontally(slideSpec) { horizontalOffset } + openFade) togetherWith
+        slideOutHorizontally(slideSpec) { -horizontalOffset }
+    val backward = slideInHorizontally(slideSpec) { -horizontalOffset } togetherWith
+        (slideOutHorizontally(slideSpec) { horizontalOffset } + closeFade)
+
+    fun vertical(enterFromBottom: Boolean, isPop: Boolean): ContentTransform {
+        val offset = if (enterFromBottom) distance else -distance
+        val enter = slideInVertically(slideSpec) { offset }
+        val exit = slideOutVertically(slideSpec) { -offset }
+        return if (isPop) enter togetherWith (exit + closeFade) else (enter + openFade) togetherWith exit
+    }
+}
 
 /**
  * Compose adaptation of AOSP's activity_open_* and activity_close_* animations.
@@ -66,24 +92,10 @@ internal fun rememberNavigationMotion(): NavigationMotion {
             context,
             activityInterpolatorResource(),
         )
-        val offset = distance * direction
-        val easing = Easing { interpolator.getInterpolation(it) }
-        val slideSpec = tween<IntOffset>(
-            durationMillis = ACTIVITY_TRANSITION_MILLIS,
-            easing = easing,
-        )
-
         NavigationMotion(
-            pageOffset = offset.toFloat(),
-            pageSlideSpec = tween(durationMillis = ACTIVITY_TRANSITION_MILLIS, easing = easing),
-            forward = (
-                slideInHorizontally(slideSpec, initialOffsetX = { offset }) +
-                    fadeIn(tween(durationMillis = 83, delayMillis = 50, easing = LinearEasing))
-                ) togetherWith slideOutHorizontally(slideSpec, targetOffsetX = { -offset }),
-            backward = slideInHorizontally(slideSpec, initialOffsetX = { -offset }) togetherWith (
-                slideOutHorizontally(slideSpec, targetOffsetX = { offset }) +
-                    fadeOut(activityCloseFadeSpec())
-                ),
+            horizontalOffset = distance * direction,
+            distance = distance,
+            easing = Easing { interpolator.getInterpolation(it) },
         )
     }
 }
@@ -91,6 +103,8 @@ internal fun rememberNavigationMotion(): NavigationMotion {
 internal val LocalNavigationPageTransform = compositionLocalOf {
     { NavigationPageTransform() }
 }
+
+internal val LocalNavigationPageStartGutter = compositionLocalOf { 0.dp }
 
 internal data class NavigationPageTransform(
     val scale: Float = 1f,
@@ -107,6 +121,10 @@ internal fun NavigationPage(
     content: @Composable () -> Unit,
 ) {
     val readTransform = LocalNavigationPageTransform.current
+    val startGutter = LocalNavigationPageStartGutter.current
+    val bodyInset = if (startGutter > 0.dp) {
+        Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Start)).padding(start = startGutter)
+    } else Modifier
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -120,8 +138,10 @@ internal fun NavigationPage(
                 alpha = transform.alpha
                 shape = RoundedCornerShape(transform.cornerRadius)
                 clip = transform.cornerRadius > 0f
-            },
+            }
+            .then(bodyInset),
     ) {
-        content()
+        // Only the outer page owns this gutter; nested content must not apply it again.
+        CompositionLocalProvider(LocalNavigationPageStartGutter provides 0.dp, content = content)
     }
 }

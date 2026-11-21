@@ -12,15 +12,19 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.Icon
@@ -48,11 +52,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionOnScreen
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
@@ -73,10 +77,10 @@ import java.time.ZoneId
 import moe.kirakira.R
 import moe.kirakira.data.auth.isReadyForContent
 import moe.kirakira.data.history.HistoryEntry
-import moe.kirakira.ui.components.CollapsibleTopAppBar
+import moe.kirakira.ui.adaptive.browsePageMaxWidth
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
-import moe.kirakira.ui.components.ContentStatusList
+import moe.kirakira.ui.components.ContentStatusViewport
 import moe.kirakira.ui.components.ContentUnavailableAction
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
@@ -85,18 +89,23 @@ import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.HistorySearchLogo
 import moe.kirakira.ui.components.PageSearchBarAnchor
 import moe.kirakira.ui.components.PageSearchOverlay
+import moe.kirakira.ui.components.PageTopAppBar
 import moe.kirakira.ui.components.ShadingIcon
 import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.components.UsernameText
 import moe.kirakira.ui.components.dateOnlyText
+import moe.kirakira.ui.components.isOpen
 import moe.kirakira.ui.components.messageRes
-import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
+import moe.kirakira.ui.components.topAppBarContentWidth
 import moe.kirakira.ui.components.video.VideoArtwork
+import moe.kirakira.ui.components.video.VideoCardLayout
+import moe.kirakira.ui.components.video.VideoFeedGrid
 import moe.kirakira.ui.components.video.dateText
 import moe.kirakira.ui.components.video.durationText
 import moe.kirakira.ui.components.video.rememberVideoZoomSource
 import moe.kirakira.ui.components.video.videoZoomSource
 import moe.kirakira.ui.content.ContentState
+import moe.kirakira.ui.navigation.blockNavigationInput
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 @Composable
@@ -147,21 +156,20 @@ internal fun HistoryScreen(
     modifier: Modifier = Modifier,
     isActive: Boolean = true,
 ) {
-    val scroll = rememberCollapsibleTopAppBarScrollBehavior()
     val snackbar = remember { SnackbarHostState() }
     val resources by rememberUpdatedState(LocalResources.current)
     val searchText = remember { TextFieldState(query) }
     val searchState = rememberSearchBarState()
+    val searchPlaceholder = stringResource(R.string.history_search)
     var searchAnchorBounds by remember { mutableStateOf<Rect?>(null) }
     var pageOrigin by remember { mutableStateOf(Offset.Zero) }
-    val pageList = rememberLazyListState()
-    val searchList = rememberLazyListState()
-    val historyActive = isActive && searchState.currentValue == SearchBarValue.Collapsed &&
-        searchState.targetValue == SearchBarValue.Collapsed
+    val pageList = rememberLazyGridState()
+    val searchList = rememberLazyGridState()
+    val searchOpen = searchState.isOpen
+    val historyActive = isActive && !searchOpen
     StatusBarScrollToTopEffect(
         pageList,
         enabled = historyActive,
-        scrollBehavior = scroll,
     )
     val currentQuery by rememberUpdatedState(query)
     val currentOnQueryChange by rememberUpdatedState(onQueryChange)
@@ -190,7 +198,7 @@ internal fun HistoryScreen(
     }
     Box(modifier.fillMaxSize().onGloballyPositioned { pageOrigin = it.positionOnScreen() }) {
         FrostedScaffold(
-            modifier = Modifier.fillMaxSize().nestedScroll(scroll.nestedScrollConnection),
+            modifier = Modifier.fillMaxSize().blockNavigationInput(searchOpen),
             topBar = {
                 Column {
                     Box {
@@ -201,18 +209,18 @@ internal fun HistoryScreen(
                             alignment = Alignment.BottomEnd,
                             offset = DpOffset(32.dp, 32.dp),
                         )
-                        CollapsibleTopAppBar(
+                        PageTopAppBar(
                             title = stringResource(R.string.me_history),
                             onBack = onBack,
-                            scrollBehavior = scroll,
+                            modifier = Modifier.topAppBarContentWidth(browsePageMaxWidth),
                         )
                     }
                     PageSearchBarAnchor(
                         text = searchText,
                         state = searchState,
-                        placeholder = stringResource(R.string.history_search),
+                        placeholder = searchPlaceholder,
                         enabled = signedIn && ready,
-                        maxContentWidth = 840.dp,
+                        maxContentWidth = browsePageMaxWidth,
                         onBoundsChanged = { searchAnchorBounds = it },
                     )
                 }
@@ -229,7 +237,7 @@ internal fun HistoryScreen(
         PageSearchOverlay(
             text = searchText,
             state = searchState,
-            placeholder = stringResource(R.string.history_search),
+            placeholder = searchPlaceholder,
             isActive = isActive,
             collapsedBoundsProvider = { searchAnchorBounds?.translate(-pageOrigin) },
             enabled = signedIn && ready,
@@ -269,32 +277,37 @@ private fun HistoryContent(
     onRefresh: () -> Unit,
     onLogin: () -> Unit,
     onOpenVideo: (Int) -> Unit,
-    list: LazyListState,
+    list: LazyGridState,
     isActive: Boolean,
     modifier: Modifier = Modifier,
     padding: PaddingValues = PaddingValues(0.dp),
 ) {
-    Column(
-        modifier.fillMaxSize().consumeWindowInsets(padding),
-        horizontalAlignment = Alignment.CenterHorizontally,
+    val direction = LocalLayoutDirection.current
+    val listPadding = PaddingValues(
+        start = 16.dp,
+        end = 16.dp,
+        top = padding.calculateTopPadding() + 8.dp,
+        bottom = padding.calculateBottomPadding() + 24.dp,
+    )
+    ContentPullToRefresh(
+        isRefreshing = state.loading && state.data != null,
+        onRefresh = onRefresh,
+        enabled = ready && signedIn,
+        indicatorTopPadding = padding.calculateTopPadding(),
+        modifier = modifier.fillMaxSize()
+            .padding(start = padding.calculateStartPadding(direction), end = padding.calculateEndPadding(direction))
+            .consumeWindowInsets(padding),
     ) {
-        ContentPullToRefresh(
-            isRefreshing = state.loading && state.data != null,
-            onRefresh = onRefresh,
-            enabled = ready && signedIn,
-            indicatorTopPadding = padding.calculateTopPadding(),
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-        ) {
-            ContentStatusList(list, padding, Modifier.fillMaxSize()) { statusModifier ->
+        ContentStatusViewport(modifier = Modifier.fillMaxSize(), contentPadding = listPadding) { statusModifier ->
+            VideoFeedGrid(layout = VideoCardLayout.LIST, state = list, contentPadding = listPadding) {
                 if (!ready || !signedIn || state.data == null || sections.isEmpty()) item(
                     key = "status",
+                    span = { GridItemSpan(maxLineSpan) },
                     contentType = "status",
                 ) {
-                    val paddedStatusModifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-                        .then(statusModifier)
                     if (ready && !signedIn) ContentUnavailableView(
                         state = ContentUnavailableState.EMPTY,
-                        modifier = paddedStatusModifier,
+                        modifier = statusModifier,
                         title = stringResource(R.string.history_sign_in),
                         description = null,
                         icon = { HistorySearchLogo(isActive = isActive) },
@@ -304,7 +317,7 @@ private fun HistoryContent(
                         state = state.copy(loading = !ready || (state.loading && state.data == null),
                             error = state.error.takeIf { state.data == null }),
                         onRetry = onRefresh,
-                        modifier = paddedStatusModifier,
+                        modifier = statusModifier,
                         empty = sections.isEmpty(),
                         emptyTitle = stringResource(if (query.trim().isEmpty()) R.string.history_empty else R.string.history_no_results),
                         emptyDescription = null,
@@ -312,13 +325,13 @@ private fun HistoryContent(
                     )
                 }
                 if (ready && signedIn) sections.forEach { (day, entries) ->
-                    item(key = "day-$day", contentType = "date") {
+                    item(key = "day-$day", span = { GridItemSpan(maxLineSpan) }, contentType = "date") {
                         Text(
                             dateOnlyText(day),
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.fillMaxWidth()
-                                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 12.dp)
+                                .padding(top = 16.dp, bottom = 12.dp)
                                 .semantics { heading() },
                         )
                     }
@@ -355,6 +368,10 @@ private fun HistoryRow(
             },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         supportingContent = null,
+        contentPadding = PaddingValues(
+            top = ListItemDefaults.ContentPadding.calculateTopPadding(),
+            bottom = ListItemDefaults.ContentPadding.calculateBottomPadding(),
+        ),
     ) {
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val fontScale = LocalDensity.current.fontScale
@@ -395,12 +412,17 @@ private fun HistoryRow(
                     }
                 }
             }
-            if (maxWidth / fontScale < 300.dp) Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                artwork(Modifier.fillMaxWidth())
-                info(Modifier.fillMaxWidth())
-            } else Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                artwork(Modifier.weight(0.36f))
-                info(Modifier.weight(0.64f))
+            if (maxWidth / fontScale < 300.dp) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    artwork(Modifier.fillMaxWidth())
+                    info(Modifier.fillMaxWidth())
+                }
+            } else {
+                val artworkWidth = minOf((maxWidth - 12.dp) * 0.36f, 176.dp)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    artwork(Modifier.width(artworkWidth))
+                    info(Modifier.weight(1f))
+                }
             }
         }
     }

@@ -13,6 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
@@ -30,6 +31,8 @@ internal fun ProfileEditorPage(
     edits: TextFieldEdits,
     onBack: () -> Unit,
     onLogin: () -> Unit,
+    onDiscardConfirmed: () -> Unit = onBack,
+    onDiscardCancelled: () -> Unit = {},
 ) {
     val state by model.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
@@ -40,14 +43,21 @@ internal fun ProfileEditorPage(
         pickerRevision = null
     }
     LaunchedEffect(model) { model.clearStaleImageCache() }
+    LaunchedEffect(state.confirmDiscard) {
+        if (!state.confirmDiscard) onDiscardCancelled()
+    }
     LaunchedEffect(state.message) {
         state.message?.let { message ->
             model.dismissMessage()
             snackbar.showSnackbar(resources.getString(message))
         }
     }
+    fun cancelDiscard() {
+        model.dismissDiscard()
+        onDiscardCancelled()
+    }
     if (state.confirmDiscard) ActionDialog(
-        onDismissRequest = model::dismissDiscard,
+        onDismissRequest = ::cancelDiscard,
         icon = { DestructiveActionIcon(R.drawable.ic_icon_edit) },
         title = { Text(stringResource(R.string.profile_discard_title)) },
         text = { Text(stringResource(when {
@@ -57,31 +67,37 @@ internal fun ProfileEditorPage(
         })) },
         actions = {
             ShadowButton(
-                onClick = onBack,
+                onClick = {
+                    model.dismissDiscard()
+                    onDiscardConfirmed()
+                },
                 destructive = true,
             ) { Text(stringResource(R.string.profile_discard)) }
             FlatTextButton(
                 contentPadding = ButtonDefaults.ContentPadding,
-                onClick = model::dismissDiscard,
+                onClick = ::cancelDiscard,
             ) {
                 Text(stringResource(R.string.profile_keep_editing))
             }
         },
     )
     val source = state.cropSource
+    val editorState = rememberSaveableStateHolder()
     if (source != null) {
         AvatarCropScreen(state, model::cancelCrop, model::beginCrop, model::cropLoaded, model::finishCrop,
             model::rememberCropViewport, model::claimCrop,
             snackbar = snackbar)
-    } else ProfileEditorScreen(
-        state = state,
-        edits = edits,
-        onBack = { if (model.requestBack()) onBack() },
-        onLogin = onLogin, onRetry = model::load, onSave = model::save, onEdit = model::edit,
-        onPickAvatar = {
-            pickerRevision = model.accountRevision
-            picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-        },
-        onAddLabel = model::addLabel, onRemoveLabel = model::removeLabel, snackbar = snackbar,
-    )
+    } else editorState.SaveableStateProvider("editor") {
+        ProfileEditorScreen(
+            state = state,
+            edits = edits,
+            onBack = { if (model.requestBack()) onBack() },
+            onLogin = onLogin, onRetry = model::load, onSave = model::save, onEdit = model::edit,
+            onPickAvatar = {
+                pickerRevision = model.accountRevision
+                picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            },
+            onAddLabel = model::addLabel, onRemoveLabel = model::removeLabel, snackbar = snackbar,
+        )
+    }
 }

@@ -108,9 +108,9 @@ class MainActivity : ComponentActivity() {
         pictureInPicture = isInPictureInPictureMode
     }
 
-    fun setVideoFullscreen(fullscreen: Boolean) {
+    fun setVideoFullscreen(fullscreen: Boolean, rotateToLandscape: Boolean = true) {
         videoFullscreen = fullscreen
-        if (fullscreen) {
+        if (fullscreen && rotateToLandscape) {
             if (orientationBeforeFullscreen == null) orientationBeforeFullscreen = requestedOrientation
             if (requestedOrientation != ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE) {
                 requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
@@ -164,6 +164,7 @@ class MainActivity : ComponentActivity() {
             val themeMode by themeViewModel.themeMode.collectAsStateWithLifecycle()
             val themeColors by themeViewModel.themeColors.collectAsStateWithLifecycle()
             val predictiveBackEnabled by themeViewModel.predictiveBackEnabled.collectAsStateWithLifecycle()
+            val backgroundDepthEnabled by themeViewModel.backgroundDepthEnabled.collectAsStateWithLifecycle()
             val revealInfo = splashRevealController.revealInfo
             val darkTheme = when (themeMode) {
                 ThemeMode.SYSTEM -> isSystemInDarkTheme()
@@ -188,6 +189,8 @@ class MainActivity : ComponentActivity() {
                             onThemeColorsChange = themeViewModel::setThemeColors,
                             predictiveBackEnabled = predictiveBackEnabled,
                             onPredictiveBackEnabledChange = themeViewModel::setPredictiveBackEnabled,
+                            backgroundDepthEnabled = backgroundDepthEnabled,
+                            onBackgroundDepthEnabledChange = themeViewModel::setBackgroundDepthEnabled,
                             modifier = if (revealInfo != null) Modifier.clearAndSetSemantics { } else Modifier,
                             onVideoPageActiveChange = { active ->
                                 // Keep the latest page style while the launch overlay owns the bars.

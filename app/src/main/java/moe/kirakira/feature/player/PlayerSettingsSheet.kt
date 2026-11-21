@@ -252,6 +252,7 @@ internal fun PlayerSettingsSheet(
     onAutoplayChange: (Boolean) -> Unit,
     onDanmakuSettingsChange: (DanmakuSettings) -> Unit,
     modifier: Modifier = Modifier,
+    confinedToPane: Boolean = false,
 ) {
     val preferencesPager = rememberPagerState(pageCount = { 2 })
     val draggingPreferences by preferencesPager.interactionSource.collectIsDraggedAsState()
@@ -268,10 +269,13 @@ internal fun PlayerSettingsSheet(
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     // Reserve equal space before the sheet's width cap so its content stays centered.
-    val sideInset = maxOf(safeDrawing.getLeft(density, layoutDirection), safeDrawing.getRight(density, layoutDirection))
+    // The fold viewport already excludes the system and hinge insets.
+    val sideInset = if (confinedToPane) 0 else {
+        maxOf(safeDrawing.getLeft(density, layoutDirection), safeDrawing.getRight(density, layoutDirection))
+    }
     val horizontalInsets = WindowInsets(left = sideInset, right = sideInset)
     val contentWindowInsets: @Composable () -> WindowInsets = {
-        if (panel == PlayerSettingsPanel.GENERAL) WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
+        if (!confinedToPane && panel == PlayerSettingsPanel.GENERAL) WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
         else WindowInsets(0, 0, 0, 0)
     }
     val sheetState = rememberBottomSheetState(
@@ -287,7 +291,7 @@ internal fun PlayerSettingsSheet(
                 // Keep the sheet's full height constraints for its bottom anchor.
                 // Leave room for the fixed header and scrollable options in short windows.
                 val minimumHeight = minOf(maxHeight, 192.dp)
-                val contentHeight = if (fullscreen) maxHeight
+                val contentHeight = if (fullscreen || confinedToPane) maxHeight
                 else (maxHeight - inlinePlayerBottom).coerceAtLeast(minimumHeight)
                 PlayerPreferencesContent(
                     pagerState = preferencesPager,
@@ -309,11 +313,12 @@ internal fun PlayerSettingsSheet(
                 onSpeed = onSpeed,
                 onContinuousSpeed = onContinuousSpeed,
                 onPreservesPitch = onPreservesPitch,
+                applyBottomInset = !confinedToPane,
             )
         }
     }
-    if (fullscreen) {
-        FullscreenPlayerSettingsSheet(
+    if (fullscreen || confinedToPane) {
+        InPlayerSettingsSheet(
             sheetState = sheetState,
             gesturesEnabled = gesturesEnabled,
             containerColor = sheetColor,
@@ -338,7 +343,7 @@ internal fun PlayerSettingsSheet(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FullscreenPlayerSettingsSheet(
+private fun InPlayerSettingsSheet(
     sheetState: SheetState,
     gesturesEnabled: Boolean,
     containerColor: Color,
@@ -405,12 +410,14 @@ private fun PlaybackOptionsContent(
     onContinuousSpeed: (Boolean) -> Unit,
     onPreservesPitch: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    applyBottomInset: Boolean = true,
 ) {
     Column(
         modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
+            .then(if (applyBottomInset) Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
+                else Modifier)
             .padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {

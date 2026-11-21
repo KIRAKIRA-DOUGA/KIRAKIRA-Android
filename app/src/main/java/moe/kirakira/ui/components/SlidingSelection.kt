@@ -201,7 +201,12 @@ internal class SlidingSelection(initialIndex: Int?) {
         val insetY = first.height * inset
         return Rect(left + insetX, first.top + insetY, right - insetX, first.bottom - insetY)
     }
+
+    fun verticalBounds(lastIndex: Int, slot: (Float) -> Rect): Rect? =
+        bounds(lastIndex, pressProgress = 0f) { slot(it).transpose() }?.transpose()
 }
+
+private fun Rect.transpose() = Rect(top, left, bottom, right)
 
 internal fun Modifier.slidingSelectionIndicator(
     shape: Shape,

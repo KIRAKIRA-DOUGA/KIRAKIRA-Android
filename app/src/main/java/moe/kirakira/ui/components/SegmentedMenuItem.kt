@@ -25,6 +25,7 @@ fun SegmentedMenuItem(
     onClick: (() -> Unit)? = null,
     showChevron: Boolean = true,
     destructive: Boolean = false,
+    selected: Boolean? = null,
 ) {
     val shapes = connectedListItemShapes(index = index, count = count)
     val leadingContent: @Composable () -> Unit = {
@@ -45,6 +46,16 @@ fun SegmentedMenuItem(
     if (onClick == null) {
         // Static destinations must not expose a click action before they are implemented.
         SegmentedListItem(
+            shapes = shapes,
+            modifier = modifier.fillMaxWidth(),
+            leadingContent = leadingContent,
+            trailingContent = trailingContent,
+            content = content,
+        )
+    } else if (selected != null) {
+        SegmentedListItem(
+            selected = selected,
+            onClick = onClick,
             shapes = shapes,
             modifier = modifier.fillMaxWidth(),
             leadingContent = leadingContent,

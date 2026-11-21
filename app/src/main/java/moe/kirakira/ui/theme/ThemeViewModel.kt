@@ -25,6 +25,9 @@ class ThemeViewModel(application: Application) : AndroidViewModel(application) {
     private val _predictiveBackEnabled = MutableStateFlow(false)
     val predictiveBackEnabled: StateFlow<Boolean> = _predictiveBackEnabled.asStateFlow()
 
+    private val _backgroundDepthEnabled = MutableStateFlow(true)
+    val backgroundDepthEnabled: StateFlow<Boolean> = _backgroundDepthEnabled.asStateFlow()
+
     private val _isReady = MutableStateFlow(false)
     val isReady: StateFlow<Boolean> = _isReady.asStateFlow()
 
@@ -47,6 +50,7 @@ class ThemeViewModel(application: Application) : AndroidViewModel(application) {
                 ThemeColorSettings(it.useSystemColors, it.seedColorArgb, it.customColorArgb, it.useCustomColor)
             }
             _predictiveBackEnabled.value = settings.predictiveBackEnabled
+            _backgroundDepthEnabled.value = settings.backgroundDepthEnabled
             _isReady.value = true
         }
     }
@@ -73,5 +77,10 @@ class ThemeViewModel(application: Application) : AndroidViewModel(application) {
     fun setPredictiveBackEnabled(enabled: Boolean) {
         store.setPredictiveBackEnabled(enabled)
         _predictiveBackEnabled.value = enabled
+    }
+
+    fun setBackgroundDepthEnabled(enabled: Boolean) {
+        store.setBackgroundDepthEnabled(enabled)
+        _backgroundDepthEnabled.value = enabled
     }
 }

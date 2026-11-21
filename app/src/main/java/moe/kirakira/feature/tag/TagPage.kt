@@ -35,7 +35,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -53,16 +52,15 @@ import moe.kirakira.R
 import moe.kirakira.data.content.VideoSummary
 import moe.kirakira.data.content.VideoTag
 import moe.kirakira.ui.components.AnimatedCountLabel
-import moe.kirakira.ui.components.CollapsibleTopAppBar
 import moe.kirakira.ui.components.ConnectedLazyColumn
 import moe.kirakira.ui.components.ContentLoadingView
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.ContentStatusViewport
 import moe.kirakira.ui.components.FrostedScaffold
+import moe.kirakira.ui.components.PageTopAppBar
 import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.components.connectedListItemShapes
-import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.components.video.VideoCardLayout
 import moe.kirakira.ui.components.video.VideoCardRow
 import moe.kirakira.ui.components.video.VideoCardRowSpacing
@@ -98,13 +96,11 @@ internal fun TagScreen(
     val direction = LocalLayoutDirection.current
     val value = tag.data?.tag
     val name = value?.displayName(language) ?: "#$tagId"
-    val scroll = rememberCollapsibleTopAppBarScrollBehavior()
     var showNames by rememberSaveable(tagId, sessionRevision) { mutableStateOf(false) }
     val listState = rememberLazyListState()
     StatusBarScrollToTopEffect(
         listState,
         enabled = !showNames,
-        scrollBehavior = scroll,
         scrollContentAvailable = !(tag.loading && tag.data == null && videos.loading && videos.data == null),
     )
     val rows = videos.data.orEmpty().chunked(layout.columns)
@@ -114,13 +110,17 @@ internal fun TagScreen(
     var tagStatusHeight by remember { mutableIntStateOf(0) }
     var countHeight by remember { mutableIntStateOf(0) }
     FrostedScaffold(
-        modifier = modifier.nestedScroll(scroll.nestedScrollConnection),
+        modifier = modifier,
         topBar = {
-            CollapsibleTopAppBar(stringResource(R.string.tag_title), onBack, scroll, actions = {
-                IconButton(onClick = { showNames = true }, enabled = value != null) {
-                    Icon(painterResource(R.drawable.ic_icon_info), stringResource(R.string.tag_names))
-                }
-            })
+            PageTopAppBar(
+                title = stringResource(R.string.tag_title),
+                onBack = onBack,
+                actions = {
+                    IconButton(onClick = { showNames = true }, enabled = value != null) {
+                        Icon(painterResource(R.drawable.ic_icon_info), stringResource(R.string.tag_names))
+                    }
+                },
+            )
         },
     ) { padding ->
         ContentPullToRefresh(

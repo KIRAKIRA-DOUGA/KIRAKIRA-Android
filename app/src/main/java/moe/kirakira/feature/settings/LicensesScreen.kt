@@ -56,6 +56,7 @@ import moe.kirakira.ui.components.FrostedScaffold
 import moe.kirakira.ui.components.ShadingIcon
 import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.components.appTopAppBarColors
+import moe.kirakira.ui.components.centeredTopAppBarContent
 import moe.kirakira.ui.theme.BrandTitleFontFamily
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
@@ -120,6 +121,7 @@ internal fun LicensesContent(
                     offset = DpOffset(32.dp, 32.dp),
                 )
                 TopAppBar(
+                    modifier = Modifier.centeredTopAppBarContent(SettingsDefaults.MaxContentWidth),
                     title = {
                         Text(
                             text = stringResource(R.string.about_licenses),
@@ -153,7 +155,7 @@ internal fun LicensesContent(
                     onDialogLibraryChange = {},
                     onSheetLibraryChange = { sheetLibraryId = it?.uniqueId },
                     modifier = Modifier
-                        .widthIn(max = 640.dp)
+                        .widthIn(max = SettingsDefaults.MaxContentWidth)
                         .fillMaxSize()
                         .consumeWindowInsets(innerPadding)
                         .testTag("licenses_list"),

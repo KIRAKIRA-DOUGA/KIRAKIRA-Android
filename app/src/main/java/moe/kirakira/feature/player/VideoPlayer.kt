@@ -162,6 +162,8 @@ internal fun VideoPlayer(
     modifier: Modifier = Modifier,
     fullscreenLayoutReady: Boolean = fullscreen,
     inlinePlayerBottom: Dp = 0.dp,
+    externalTransport: Boolean = false,
+    confinedToPane: Boolean = false,
     artworkPlaceholder: Painter? = null,
     active: Boolean = true,
     onReadVolume: () -> Float? = { null },
@@ -192,7 +194,8 @@ internal fun VideoPlayer(
     )
     val settingsAvailable = active && !pictureInPicture && !state.failed && (!fullscreen || fullscreenLayoutReady)
     var settingsPanel by remember(fullscreen, settingsAvailable) { mutableStateOf<PlayerSettingsPanel?>(null) }
-    val fullscreenSheetOpen = fullscreen && settingsPanel != null
+    val inPlayerSheet = fullscreen || confinedToPane
+    val inPlayerSheetOpen = inPlayerSheet && settingsPanel != null
     var controlsVisible by remember { mutableStateOf(true) }
     var interaction by remember { mutableIntStateOf(0) }
     var dragged by remember(player) { mutableStateOf<Float?>(null) }
@@ -266,7 +269,7 @@ internal fun VideoPlayer(
 
     val focusManager = LocalFocusManager.current
     var controlsHaveFocus by remember { mutableStateOf(false) }
-    val controlsInteractive = controlsVisible && !fullscreenSheetOpen
+    val controlsInteractive = controlsVisible && !inPlayerSheetOpen
     LaunchedEffect(controlsInteractive, active, pictureInPicture) {
         if ((!controlsInteractive || !active || pictureInPicture) && controlsHaveFocus) {
             focusManager.clearFocus(force = true)
@@ -300,7 +303,7 @@ internal fun VideoPlayer(
         indication = null,
         onClickLabel = controlsLabel,
     ) { latestSingleTap() }
-    val screenInteraction = if (pictureInPicture || !active || fullscreenSheetOpen) Modifier else tapInteraction
+    val screenInteraction = if (pictureInPicture || !active || inPlayerSheetOpen) Modifier else tapInteraction
     Box(
         modifier
             .background(Color.Black)
@@ -329,13 +332,13 @@ internal fun VideoPlayer(
                 gestures,
                 Modifier
                     .fillMaxSize()
-                    .then(if (fullscreen) Modifier.windowInsetsPadding(WindowInsets.safeDrawing) else Modifier)
+                    .then(if (fullscreen && !confinedToPane) Modifier.windowInsetsPadding(WindowInsets.safeDrawing) else Modifier)
                     .zIndex(2f),
             )
         }
         if (active && !pictureInPicture) {
             // Keep the shield through a drag when revealing controls, preserving the pointer owner.
-            if (!fullscreenSheetOpen && (!controlsVisible || gestures.dragging)) {
+            if (!inPlayerSheetOpen && (!controlsVisible || gestures.dragging)) {
                 Box(
                     Modifier
                         .fillMaxSize()
@@ -378,7 +381,7 @@ internal fun VideoPlayer(
                         )
                         val contentModifier = Modifier
                             .fillMaxSize()
-                            .then(if (fullscreen) Modifier.windowInsetsPadding(WindowInsets.safeDrawing) else Modifier)
+                            .then(if (fullscreen && !confinedToPane) Modifier.windowInsetsPadding(WindowInsets.safeDrawing) else Modifier)
                         val backButton: @Composable () -> Unit = {
                             FilledIconButton(
                                 onClick = { controlAction(onBack) },
@@ -393,22 +396,29 @@ internal fun VideoPlayer(
                                 )
                             }
                         }
+                        val fullscreenButton: @Composable () -> Unit = {
+                            FilledIconButton(
+                                onClick = { controlAction(onFullscreen) },
+                                colors = iconColors,
+                            ) {
+                                Icon(
+                                    painterResource(
+                                        if (fullscreen) R.drawable.ic_icon_fullscreen_exit else R.drawable.ic_icon_fullscreen,
+                                    ),
+                                    stringResource(
+                                        if (fullscreen) R.string.player_exit_fullscreen else R.string.player_fullscreen,
+                                    ),
+                                    Modifier.size(IconButtonDefaults.smallIconSize),
+                                )
+                            }
+                        }
                         val topBar: @Composable () -> Unit = {
                             TopAppBar(
                                 title = {},
                                 navigationIcon = { backButton() },
                                 actions = {
                                     if (state.failed) {
-                                        FilledIconButton(
-                                            onClick = { controlAction(onFullscreen) },
-                                            colors = iconColors,
-                                        ) {
-                                            Icon(
-                                                painterResource(if (fullscreen) R.drawable.ic_icon_fullscreen_exit else R.drawable.ic_icon_fullscreen),
-                                                stringResource(if (fullscreen) R.string.player_exit_fullscreen else R.string.player_fullscreen),
-                                                Modifier.size(IconButtonDefaults.smallIconSize),
-                                            )
-                                        }
+                                        fullscreenButton()
                                     } else if (!showingInitialLoading) {
                                         PlayerSettingsButtons(
                                             state = state,
@@ -474,10 +484,10 @@ internal fun VideoPlayer(
                             }
                             PlayerControlsLayout(
                                 modifier = contentModifier,
-                                fullscreen = fullscreen,
+                                fullscreen = fullscreen && !confinedToPane,
                                 topBar = topBar,
                                 playback = { buttonSize ->
-                                    PlayerPlaybackControl(
+                                    if (!externalTransport) PlayerPlaybackControl(
                                         state = state,
                                         motion = playbackIconMotion,
                                         artworkLoading = waitingForArtwork,
@@ -486,27 +496,29 @@ internal fun VideoPlayer(
                                     )
                                 },
                                 time = {
-                                    val resumePosition = state.resumeNoticePositionMs
-                                    Box(
-                                        Modifier
-                                            .heightIn(min = 48.dp)
-                                            .padding(start = 16.dp)
-                                            .clickable(
-                                                enabled = resumePosition == null,
-                                                interactionSource = remember { MutableInteractionSource() },
-                                                indication = null,
-                                                onClickLabel = stringResource(R.string.player_toggle_time_format),
-                                            ) {
-                                                controlAction { showRemainingTime = !showRemainingTime }
-                                            },
-                                        contentAlignment = Alignment.CenterStart,
-                                    ) {
-                                        PlayerTimeLabel(
-                                            positionMs = displayedPositionMs,
-                                            durationMs = state.durationMs,
-                                            showRemainingTime = showRemainingTime,
-                                            resumePositionMs = resumePosition,
-                                        )
+                                    if (!externalTransport) {
+                                        val resumePosition = state.resumeNoticePositionMs
+                                        Box(
+                                            Modifier
+                                                .heightIn(min = 48.dp)
+                                                .padding(start = 16.dp)
+                                                .clickable(
+                                                    enabled = resumePosition == null,
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = null,
+                                                    onClickLabel = stringResource(R.string.player_toggle_time_format),
+                                                ) {
+                                                    controlAction { showRemainingTime = !showRemainingTime }
+                                                },
+                                            contentAlignment = Alignment.CenterStart,
+                                        ) {
+                                            PlayerTimeLabel(
+                                                positionMs = displayedPositionMs,
+                                                durationMs = state.durationMs,
+                                                showRemainingTime = showRemainingTime,
+                                                resumePositionMs = resumePosition,
+                                            )
+                                        }
                                     }
                                 },
                                 actions = {
@@ -551,20 +563,11 @@ internal fun VideoPlayer(
                                                 )
                                             },
                                         )
-                                        FilledIconButton(
-                                            onClick = { controlAction(onFullscreen) },
-                                            colors = iconColors,
-                                        ) {
-                                            Icon(
-                                                painterResource(if (fullscreen) R.drawable.ic_icon_fullscreen_exit else R.drawable.ic_icon_fullscreen),
-                                                stringResource(if (fullscreen) R.string.player_exit_fullscreen else R.string.player_fullscreen),
-                                                Modifier.size(IconButtonDefaults.smallIconSize),
-                                            )
-                                        }
+                                        fullscreenButton()
                                     }
                                 },
                                 progress = {
-                                    SmoothSlider(
+                                    if (!externalTransport) SmoothSlider(
                                         state = slider,
                                         colors = sliderColors,
                                         onValueChange = { value ->
@@ -645,7 +648,8 @@ internal fun VideoPlayer(
                 onInAppMiniPlayerChange = onInAppMiniPlayerChange,
                 onAutoplayChange = onAutoplayChange,
                 onDanmakuSettingsChange = onDanmakuSettingsChange,
-                modifier = if (fullscreen) Modifier.matchParentSize() else Modifier,
+                modifier = if (inPlayerSheet) Modifier.matchParentSize() else Modifier,
+                confinedToPane = confinedToPane,
             )
         }
     }

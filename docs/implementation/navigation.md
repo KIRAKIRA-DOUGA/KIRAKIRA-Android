@@ -11,11 +11,27 @@
 
 ## 导航与状态管理
 
+`AppNavHost` 从 `currentWindowAdaptiveInfoV2()` 读取姿态，由 `AppWindowLayout` 统一计算稳定安全区、物理分区和普通页面可用的边界。平展且无遮挡的连续屏幕使用整个窗口，包括系统仍报告折痕坐标的情况。半开姿态下，纵向折痕分隔屏幕且两侧相接时，普通页面使用整个窗口，固定侧栏和搜索弹层跟随所在页面。缩短窗口只影响侧栏和分栏的断点。遇到有宽度的铰链、遮挡或横向分隔时，普通页面使用最大分区。登录与账号安全的嵌套导航沿用外层页面分配的空间。[双栏设置](account-settings.md#自适应设置布局)和[视频详情](media.md)从同一组物理分区选择目录、播放器与详情的位置。窗口形态变化只调整布局，导航条目和各自的滚动状态继续由同一个 `ActivityNavDisplay` 持有。
+
+普通页面的安全区域达到 600 × 480 dp 且处于非桌面半开姿态时，主界面、历史、收藏、自己的主页和设置目录共享 [AppDesktopRail](../../app/src/main/java/moe/kirakira/ui/navigation/AppDesktopRail.kt)。设置分栏后，目录一侧还要能同时容纳侧栏和 320 dp 宽的目录。其余窗口的主界面使用 `MainBottomBar`。系统栏与刘海计入安全边界，键盘单独避让。侧栏主体宽 56 dp，背景铺到系统栏下方，复用 `barSurfaceLayer` 绘制固定 8 dp 原生投影，不使用强调色阴影。控件在顶部与起始侧使用 `safeDrawing`，底部避让拦截点击的系统区域（`tappableElement`）、标题栏、刘海和 IME，不为透明手势条额外留出整行，也不拦截系统手势。每项至少 48 dp 高，含 24 dp 图标、40 dp 圆形选中底色和靠内容侧的 3 × 24 dp 标记；游客与登录头像均为 40 dp，设置项的选中圆距底部可点击区域边缘 8 dp。名称用本地化语义和朝内容侧的提示呈现。安全高度达到 678 dp 时在中部显示旋转字标与双斜纹，540–677 dp 仅显示双斜纹。键盘占去空间时控件可滚动，不改变导航形态。
+
+侧栏的边缘标记复用底栏与 `Segmented` 的 `SlidingSelection`，将先后到达的两端转到纵轴；上下两组之间按实际布局插值，拉伸最多 64 dp。静止为 3 × 24 dp，贴正文侧平齐，朝栏内一侧圆滑收尾，RTL 镜像；按住当前项时缩至 14 dp。40 dp 圆形底色留在各按钮内，随选中与按压状态过渡，不拉成长条或改变触摸区域。没有对应侧栏项的「我」隐藏标记。
+
+侧栏复用[底栏图标动效](#主界面切换与底栏动效)的选中时钟与缓动轨道。首页用同一个形变，搜索与关注保留 Cerasus 资源：放大镜仍绕手柄摆动，关注用相同的时间与倍率依次缩放中心、内圈与外圈。[历史图标](../../app/src/main/java/moe/kirakira/ui/components/navigation/HistoryTabIcon.kt)保留 Cerasus 原始外圈路径，复用搜索图标的 420ms 选中时钟与缩放轨道。每次新选中时，外圈与右下方短针共用设置齿轮的缓动曲线，绕各自轴心同步逆时针转一圈，失选后继续转至目标角度。长针随表盘收缩略向顺时针预摆，展开时回拨 30°，随后轻弹归位。设置齿轮每次新选中绕自身中心顺时针转 120°（520ms），使用递增目标，失选后继续转至目标角度。收藏的星形压缩后上抬（440ms）。头像维持 40 dp 的布局尺寸，按压轻缩（游客入口也有反馈），新选中时用同一选中时钟做 440ms 缩放回弹。保留原有图标、触摸区域、圆形底色及纵向标记，不加入底栏的拖拽选页手势。
+
+固定侧栏在 `ActivityNavDisplay` 的 Scene 转场之外。普通条目和双栏设置目录根据各自是否显示侧栏提供 `LocalPageBackButtonVisible`，供 `PageTopAppBar` 和资料页顶栏使用。合格条目的 `NavigationPage` 在页面变换图层内预留侧栏主体和折叠区域内剩余的起始安全 Insets，不修改导航视口或视频坐标。有栏页之间切换时，侧栏保持原位。普通路由切换或窗口跨过断点时，宿主用同一份显隐进度控制整栏起始侧的平移和透明度。进出均使用主题的 `defaultEffectsSpec`，从当前位置以零初速度接续，整栏停稳后接受操作。两端只有一页带栏的普通预测返回，以及图片共享转场，仍由 Scene 将来源栏与所属页面一起绘制。视频预测返回按手势进度拉出侧栏，取消或提交后接续同一动效；视频外框接近侧栏时，露出的宽度限制在两者之间的可用空间内。小窗和 Snackbar 使用所在页面的侧栏宽度及安全区；窄窗口使用测量得到的底栏高度。
+
+侧栏点击使用与选中标记相同的图标顺序决定页面纵移方向，复用普通转场的 96 dp 位移、450 ms 时长、缓动与淡入淡出。首页、搜索和关注之间由 `MainScreen` 切换。涉及一级子页时由 `ActivityNavDisplay` 切换，回到主界面时直接选好目标标签。连续点击打断转场时，这次侧栏操作与返回栈一起提交，仍在场的 Scene 计算转场时共用这次点击的纵移方向。游客从头像进入登录、普通导航和返回沿用页面转场。窄窗口保留的「我」标签在展开后仍可显示。切换主标签或一级子页时，「我」的转场位置排在全部可见侧栏项下方。
+
+`AppNavHost` 根据连续区域及侧栏控件 Insets 统一决定字标是否显示。`MainScreen` 用同一结果在首页顶栏选择 KIRAKIRA 字标或 `nav_home` 标题。有侧栏时，账号入口由侧栏头像提供，首页顶栏省略头像按钮。首页标题与视频网格在同一横向安全区域内使用共用的浏览页面宽度，切换列表模式时保持相同的左右边界。
+
 应用保持单 Activity、单 `:app` 模块。[KIRAKIRAApp](../../app/src/main/java/moe/kirakira/KIRAKIRAApp.kt) 连接应用级状态和导航，并创建宿主作用域的 [AppDependenciesViewModel](../../app/src/main/java/moe/kirakira/AppDependenciesViewModel.kt)。它持有唯一的 API 客户端、认证、内容、账号设置及历史 Repository，旋转时沿用原实例；历史任务使用其 `viewModelScope`，宿主清除时取消。`SessionViewModel` 接收同一认证 Repository 与凭据网关，只编排会话操作。资料编辑和账号安全 Repository 含有流程检查点，由依赖容器工厂在条目 ViewModel 创建时提供，随条目释放，仍共用 API 客户端。
 
-[AppNavHost](../../app/src/main/java/moe/kirakira/ui/navigation/AppNavHost.kt) 保留统一转场、返回保护和播放协调，同时在宿主作用域创建 `ImageExportViewModel` 并收集其结果 Toast，让导出任务跨越图片页出栈。图片仓库及无认证客户端由依赖容器共享。页面注册分别放在 `MainEntries`、`ContentEntries`、`ImageViewerEntries`、`SettingsEntries` 和 `AccountEntries`；注册函数显式接收依赖与事件。组合内的 [AppNavigationState](../../app/src/main/java/moe/kirakira/ui/navigation/AppNavigationState.kt) 协调返回栈操作、底栏高度、返回保护与图片查看器退场计数，只有返回栈交给 Navigation 3 保存，返回保护回调与组合计数不进入保存状态。
+[AppNavHost](../../app/src/main/java/moe/kirakira/ui/navigation/AppNavHost.kt) 保留统一转场、返回保护和播放协调，同时在宿主作用域创建 `ImageExportViewModel` 并收集其结果 Toast，让导出任务跨越图片页出栈。图片仓库及无认证客户端由依赖容器共享。页面注册分别放在 `MainEntries`、`ContentEntries`、`ImageViewerEntries`、`SettingsEntries` 和 `AccountEntries`；注册函数显式接收依赖与事件。组合内的 [AppNavigationState](../../app/src/main/java/moe/kirakira/ui/navigation/AppNavigationState.kt) 协调返回栈操作、主导航占位、返回保护与图片查看器退场计数，只有返回栈交给 Navigation 3 保存，返回保护回调与组合计数不进入保存状态。
 
-页面打开和返回统一通过 `AppNavigationState.openFrom` 与 `popFrom`：只接受当前栈顶发出的操作，打开已有目标时返回该条目，返回时始终保留根页面；系统返回、账号入口、设置入口与小窗恢复共用这些操作。恢复旧版本时移除废弃路由仍是独立的返回栈迁移。
+导航条目的 `contentKey` 标识返回保护、ViewModel 和手势两端。Scene 的键标识 `NavDisplay` 中的布局：普通页面使用栈顶条目键，[双栏设置](account-settings.md#自适应设置布局)使用独立的目录 Scene 键，详情切换只发生在 Scene 内。单栏和双栏切换时，Navigation 3 将同一条目移交给目标布局，复用保存状态与 ViewModel 装饰器。
+
+页面打开和返回通过 `AppNavigationState.openFrom` 与 `popFrom`：只接受当前栈顶发出的操作，打开已有目标时返回该条目，返回时始终保留根页面。侧栏沿用同一返回栈：从主界面进入一级子页时压栈，一级子页互切时替换栈顶，重复选择当前子页不修改栈；游客点击头像则按普通路由压入登录页。主标签由宿主的 `MainTabState` 保存；从子页选择主标签先更新目标再回到根页面，不触发回顶；当前已处于目标主标签时才调用 `MainScreen` 提供的回顶处理。普通返回不改变主标签。恢复旧版本时移除废弃路由仍是独立的返回栈迁移。
 
 资料、隐私和安全条目通过 [RegisterNavigationBackGuard](../../app/src/main/java/moe/kirakira/ui/navigation/NavigationBackGuard.kt) 注册只读的预览许可与可触发确认的返回请求。注册随页面组合释放，并按实例身份防止旧组合撤销新注册；回调通过 `rememberUpdatedState` 读取最新页面状态。宿主仅查询栈顶的保护回调，不持有具体业务 ViewModel，也不枚举受保护页面；业务判断与账号自动填充清理留在页面接入处。
 
@@ -29,9 +45,9 @@ Navigation 3 的 `rememberDecoratedNavEntries` 按返回栈缓存入口，不因
 
 普通页面在关闭开关时仍接收 Navigation Event，但忽略手势进度，不创建双页面预览；完成时重新检查返回保护并出栈一次，取消不改变返回栈。开启时保留双页面手势预览，松手后直接恢复页面大小，不叠加速度驱动的缩放弹簧；配置变化会替换普通返回处理器并清理临时动画，不主动出栈。`LocalNavigationPageTransform` 提供稳定的变换读取函数，`NavigationPage` 仅在 `graphicsLayer` 块内读取逐帧状态，遮罩仅在 Canvas 绘制阶段读取，避免逐帧更新组合上下文。源码版本、双页面 Scene、几何变换及公开 API 适配差异统一维护在 [Android 转场说明](../../third_party/android-motion/README.md)。
 
-`ActivityScene` 通过稳定状态引用读取最新返回栈，普通页面仅在自身 `contentKey` 为栈顶、生命周期至少为 STARTED、目标可见状态为 `EnterExitState.Visible` 且不处于预测性返回预览时开放内容交互，不再等待整段转场结束后恢复到 RESUMED。退场页保留期间消费触摸并清空内容的无障碍语义；普通返回使用与 `fadeOut` 相同的 `activityCloseFadeSpec`（延迟 35ms、持续 83ms、线性曲线）驱动透明度观察状态，`derivedStateOf` 仅在淡出完成边界移除已透明的页面内容及触摸屏蔽层，使点击落到新页。外层 Scene 仍完成原有 450ms 横移动画；在旧页开始的触摸随旧内容移除而取消，不转发给新页。预测性返回预览、收尾及其无动画出栈不走此提前移除逻辑，图片查看器仍要求 RESUMED 且可见状态与目标状态都为 Visible，并保留页面自身的转场禁用条件。所有动画继续遵循系统动画时长缩放，不使用固定延时交接。
+`ActivityScene` 通过稳定状态引用读取最新返回栈，普通页面仅在自身 `contentKey` 为栈顶、生命周期至少为 STARTED、目标可见状态为 `EnterExitState.Visible` 且不处于预测性返回预览时开放内容交互，不再等待整段转场结束后恢复到 RESUMED。退场场景和双栏详情保留期间消费触摸并清空内容的无障碍语义。场景、双栏详情和主界面标签页停用时释放各自子树的键盘焦点，禁止焦点重新进入，并拦截仍发给退场内容的按键。普通返回使用与 `fadeOut` 相同的 `activityCloseFadeSpec`（延迟 35ms、持续 83ms、线性曲线）驱动透明度观察状态，`derivedStateOf` 仅在淡出完成边界移除已透明的页面内容及触摸屏蔽层，使点击落到新页。外层 Scene 仍完成原有 450ms 横移动画；在旧页开始的触摸随旧内容移除而取消，不转发给新页。预测性返回预览、收尾及其无动画出栈不走此提前移除逻辑，图片查看器仍要求 RESUMED 且可见状态与目标状态都为 Visible，并保留页面自身的转场禁用条件。所有动画继续遵循系统动画时长缩放，不使用固定延时交接。
 
-主界面标签切换保留同一套横移与淡入淡出参数。栏面与连接列表使用平台 elevation 投影，半透明栏面由背景图层统一承载透明度与阴影；毛玻璃固定使用 Haze 背景采样，规避已在 Android 17 模拟器上复现的原生 backdrop、页面 alpha 与 elevation 合成异常。底部胶囊导航栏位于标签页转场之外。
+底栏和页面内的主界面标签切换保留同一套横移与淡入淡出参数。栏面与连接列表使用平台 elevation 投影，半透明栏面由背景图层统一承载透明度与阴影；毛玻璃固定使用 Haze 背景采样，规避已在 Android 17 模拟器上复现的原生 backdrop、页面 alpha 与 elevation 合成异常。底部胶囊导航栏位于标签页转场之外。
 
 导航会在切页开始时组合和测量新显示的页面；可保存状态与 ViewModel 装饰器保存状态，并不保留离屏页面的整棵组合树。`SharedTransitionLayout` 的预布局测量还包含 LazyColumn 首次子组合，不能将整段预布局时间当成重复测量成本。转场定位优先查看首帧的主线程切片；逐组件追踪只用于定位，交付与对照采样不携带临时探针。构建类型与 ART 编译状态会影响 Compose 执行成本，使用 [本地性能变体](../development.md#动画性能采样) 并分别报告 Debug、非调试和预编译样本，不把更换构建类型当作同配置代码优化收益。
 
@@ -47,17 +63,17 @@ Navigation 3 的 `rememberDecoratedNavEntries` 按返回栈缓存入口，不因
 
 共享选中胶囊覆盖整项图标与文字，浅色主题背景使用 5% 不透明度的 `scrim` 半透明黑色；深色主题改用 10% 不透明度的 `onSurface` 浅色叠层，避免黑色叠在深灰栏面后不可见。根据当前 `ColorScheme.surface` 与 `onSurface` 的明度关系选择叠层，不直接读取系统深色模式，应用手动明暗模式与系统强调色均沿用当前配色。普通前景统一使用 `onSurface`，胶囊覆盖的前景像素使用主题 `primary`；胶囊边缘经过图标或文字时，仅覆盖到的部分染色，不按条目索引整项切换颜色。
 
-`drawWithCache` 缓存胶囊路径与前景图层的绘制参数，在绘制阶段读取直接拖拽坐标或两条动画边界。先绘制胶囊背景，再用独立的透明离屏层绘制一次前景，在胶囊路径内通过 `BlendMode.SrcAtop` 将强调色限制到前景已有 alpha，最后合成回底栏。背景与毛玻璃不进入染色层，图标与文字不重复组合或绘制，保留现有图标动画、24dp 尺寸、触摸目标及语义。胶囊按压时仅改变绘制路径，不改变布局高度，不添加折射形变。直接点击时以 Elastic 动画先伸展前缘、再收拢后缘；推进使用与 Pager Tab 相同的 `rememberEmphasizedEasing`，起止边缘复用 `TabIndicatorLeadingEasing`／`TabIndicatorTrailingEasing`，按移动方向组合 `sin(πt/2)` 与 `1−cos(πt/2)`。时长共用 `tabTransitionDurationMillis`：相邻项 500ms，跨项按当前距离最多增加 150ms。连续点击取消旧动画，从当前边界转向新目标，键盘、无障碍及首页头像跳转同样使用点击动画。
+`drawWithCache` 缓存胶囊路径与前景图层的绘制参数，在绘制阶段读取直接拖拽坐标或两条动画边界。先绘制胶囊背景，再用独立的透明离屏层绘制一次前景，在胶囊路径内通过 `BlendMode.SrcAtop` 将强调色限制到前景已有 alpha，最后合成回底栏。背景与毛玻璃不进入染色层，图标与文字不重复组合或绘制，保留现有图标动画、24dp 尺寸、触摸目标及语义。底栏的首页与搜索使用标准矢量图标绘制，由胶囊前景层统一染色，避免视频返回转场中复用额外的图标录制层。胶囊按压时仅改变绘制路径，不改变布局高度，不添加折射形变。直接点击时以 Elastic 动画先伸展前缘、再收拢后缘；推进使用与 Pager Tab 相同的 `rememberEmphasizedEasing`，起止边缘复用 `TabIndicatorLeadingEasing`／`TabIndicatorTrailingEasing`，按移动方向组合 `sin(πt/2)` 与 `1−cos(πt/2)`。时长共用 `tabTransitionDurationMillis`：相邻项 500ms，跨项按当前距离最多增加 150ms。连续点击取消旧动画，从当前边界转向新目标，键盘、无障碍及首页头像跳转同样使用点击动画。
 
 触摸按下时立即以手指实际横坐标为中心目标，复用原有两条边缘的 Elastic 拉扯动画，不吸附按下项中心；目标限制在首末项中心之间。横向移动超过系统触摸阈值后进入拖拽预选，后续位置也使用手指绝对坐标换算。连续指针采样写入独立的 `MutableFloatState`，由 `snapshotFlow` 更新两条边缘的临界阻尼跟随弹簧（stiffness 1600），保留动画当前位置与速度，不按每次移动重组底栏；组合仅观察按下位置、拖拽开始／结束与目标 Tab，绘制始终读取同一组动画边界。开始拖拽从点击动画当前轮廓连续接入，避免超过触摸阈值时直接跳到手指位置；松手后从当前可见边界以更柔和的无过冲弹簧（stiffness 600）吸附，同时提交手指位置最近的 Tab，不先跳到最后的指针坐标；取消手势同样从当前可见位置弹簧归位，不额外触发点击拉伸。未进入拖拽时，松手提交按下项，并从当前动画边界以原有 Elastic 动画对齐按钮中心；纵向移出容器超过触摸容差、多指介入或手势取消时恢复已选中项。触摸由底栏统一处理，条目仍使用 `selectable` 提供键盘、无障碍、选中语义与非触摸反馈，避免一次松手重复提交。RTL 下预选位置和指示器坐标镜像。临时拖动状态不持久保存，首次显示及状态恢复直接定位到选中项，重复选择当前 Tab 不重播图标或页面动效。
 
 完整容器高度继续反馈给 Scaffold 内容留白与播放小窗定位；首页、搜索和“我”的底部留白放入滚动内容，页面背景延伸至悬浮栏后方。
 
-[MainScreen](../../app/src/main/java/moe/kirakira/feature/main/MainScreen.kt) 将四个 Tab 作为主界面内的局部状态，未建立独立返回栈。Tab 切换复用[普通 Activity 转场](../../third_party/android-motion/README.md#普通-activity-转场)的位移、时长、系统缓动与淡入淡出参数，按排列顺序决定方向，RTL 布局镜像处理；首页头像跳转“我”使用同一套动画。
+[MainScreen](../../app/src/main/java/moe/kirakira/feature/main/MainScreen.kt) 将四个 Tab 作为主界面内的局部状态，未建立独立返回栈。Tab 切换复用[普通 Activity 转场](../../third_party/android-motion/README.md#普通-activity-转场)的位移、时长、系统缓动与淡入淡出参数。`AnimatedContent` 用起止标签在当前导航栏的顺序决定滑动方向。底栏横移并按 RTL 镜像，首页头像跳转“我”使用同一套动画。[侧栏](#导航与状态管理)纵移，选择下方标签时从下滑入，选择上方标签时从上滑入。标签有稳定的内容键和叠放顺序，中途更换目标时按新的起止标签定向。从侧栏一级子页返回时，选好目标标签并由外层 Scene 播放转场。
 
-底栏图标动画与页面切换独立，节奏参考用户提供的 Play Store 录屏，以短促收拢、展开和衰减回弹为主；未选中仍保持现有 filled 样式，首页与“我”在动画期间也保持 Cerasus 实心轮廓。形体动效由 [TabIconMotion](../../app/src/main/java/moe/kirakira/feature/main/TabIconMotion.kt) 统一驱动：每次新选中把线性时钟从 0 推进到 1，各属性的关键帧经 Catmull-Rom 切线的三次 Hermite 样条插值，曲线连续穿过关键帧，终点回到恒等姿态；取消选中时冻结时钟，并在 180ms 内把振幅衰减为 0，让当前姿态平滑归位。快速重新选中尚未归位的图标时，先用 70ms 收起残余形变，再从恒等姿态启动新一轮。变换在 `graphicsLayer` 或 Canvas 绘制阶段读取，不触发逐帧重组。
+导航图标动画与页面切换独立，节奏参考用户提供的 Play Store 录屏，以短促收拢、展开和衰减回弹为主；未选中仍保持现有 filled 样式，首页与“我”在动画期间也保持 Cerasus 实心轮廓。形体动效由 [TabIconMotion](../../app/src/main/java/moe/kirakira/ui/components/navigation/TabIconMotion.kt) 统一驱动：每次新选中把线性时钟从 0 推进到 1，各属性的关键帧经 Catmull-Rom 切线的三次 Hermite 样条插值，曲线连续穿过关键帧，终点回到恒等姿态；取消选中时冻结时钟，并在 180ms 内把振幅衰减为 0，让当前姿态平滑归位。快速重新选中尚未归位的图标时，先用 70ms 收起残余形变，再从恒等姿态启动新一轮。变换在 `graphicsLayer` 或 Canvas 绘制阶段读取，不触发逐帧重组。
 
-首页（400ms）以底部为轴做反向宽高形变：先展宽至 114%、压低至 84%，再收窄至 88%、拉高至 114%，伴随最多 0.9dp 上抬，落下后轻压回弹。搜索（420ms）以手柄圆头中心（原始 960 画布的 `(784, 784)`）为旋转与缩放支点，先缩至 88%、再展开至 111%，从后仰 12° 到前摆 7° 后衰减停稳，形成握住手柄摆动的效果。首页与搜索作用于整幅图标，采用较小的形变与位移幅度，以接近右侧分层动画的视觉强度。「我」（460ms）由 [PersonTabIcon](../../app/src/main/java/moe/kirakira/feature/main/PersonTabIcon.kt) 从原矢量读取头部与身体两个轮廓：身体先收窄至 82%、拉高至 122%，再展宽至 122%、压低至 82%；头部稍后跟随，宽度在 68%–118%、高度在 86%–126% 之间变化，附加最多 1dp 的上下位移，最终准确恢复原始路径。关注（460ms）以信号中心为轴，中心／内圈／外圈分别延迟 0／46／92ms，先收至 82%，再展开至 140%／120%／113%，各自回弹归位。不绘制粒子、波纹等额外图形，不使用透明度渐变。重复点击当前 Tab 不重播，首次显示与状态恢复直接呈现最终形态，全部动画遵循系统动画时长设置。
+首页（400ms）以底部为轴做反向宽高形变：先展宽至 114%、压低至 84%，再收窄至 88%、拉高至 114%，伴随最多 0.9dp 上抬，落下后轻压回弹。搜索（420ms）以手柄圆头中心（原始 960 画布的 `(784, 784)`）为旋转与缩放支点，先缩至 88%、再展开至 111%，从后仰 12° 到前摆 7° 后衰减停稳，形成握住手柄摆动的效果。首页与搜索作用于整幅图标，采用较小的形变与位移幅度，以接近右侧分层动画的视觉强度。「我」（460ms）由 [PersonTabIcon](../../app/src/main/java/moe/kirakira/ui/components/navigation/PersonTabIcon.kt) 从原矢量读取头部与身体两个轮廓：身体先收窄至 82%、拉高至 122%，再展宽至 122%、压低至 82%；头部稍后跟随，宽度在 68%–118%、高度在 86%–126% 之间变化，附加最多 1dp 的上下位移，最终准确恢复原始路径。关注（460ms）以信号中心为轴，中心／内圈／外圈分别延迟 0／46／92ms，先收至 82%，再展开至 140%／120%／113%，各自回弹归位。不绘制粒子、波纹等额外图形，不使用透明度渐变。重复点击当前 Tab 不重播，首次显示与状态恢复直接呈现最终形态，全部动画遵循系统动画时长设置。
 
 图标来源与适配见 [Cerasus 首页与个人图标](../../third_party/cerasus-icons/README.md#底栏首页与个人图标)和 [Material Symbols 搜索与关注图标](../../third_party/material-symbols/README.md#底栏图标形变)。
 
@@ -75,9 +91,11 @@ Manifest 的 `icon` 与 `roundIcon` 分别引用 `mipmap-anydpi` 中的 `ic_laun
 
 启动主题的共用属性由 `Theme.KIRAKIRA.Splash.Base` 提供，Manifest 继续引用 `Theme.KIRAKIRA.Splash`；Android 10+ 的系统栏对比度属性仅在 `values-v29` 中声明，低版本沿用基础主题。
 
-所有 Android 版本的 `ic_splash` 均通过资源别名引用独立的透明矢量 `ic_splash_foreground`，不提供自适应图标背景层，移除可能在 HyperOS 上显示为外框描边的图标底板。系统 Splash 和 Compose 覆盖层共用这份矢量几何与配色，桌面与关于页图标保持原样。
+系统 Splash 和 Compose 覆盖层共用透明矢量 `ic_splash_foreground` 的几何与配色。Android 8.1–11 的 `ic_splash` 通过资源别名引用该矢量，Android 12+ 通过 `drawable-v31/ic_splash.xml` 中的单帧 `AnimationDrawable` 引用。单帧资源让系统以图标的显示尺寸绘制矢量，避开静态图标先栅格化再放大造成的模糊；Logo 在 Compose 接管前保持静止。启动图标没有底板，避免 HyperOS 显示图标外框。
 
-Android 12+ 的系统 Splash 仍会在裁切前扩展普通矢量前景。`SplashRevealController` 使用公开的 `AdaptiveIconDrawable.getExtraInsetFraction()` 计算该扩展比例，并沿用平台对中心与半宽高的整数取整方式；Android 8.1–11 直接使用图标视图边界。退出动画不依赖启动资源必须为 `AdaptiveIconDrawable`，保持交接首帧的图标大小与位置一致。
+Android 12+ 的系统 Splash 在裁切前扩展图标前景，单帧资源也沿用该规则。`SplashRevealController` 使用公开的 `AdaptiveIconDrawable.getExtraInsetFraction()` 计算扩展比例，并沿用平台对中心与半宽高的整数取整方式；Android 8.1–11 直接使用图标视图边界。Compose 根据这些边界保持交接首帧的图标大小与位置一致。
+
+Android 12+ 将单帧图标放在独立的 `SurfaceView` 中。系统把 Splash 视图移入应用窗口时，控制器在首次绘制前用相同位置和尺寸的矢量覆盖层接替图标 Surface，避免 Surface 交接时短暂露出空白。此覆盖层随系统 Splash 视图一同移除。
 
 系统 Splash 保留到主题设置读取完成、Compose 页面完成首次布局后才允许退出，避免读取完成与页面布局之间短暂露出窗口背景；关闭动画或 Activity 重建时也遵循这一就绪条件。仅在没有保存状态的新 Activity 收到系统 Splash 退出回调时播放：
 

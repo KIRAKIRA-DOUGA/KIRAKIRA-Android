@@ -531,6 +531,7 @@
     <string name="settings_section_mini_player">小窗播放</string>
     <string name="settings_section_animations">动画</string>
     <string name="settings_predictive_back">预测性返回</string>
+    <string name="settings_background_depth">背景景深</string>
     <string name="danmaku_section_display">显示</string>
     <string name="danmaku_section_types">弹幕类型</string>
 
@@ -585,6 +586,7 @@
     <string name="invitation_creation_retry_message">邀请码可能已经生成，请先核对列表。再次生成可能创建另一个邀请码。</string>
     <string name="invitation_generate_again">再次生成</string>
     <string name="settings_search">搜索设置</string>
+    <string name="settings_select_item">选择一项设置</string>
     <string name="settings_search_empty">未找到相关设置</string>
 
     <string name="component_gallery_title">组件库</string>

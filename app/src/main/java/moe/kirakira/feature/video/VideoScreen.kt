@@ -31,7 +31,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerDefaults
-import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.AssistChip
@@ -44,8 +44,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -73,6 +75,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
@@ -85,6 +88,7 @@ import moe.kirakira.data.content.Reaction
 import moe.kirakira.data.content.VideoComment
 import moe.kirakira.data.content.VideoDetail
 import moe.kirakira.data.content.VideoSummary
+import moe.kirakira.ui.adaptive.WindowPane
 import moe.kirakira.ui.components.AppChipDefaults
 import moe.kirakira.ui.components.AccountAvatar
 import moe.kirakira.ui.components.ContentPullToRefresh
@@ -93,12 +97,14 @@ import moe.kirakira.ui.components.ContentStatusViewport
 import moe.kirakira.ui.components.ExpandableText
 import moe.kirakira.ui.components.FollowButton
 import moe.kirakira.ui.components.LazyListScrollbar
+import moe.kirakira.ui.components.LocalMenuHazeState
 import moe.kirakira.ui.components.LocalNumberAnimationIdentity
 import moe.kirakira.ui.components.PagerTabRow
 import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.components.StatusBarScrollToTopPauseEffect
 import moe.kirakira.ui.components.UsernameText
 import moe.kirakira.ui.components.frostedBarBackground
+import moe.kirakira.ui.components.menuHazeSource
 import moe.kirakira.ui.components.rememberTabChangeHandler
 import moe.kirakira.ui.components.smoothScrollToTop
 import moe.kirakira.ui.components.video.categoryText
@@ -111,6 +117,8 @@ import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorDefaults
 
 internal enum class VideoTab { INTRODUCTION, COMMENTS, DANMAKU }
+
+private val ConversationTabs = listOf(VideoTab.COMMENTS, VideoTab.DANMAKU)
 
 internal data class VideoUiState(
     val detail: ContentState<VideoDetail>,
@@ -163,21 +171,32 @@ internal fun VideoScreen(
     recentKaomoji: List<String> = emptyList(),
     onKaomojiInserted: (String) -> Unit = {},
     isActive: Boolean = true,
+    detailPane: IntRect? = null,
+    introductionPane: IntRect? = null,
+    introductionPadding: PaddingValues = PaddingValues(0.dp),
+    wideWindow: Boolean = false,
+    aboveTabs: @Composable () -> Unit = {},
 ) {
     val layoutDirection = LocalLayoutDirection.current
     val horizontalPadding = PaddingValues(
         start = contentPadding.calculateStartPadding(layoutDirection),
         end = contentPadding.calculateEndPadding(layoutDirection),
     )
-    val bottomPadding = contentPadding.calculateBottomPadding()
-    val pager = rememberPagerState(pageCount = { VideoTab.entries.size })
+    val splitIntroduction = introductionPane != null
+    val tabs = if (splitIntroduction) ConversationTabs else VideoTab.entries
+    var selectedTab by rememberSaveable { mutableStateOf(VideoTab.INTRODUCTION) }
+    // Page indices change with the layout; preserve the semantic tab, not its old index.
+    val pager = remember(splitIntroduction) {
+        PagerState(currentPage = tabs.indexOf(selectedTab).coerceAtLeast(0), pageCount = { tabs.size })
+    }
     val kaomojiPanelOpen = commentComposer.panelOpen || danmakuComposer.panelOpen
     val panelNestedScrollConnection = remember { object : NestedScrollConnection {} }
     val pageNestedScrollConnection = PagerDefaults.pageNestedScrollConnection(pager, Orientation.Horizontal)
     val introductionListState = rememberLazyListState()
     val commentsListState = rememberLazyListState()
     val danmakuListState = rememberLazyListState()
-    val currentTab = VideoTab.entries[pager.currentPage]
+    val currentTab = tabs[pager.currentPage]
+    SideEffect { selectedTab = currentTab }
     val activeListState = when (currentTab) {
         VideoTab.INTRODUCTION -> introductionListState
         VideoTab.COMMENTS -> commentsListState
@@ -188,13 +207,14 @@ internal fun VideoScreen(
     }
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
-    LaunchedEffect(pager.currentPage) {
+    LaunchedEffect(currentTab) {
         commentComposer.panelOpen = false
         danmakuComposer.panelOpen = false
         focusManager.clearFocus(force = true)
         keyboard?.hide()
     }
     val detail = state.detail.data
+    var descriptionExpanded by rememberSaveable(detail?.summary?.id) { mutableStateOf(false) }
     val accessBlocked = state.access.unavailable || state.access.playbackInvalidationPending
     val checkingAccess = state.access.unavailable && state.detail.loading
     val emptyCommentPages = remember { CommentPages() }
@@ -242,34 +262,167 @@ internal fun VideoScreen(
         StatusBarScrollToTopEffect(activeListState, enabled = statusBarScrollEnabled)
     }
     StatusBarScrollToTopPauseEffect(paused = isActive && kaomojiPanelOpen)
-    val changeTab = rememberTabChangeHandler(pager, onTabReselect = { page ->
-        when (VideoTab.entries[page]) {
-            VideoTab.INTRODUCTION -> introductionListState.smoothScrollToTop()
-            VideoTab.COMMENTS -> scrollCommentsToTop()
-            VideoTab.DANMAKU -> danmakuListState.smoothScrollToTop()
+    val changeTab = key(pager) {
+        rememberTabChangeHandler(pager) { page ->
+            when (tabs[page]) {
+                VideoTab.INTRODUCTION -> introductionListState.smoothScrollToTop()
+                VideoTab.COMMENTS -> scrollCommentsToTop()
+                VideoTab.DANMAKU -> danmakuListState.smoothScrollToTop()
+            }
         }
-    })
+    }
     val posted = state.posted.takeUnless { accessBlocked }
     val danmaku = if (accessBlocked) state.danmaku.copy(data = null) else state.danmaku
     val danmakuRefreshing = checkingAccess && state.access.refreshingTab == VideoTab.DANMAKU
     val danmakuStatus = if (checkingAccess) {
         danmaku.copy(loading = !danmakuRefreshing, error = danmaku.error.takeIf { danmakuRefreshing })
     } else danmaku.copy(loading = danmaku.loading && danmaku.data == null)
-    LaunchedEffect(pager.currentPage, state.sessionRevision, isActive, detail != null) {
-        if (isActive) onLoadTab(VideoTab.entries[pager.currentPage])
+    LaunchedEffect(currentTab, state.sessionRevision, isActive, detail != null) {
+        if (isActive) onLoadTab(currentTab)
     }
     val hazeState = rememberHazeState()
     var tabRowHeight by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
-    val tabPadding = with(density) { tabRowHeight.toDp() }
+    val tabTopInset = if (splitIntroduction) contentPadding.calculateTopPadding() else 0.dp
+    val tabPadding = tabTopInset + with(density) { tabRowHeight.toDp() }
+    val introduction: @Composable (PaddingValues, Dp) -> Unit = { panePadding, topPadding ->
+        ContentPullToRefresh(
+            isRefreshing = state.detail.loading && detail != null,
+            onRefresh = onRetry,
+            modifier = Modifier.fillMaxSize().padding(
+                start = panePadding.calculateStartPadding(layoutDirection),
+                end = panePadding.calculateEndPadding(layoutDirection),
+            ),
+            indicatorTopPadding = topPadding,
+        ) {
+            val listContentPadding = PaddingValues(
+                20.dp, topPadding + 24.dp, 20.dp, panePadding.calculateBottomPadding() + 24.dp,
+            )
+            val pageColor = MaterialTheme.colorScheme.background
+            val chipContainerColor = ThemeColorDefaults.controlContainerColor(pageColor)
+            ContentStatusViewport(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = listContentPadding,
+                leadingContentHeight = 0.dp,
+            ) { statusModifier ->
+                LazyColumn(state = introductionListState, contentPadding = listContentPadding,
+                    verticalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.fillMaxSize()) {
+                    if (state.detail.error != null || detail == null) {
+                        item("status") {
+                            ContentStatus(
+                                state.detail, onRetry,
+                                Modifier.fillMaxWidth().then(if (detail == null) statusModifier else Modifier),
+                            )
+                        }
+                    }
+                    if (detail != null) {
+                        if (detail.parts.size > 1) {
+                            item("parts") {
+                                val partChipColors = AppChipDefaults.filterColors(pageColor)
+                                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    itemsIndexed(detail.parts, key = { _, part -> part.id }) { index, part ->
+                                        FilterChip(
+                                            selected = selectedPart == index,
+                                            onClick = { onSelectPart(index) },
+                                            label = {
+                                                Text(part.title.ifBlank { stringResource(R.string.player_part, part.sourceIndex + 1) })
+                                            },
+                                            colors = partChipColors,
+                                            shape = CircleShape,
+                                            border = null,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        item("author") {
+                            VideoAuthor(
+                                detail.author, onOpenProfile, onFollow,
+                                enabled = !state.busy && !state.detail.loading &&
+                                    state.detail.error == null && !detail.blockedByOther,
+                                loading = state.mutation == ContentMutation.FOLLOW,
+                            )
+                        }
+                        item("title") { SelectionContainer { Text(detail.summary.title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() }) } }
+                        item("metadata") {
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                detail.summary.views?.let {
+                                    val count = stringResource(R.string.video_views, it)
+                                    VideoMetadata(
+                                        R.drawable.ic_icon_play,
+                                        count,
+                                        description = stringResource(R.string.video_views_description, count),
+                                    )
+                                }
+                                VideoMetadata(R.drawable.ic_icon_calendar, dateText(detail.summary.uploadedAt))
+                                if (detail.category.isNotBlank()) {
+                                    VideoMetadata(R.drawable.ic_icon_category, categoryText(detail.category))
+                                }
+                            }
+                        }
+                        item("actions") {
+                            CompositionLocalProvider(
+                                LocalNumberAnimationIdentity provides Pair(state.sessionRevision, detail.summary.id),
+                            ) {
+                                VideoActions(
+                                    detail = detail,
+                                    busy = state.busy || state.detail.loading || state.detail.error != null,
+                                    onVote = onVote,
+                                    onUnavailable = onUnavailable,
+                                    onShare = onShare,
+                                    onViewCover = onViewCover,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentAlignment = if (wideWindow) Alignment.TopStart else Alignment.TopCenter,
+                                )
+                            }
+                        }
+                        item("description") {
+                            ExpandableText(
+                                text = detail.description,
+                                expanded = descriptionExpanded,
+                                onExpandedChange = { descriptionExpanded = it },
+                                collapsedMaxLines = 3,
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                        }
+                        if (detail.tags.isNotEmpty()) {
+                            item("tags") {
+                                val language = LocalConfiguration.current.locales[0].toLanguageTag()
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    detail.tags.forEach { tag ->
+                                        AssistChip(
+                                            onClick = { onOpenTag(tag.id) },
+                                            label = { Text(tag.displayName(language)) },
+                                            shape = CircleShape,
+                                            colors = AssistChipDefaults.assistChipColors(
+                                                containerColor = chipContainerColor,
+                                                labelColor = MaterialTheme.colorScheme.onSurface,
+                                                leadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                trailingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            ),
+                                            border = null,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
     VideoContentLayout(
         playerHeight = playerHeight,
         hazeState = hazeState,
+        detailPane = detailPane,
+        introductionPane = introductionPane,
+        introduction = { introduction(introductionPadding, introductionPadding.calculateTopPadding()) },
+        aboveTabs = aboveTabs,
         modifier = modifier,
         tabs = {
             PagerTabRow(
                 pagerState = pager,
-                titles = VideoTab.entries.map { tab ->
+                titles = tabs.map { tab ->
                     stringResource(
                         when (tab) {
                             VideoTab.INTRODUCTION -> R.string.video_tab_introduction
@@ -282,6 +435,7 @@ internal fun VideoScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontalPadding)
+                    .padding(top = tabTopInset)
                     .onSizeChanged { tabRowHeight = it.height },
             )
         },
@@ -290,6 +444,7 @@ internal fun VideoScreen(
         Box(Modifier.fillMaxWidth().weight(1f)) {
             HorizontalPager(
                 state = pager,
+                key = { tabs[it] },
                 modifier = Modifier.fillMaxSize().then(
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Modifier.hazeSource(hazeState) else Modifier,
                 ),
@@ -303,128 +458,8 @@ internal fun VideoScreen(
             ) { page ->
                 // Child flings can mark the pager as scrolling without changing the active tab.
                 val composerActive = isActive && pager.currentPage == page
-                when (VideoTab.entries[page]) {
-                    VideoTab.INTRODUCTION -> ContentPullToRefresh(
-                        isRefreshing = state.detail.loading && detail != null,
-                        onRefresh = onRetry,
-                        modifier = Modifier.fillMaxSize().padding(horizontalPadding),
-                        indicatorTopPadding = tabPadding,
-                    ) {
-                        val listContentPadding = PaddingValues(20.dp, tabPadding + 24.dp, 20.dp, bottomPadding + 24.dp)
-                        val pageColor = MaterialTheme.colorScheme.background
-                        val chipContainerColor = ThemeColorDefaults.controlContainerColor(pageColor)
-                        ContentStatusViewport(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = listContentPadding,
-                            leadingContentHeight = 0.dp,
-                        ) { statusModifier ->
-                            LazyColumn(state = introductionListState, contentPadding = listContentPadding,
-                                verticalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.fillMaxSize()) {
-                                if (state.detail.error != null || detail == null) {
-                                    item("status") {
-                                        ContentStatus(
-                                            state.detail, onRetry,
-                                            Modifier.fillMaxWidth().then(if (detail == null) statusModifier else Modifier),
-                                        )
-                                    }
-                                }
-                                if (detail != null) {
-                                    if (detail.parts.size > 1) {
-                                        item("parts") {
-                                            val partChipColors = AppChipDefaults.filterColors(pageColor)
-                                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                itemsIndexed(detail.parts, key = { _, part -> part.id }) { index, part ->
-                                                    FilterChip(
-                                                        selected = selectedPart == index,
-                                                        onClick = { onSelectPart(index) },
-                                                        label = {
-                                                            Text(part.title.ifBlank { stringResource(R.string.player_part, part.sourceIndex + 1) })
-                                                        },
-                                                        colors = partChipColors,
-                                                        shape = CircleShape,
-                                                        border = null,
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                    item("author") {
-                                        VideoAuthor(
-                                            detail.author, onOpenProfile, onFollow,
-                                            enabled = !state.busy && !state.detail.loading &&
-                                                state.detail.error == null && !detail.blockedByOther,
-                                            loading = state.mutation == ContentMutation.FOLLOW,
-                                        )
-                                    }
-                                    item("title") { SelectionContainer { Text(detail.summary.title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() }) } }
-                                    item("metadata") {
-                                        FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            detail.summary.views?.let {
-                                                val count = stringResource(R.string.video_views, it)
-                                                VideoMetadata(
-                                                    R.drawable.ic_icon_play,
-                                                    count,
-                                                    description = stringResource(R.string.video_views_description, count),
-                                                )
-                                            }
-                                            VideoMetadata(R.drawable.ic_icon_calendar, dateText(detail.summary.uploadedAt))
-                                            if (detail.category.isNotBlank()) {
-                                                VideoMetadata(R.drawable.ic_icon_category, categoryText(detail.category))
-                                            }
-                                        }
-                                    }
-                                    item("actions") {
-                                        CompositionLocalProvider(
-                                            LocalNumberAnimationIdentity provides Pair(state.sessionRevision, detail.summary.id),
-                                        ) {
-                                            VideoActions(
-                                                detail = detail,
-                                                busy = state.busy || state.detail.loading || state.detail.error != null,
-                                                onVote = onVote,
-                                                onUnavailable = onUnavailable,
-                                                onShare = onShare,
-                                                onViewCover = onViewCover,
-                                                modifier = Modifier.fillMaxWidth(),
-                                            )
-                                        }
-                                    }
-                                    item("description") {
-                                        var descriptionExpanded by rememberSaveable(detail.summary.id) {
-                                            mutableStateOf(false)
-                                        }
-                                        ExpandableText(
-                                            text = detail.description,
-                                            expanded = descriptionExpanded,
-                                            onExpandedChange = { descriptionExpanded = it },
-                                            collapsedMaxLines = 3,
-                                            style = MaterialTheme.typography.bodyLarge,
-                                        )
-                                    }
-                                    if (detail.tags.isNotEmpty()) {
-                                        item("tags") {
-                                            val language = LocalConfiguration.current.locales[0].toLanguageTag()
-                                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                detail.tags.forEach { tag ->
-                                                    AssistChip(
-                                                        onClick = { onOpenTag(tag.id) },
-                                                        label = { Text(tag.displayName(language)) },
-                                                        shape = CircleShape,
-                                                        colors = AssistChipDefaults.assistChipColors(
-                                                            containerColor = chipContainerColor,
-                                                            labelColor = MaterialTheme.colorScheme.onSurface,
-                                                            leadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                            trailingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        ),
-                                                        border = null,
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                when (tabs[page]) {
+                    VideoTab.INTRODUCTION -> introduction(contentPadding, tabPadding)
                     VideoTab.COMMENTS -> CompositionLocalProvider(
                         LocalNumberAnimationIdentity provides Triple(
                             state.sessionRevision, detail?.summary?.id, comments.pages.isNotEmpty(),
@@ -524,11 +559,38 @@ internal fun VideoScreen(
             }
         }
     }
-
 }
 
 @Composable
 private fun VideoContentLayout(
+    playerHeight: Dp,
+    hazeState: HazeState,
+    detailPane: IntRect?,
+    introductionPane: IntRect?,
+    modifier: Modifier = Modifier,
+    introduction: @Composable () -> Unit,
+    aboveTabs: @Composable () -> Unit,
+    tabs: @Composable () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val menuHazeState = rememberHazeState()
+    CompositionLocalProvider(LocalMenuHazeState provides menuHazeState) {
+        Box(modifier.menuHazeSource(menuHazeState)) {
+            if (introductionPane != null) WindowPane(introductionPane, content = introduction)
+            WindowPane(detailPane) {
+                Column(Modifier.fillMaxSize()) {
+                    aboveTabs()
+                    VideoTabLayout(
+                        playerHeight, hazeState, Modifier.weight(1f).fillMaxWidth(), tabs, content,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun VideoTabLayout(
     playerHeight: Dp,
     hazeState: HazeState,
     modifier: Modifier = Modifier,

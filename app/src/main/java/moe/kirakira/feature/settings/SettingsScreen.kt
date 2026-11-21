@@ -1,8 +1,6 @@
 package moe.kirakira.feature.settings
 
 import android.content.res.Configuration
-import androidx.annotation.DrawableRes
-import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,21 +10,19 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -35,46 +31,46 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import moe.kirakira.R
+import moe.kirakira.ui.adaptive.pageContentWidth
 import moe.kirakira.ui.components.ActionDialog
-import moe.kirakira.ui.components.CollapsibleTopAppBar
 import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.ui.components.DestructiveActionIcon
 import moe.kirakira.ui.components.FlatTextButton
 import moe.kirakira.ui.components.FrostedScaffold
+import moe.kirakira.ui.components.PageTopAppBar
 import moe.kirakira.ui.components.SectionHeader
 import moe.kirakira.ui.components.SegmentedMenuItem
 import moe.kirakira.ui.components.ShadingIcon
 import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.StatusBarScrollToTopEffect
-import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
+import moe.kirakira.ui.components.topAppBarContentWidth
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorDefaults
 
-private data class SettingsEntry(@param:StringRes val title: Int, @param:DrawableRes val icon: Int)
+private val categoryEntries = settingsSearchCatalog.filter { it.topLevel && it.page != SettingsSearchPage.HOME }
+private val personalSettings = categoryEntries.filter { it.requiresAccount }
+private val generalSettings = categoryEntries.filter { !it.requiresAccount && it.page != SettingsSearchPage.ACCOUNT }
+private val accountSetting = categoryEntries.single { it.page == SettingsSearchPage.ACCOUNT }
+private val directoryPages = (personalSettings + generalSettings + accountSetting).map { it.page }
+
+internal val SettingsSearchPage.directoryIndex: Int?
+    get() = directoryPages.indexOf(this).takeIf { it >= 0 }
 
 @Composable
-fun SettingsScreen(
+internal fun SettingsScreen(
     onBack: () -> Unit,
-    onNavigateToAbout: () -> Unit,
-    onNavigateToAppearance: () -> Unit,
-    onNavigateToAccount: () -> Unit,
+    onSelectCategory: (SettingsSearchPage) -> Unit,
     modifier: Modifier = Modifier,
-    onNavigateToLanguage: () -> Unit = {},
-    onNavigateToPlayback: () -> Unit = {},
-    onNavigateToDanmaku: () -> Unit = {},
-    onNavigateToBlocking: () -> Unit = {},
-    onNavigateToInvitations: () -> Unit = {},
-    onNavigateToProfile: () -> Unit = {},
-    onNavigateToPrivacy: () -> Unit = {},
-    onNavigateToSecurity: () -> Unit = {},
+    twoPane: Boolean = false,
+    selectedCategory: SettingsSearchPage? = null,
     signedIn: Boolean = false,
     accountBusy: Boolean = false,
     onLogout: () -> Unit = {},
     isActive: Boolean = true,
-    onSearchDestination: (String) -> Unit = {},
+    onSearchDestination: (SettingsSearchEntry) -> Unit = {},
 ) {
     var confirmLogout by rememberSaveable(signedIn) { mutableStateOf(false) }
-    if (confirmLogout && signedIn) {
+    if (confirmLogout && signedIn && isActive) {
         ActionDialog(
             onDismissRequest = { confirmLogout = false },
             icon = { DestructiveActionIcon(R.drawable.ic_icon_logout) },
@@ -100,135 +96,119 @@ fun SettingsScreen(
             },
         )
     }
-    val scrollBehavior = rememberCollapsibleTopAppBarScrollBehavior()
     val listState = rememberLazyListState()
-    StatusBarScrollToTopEffect(listState, enabled = isActive, scrollBehavior = scrollBehavior)
+    StatusBarScrollToTopEffect(listState, enabled = isActive && selectedCategory == null)
     val scope = rememberCoroutineScope()
     val layoutDirection = LocalLayoutDirection.current
 
-    val personalSettings = remember {
-        listOf(
-            SettingsEntry(R.string.settings_profile, R.drawable.ic_icon_badge),
-            SettingsEntry(R.string.settings_privacy, R.drawable.ic_icon_shield),
-            SettingsEntry(R.string.settings_security, R.drawable.ic_icon_lock),
-            SettingsEntry(R.string.settings_blocking, R.drawable.ic_icon_block),
-            SettingsEntry(R.string.settings_invitation_code, R.drawable.ic_icon_gift),
-        )
-    }
-
-    val generalSettings = remember {
-        listOf(
-            SettingsEntry(R.string.settings_appearance, R.drawable.ic_icon_palette),
-            SettingsEntry(R.string.settings_playback, R.drawable.ic_icon_play),
-            SettingsEntry(R.string.settings_danmaku, R.drawable.ic_custom_danmaku),
-            SettingsEntry(R.string.settings_language, R.drawable.ic_icon_translate),
-            SettingsEntry(R.string.settings_about, R.drawable.ic_icon_info),
-        )
-    }
-
-    FrostedScaffold(
-        modifier = modifier
-            .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection)
-            .testTag("settings_screen"),
-        containerColor = ThemeColorDefaults.settingsBackgroundColor(),
-        topBar = {
-            Column {
-                Box {
-                    ShadingIcon(
-                        icon = R.drawable.ic_icon_settings,
-                        modifier = Modifier.matchParentSize(),
-                        rotating = true,
-                        endPadding = 0.dp,
-                        alignment = Alignment.BottomEnd,
-                        offset = DpOffset(32.dp, 32.dp),
-                    )
-                    CollapsibleTopAppBar(
-                        title = stringResource(R.string.me_settings),
-                        onBack = onBack,
-                        scrollBehavior = scrollBehavior,
-                        backButtonModifier = Modifier.testTag("settings_back"),
-                    )
-                }
-                SettingsSearchBar(
-                    signedIn = signedIn,
-                    isActive = isActive,
-                    onSelect = { entry ->
-                        if (entry.page == SettingsSearchPage.HOME) {
-                            scope.launch { listState.animateScrollToItem(if (signedIn) 2 else 1) }
-                        } else onSearchDestination(entry.id)
-                    },
-                )
-            }
+    SettingsSearchLayout(
+        signedIn = signedIn,
+        isActive = isActive,
+        twoPane = twoPane,
+        hasDetail = selectedCategory != null,
+        modifier = modifier.testTag("settings_screen"),
+        onSelect = { entry ->
+            if (entry.page == SettingsSearchPage.HOME) {
+                scope.launch { listState.animateScrollToItem(if (signedIn) 2 else 1) }
+            } else onSearchDestination(entry)
         },
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .consumeWindowInsets(innerPadding),
-            contentAlignment = Alignment.TopCenter,
-        ) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .widthIn(max = 640.dp)
-                    .fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = innerPadding.calculateStartPadding(layoutDirection) + 16.dp,
-                    end = innerPadding.calculateEndPadding(layoutDirection) + 16.dp,
-                    top = innerPadding.calculateTopPadding() + 16.dp,
-                    bottom = innerPadding.calculateBottomPadding() + 16.dp,
-                ),
-                verticalArrangement = Arrangement.spacedBy(24.dp),
-            ) {
-                if (signedIn) {
-                    item(key = "personal", contentType = "settings_group") {
-                        SettingsGroup(
-                            title = stringResource(R.string.nav_me),
-                            entries = personalSettings,
-                            onBlockingClick = onNavigateToBlocking,
-                            onInvitationsClick = onNavigateToInvitations,
-                            onProfileClick = onNavigateToProfile,
-                            onPrivacyClick = onNavigateToPrivacy,
-                            onSecurityClick = onNavigateToSecurity,
+    ) { searchBar ->
+        FrostedScaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = ThemeColorDefaults.settingsBackgroundColor(),
+            topBar = {
+                Column {
+                    Box {
+                        ShadingIcon(
+                            icon = R.drawable.ic_icon_settings,
+                            modifier = Modifier.matchParentSize(),
+                            rotating = true,
+                            endPadding = 0.dp,
+                            alignment = Alignment.BottomEnd,
+                            offset = DpOffset(32.dp, 32.dp),
+                        )
+                        PageTopAppBar(
+                            title = stringResource(R.string.me_settings),
+                            onBack = onBack,
+                            modifier = Modifier.topAppBarContentWidth(SettingsDefaults.MaxContentWidth),
+                            backButtonModifier = Modifier.testTag("settings_back"),
                         )
                     }
+                    searchBar()
                 }
-                item(key = "general", contentType = "settings_group") {
-                    SettingsGroup(
-                        title = stringResource(R.string.settings_general),
-                        entries = generalSettings,
-                        onAboutClick = onNavigateToAbout,
-                        onAppearanceClick = onNavigateToAppearance,
-                        onPlaybackClick = onNavigateToPlayback,
-                        onLanguageClick = onNavigateToLanguage,
-                        onDanmakuClick = onNavigateToDanmaku,
+            },
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(
+                        start = innerPadding.calculateStartPadding(layoutDirection),
+                        end = innerPadding.calculateEndPadding(layoutDirection),
                     )
-                }
-                item(key = "account", contentType = "settings_group") {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SectionHeader(
-                            title = stringResource(R.string.settings_account),
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                        )
-                        ConnectedListGroup {
-                            SegmentedMenuItem(
-                                title = stringResource(R.string.settings_switch_account),
-                                icon = R.drawable.ic_symbol_switch_account,
-                                index = 0,
-                                count = if (signedIn) 2 else 1,
-                                onClick = onNavigateToAccount,
+                    .consumeWindowInsets(innerPadding),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .pageContentWidth(SettingsDefaults.MaxContentWidth)
+                        .fillMaxSize()
+                        .then(if (twoPane) Modifier.selectableGroup() else Modifier),
+                    contentPadding = PaddingValues(
+                        start = SettingsDefaults.HorizontalPadding,
+                        end = SettingsDefaults.HorizontalPadding,
+                        top = innerPadding.calculateTopPadding() + 16.dp,
+                        bottom = innerPadding.calculateBottomPadding() + 16.dp,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(24.dp),
+                ) {
+                    if (signedIn) {
+                        item(key = "personal", contentType = "settings_group") {
+                            SettingsGroup(
+                                title = stringResource(R.string.nav_me),
+                                entries = personalSettings,
+                                twoPane = twoPane,
+                                selectedCategory = selectedCategory,
+                                onSelect = onSelectCategory,
                             )
-                            if (signedIn) {
+                        }
+                    }
+                    item(key = "general", contentType = "settings_group") {
+                        SettingsGroup(
+                            title = stringResource(R.string.settings_general),
+                            entries = generalSettings,
+                            twoPane = twoPane,
+                            selectedCategory = selectedCategory,
+                            onSelect = onSelectCategory,
+                        )
+                    }
+                    item(key = "account", contentType = "settings_group") {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SectionHeader(
+                                title = stringResource(R.string.settings_account),
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                            )
+                            ConnectedListGroup {
                                 SegmentedMenuItem(
-                                    title = stringResource(R.string.settings_log_out),
-                                    icon = R.drawable.ic_icon_logout,
-                                    index = 1,
-                                    count = 2,
-                                    showChevron = false,
-                                    destructive = true,
-                                    onClick = if (!accountBusy) ({ confirmLogout = true }) else null,
+                                    title = stringResource(accountSetting.title),
+                                    icon = accountSetting.icon,
+                                    index = 0,
+                                    count = if (signedIn) 2 else 1,
+                                    onClick = { onSelectCategory(accountSetting.page) },
+                                    showChevron = !twoPane,
+                                    selected = if (twoPane) selectedCategory == accountSetting.page else null,
                                 )
+                                if (signedIn) {
+                                    SegmentedMenuItem(
+                                        title = stringResource(R.string.settings_log_out),
+                                        icon = R.drawable.ic_icon_logout,
+                                        index = 1,
+                                        count = 2,
+                                        showChevron = false,
+                                        destructive = true,
+                                        onClick = if (!accountBusy) ({ confirmLogout = true }) else null,
+                                    )
+                                }
                             }
                         }
                     }
@@ -241,18 +221,11 @@ fun SettingsScreen(
 @Composable
 private fun SettingsGroup(
     title: String,
-    entries: List<SettingsEntry>,
+    entries: List<SettingsSearchEntry>,
+    twoPane: Boolean,
+    selectedCategory: SettingsSearchPage?,
+    onSelect: (SettingsSearchPage) -> Unit,
     modifier: Modifier = Modifier,
-    onPlaybackClick: (() -> Unit)? = null,
-    onLanguageClick: (() -> Unit)? = null,
-    onDanmakuClick: (() -> Unit)? = null,
-    onBlockingClick: (() -> Unit)? = null,
-    onInvitationsClick: (() -> Unit)? = null,
-    onAboutClick: (() -> Unit)? = null,
-    onAppearanceClick: (() -> Unit)? = null,
-    onProfileClick: (() -> Unit)? = null,
-    onPrivacyClick: (() -> Unit)? = null,
-    onSecurityClick: (() -> Unit)? = null,
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionHeader(
@@ -266,19 +239,9 @@ private fun SettingsGroup(
                     icon = entry.icon,
                     index = index,
                     count = entries.size,
-                    onClick = when (entry.title) {
-                        R.string.settings_profile -> onProfileClick
-                        R.string.settings_privacy -> onPrivacyClick
-                        R.string.settings_security -> onSecurityClick
-                        R.string.settings_blocking -> onBlockingClick
-                        R.string.settings_invitation_code -> onInvitationsClick
-                        R.string.settings_playback -> onPlaybackClick
-                        R.string.settings_language -> onLanguageClick
-                        R.string.settings_danmaku -> onDanmakuClick
-                        R.string.settings_about -> onAboutClick
-                        R.string.settings_appearance -> onAppearanceClick
-                        else -> null
-                    },
+                    onClick = { onSelect(entry.page) },
+                    showChevron = !twoPane,
+                    selected = if (twoPane) selectedCategory == entry.page else null,
                 )
             }
         }
@@ -294,9 +257,7 @@ private fun SettingsPreview() {
     KIRAKIRATheme(dynamicColor = false) {
         SettingsScreen(
             onBack = {},
-            onNavigateToAbout = {},
-            onNavigateToAppearance = {},
-            onNavigateToAccount = {},
+            onSelectCategory = {},
         )
     }
 }

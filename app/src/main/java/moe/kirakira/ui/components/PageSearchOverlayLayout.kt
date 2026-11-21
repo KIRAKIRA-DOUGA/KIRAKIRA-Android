@@ -105,7 +105,7 @@ internal fun PageSearchOverlayLayout(
         val startHeight = collapsed.height.roundToInt().coerceAtLeast(1)
         val width = lerp(startWidth, constraints.maxWidth, fraction).coerceIn(1, constraints.maxWidth)
         val height = lerp(startHeight, constraints.maxHeight, fraction).coerceIn(1, constraints.maxHeight)
-        val defaultBarHeight = TopAppBarDefaults.LargeAppBarCollapsedHeight.roundToPx()
+        val defaultBarHeight = TopAppBarDefaults.TopAppBarExpandedHeight.roundToPx()
         val barHeight = lerp(startHeight, maxOf(startHeight, defaultBarHeight), fraction)
         val topInset = lerp(0, unconsumedInsets.getTop(this), fraction)
         val headerHeight = (topInset + barHeight).coerceAtMost(height)

@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -48,6 +47,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
+import moe.kirakira.ui.adaptive.browsePageWidth
 import moe.kirakira.ui.components.ActionDialog
 import moe.kirakira.ui.components.ContentStatus
 import moe.kirakira.ui.components.ContentStatusViewport
@@ -80,7 +80,7 @@ internal fun SearchHistoryContent(
     )
     ContentStatusViewport(
         modifier = modifier
-            .widthIn(max = 840.dp)
+            .browsePageWidth()
             .fillMaxSize(),
         contentPadding = listContentPadding,
         leadingContentHeight = with(density) { headerHeightPx.toDp() },
@@ -143,14 +143,11 @@ internal fun SearchHistoryContent(
                     )
                 }
                 val trailing: @Composable () -> Unit = {
-                    val enabled = state.ready && !state.historyBusy
-                    val colors = MaterialTheme.colorScheme
-                    val iconColor = if (enabled) colors.error else colors.onSurfaceVariant
-                    CompositionLocalProvider(LocalContentColor provides iconColor) {
+                    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
                         SearchIconButton(
                             stringResource(R.string.search_history_delete), R.drawable.ic_icon_close,
                             onClick = { onEvent(SearchEvent.DeleteHistory(entry.key)) },
-                            enabled = enabled,
+                            enabled = state.ready && !state.historyBusy,
                         )
                     }
                 }

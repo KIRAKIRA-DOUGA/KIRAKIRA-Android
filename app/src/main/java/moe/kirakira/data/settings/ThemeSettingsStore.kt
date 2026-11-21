@@ -14,6 +14,7 @@ internal data class StoredThemeSettings(
     val mode: String = "SYSTEM",
     val colors: StoredThemeColors,
     val predictiveBackEnabled: Boolean = false,
+    val backgroundDepthEnabled: Boolean = true,
 )
 
 internal class ThemeSettingsStore(context: Context) {
@@ -41,6 +42,7 @@ internal class ThemeSettingsStore(context: Context) {
             mode = preferences.getString("theme_mode", defaults.mode) ?: defaults.mode,
             colors = migratedColors,
             predictiveBackEnabled = preferences.getBoolean("predictive_back_enabled", defaults.predictiveBackEnabled),
+            backgroundDepthEnabled = preferences.getBoolean("background_depth_enabled", defaults.backgroundDepthEnabled),
         )
     }
 
@@ -59,5 +61,9 @@ internal class ThemeSettingsStore(context: Context) {
 
     fun setPredictiveBackEnabled(enabled: Boolean) {
         preferences.edit { putBoolean("predictive_back_enabled", enabled) }
+    }
+
+    fun setBackgroundDepthEnabled(enabled: Boolean) {
+        preferences.edit { putBoolean("background_depth_enabled", enabled) }
     }
 }

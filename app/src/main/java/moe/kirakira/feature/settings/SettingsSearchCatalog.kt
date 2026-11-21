@@ -76,6 +76,7 @@ internal val settingsSearchCatalog: List<SettingsSearchEntry> = buildList {
         "appearance.colors" to R.string.theme_colors,
         "appearance.custom" to R.string.theme_color_custom,
         "appearance.predictive_back" to R.string.settings_predictive_back,
+        "appearance.background_depth" to R.string.settings_background_depth,
     )
     ThemePresetColor.entries.forEach { preset ->
         add(SettingsSearchEntry("appearance.color.${preset.name}", preset.titleRes, SettingsSearchPage.APPEARANCE,

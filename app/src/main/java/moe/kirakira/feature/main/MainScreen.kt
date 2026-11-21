@@ -1,9 +1,13 @@
 package moe.kirakira.feature.main
 
 import android.content.res.Configuration
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -16,10 +20,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,10 +33,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -55,6 +61,7 @@ import moe.kirakira.feature.me.MeScreen
 import moe.kirakira.feature.search.SearchScreen
 import moe.kirakira.feature.search.SearchTopBar
 import moe.kirakira.feature.search.SearchUiState
+import moe.kirakira.ui.adaptive.browsePageMaxWidth
 import moe.kirakira.ui.components.AccountAvatar
 import moe.kirakira.ui.components.ContentPullToRefresh
 import moe.kirakira.ui.components.ContentStatus
@@ -70,11 +77,15 @@ import moe.kirakira.ui.components.appTopAppBarColors
 import moe.kirakira.ui.components.dismissKeyboardOnBlankTap
 import moe.kirakira.ui.components.rememberTabReselectHandler
 import moe.kirakira.ui.components.smoothScrollToTop
+import moe.kirakira.ui.components.topAppBarContentWidth
+import moe.kirakira.ui.components.video.FeedVideoCard
 import moe.kirakira.ui.components.video.VideoCardLayout
-import moe.kirakira.ui.components.video.VideoCardRow
 import moe.kirakira.ui.components.video.VideoCardRowSpacing
+import moe.kirakira.ui.components.video.VideoFeedGrid
 import moe.kirakira.ui.content.ContentState
 import moe.kirakira.ui.navigation.LocalDestinationActive
+import moe.kirakira.ui.navigation.blockNavigationFocus
+import moe.kirakira.ui.navigation.desktopRailTabIndex
 import moe.kirakira.ui.navigation.rememberNavigationMotion
 import moe.kirakira.ui.theme.BrandTitleFontFamily
 import moe.kirakira.ui.theme.KIRAKIRATheme
@@ -92,6 +103,10 @@ internal fun MainScreen(
     videos: ContentState<List<VideoSummary>> = ContentState(),
     onRefreshVideos: () -> Unit = {},
     videosLayout: VideoCardLayout = VideoCardLayout.GRID,
+    tabs: MainTabState = rememberMainTabState(),
+    showBottomBar: Boolean = true,
+    showHomeWordmark: Boolean = true,
+    showHomeAvatar: Boolean = true,
     onBottomBarHeightChange: (Int) -> Unit = {},
     searchTopBar: @Composable () -> Unit = { SearchTopBar(SearchUiState(ready = true), {}) },
     searchContent: @Composable (PaddingValues, ((suspend () -> Unit)?) -> Unit) -> Unit = { padding, registerScrollToTop ->
@@ -101,9 +116,10 @@ internal fun MainScreen(
         )
     },
 ) {
-    var destination by rememberSaveable { mutableStateOf(AppDestination.HOME) }
+    val selection = tabs.selection
+    val destination = selection.destination
     val meScrollState = rememberScrollState()
-    val homeScrollState = rememberLazyListState()
+    val homeScrollState = rememberLazyGridState()
     var searchScrollToTop by remember { mutableStateOf<(suspend () -> Unit)?>(null) }
     val reselectTab = rememberTabReselectHandler { page ->
         when (AppDestination.entries[page]) {
@@ -113,55 +129,68 @@ internal fun MainScreen(
             AppDestination.FOLLOWING -> Unit
         }
     }
-    val registerSearchScrollToTop = remember(reselectTab) {
+    DisposableEffect(tabs, reselectTab) {
+        tabs.reselect = reselectTab
+        onDispose { if (tabs.reselect === reselectTab) tabs.reselect = null }
+    }
+    val registerSearchScrollToTop = remember(tabs, reselectTab) {
         { action: (suspend () -> Unit)? ->
-            if (action == null && destination == AppDestination.SEARCH) reselectTab(null)
+            if (action == null && tabs.destination == AppDestination.SEARCH) reselectTab(null)
             searchScrollToTop = action
         }
     }
     val layoutDirection = LocalLayoutDirection.current
-    val motion = rememberNavigationMotion()
+    val navigationMotion = rememberNavigationMotion()
     val tabStateHolder = rememberSaveableStateHolder()
 
+    var bottomBarHeight by remember(showBottomBar) { mutableIntStateOf(0) }
+    SideEffect { onBottomBarHeightChange(bottomBarHeight) }
     FrostedScaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = ThemeColorDefaults.pageBackgroundColor(),
-        // Each animated page owns its top and horizontal insets; the bottom bar owns the bottom inset.
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        contentWindowInsets = if (showBottomBar) WindowInsets(0, 0, 0, 0)
+            else WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom),
         bottomBar = {
-            MainBottomBar(
+            if (showBottomBar) MainBottomBar(
                 destination = destination,
-                onDestinationChange = {
-                    reselectTab(null)
-                    destination = it
-                },
-                onDestinationReselect = { reselectTab(it.ordinal) },
-                modifier = Modifier.onSizeChanged { onBottomBarHeightChange(it.height) },
+                onDestinationChange = { tabs.select(it, reselectCurrent = true) },
+                onDestinationReselect = { tabs.select(it, reselectCurrent = true) },
+                modifier = Modifier.onSizeChanged { bottomBarHeight = it.height },
             )
         },
     ) { bottomBarPadding ->
         AnimatedContent(
-            targetState = destination,
+            targetState = selection,
             modifier = Modifier.fillMaxSize().clipToBounds(),
             contentAlignment = Alignment.TopStart,
             transitionSpec = {
-                val transition = if (targetState.ordinal > initialState.ordinal) motion.forward else motion.backward
+                fun index(tab: AppDestination) = if (showBottomBar) tab.ordinal else desktopRailTabIndex(tab)
+                val targetIndex = index(targetState.destination)
+                val forward = targetIndex > index(initialState.destination)
+                val transition = when {
+                    !targetState.animate -> EnterTransition.None togetherWith ExitTransition.None
+                    !showBottomBar -> navigationMotion.vertical(enterFromBottom = forward, isPop = !forward)
+                    forward -> navigationMotion.forward
+                    else -> navigationMotion.backward
+                }
                 ContentTransform(
                     targetContentEnter = transition.targetContentEnter,
                     initialContentExit = transition.initialContentExit,
                     // Stable page ordering also keeps interrupted and reversed transitions layered correctly.
-                    targetContentZIndex = targetState.ordinal.toFloat(),
+                    targetContentZIndex = targetIndex.toFloat(),
                     sizeTransform = null,
                 )
             },
-            contentKey = { it },
+            contentKey = { it.destination },
             label = "Main tab transition",
-        ) { page ->
+        ) { tab ->
+            val page = tab.destination
+            val selected = page == destination
             tabStateHolder.SaveableStateProvider(page.name) {
                 CompositionLocalProvider(
-                    LocalDestinationActive provides (LocalDestinationActive.current && page == destination),
+                    LocalDestinationActive provides (LocalDestinationActive.current && selected),
                     LocalStatusBarScrollToTopEnabled provides (
-                        LocalStatusBarScrollToTopEnabled.current && page == destination &&
+                        LocalStatusBarScrollToTopEnabled.current && selected &&
                             transition.currentState == EnterExitState.Visible &&
                             transition.targetState == EnterExitState.Visible && !transition.isRunning
                         ),
@@ -172,9 +201,8 @@ internal fun MainScreen(
                         AppDestination.SEARCH, AppDestination.FOLLOWING -> Unit
                     }
                     FrostedScaffold(
-                        modifier = Modifier.fillMaxSize().dismissKeyboardOnBlankTap(
-                            enabled = page == AppDestination.SEARCH && destination == page,
-                        ),
+                        modifier = Modifier.fillMaxSize().blockNavigationFocus(!selected)
+                            .dismissKeyboardOnBlankTap(enabled = selected && page == AppDestination.SEARCH),
                         containerColor = ThemeColorDefaults.pageBackgroundColor(),
                         contentWindowInsets = ScaffoldDefaults.contentWindowInsets.only(
                             WindowInsetsSides.Top + WindowInsetsSides.Horizontal,
@@ -183,10 +211,8 @@ internal fun MainScreen(
                             MainTopBar(
                                 avatar = profile?.avatar,
                                 destination = page,
-                                onOpenMe = {
-                                    reselectTab(null)
-                                    destination = AppDestination.ME
-                                },
+                                showHomeWordmark = showHomeWordmark,
+                                onOpenMe = if (showHomeAvatar) ({ tabs.select(AppDestination.ME) }) else null,
                                 searchTopBar = searchTopBar,
                             )
                         },
@@ -214,8 +240,8 @@ internal fun MainScreen(
                                     indicatorTopPadding = innerPadding.calculateTopPadding(),
                                     modifier = Modifier.fillMaxSize(),
                                 ) {
-                                    val rows = videos.data.orEmpty().chunked(videosLayout.columns)
-                                    val bottomContentPadding = if (rows.isEmpty()) 16.dp else 28.dp
+                                    val items = videos.data.orEmpty()
+                                    val bottomContentPadding = if (items.isEmpty()) 16.dp else 28.dp
                                     val listContentPadding = PaddingValues(
                                         top = innerPadding.calculateTopPadding() + 16.dp,
                                         bottom = bottomBarPadding.calculateBottomPadding() + bottomContentPadding,
@@ -227,13 +253,13 @@ internal fun MainScreen(
                                         contentPadding = listContentPadding,
                                         leadingContentHeight = 0.dp,
                                     ) { statusModifier ->
-                                        LazyColumn(
+                                        VideoFeedGrid(
+                                            layout = videosLayout,
                                             state = homeScrollState,
-                                            modifier = Modifier.fillMaxSize().testTag("home_screen"),
+                                            modifier = Modifier.testTag("home_screen"),
                                             contentPadding = listContentPadding,
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                        ) {
-                                            item(key = "status") {
+                                        ) { columns ->
+                                            item(key = "status", span = { GridItemSpan(maxLineSpan) }) {
                                                 if (videos.error != null || videos.data.isNullOrEmpty()) {
                                                     ContentStatus(
                                                         videos.copy(loading = videos.loading && videos.data == null), onRefreshVideos,
@@ -244,16 +270,11 @@ internal fun MainScreen(
                                                     )
                                                 }
                                             }
-                                            itemsIndexed(rows, key = { _, row -> row.first().id }) { index, row ->
-                                                val rowSpacing = if (index < rows.lastIndex) VideoCardRowSpacing else 0.dp
-                                                VideoCardRow(
-                                                    videos = row,
-                                                    layout = videosLayout,
-                                                    onOpenVideo = onOpenVideo,
-                                                    modifier = Modifier
-                                                        .widthIn(max = 840.dp)
-                                                        .fillMaxWidth()
-                                                        .padding(bottom = rowSpacing),
+                                            itemsIndexed(items, key = { _, video -> video.id }) { index, video ->
+                                                val rowSpacing = if (index / columns < items.lastIndex / columns) VideoCardRowSpacing else 0.dp
+                                                FeedVideoCard(
+                                                    video, videosLayout, onOpenVideo,
+                                                    modifier = Modifier.fillMaxWidth().padding(bottom = rowSpacing),
                                                     showUploadTime = false,
                                                 )
                                             }
@@ -300,32 +321,16 @@ internal fun MainScreen(
 @Composable
 private fun MainTopBar(
     destination: AppDestination,
-    onOpenMe: () -> Unit,
+    showHomeWordmark: Boolean,
+    onOpenMe: (() -> Unit)?,
     avatar: String?,
     searchTopBar: @Composable () -> Unit,
 ) {
     when (destination) {
-        AppDestination.HOME -> HomeTopBar(onOpenMe = onOpenMe, avatar = avatar)
-
-        AppDestination.FOLLOWING -> TopAppBar(
-            title = {
-                Text(
-                    text = stringResource(R.string.nav_following),
-                    fontWeight = FontWeight.SemiBold,
-                    fontFamily = BrandTitleFontFamily,
-                )
-            },
-            colors = appTopAppBarColors(),
-        )
-
-        AppDestination.ME -> TopAppBar(
-            title = {
-                Text(
-                    text = stringResource(R.string.nav_me),
-                    fontWeight = FontWeight.SemiBold,
-                    fontFamily = BrandTitleFontFamily,
-                )
-            },
+        AppDestination.HOME -> HomeTopBar(showHomeWordmark, onOpenMe, avatar)
+        AppDestination.FOLLOWING, AppDestination.ME -> TopAppBar(
+            title = { MainPageTitle(destination.label) },
+            modifier = Modifier.topAppBarContentWidth(),
             colors = appTopAppBarColors(),
         )
 
@@ -334,8 +339,16 @@ private fun MainTopBar(
 }
 
 @Composable
-private fun HomeTopBar(onOpenMe: () -> Unit, avatar: String?) {
-    val meDescription = stringResource(R.string.nav_me)
+private fun MainPageTitle(@StringRes label: Int) {
+    Text(
+        text = stringResource(label),
+        fontWeight = FontWeight.SemiBold,
+        fontFamily = BrandTitleFontFamily,
+    )
+}
+
+@Composable
+private fun HomeTopBar(showWordmark: Boolean, onOpenMe: (() -> Unit)?, avatar: String?) {
     Box(
         modifier = Modifier
             .clipToBounds(),
@@ -346,21 +359,29 @@ private fun HomeTopBar(onOpenMe: () -> Unit, avatar: String?) {
             endPadding = 72.dp,
         )
         TopAppBar(
+            modifier = Modifier.topAppBarContentWidth(browsePageMaxWidth),
             colors = appTopAppBarColors(),
             title = {
-                Icon(
-                    painter = painterResource(R.drawable.logo_kirakira_wordmark),
-                    contentDescription = stringResource(R.string.app_name),
-                    modifier = Modifier.height(20.dp),
-                    tint = MaterialTheme.colorScheme.primary,
-                )
+                if (showWordmark) {
+                    Icon(
+                        painter = painterResource(R.drawable.logo_kirakira_wordmark),
+                        contentDescription = stringResource(R.string.app_name),
+                        modifier = Modifier.height(20.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                } else {
+                    MainPageTitle(R.string.nav_home)
+                }
             },
             actions = {
-                IconButton(
-                    onClick = onOpenMe,
-                    modifier = Modifier.padding(end = 8.dp).semantics { contentDescription = meDescription },
-                ) {
-                    AccountAvatar(url = avatar, size = 40.dp)
+                if (onOpenMe != null) {
+                    val meDescription = stringResource(R.string.nav_me)
+                    IconButton(
+                        onClick = onOpenMe,
+                        modifier = Modifier.padding(end = 8.dp).semantics { contentDescription = meDescription },
+                    ) {
+                        AccountAvatar(url = avatar, size = 40.dp)
+                    }
                 }
             },
         )

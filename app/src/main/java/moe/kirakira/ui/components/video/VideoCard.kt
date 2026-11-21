@@ -215,28 +215,36 @@ internal fun VideoCardRow(
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         videos.forEach { video ->
             key(video.id) {
-                VideoCard(
-                    title = video.title,
-                    uploader = if (showUploader) {
-                        video.author.ifBlank { stringResource(R.string.content_unknown_author) }
-                    } else {
-                        null
-                    },
-                    viewCount = video.views?.let { stringResource(R.string.video_views, it) } ?: "—",
-                    duration = durationText(video.durationMs),
-                    uploadTime = if (showUploadTime) dateText(video.uploadedAt) else null,
-                    layout = layout,
-                    image = video.image,
-                    videoId = video.id,
-                    onClick = { onOpenVideo(video.id) },
-                    modifier = Modifier.weight(1f),
-                )
+                FeedVideoCard(video, layout, onOpenVideo, Modifier.weight(1f), showUploader, showUploadTime)
             }
         }
         repeat((layout.columns - videos.size).coerceAtLeast(0)) {
             Spacer(Modifier.weight(1f))
         }
     }
+}
+
+@Composable
+internal fun FeedVideoCard(
+    video: VideoSummary,
+    layout: VideoCardLayout,
+    onOpenVideo: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    showUploader: Boolean = true,
+    showUploadTime: Boolean = true,
+) {
+    VideoCard(
+        title = video.title,
+        uploader = if (showUploader) video.author.ifBlank { stringResource(R.string.content_unknown_author) } else null,
+        viewCount = video.views?.let { stringResource(R.string.video_views, it) } ?: "—",
+        duration = durationText(video.durationMs),
+        uploadTime = if (showUploadTime) dateText(video.uploadedAt) else null,
+        layout = layout,
+        image = video.image,
+        videoId = video.id,
+        onClick = { onOpenVideo(video.id) },
+        modifier = modifier,
+    )
 }
 
 @Preview(name = "Grid", group = "Video cards", widthDp = 360)

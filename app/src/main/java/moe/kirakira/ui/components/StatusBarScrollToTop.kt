@@ -3,39 +3,24 @@ package moe.kirakira.ui.components
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.ScrollState
-import androidx.compose.foundation.gestures.DraggableState
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.LazyGridState
-import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.unit.Velocity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.job
 import moe.kirakira.core.system.StatusBarScrollToTopBridge
 
 private val LocalStatusBarScrollToTopBridge = compositionLocalOf<StatusBarScrollToTopBridge?> { null }
@@ -45,7 +30,6 @@ internal class ScrollToTopHeader(
     val remainingDistance: () -> Float,
     val isDragging: () -> Boolean = { false },
     val scrollBy: (Float) -> Unit,
-    val onExpanded: () -> Unit = {},
 ) {
     val canExpand: () -> Boolean = { remainingDistance() > 0f }
     val expand: suspend () -> Unit = { smoothExpand() }
@@ -105,81 +89,13 @@ internal fun StatusBarScrollToTopPauseEffect(paused: Boolean = true) {
     StatusBarScrollToTopEffect(identity, { false }, enabled = paused, priority = Int.MAX_VALUE) {}
 }
 
-/** Own the drag so the pause can extend through Material's suspendable fling and snap. */
-@Composable
-internal fun Modifier.dragCollapsibleTopAppBar(behavior: TopAppBarScrollBehavior): Modifier {
-    val bridge = LocalStatusBarScrollToTopBridge.current
-    val scope = rememberCoroutineScope()
-    val dragPause = remember(bridge, scope, behavior) { scrollToTopPauseTarget(scope) }
-    val dragState = remember(behavior) { DraggableState { behavior.state.heightOffset += it } }
-    var settlingJob by remember(dragPause) { mutableStateOf<Job?>(null) }
-    DisposableEffect(bridge, dragPause) {
-        onDispose {
-            settlingJob?.cancel()
-            bridge?.remove(dragPause)
-        }
-    }
-    return pauseStatusBarScrollToTopOnTouch().draggable(
-        state = dragState,
-        orientation = Orientation.Vertical,
-        onDragStarted = {
-            val previousSettle = settlingJob
-            settlingJob = null
-            if (previousSettle == null) bridge?.add(dragPause) else previousSettle.cancel()
-        },
-        onDragStopped = { velocity ->
-            val job = coroutineContext.job
-            settlingJob = job
-            try {
-                behavior.nestedScrollConnection.onPostFling(Velocity.Zero, Velocity(0f, velocity))
-            } finally {
-                if (settlingJob === job) {
-                    settlingJob = null
-                    bridge?.remove(dragPause)
-                }
-            }
-        },
-    )
-}
-
-@Composable
-private fun Modifier.pauseStatusBarScrollToTopOnTouch(): Modifier {
-    val bridge = LocalStatusBarScrollToTopBridge.current ?: return this
-    val scope = rememberCoroutineScope()
-    val pauseTarget = remember(bridge, scope) { scrollToTopPauseTarget(scope) }
-    return pointerInput(bridge, pauseTarget) {
-        awaitEachGesture {
-            awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-            bridge.add(pauseTarget)
-            try {
-                // Observe without consuming, so title buttons and the draggable handle the gesture.
-                do {
-                    val event = awaitPointerEvent(PointerEventPass.Initial)
-                } while (event.changes.any { it.pressed })
-            } finally {
-                // Also release the pause when this pointer-input node is cancelled or detached.
-                bridge.remove(pauseTarget)
-            }
-        }
-    }
-}
-
-private fun scrollToTopPauseTarget(scope: CoroutineScope) = StatusBarScrollToTopBridge.Target(
-    enabled = { true },
-    canScrollToTop = { false },
-    scope = scope,
-    scrollToTop = {},
-    priority = Int.MAX_VALUE,
-)
-
 @Composable
 internal fun StatusBarScrollToTopEffect(
     state: LazyListState,
     enabled: Boolean = true,
-    scrollBehavior: TopAppBarScrollBehavior? = null,
     scrollContentAvailable: Boolean = true,
 ) {
-    val header = scrollBehavior?.let { rememberScrollToTopHeader(it) } ?: LocalScrollToTopHeader.current
+    val header = LocalScrollToTopHeader.current
     val dragging by state.interactionSource.collectIsDraggedAsState()
     StatusBarScrollToTopEffect(
         identity = state to scrollContentAvailable,
@@ -196,13 +112,13 @@ internal fun StatusBarScrollToTopEffect(
 }
 
 @Composable
-internal fun StatusBarScrollToTopEffect(state: LazyGridState) {
+internal fun StatusBarScrollToTopEffect(state: LazyGridState, enabled: Boolean = true) {
     val header = LocalScrollToTopHeader.current
     val dragging by state.interactionSource.collectIsDraggedAsState()
     StatusBarScrollToTopEffect(
         identity = state,
         canScrollToTop = { state.canScrollBackward || header?.canExpand() == true },
-        enabled = !dragging && header?.isDragging() != true,
+        enabled = enabled && !dragging && header?.isDragging() != true,
     ) {
         state.smoothScrollToTop(header)
     }
@@ -212,10 +128,9 @@ internal fun StatusBarScrollToTopEffect(state: LazyGridState) {
 internal fun StatusBarScrollToTopEffect(
     state: ScrollState,
     enabled: Boolean = true,
-    scrollBehavior: TopAppBarScrollBehavior? = null,
     priority: Int = 1,
 ) {
-    val header = scrollBehavior?.let { rememberScrollToTopHeader(it) } ?: LocalScrollToTopHeader.current
+    val header = LocalScrollToTopHeader.current
     val dragging by state.interactionSource.collectIsDraggedAsState()
     StatusBarScrollToTopEffect(
         identity = state,
@@ -244,16 +159,6 @@ internal fun StatusBarScrollToTopFallbackEffect(state: ScrollState) {
 
 @Composable
 internal fun StatusBarScrollToTopHeader(
-    scrollBehavior: TopAppBarScrollBehavior,
-    content: @Composable () -> Unit,
-) {
-    val header = rememberScrollToTopHeader(scrollBehavior)
-    StatusBarScrollToTopEffect(scrollBehavior, header.canExpand, priority = 0, onScrollToTop = header.expand)
-    CompositionLocalProvider(LocalScrollToTopHeader provides header, content = content)
-}
-
-@Composable
-internal fun StatusBarScrollToTopHeader(
     state: CollapsingTabState,
     enabled: Boolean = true,
     content: @Composable () -> Unit,
@@ -276,21 +181,4 @@ internal fun StatusBarScrollToTopHeader(
         state, header.canExpand, enabled = enabled && !dragging.value, priority = 0, onScrollToTop = header.expand,
     )
     CompositionLocalProvider(LocalScrollToTopHeader provides header, content = content)
-}
-
-@Composable
-private fun rememberScrollToTopHeader(behavior: TopAppBarScrollBehavior): ScrollToTopHeader {
-    return remember(behavior) {
-        ScrollToTopHeader(
-            remainingDistance = { -behavior.state.heightOffset },
-            scrollBy = { delta ->
-                behavior.nestedScrollConnection.onPostScroll(
-                    consumed = Offset.Zero,
-                    available = Offset(0f, delta),
-                    source = NestedScrollSource.SideEffect,
-                )
-            },
-            onExpanded = { behavior.state.contentOffset = 0f },
-        )
-    }
 }

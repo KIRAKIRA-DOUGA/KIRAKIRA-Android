@@ -48,7 +48,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionOnScreen
@@ -60,8 +59,6 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
@@ -69,14 +66,15 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.first
 import moe.kirakira.R
 import moe.kirakira.data.content.VideoTag
-import moe.kirakira.ui.components.CollapsibleTopAppBar
 import moe.kirakira.ui.components.FlatTextButton
 import moe.kirakira.ui.components.FrostedScaffold
-import moe.kirakira.ui.components.SearchDialogWindowEffect
+import moe.kirakira.ui.components.ObserveTextFieldBinding
+import moe.kirakira.ui.components.PageTopAppBar
+import moe.kirakira.ui.components.FullScreenSearchDialog
 import moe.kirakira.ui.components.SearchFieldTrailingAction
 import moe.kirakira.ui.components.ShadingIcon
+import moe.kirakira.ui.components.TextFieldBinding
 import moe.kirakira.ui.components.dismissKeyboardOnBlankTap
-import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.content.TagSearchState
 
 private enum class TagSearchExit { DISMISS, CONFIRM }
@@ -107,15 +105,7 @@ internal fun TagSearchDialog(
     val dismiss = {
         if (!confirming && pendingExit == null) pendingExit = TagSearchExit.DISMISS
     }
-    Dialog(
-        onDismissRequest = dismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false,
-            dismissOnBackPress = false,
-        ),
-    ) {
-        SearchDialogWindowEffect()
+    FullScreenSearchDialog(onDismiss = dismiss, dismissOnBackPress = false) {
         var rootOnScreen by remember { mutableStateOf<Offset?>(null) }
         val density = LocalDensity.current
         val focus = LocalFocusManager.current
@@ -298,8 +288,13 @@ private fun TagSearchDialogContent(
     snackbarHost: @Composable () -> Unit,
     actions: @Composable RowScope.() -> Unit,
 ) {
+    val binding = remember { TextFieldBinding(search.query) }
+    ObserveTextFieldBinding(binding, search.query, onQueryChange, enabled)
+    val retry = {
+        binding.publish(onQueryChange)
+        onRetry()
+    }
     val inputFocus = remember { FocusRequester() }
-    val scrollBehavior = rememberCollapsibleTopAppBarScrollBehavior()
     val hasCandidates = !search.candidates.data.isNullOrEmpty()
     val colors = MaterialTheme.colorScheme
     val containerColor by animateColorAsState(
@@ -314,7 +309,6 @@ private fun TagSearchDialogContent(
         modifier = modifier
             .fillMaxSize()
             .imePadding()
-            .nestedScroll(scrollBehavior.nestedScrollConnection)
             .dismissKeyboardOnBlankTap(),
         containerColor = containerColor,
         contentColor = colors.onSurface,
@@ -329,10 +323,9 @@ private fun TagSearchDialogContent(
                         endPadding = 0.dp,
                         offset = DpOffset(32.dp, 32.dp),
                     )
-                    CollapsibleTopAppBar(
+                    PageTopAppBar(
                         title = stringResource(R.string.search_choose_tags),
                         onBack = onDismiss,
-                        scrollBehavior = scrollBehavior,
                         actions = actions,
                     )
                 }
@@ -352,9 +345,8 @@ private fun TagSearchDialogContent(
                     ) { fieldColor ->
                         Column(Modifier.animateContentSize(MaterialTheme.motionScheme.fastSpatialSpec())) {
                             SearchQueryField(
-                                query = search.query,
-                                onQueryChange = onQueryChange,
-                                onSearch = onRetry,
+                                state = binding.editor,
+                                onSearch = retry,
                                 placeholder = stringResource(R.string.management_search_tags),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -362,11 +354,14 @@ private fun TagSearchDialogContent(
                                     .focusProperties { canFocus = requestInputFocus },
                                 enabled = enabled,
                                 trailingIcon = {
-                                    SearchFieldTrailingAction(visible = search.query.isNotEmpty()) {
+                                    SearchFieldTrailingAction(visible = binding.editor.text.isNotEmpty()) {
                                         SearchIconButton(
                                             stringResource(R.string.search_clear),
                                             R.drawable.ic_icon_close,
-                                            { onQueryChange("") },
+                                            {
+                                                binding.replace("")
+                                                onQueryChange("")
+                                            },
                                             enabled = enabled,
                                         )
                                     }
@@ -390,7 +385,7 @@ private fun TagSearchDialogContent(
         },
     ) { padding ->
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-            TagSearchCandidates(search, selectedTags, onToggleTag, onRetry, enabled = enabled, contentPadding = padding)
+            TagSearchCandidates(search, selectedTags, onToggleTag, retry, enabled = enabled, contentPadding = padding)
         }
     }
 }

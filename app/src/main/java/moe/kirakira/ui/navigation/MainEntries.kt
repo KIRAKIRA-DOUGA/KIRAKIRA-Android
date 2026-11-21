@@ -9,6 +9,7 @@ import moe.kirakira.data.auth.SessionState
 import moe.kirakira.feature.auth.AuthRoute
 import moe.kirakira.feature.main.HomeViewModel
 import moe.kirakira.feature.main.MainScreen
+import moe.kirakira.feature.main.MainTabState
 import moe.kirakira.feature.search.SearchPage
 import moe.kirakira.feature.search.SearchTopBar
 import moe.kirakira.feature.search.SearchUiState
@@ -22,6 +23,9 @@ internal fun registerMainEntries(
     accountState: SessionState,
     homeViewModel: HomeViewModel?,
     searchViewModel: SearchViewModel?,
+    tabs: MainTabState,
+    useDesktopRail: Boolean,
+    showRailWordmark: Boolean,
 ) {
     with(scope) {
         entry<TestRoute> {
@@ -32,7 +36,11 @@ internal fun registerMainEntries(
                 val searchAnchor = remember(accountState.revision) { TagSearchAnchor() }
                 CompositionLocalProvider(LocalTagSearchAnchor provides searchAnchor) {
                     MainScreen(
-                        onBottomBarHeightChange = { navigation.bottomBarHeightPx = it },
+                        tabs = tabs,
+                        showBottomBar = !useDesktopRail,
+                        showHomeWordmark = !showRailWordmark,
+                        showHomeAvatar = !useDesktopRail,
+                        onBottomBarHeightChange = { navigation.mainBottomBarHeight = it },
                         profile = accountState.activeProfile,
                         onOpenProfile = { navigation.openFrom(MainRoute, if (accountState.activeProfile == null) AuthRoute() else SelfProfileRoute) },
                         onOpenHistory = { navigation.openFrom(MainRoute, HistoryRoute) },

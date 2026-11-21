@@ -48,6 +48,7 @@ internal data class SearchUiState(
     val clearHistoryOpen: Boolean = false,
     val mode: SearchMode = SearchMode.KEYWORD,
     val keyword: String = "",
+    val keywordReplacementRevision: Long = 0,
     val tags: List<VideoTag> = emptyList(),
     val submitted: SearchCriteria? = null,
     val videos: ContentState<List<VideoSummary>> = ContentState(),
@@ -58,7 +59,7 @@ internal data class SearchUiState(
     val descending: Boolean = true,
     val layout: VideoCardLayout = VideoCardLayout.GRID,
     val generation: Long = 0,
-    val scrollIndex: Int = 0,
+    val scrollKey: String? = null,
     val scrollOffset: Int = 0,
 )
 
@@ -84,7 +85,7 @@ internal sealed interface SearchEvent {
     data object Refresh : SearchEvent
     data class SortChanged(val sort: SearchSort) : SearchEvent
     data class LayoutChanged(val layout: VideoCardLayout) : SearchEvent
-    data class Scrolled(val generation: Long, val index: Int, val offset: Int) : SearchEvent
+    data class Scrolled(val generation: Long, val key: String, val offset: Int) : SearchEvent
 }
 
 internal class SearchViewModel(
@@ -129,10 +130,16 @@ internal class SearchViewModel(
         when (event) {
             is SearchEvent.KeywordChanged -> _state.value = _state.value.copy(keyword = event.value)
             SearchEvent.Submit -> {
-                val keyword = _state.value.keyword.trim()
+                val current = _state.value
+                val keyword = current.keyword.trim()
                 if (keyword.isEmpty()) resetResults()
-                else if (_state.value.mode == SearchMode.KEYWORD) {
-                    _state.value = _state.value.copy(keyword = keyword)
+                else if (current.mode == SearchMode.KEYWORD) {
+                    if (keyword != current.keyword) {
+                        _state.value = current.copy(
+                            keyword = keyword,
+                            keywordReplacementRevision = current.keywordReplacementRevision + 1,
+                        )
+                    }
                     search(SearchCriteria.Keyword(keyword), record = true)
                 }
             }
@@ -156,7 +163,12 @@ internal class SearchViewModel(
             is SearchEvent.UseHistory -> _state.value.history.find { it.key == event.key }?.let { entry ->
                 closeTags()
                 if (entry.keyword != null) {
-                    _state.value = _state.value.copy(mode = SearchMode.KEYWORD, keyword = entry.keyword)
+                    val current = _state.value
+                    _state.value = current.copy(
+                        mode = SearchMode.KEYWORD,
+                        keyword = entry.keyword,
+                        keywordReplacementRevision = current.keywordReplacementRevision + 1,
+                    )
                     search(SearchCriteria.Keyword(entry.keyword), record = true)
                 } else {
                     _state.value = _state.value.copy(mode = SearchMode.TAG, tags = entry.tags)
@@ -203,7 +215,7 @@ internal class SearchViewModel(
             }
             is SearchEvent.LayoutChanged -> _state.value = _state.value.copy(layout = event.layout)
             is SearchEvent.Scrolled -> if (event.generation == _state.value.generation) {
-                _state.value = _state.value.copy(scrollIndex = event.index, scrollOffset = event.offset)
+                _state.value = _state.value.copy(scrollKey = event.key, scrollOffset = event.offset)
             }
         }
     }
@@ -240,7 +252,7 @@ internal class SearchViewModel(
         } else current
         _state.value = cleared.copy(
             submitted = null, videos = ContentState(), generation = _state.value.generation + 1,
-            scrollIndex = 0, scrollOffset = 0,
+            scrollKey = null, scrollOffset = 0,
         )
     }
 
@@ -268,7 +280,7 @@ internal class SearchViewModel(
             submitted = criteria,
             videos = ContentState(data = if (same) current.videos.data else null, loading = true),
             generation = if (same) current.generation else current.generation + 1,
-            scrollIndex = if (same) current.scrollIndex else 0,
+            scrollKey = if (same) current.scrollKey else null,
             scrollOffset = if (same) current.scrollOffset else 0,
         )
         videoJob = launchTask {

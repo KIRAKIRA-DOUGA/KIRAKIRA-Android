@@ -20,8 +20,10 @@ internal fun registerAccountEntries(
     onCredentialSaveFailure: (Int) -> Unit,
 ) {
     with(scope) {
-        entry<AccountSwitchRoute> {
+        entry<AccountSwitchRoute>(metadata = ::settingsCategoryPane) {
             NavigationPage {
+                val canLeave = { !accountState.isBusy }
+                RegisterNavigationBackGuard(navigation, AccountSwitchRoute, canLeave, canLeave)
                 AccountSwitchPage(
                     state = accountState,
                     onSelectAccount = { id -> onSelectAccount(id.takeUnless { it == GUEST_ACCOUNT_ID }) },
@@ -30,7 +32,7 @@ internal fun registerAccountEntries(
                     },
                     onRemoveAccount = onRemoveAccount,
                     onAddAccount = { navigation.openFrom(AccountSwitchRoute, AuthRoute()) },
-                    onBack = { navigation.popFrom(AccountSwitchRoute) },
+                    onBack = { if (canLeave()) navigation.popFrom(AccountSwitchRoute) },
                 )
             }
         }

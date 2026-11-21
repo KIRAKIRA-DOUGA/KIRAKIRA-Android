@@ -41,35 +41,40 @@ internal class RetainedVideoPageViewModel : ViewModel() {
     }
 }
 
-/** Retain page state and its native video view while its navigation entry becomes a mini player. */
+/** Keep each displayed video's composition and native view through its page and mini-player animations. */
 @Composable
-internal fun RetainedVideoPage(
+internal fun RetainedVideoPages(
     models: RetainedVideoPageViewModel,
-    videoId: Int,
+    videoIds: List<Int>,
     retainedIds: Set<Int>,
     sessionRevision: Long,
-    isActive: Boolean,
-    content: @Composable () -> Unit,
+    activeVideoId: Int?,
+    content: @Composable (Int) -> Unit,
 ) {
     key(sessionRevision) {
         var savedIds by rememberSaveable { mutableStateOf(emptyList<Int>()) }
         val savedStates = rememberSaveableStateHolder()
-        val owner = models.owner(sessionRevision, videoId)
         SideEffect {
             savedIds.filter { it !in retainedIds }.forEach { id ->
                 savedStates.removeState(id)
             }
             savedIds = retainedIds.toList()
         }
-        val lifecycleOwner = rememberLifecycleOwner(
-            maxLifecycle = if (isActive) Lifecycle.State.RESUMED else Lifecycle.State.STARTED,
-        )
-        CompositionLocalProvider(
-            LocalViewModelStoreOwner provides owner,
-            LocalLifecycleOwner provides lifecycleOwner,
-            LocalStatusBarScrollToTopEnabled provides isActive,
-        ) {
-            savedStates.SaveableStateProvider(videoId) { content() }
+        // Each keyed subtree keeps its own Surface as the new page joins the closing mini player.
+        for (videoId in videoIds) {
+            key(videoId) {
+                val isActive = videoId == activeVideoId
+                val lifecycleOwner = rememberLifecycleOwner(
+                    maxLifecycle = if (isActive) Lifecycle.State.RESUMED else Lifecycle.State.STARTED,
+                )
+                CompositionLocalProvider(
+                    LocalViewModelStoreOwner provides models.owner(sessionRevision, videoId),
+                    LocalLifecycleOwner provides lifecycleOwner,
+                    LocalStatusBarScrollToTopEnabled provides isActive,
+                ) {
+                    savedStates.SaveableStateProvider(videoId) { content(videoId) }
+                }
+            }
         }
     }
 }

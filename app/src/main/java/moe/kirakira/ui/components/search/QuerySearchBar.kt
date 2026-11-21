@@ -5,8 +5,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,27 +38,25 @@ import moe.kirakira.ui.theme.ThemeColorDefaults
 
 @Composable
 internal fun QuerySearchBar(
-    query: String,
-    onQueryChange: (String) -> Unit,
+    state: TextFieldState,
     onSearch: () -> Unit,
     placeholder: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    showClear: Boolean = query.isNotEmpty(),
+    showClear: Boolean = false,
     onClear: () -> Unit = {},
     inputFieldModifier: Modifier = Modifier,
     clearDescription: String = stringResource(R.string.search_clear),
 ) {
     SearchFieldContainer(modifier = modifier) {
         SearchQueryField(
-            query = query,
-            onQueryChange = onQueryChange,
+            state = state,
             onSearch = onSearch,
             placeholder = placeholder,
             modifier = inputFieldModifier,
             enabled = enabled,
             trailingIcon = {
-                SearchFieldTrailingAction(visible = showClear) {
+                SearchFieldTrailingAction(visible = showClear || state.text.isNotEmpty()) {
                     SearchIconButton(
                         clearDescription, R.drawable.ic_icon_close, onClear, enabled = enabled,
                     )
@@ -70,8 +69,7 @@ internal fun QuerySearchBar(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SearchQueryField(
-    query: String,
-    onQueryChange: (String) -> Unit,
+    state: TextFieldState,
     onSearch: () -> Unit,
     placeholder: String,
     modifier: Modifier = Modifier,
@@ -80,15 +78,14 @@ internal fun SearchQueryField(
 ) {
     val searchDescription = stringResource(R.string.nav_search)
     TextField(
-        value = query,
-        onValueChange = onQueryChange,
+        state = state,
         modifier = modifier
             .heightIn(min = SearchBarDefaults.InputFieldHeight)
             .semantics { contentDescription = searchDescription },
         enabled = enabled,
-        singleLine = true,
+        lineLimits = TextFieldLineLimits.SingleLine,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        keyboardActions = KeyboardActions(onSearch = { onSearch() }),
+        onKeyboardAction = { onSearch() },
         placeholder = { Text(placeholder) },
         leadingIcon = {
             Box(Modifier.offset(x = 4.dp)) {

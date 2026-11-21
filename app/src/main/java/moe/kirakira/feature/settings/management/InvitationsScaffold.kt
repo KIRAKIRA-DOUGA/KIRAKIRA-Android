@@ -4,19 +4,23 @@ import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -44,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import moe.kirakira.R
+import moe.kirakira.feature.settings.SettingsDefaults
 import moe.kirakira.ui.components.CollapsingHeaderBackground
 import moe.kirakira.ui.components.CollapsingTabLayout
 import moe.kirakira.ui.components.ContentLoadingView
@@ -53,10 +58,12 @@ import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.LocalStatusBarScrollToTopEnabled
+import moe.kirakira.ui.components.LocalPageBackButtonVisible
 import moe.kirakira.ui.components.PagerTabRow
 import moe.kirakira.ui.components.ShadingIcon
 import moe.kirakira.ui.components.StatusBarScrollToTopHeader
 import moe.kirakira.ui.components.appTopAppBarColors
+import moe.kirakira.ui.components.centeredTopAppBarContent
 import moe.kirakira.ui.components.frostedBarBackground
 import moe.kirakira.ui.components.rememberCollapsingTabState
 import moe.kirakira.ui.components.rememberTabChangeHandler
@@ -121,6 +128,9 @@ internal fun InvitationsScaffold(
                         offset = DpOffset(32.dp, 32.dp),
                     )
                     TopAppBar(
+                        modifier = Modifier
+                            .windowInsetsPadding(ScaffoldDefaults.contentWindowInsets.only(WindowInsetsSides.Horizontal))
+                            .centeredTopAppBarContent(SettingsDefaults.MaxContentWidth),
                         title = {
                             Text(
                                 text = stringResource(R.string.settings_invitation_code),
@@ -131,7 +141,7 @@ internal fun InvitationsScaffold(
                             )
                         },
                         navigationIcon = {
-                            IconButton(onClick = onBack) {
+                            if (LocalPageBackButtonVisible.current) IconButton(onClick = onBack) {
                                 Icon(
                                     painter = painterResource(R.drawable.ic_icon_arrow_left),
                                     contentDescription = stringResource(R.string.navigate_back),
@@ -171,7 +181,7 @@ internal fun InvitationsScaffold(
                                 start = padding.calculateStartPadding(direction),
                                 end = padding.calculateEndPadding(direction),
                             )
-                            .widthIn(max = 640.dp)
+                            .widthIn(max = SettingsDefaults.MaxContentWidth)
                             .fillMaxSize(),
                     ) {
                         CollapsingTabLayout(

@@ -1,16 +1,12 @@
-package moe.kirakira.feature.main
+package moe.kirakira.ui.components.navigation
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.ColorProducer
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.vector.PathParser
@@ -22,23 +18,19 @@ import moe.kirakira.ui.components.vectorPathContours
 
 /** Animate the original filled contours independently, with follow-through in the head. */
 @Composable
-internal fun PersonTabIcon(selected: Boolean, modifier: Modifier = Modifier) {
+internal fun PersonTabIcon(
+    selected: Boolean,
+    tint: ColorProducer,
+    modifier: Modifier = Modifier,
+) {
     val resources = LocalResources.current
     val paths = remember(resources) {
         vectorPathContours(readVectorPathData(resources, R.drawable.ic_icon_person).first())
             .map { PathParser().parsePathString(it).toPath() }
     }
-    val motion = remember { TabSelectionMotion(durationMillis = 460) }
-    var previouslySelected by remember { mutableStateOf(selected) }
-
-    LaunchedEffect(selected) {
-        if (previouslySelected == selected) return@LaunchedEffect
-        previouslySelected = selected
-        motion.onSelectionChanged(selected)
-    }
-
-    val color = LocalContentColor.current
+    val motion = rememberTabSelectionMotion(selected, durationMillis = 460)
     Canvas(modifier = modifier.size(24.dp)) {
+        val color = tint()
         scale(size.width / 24f, size.height / 24f, pivot = Offset.Zero) {
             translate(top = motion.sample(personHeadY, 0f)) {
                 scale(

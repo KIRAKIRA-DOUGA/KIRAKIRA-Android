@@ -65,6 +65,8 @@ fun AppearanceScreen(
     onThemeColorsChange: (ThemeColorSettings) -> Unit = {},
     predictiveBackEnabled: Boolean = false,
     onPredictiveBackEnabledChange: (Boolean) -> Unit = {},
+    backgroundDepthEnabled: Boolean = true,
+    onBackgroundDepthEnabledChange: (Boolean) -> Unit = {},
 ) {
     var showCustomColor by rememberSaveable { mutableStateOf(false) }
     val listState = rememberLazyListState()
@@ -110,6 +112,7 @@ fun AppearanceScreen(
                     searchId == "appearance.dark" -> 1 + modes.indexOf(ThemeMode.DARK) / modeColumns
                     searchId == "appearance.colors" -> 1 + modeRows.size
                     searchId == "appearance.predictive_back" -> 2 + modeRows.size + colorRows.size
+                    searchId == "appearance.background_depth" -> 2 + modeRows.size + colorRows.size
                     else -> colorOptions.indexOfFirst { option ->
                         when (option) {
                             is AppearanceColorOption.Preset -> searchId == "appearance.color.${option.preset.name}"
@@ -217,8 +220,16 @@ fun AppearanceScreen(
                                 checked = predictiveBackEnabled,
                                 onCheckedChange = onPredictiveBackEnabledChange,
                                 index = 0,
-                                count = 1,
+                                count = 2,
                                 icon = R.drawable.ic_icon_arrow_left,
+                            )
+                            SettingsSwitchItem(
+                                title = stringResource(R.string.settings_background_depth),
+                                checked = backgroundDepthEnabled,
+                                onCheckedChange = onBackgroundDepthEnabledChange,
+                                index = 1,
+                                count = 2,
+                                icon = R.drawable.ic_icon_opacity,
                             )
                         }
                     }

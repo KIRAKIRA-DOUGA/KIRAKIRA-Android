@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -56,6 +55,7 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import moe.kirakira.R
+import moe.kirakira.ui.adaptive.pageContentWidth
 import moe.kirakira.core.network.ApiFailure
 import moe.kirakira.data.content.FollowListKind
 import moe.kirakira.data.content.VideoSummary
@@ -70,10 +70,12 @@ import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.FavoritesLogo
 import moe.kirakira.ui.components.LocalNumberAnimationIdentity
+import moe.kirakira.ui.components.LocalPageBackButtonVisible
 import moe.kirakira.ui.components.PagerTabRow
 import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.components.StatusBarScrollToTopHeader
 import moe.kirakira.ui.components.appTopAppBarColors
+import moe.kirakira.ui.components.topAppBarContentWidth
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.components.rememberCollapsingTabState
 import moe.kirakira.ui.components.video.VideoCardLayout
@@ -150,19 +152,22 @@ internal fun ProfileScreen(
                             }
                         },
                         navigationIcon = {
-                            ProfileTopBarIconButton(
-                                tabsPinned = tabsPinned,
-                                hazeState = hazeState,
-                                onClick = onBack,
-                            ) {
-                                Icon(
-                                    painterResource(R.drawable.ic_icon_arrow_left),
-                                    stringResource(R.string.navigate_back),
-                                )
+                            if (LocalPageBackButtonVisible.current) {
+                                ProfileTopBarIconButton(
+                                    tabsPinned = tabsPinned,
+                                    hazeState = hazeState,
+                                    onClick = onBack,
+                                ) {
+                                    Icon(
+                                        painterResource(R.drawable.ic_icon_arrow_left),
+                                        stringResource(R.string.navigate_back),
+                                    )
+                                }
                             }
                         },
                         actions = { actions(tabsPinned, hazeState) },
                         colors = appTopAppBarColors(),
+                        modifier = Modifier.topAppBarContentWidth(),
                     )
                 }
             },
@@ -185,7 +190,7 @@ internal fun ProfileScreen(
                     isRefreshing = isRefreshing,
                     onRefresh = onRetry,
                     modifier = Modifier
-                        .widthIn(max = 640.dp)
+                        .pageContentWidth(640.dp)
                         .fillMaxSize(),
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {

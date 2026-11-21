@@ -88,5 +88,4 @@ private suspend fun animateScrollToTop(
         }
         previousProgress = progress
     }
-    header?.onExpanded()
 }

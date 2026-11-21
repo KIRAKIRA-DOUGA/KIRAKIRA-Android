@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.first
 internal class SettingsSearchTarget(
     val entry: SettingsSearchEntry,
     val title: String,
+    val selection: Int,
     completedState: MutableState<Boolean>,
 ) {
     var completed by completedState
@@ -37,15 +38,14 @@ internal val LocalSettingsSearchTarget = staticCompositionLocalOf<SettingsSearch
 internal fun SettingsSearchTargetProvider(
     entry: SettingsSearchEntry?,
     ready: Boolean = true,
+    selection: Int = 0,
     content: @Composable () -> Unit,
 ) {
-    if (entry == null || entry.topLevel || !ready) {
-        content()
-        return
-    }
-    val completed = rememberSaveable(entry.id) { mutableStateOf(false) }
-    val title = stringResource(entry.title)
-    val target = remember(entry, title) { SettingsSearchTarget(entry, title, completed) }
+    val completed = rememberSaveable(entry?.id, selection) { mutableStateOf(false) }
+    val target = if (entry != null && !entry.topLevel && ready) {
+        val title = stringResource(entry.title)
+        remember(entry, title, selection) { SettingsSearchTarget(entry, title, selection, completed) }
+    } else null
     CompositionLocalProvider(LocalSettingsSearchTarget provides target, content = content)
 }
 
@@ -72,7 +72,7 @@ internal fun Modifier.settingsSearchAnchor(title: String): Modifier {
 internal fun PrepareSettingsSearchList(state: LazyListState, itemKeys: List<String>, targetKey: String?) {
     val targetIndex = itemKeys.indexOf(targetKey).takeIf { it >= 0 }
     val target = LocalSettingsSearchTarget.current ?: return
-    var prepared by rememberSaveable(target.entry.id) { mutableStateOf(false) }
+    var prepared by rememberSaveable(target.entry.id, target.selection) { mutableStateOf(false) }
     val lifecycle by LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsStateWithLifecycle()
     LaunchedEffect(target, targetIndex, lifecycle) {
         if (targetIndex != null && lifecycle == Lifecycle.State.RESUMED && !prepared && !target.completed) {

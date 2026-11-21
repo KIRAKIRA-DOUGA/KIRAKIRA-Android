@@ -36,7 +36,6 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
@@ -47,24 +46,24 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import moe.kirakira.R
-import moe.kirakira.ui.components.CollapsibleTopAppBar
 import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.ui.components.ErrorIcon
 import moe.kirakira.ui.components.FrostedScaffold
+import moe.kirakira.ui.components.PageTopAppBar
 import moe.kirakira.ui.components.SectionHeader
 import moe.kirakira.ui.components.ShadingIcon
 import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.ShadowRadioButton
 import moe.kirakira.ui.components.SmoothSlider
 import moe.kirakira.ui.components.StatusBarScrollToTopEffect
-import moe.kirakira.ui.components.StatusBarScrollToTopHeader
+import moe.kirakira.ui.components.centeredTopAppBarContent
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.pressToRoundButtonShapes
-import moe.kirakira.ui.components.rememberCollapsibleTopAppBarScrollBehavior
 import moe.kirakira.ui.theme.ThemeColorDefaults
 
 /** Shared spacing for settings subpages so every page lines up with the settings list. */
@@ -77,7 +76,7 @@ internal object SettingsDefaults {
 }
 
 /**
- * Scaffold for settings subpages: collapsible large title, settings background and snackbar host.
+ * Scaffold for settings subpages: fixed top bar, settings background and snackbar host.
  * [content] receives the Scaffold padding; pair it with [SettingsColumn] for the standard layout.
  */
 @Composable
@@ -94,12 +93,10 @@ internal fun SettingsScaffold(
     floatingActionButton: @Composable () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
 ) {
-    val scrollBehavior = rememberCollapsibleTopAppBarScrollBehavior()
     FrostedScaffold(
         modifier = modifier
             .fillMaxSize()
-            .then(if (imePadding) Modifier.imePadding() else Modifier)
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
+            .then(if (imePadding) Modifier.imePadding() else Modifier),
         containerColor = ThemeColorDefaults.settingsBackgroundColor(),
         topBar = {
             Box {
@@ -110,10 +107,10 @@ internal fun SettingsScaffold(
                     endPadding = 0.dp,
                     offset = DpOffset(32.dp, 32.dp),
                 )
-                CollapsibleTopAppBar(
+                PageTopAppBar(
                     title = title,
                     onBack = onBack,
-                    scrollBehavior = scrollBehavior,
+                    modifier = Modifier.centeredTopAppBarContent(SettingsDefaults.MaxContentWidth),
                     backButtonModifier = backButtonModifier,
                     actions = actions,
                 )
@@ -122,7 +119,7 @@ internal fun SettingsScaffold(
         snackbarHost = snackbarHost,
         bottomBar = bottomBar,
         floatingActionButton = floatingActionButton,
-        content = { padding -> StatusBarScrollToTopHeader(scrollBehavior) { content(padding) } },
+        content = content,
     )
 }
 
@@ -445,14 +442,18 @@ internal fun SettingsErrorCard(message: String, modifier: Modifier = Modifier) {
 
 /** Surface that groups form fields so they read as one card next to segmented rows. */
 @Composable
-internal fun SettingsFormCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+internal fun SettingsFormCard(
+    modifier: Modifier = Modifier,
+    topPadding: Dp = 16.dp,
+    content: @Composable ColumnScope.() -> Unit,
+) {
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surface,
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(start = 16.dp, top = topPadding, end = 16.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             content = content,
         )

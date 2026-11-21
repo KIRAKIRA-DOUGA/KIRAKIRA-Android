@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -25,8 +24,10 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.graphicsLayer
@@ -40,7 +41,10 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import moe.kirakira.R
+import moe.kirakira.ui.adaptive.browsePageWidth
 import moe.kirakira.ui.components.AppChipDefaults
+import moe.kirakira.ui.components.ObserveTextFieldBinding
+import moe.kirakira.ui.components.TextFieldBinding
 import moe.kirakira.ui.components.search.LocalTagSearchAnchor
 import moe.kirakira.ui.components.search.QuerySearchBar
 import moe.kirakira.ui.components.search.TagSearchField
@@ -55,7 +59,11 @@ internal fun SearchTopBar(
     val keyboard = LocalSoftwareKeyboardController.current
     val tagAnchor = LocalTagSearchAnchor.current
     val motion = MaterialTheme.motionScheme
+    val keyword = remember(state.keywordReplacementRevision) { TextFieldBinding(state.keyword) }
+    val updateKeyword: (String) -> Unit = { onEvent(SearchEvent.KeywordChanged(it)) }
+    ObserveTextFieldBinding(keyword, state.keyword, updateKeyword, state.ready && state.mode == SearchMode.KEYWORD)
     val closeSearch = {
+        if (state.mode == SearchMode.KEYWORD) keyword.replace("")
         focus.clearFocus()
         keyboard?.hide()
         onEvent(SearchEvent.Clear)
@@ -68,7 +76,9 @@ internal fun SearchTopBar(
     ) {
         CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
             Column(
-                modifier = Modifier.widthIn(max = 840.dp).fillMaxWidth().padding(horizontal = 16.dp),
+                modifier = Modifier
+                    .browsePageWidth()
+                    .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 AnimatedContent(
@@ -86,16 +96,19 @@ internal fun SearchTopBar(
                     val clear = { if (isCurrentMode) closeSearch() }
                     if (mode == SearchMode.KEYWORD) {
                         QuerySearchBar(
-                            query = state.keyword,
-                            onQueryChange = { dispatch(SearchEvent.KeywordChanged(it)) },
+                            state = keyword.editor,
                             onSearch = {
-                                focus.clearFocus()
-                                dispatch(SearchEvent.Submit)
+                                if (isCurrentMode) {
+                                    keyword.publish(updateKeyword)
+                                    focus.clearFocus()
+                                    onEvent(SearchEvent.Submit)
+                                }
                             },
                             placeholder = stringResource(R.string.search_placeholder),
                             modifier = fieldModifier.fillMaxWidth(),
+                            inputFieldModifier = Modifier.focusProperties { canFocus = isCurrentMode },
                             enabled = state.ready,
-                            showClear = state.keyword.isNotEmpty() || state.submitted is SearchCriteria.Keyword,
+                            showClear = state.submitted is SearchCriteria.Keyword,
                             onClear = clear,
                         )
                     } else {
@@ -143,6 +156,7 @@ internal fun SearchTopBar(
                         FilterChip(
                             selected = state.mode == mode,
                             onClick = {
+                                if (state.mode == SearchMode.KEYWORD) keyword.publish(updateKeyword)
                                 focus.clearFocus()
                                 onEvent(SearchEvent.ModeChanged(mode))
                             },

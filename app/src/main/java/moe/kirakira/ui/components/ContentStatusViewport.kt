@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
@@ -18,8 +17,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import moe.kirakira.ui.adaptive.pageContentWidth
 
-/** A centered list whose inline status can fill the viewport after accounting for list padding. */
+internal val ContentStatusListMaxWidth = 840.dp
+
+/** A bounded list whose inline status can fill the viewport after accounting for list padding. */
 @Composable
 internal fun ContentStatusList(
     state: LazyListState,
@@ -37,7 +39,7 @@ internal fun ContentStatusList(
     ContentStatusViewport(modifier = modifier, contentPadding = contentPadding) { statusModifier ->
         LazyColumn(
             state = state,
-            modifier = Modifier.widthIn(max = 840.dp).fillMaxSize(),
+            modifier = Modifier.pageContentWidth(ContentStatusListMaxWidth).fillMaxSize(),
             contentPadding = contentPadding,
         ) {
             content(statusModifier)

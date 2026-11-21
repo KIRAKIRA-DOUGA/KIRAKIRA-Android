@@ -2,12 +2,19 @@ package moe.kirakira.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalAutofillManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.metadata
 import moe.kirakira.AppDependenciesViewModel
 import moe.kirakira.data.auth.SessionState
 import moe.kirakira.data.settings.DanmakuSettings
@@ -19,13 +26,14 @@ import moe.kirakira.feature.settings.AboutScreen
 import moe.kirakira.feature.settings.AppearanceScreen
 import moe.kirakira.feature.settings.DanmakuSettingsScreen
 import moe.kirakira.feature.settings.DanmakuSettingsViewModel
+import moe.kirakira.feature.settings.LanguageSettingsScreen
 import moe.kirakira.feature.settings.LicensesScreen
 import moe.kirakira.feature.settings.PlaybackSettingsScreen
 import moe.kirakira.feature.settings.PlaybackSettingsViewModel
-import moe.kirakira.feature.settings.LanguageSettingsScreen
 import moe.kirakira.feature.settings.SettingsScreen
 import moe.kirakira.feature.settings.SettingsSearchPage
 import moe.kirakira.feature.settings.SettingsSearchTargetProvider
+import moe.kirakira.feature.settings.directoryIndex
 import moe.kirakira.feature.settings.isVisible
 import moe.kirakira.feature.settings.management.BlockingOverviewPage
 import moe.kirakira.feature.settings.management.BlockingOverviewViewModel
@@ -39,10 +47,18 @@ import moe.kirakira.feature.settings.profile.ProfileEditorPage
 import moe.kirakira.feature.settings.profile.ProfileEditorViewModel
 import moe.kirakira.feature.settings.security.SecuritySettingsPage
 import moe.kirakira.feature.settings.security.SecuritySettingsViewModel
+import moe.kirakira.feature.settings.security.SecurityStep
 import moe.kirakira.feature.settings.settingsSearchCatalog
-import moe.kirakira.ui.theme.ThemeColorSettings
 import moe.kirakira.ui.components.TextFieldEdits
+import moe.kirakira.ui.theme.ThemeColorSettings
 import moe.kirakira.ui.theme.ThemeMode
+
+internal fun settingsCategoryPane(route: NavKey) = metadata {
+    put(SettingsPaneKey, SettingsPane.CATEGORY)
+    route.settingsCategory?.directoryIndex?.let { put(SettingsCategoryIndexKey, it) }
+}
+
+private val settingsSubpagePane = metadata { put(SettingsPaneKey, SettingsPane.SUBPAGE) }
 
 internal fun registerSettingsEntries(
     scope: EntryProviderScope<NavKey>,
@@ -56,6 +72,8 @@ internal fun registerSettingsEntries(
     onThemeColorsChange: (ThemeColorSettings) -> Unit,
     predictiveBackEnabled: Boolean,
     onPredictiveBackEnabledChange: (Boolean) -> Unit,
+    backgroundDepthEnabled: Boolean,
+    onBackgroundDepthEnabledChange: (Boolean) -> Unit,
     playbackSettingsModel: PlaybackSettingsViewModel?,
     playbackSettings: PlaybackSettings?,
     danmakuSettingsModel: DanmakuSettingsViewModel?,
@@ -63,7 +81,7 @@ internal fun registerSettingsEntries(
 ) {
     val contentRepository = dependencies?.content
     val settingsRepository = dependencies?.settings
-    val renderSettingsDestination: @Composable (NavKey, NavKey) -> Unit = { currentRoute, destination ->
+    val renderPage: @Composable (NavKey, NavKey) -> Unit = { currentRoute, destination ->
         when (destination) {
             ProfileEditorRoute -> {
                 NavigationPage {
@@ -72,21 +90,31 @@ internal fun registerSettingsEntries(
                         val model = viewModel {
                             ProfileEditorViewModel(dependencies.createProfileRepository(), context)
                         }
+                        val state by model.state.collectAsStateWithLifecycle()
                         val edits = remember(model) { TextFieldEdits() }
+                        val requestBack = {
+                            edits.flush()
+                            model.requestBack()
+                        }
+                        RegisterFullPageSetting(navigation, currentRoute, fullPage = state.cropSource != null)
                         RegisterNavigationBackGuard(
                             navigation = navigation,
                             route = currentRoute,
                             canNavigateBack = { model.canNavigateBack && !edits.hasPendingChanges },
-                            requestBack = {
-                                edits.flush()
-                                model.requestBack()
-                            },
+                            requestBack = requestBack,
+                            requestSettingsLeave = { model.state.value.cropSource == null && requestBack() },
+                            awaitingDiscardConfirmation = { model.state.value.confirmDiscard },
                         )
                         ProfileEditorPage(
                             model = model,
                             edits = edits,
                             onBack = { navigation.popFrom(currentRoute) },
                             onLogin = { navigation.openFrom(currentRoute, AuthRoute()) },
+                            onDiscardConfirmed = {
+                                navigation.completeSettingsLeave(currentRoute)
+                                if (navigation.backStack.lastOrNull() == currentRoute) model.discardDraft()
+                            },
+                            onDiscardCancelled = { navigation.cancelSettingsLeave(currentRoute) },
                         )
                     }
                 }
@@ -113,6 +141,8 @@ internal fun registerSettingsEntries(
                 NavigationPage {
                     if (dependencies != null) {
                         val model = viewModel { SecuritySettingsViewModel(dependencies.createSecurityRepository()) }
+                        val state by model.state.collectAsStateWithLifecycle()
+                        RegisterFullPageSetting(navigation, currentRoute, fullPage = state.step != SecurityStep.OVERVIEW)
                         val autofill = LocalAutofillManager.current
                         RegisterNavigationBackGuard(
                             navigation = navigation,
@@ -147,11 +177,16 @@ internal fun registerSettingsEntries(
             }
             InvitationsRoute -> {
                 NavigationPage {
-                    if (settingsRepository != null) InvitationsPage(
-                        model = viewModel { InvitationsViewModel(settingsRepository) },
-                        onBack = { navigation.popFrom(currentRoute) },
-                        onLogin = { navigation.openFrom(currentRoute, AuthRoute()) },
-                    )
+                    if (settingsRepository != null) {
+                        val model = viewModel { InvitationsViewModel(settingsRepository) }
+                        val canLeave = { !model.busy.value }
+                        RegisterNavigationBackGuard(navigation, currentRoute, canLeave, canLeave)
+                        InvitationsPage(
+                            model = model,
+                            onBack = { if (canLeave()) navigation.popFrom(currentRoute) },
+                            onLogin = { navigation.openFrom(currentRoute, AuthRoute()) },
+                        )
+                    }
                 }
             }
             AboutRoute -> {
@@ -197,6 +232,8 @@ internal fun registerSettingsEntries(
                         onThemeColorsChange = onThemeColorsChange,
                         predictiveBackEnabled = predictiveBackEnabled,
                         onPredictiveBackEnabledChange = onPredictiveBackEnabledChange,
+                        backgroundDepthEnabled = backgroundDepthEnabled,
+                        onBackgroundDepthEnabledChange = onBackgroundDepthEnabledChange,
                         onBack = { navigation.popFrom(currentRoute) },
                     )
                 }
@@ -204,8 +241,32 @@ internal fun registerSettingsEntries(
             else -> Unit
         }
     }
+    val renderSettingsDestination: @Composable (NavKey, NavKey) -> Unit = { route, destination ->
+        var anchorId by rememberSaveable { mutableStateOf((route as? SettingsSearchTargetRoute)?.entryId) }
+        var selection by rememberSaveable { mutableIntStateOf(0) }
+        val request = navigation.settingsAnchorRequest?.takeIf { it.route == route }
+        LaunchedEffect(request) {
+            if (request != null) {
+                anchorId = request.entryId
+                selection++
+                navigation.consumeSettingsAnchor(request)
+            }
+        }
+        val target = settingsSearchCatalog.firstOrNull { it.id == anchorId }
+        SettingsSearchTargetProvider(
+            entry = target?.takeIf { it.isVisible(accountState.activeProfile != null || accountState.isLoading) },
+            ready = when (destination) {
+                PlaybackSettingsRoute -> playbackSettings != null
+                DanmakuSettingsRoute -> danmakuSettings != null
+                else -> true
+            },
+            selection = selection,
+        ) {
+            renderPage(route, destination)
+        }
+    }
     with(scope) {
-        entry<SettingsSearchTargetRoute> { route ->
+        entry<SettingsSearchTargetRoute>(metadata = ::settingsCategoryPane) { route ->
             val target = settingsSearchCatalog.firstOrNull { it.id == route.entryId }
             val visible = target?.isVisible(
                 accountState.activeProfile != null || accountState.isLoading,
@@ -213,77 +274,63 @@ internal fun registerSettingsEntries(
             LaunchedEffect(visible) {
                 if (!visible) navigation.popFrom(route)
             }
-            if (target != null && visible) SettingsSearchTargetProvider(
-                entry = target,
-                ready = when (target.page) {
-                    SettingsSearchPage.PLAYBACK -> playbackSettings != null
-                    SettingsSearchPage.DANMAKU -> danmakuSettings != null
-                    else -> true
-                },
-            ) {
-                val destination = when (target.page) {
-                    SettingsSearchPage.PROFILE -> ProfileEditorRoute
-                    SettingsSearchPage.PRIVACY -> PrivacySettingsRoute
-                    SettingsSearchPage.SECURITY -> SecuritySettingsRoute
-                    SettingsSearchPage.BLOCKING -> BlockingOverviewRoute
-                    SettingsSearchPage.INVITATIONS -> InvitationsRoute
-                    SettingsSearchPage.ABOUT -> AboutRoute
-                    SettingsSearchPage.DANMAKU -> DanmakuSettingsRoute
-                    SettingsSearchPage.PLAYBACK -> PlaybackSettingsRoute
-                    SettingsSearchPage.LANGUAGE -> LanguageSettingsRoute
-                    SettingsSearchPage.APPEARANCE -> AppearanceRoute
-                    SettingsSearchPage.ACCOUNT, SettingsSearchPage.HOME -> null
-                }
-                if (destination != null) renderSettingsDestination(route, destination)
-            }
+            if (target != null && visible) renderSettingsDestination(route, target.page.settingsRoute)
         }
-        entry<SettingsRoute> {
+        entry<SettingsRoute>(metadata = metadata { put(SettingsPaneKey, SettingsPane.DIRECTORY) }) {
             NavigationPage {
+                val twoPane = LocalSettingsPane.current == SettingsPane.DIRECTORY
+                val top = navigation.backStack.last()
+                val category = if (twoPane) {
+                    navigation.backStack.getOrNull(navigation.backStack.indexOf(SettingsRoute) + 1)?.settingsCategory
+                } else null
+                fun select(destination: NavKey, isSearch: Boolean = false) {
+                    if (twoPane) navigation.selectSetting(top, destination, isSearch)
+                    else navigation.openFrom(SettingsRoute, destination)
+                }
                 SettingsScreen(
-                    onNavigateToProfile = { navigation.openFrom(SettingsRoute, ProfileEditorRoute) },
-                    onNavigateToPrivacy = { navigation.openFrom(SettingsRoute, PrivacySettingsRoute) },
-                    onNavigateToSecurity = { navigation.openFrom(SettingsRoute,
-                        if (accountState.activeProfile == null) AuthRoute() else SecuritySettingsRoute) },
-                    onNavigateToBlocking = { navigation.openFrom(SettingsRoute, BlockingOverviewRoute) },
-                    onNavigateToInvitations = { navigation.openFrom(SettingsRoute, InvitationsRoute) },
-                    onNavigateToDanmaku = { navigation.openFrom(SettingsRoute, DanmakuSettingsRoute) },
-                    onNavigateToLanguage = { navigation.openFrom(SettingsRoute, LanguageSettingsRoute) },
-                    onNavigateToPlayback = { navigation.openFrom(SettingsRoute, PlaybackSettingsRoute) },
+                    onSelectCategory = { select(it.settingsRoute) },
+                    twoPane = twoPane,
+                    selectedCategory = category,
                     signedIn = accountState.activeProfile != null,
                     accountBusy = accountState.isBusy || accountState.isLoading,
-                    onLogout = onLogout,
-                    isActive = navigation.backStack.lastOrNull() == SettingsRoute,
-                    onSearchDestination = { id ->
-                        val entry = settingsSearchCatalog.firstOrNull { it.id == id }
-                        if (entry != null && entry.isVisible(accountState.activeProfile != null)) {
-                            navigation.openFrom(
-                                SettingsRoute,
-                                if (entry.page == SettingsSearchPage.ACCOUNT) AccountSwitchRoute else SettingsSearchTargetRoute(id),
-                            )
+                    onLogout = {
+                        if (twoPane) navigation.leaveSettings(top, afterPathChange = onLogout) else onLogout()
+                    },
+                    isActive = LocalDestinationActive.current,
+                    onSearchDestination = { entry ->
+                        if (entry.isVisible(accountState.activeProfile != null)) {
+                            val destination = if (entry.page == SettingsSearchPage.ACCOUNT) AccountSwitchRoute
+                                else SettingsSearchTargetRoute(entry.id)
+                            select(destination, isSearch = true)
                         }
                     },
-                    onBack = { navigation.popFrom(SettingsRoute) },
-                    onNavigateToAbout = { navigation.openFrom(SettingsRoute, AboutRoute) },
-                    onNavigateToAppearance = { navigation.openFrom(SettingsRoute, AppearanceRoute) },
-                    onNavigateToAccount = { navigation.openFrom(SettingsRoute, AccountSwitchRoute) },
+                    onBack = {
+                        if (twoPane) navigation.leaveSettings(top) { navigation.popFrom(SettingsRoute) }
+                        else navigation.popFrom(SettingsRoute)
+                    },
                 )
             }
         }
-        entry<ProfileEditorRoute> { route -> renderSettingsDestination(route, route) }
-        entry<PrivacySettingsRoute> { route -> renderSettingsDestination(route, route) }
-        entry<SecuritySettingsRoute> { route -> renderSettingsDestination(route, route) }
-        entry<BlockingOverviewRoute> { route -> renderSettingsDestination(route, route) }
-        entry<RuleManagementRoute> { route ->
+        entry<ProfileEditorRoute>(metadata = ::settingsCategoryPane) { route -> renderSettingsDestination(route, route) }
+        entry<PrivacySettingsRoute>(metadata = ::settingsCategoryPane) { route -> renderSettingsDestination(route, route) }
+        entry<SecuritySettingsRoute>(metadata = ::settingsCategoryPane) { route -> renderSettingsDestination(route, route) }
+        entry<BlockingOverviewRoute>(metadata = ::settingsCategoryPane) { route -> renderSettingsDestination(route, route) }
+        entry<RuleManagementRoute>(metadata = settingsSubpagePane) { route ->
             NavigationPage {
-                if (settingsRepository != null && contentRepository != null) RuleManagementPage(
-                    model = viewModel { RuleManagementViewModel(route.category, settingsRepository, contentRepository) },
-                    onBack = { navigation.popFrom(route) },
-                    onLogin = { navigation.openFrom(route, AuthRoute()) },
-                )
+                if (settingsRepository != null && contentRepository != null) {
+                    val model = viewModel { RuleManagementViewModel(route.category, settingsRepository, contentRepository) }
+                    val canLeave = { !model.busy.value }
+                    RegisterNavigationBackGuard(navigation, route, canLeave, canLeave)
+                    RuleManagementPage(
+                        model = model,
+                        onBack = { if (canLeave()) navigation.popFrom(route) },
+                        onLogin = { navigation.openFrom(route, AuthRoute()) },
+                    )
+                }
             }
         }
-        entry<InvitationsRoute> { route -> renderSettingsDestination(route, route) }
-        entry<AboutRoute> { route -> renderSettingsDestination(route, route) }
+        entry<InvitationsRoute>(metadata = ::settingsCategoryPane) { route -> renderSettingsDestination(route, route) }
+        entry<AboutRoute>(metadata = ::settingsCategoryPane) { route -> renderSettingsDestination(route, route) }
         entry<ComponentTestRoute> {
             NavigationPage {
                 ComponentGalleryScreen(
@@ -303,11 +350,11 @@ internal fun registerSettingsEntries(
                 )
             }
         }
-        entry<DanmakuSettingsRoute> { route -> renderSettingsDestination(route, route) }
-        entry<PlaybackSettingsRoute> { route -> renderSettingsDestination(route, route) }
-        entry<LanguageSettingsRoute> { route -> renderSettingsDestination(route, route) }
-        entry<AppearanceRoute> { route -> renderSettingsDestination(route, route) }
-        entry<LicensesRoute> {
+        entry<DanmakuSettingsRoute>(metadata = ::settingsCategoryPane) { route -> renderSettingsDestination(route, route) }
+        entry<PlaybackSettingsRoute>(metadata = ::settingsCategoryPane) { route -> renderSettingsDestination(route, route) }
+        entry<AppearanceRoute>(metadata = ::settingsCategoryPane) { route -> renderSettingsDestination(route, route) }
+        entry<LanguageSettingsRoute>(metadata = ::settingsCategoryPane) { route -> renderSettingsDestination(route, route) }
+        entry<LicensesRoute>(metadata = settingsSubpagePane) {
             NavigationPage {
                 LicensesScreen(
                     onBack = { navigation.popFrom(LicensesRoute) },

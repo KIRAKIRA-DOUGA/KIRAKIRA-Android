@@ -16,6 +16,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
@@ -55,6 +56,14 @@ internal fun Modifier.frostedSurfaceBackground(
             shadowElevation = shadowElevation,
         ).background(surface)
     }
+    // Haze can skip drawing until the sources are ready, so the elevated surface must still be filled.
+    return barSurfaceLayer(shape = shape, shadowElevation = shadowElevation)
+        .background(surface)
+        .barHaze(hazeState, surface)
+}
+
+@Composable
+private fun Modifier.barHaze(hazeState: HazeState, surface: Color): Modifier {
     val input = remember(hazeState) {
         HazeInput.Sources(
             state = hazeState,
@@ -69,15 +78,20 @@ internal fun Modifier.frostedSurfaceBackground(
             colorEffects(listOf(HazeColorEffect.tint(surface.copy(alpha = 0.8f))))
         }
     }
-    // Sources may skip effect drawing until their first capture/coordinates are ready.
-    // Keep the elevated surface opaque even in that frame; the effect's backgroundColor
-    // only fills a rendered blur, not the native shadow caster when the effect is skipped.
-    return barSurfaceLayer(shape = shape, shadowElevation = shadowElevation)
-        .background(surface)
-        .hazeBlur(
-            input = input,
-            style = style,
-        )
+    return hazeBlur(input = input, style = style)
+}
+
+@Composable
+private fun FrostedTopBarBackground(hazeState: HazeState, shadowElevation: Dp, modifier: Modifier = Modifier) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+        Box(modifier.frostedBarBackground(hazeState = hazeState, shadowElevation = shadowElevation))
+    } else {
+        val surface = MaterialTheme.colorScheme.surface.copy(alpha = 1f)
+        // Keep the real elevation below the app bar, outside the clipped Haze effect. A surface
+        // is still needed on the shadow caster for the first frame before blur capture is ready.
+        Box(modifier.barSurfaceLayer(shadowElevation = shadowElevation).background(surface))
+        Box(modifier.clipToBounds().barHaze(hazeState, surface))
+    }
 }
 
 @Composable
@@ -100,9 +114,7 @@ internal fun FrostedScaffold(
             modifier = modifier,
             topBar = {
                 Box {
-                    Box(
-                        Modifier.matchParentSize().frostedBarBackground(shadowElevation = topBarShadowElevation),
-                    )
+                    FrostedTopBarBackground(hazeState, topBarShadowElevation, Modifier.matchParentSize())
                     topBar()
                 }
             },

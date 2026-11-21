@@ -220,9 +220,9 @@ internal class PredictiveBackMotion(
         }
     }
 
-    fun onSceneDisposed(sceneKey: Any) {
+    fun onDestinationDisposed(destinationKey: Any) {
         val current = phase
-        if (current is BackPhase.AwaitingRemoval && current.pages.closing == sceneKey) {
+        if (current is BackPhase.AwaitingRemoval && current.pages.closing == destinationKey) {
             // Keep completedPop until the next navigation so a late transitionSpec evaluation
             // still skips the ordinary pop animation.
             animation = null

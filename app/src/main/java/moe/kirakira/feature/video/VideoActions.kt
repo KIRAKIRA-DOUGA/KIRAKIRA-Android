@@ -59,12 +59,12 @@ internal fun VideoActions(
     onShare: () -> Unit,
     onViewCover: () -> Unit,
     modifier: Modifier = Modifier,
+    contentAlignment: Alignment = Alignment.TopCenter,
 ) {
-    BoxWithConstraints(modifier) {
+    BoxWithConstraints(modifier, contentAlignment = contentAlignment) {
         val rowWidth = maxWidth.coerceIn(48.dp * 5, VideoActionSize * 5)
         Row(
             modifier = Modifier
-                .align(Alignment.TopCenter)
                 .horizontalScroll(rememberScrollState())
                 .width(rowWidth),
             verticalAlignment = Alignment.Top,

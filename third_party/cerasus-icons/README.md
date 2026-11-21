@@ -17,6 +17,7 @@
 
 `ic_icon_<name>.xml` 从固定版本的同名 SVG 转为 Android VectorDrawable，保留原始画布、路径、填充规则和图层顺序。Compose 负责主题着色。许可沿用本目录的 GNU AGPL v3.0。 [Cerasus 图标库](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Cerasus/tree/dd5b8cdcabaac4d03ad190f6b7037bfab494c72b/assets/icons)
 
+- 大屏侧栏的「关注」使用 `ic_icon_feed.xml`，保留原 24 × 24 画布和路径，许可沿用本目录的 GNU AGPL v3.0。[feed.svg](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Cerasus/blob/7d8c1a7ca84160d8984c307b70c10cccd389a3ef/assets/icons/feed.svg)
 - `star`、`download`、`history` 用于全项目对应操作与入口。视频详情操作区另用 `thumb_up`、`thumb_down`、`watch_later`、`share`、`more_vert`、`photo` 与 `flag`；新增的稍后再看和举报图标同样取自上述固定版本。
 - `translate` 用于设置中的语言入口与语言页底纹，为文字字形，不随 RTL 镜像。
 - `autoplay` 用于播放设置。`arrow_up`／`arrow_down` 用于评论投票，搜索排序方向旋转复用 `arrow_down`。回复、发送和退出登录分别使用 `reply`、`send` 和 `logout`。

@@ -44,7 +44,9 @@ import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.FrostedScaffold
+import moe.kirakira.ui.components.LocalPageBackButtonVisible
 import moe.kirakira.ui.components.appTopAppBarColors
+import moe.kirakira.ui.components.topAppBarContentWidth
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.components.rememberTabChangeHandler
 import moe.kirakira.ui.components.smoothScrollToTop
@@ -141,8 +143,9 @@ internal fun ProfilePage(
                         }
                     },
                     colors = appTopAppBarColors(),
+                    modifier = Modifier.topAppBarContentWidth(),
                     navigationIcon = {
-                        IconButton(onClick = onBack) {
+                        if (LocalPageBackButtonVisible.current) IconButton(onClick = onBack) {
                             Icon(
                                 painterResource(R.drawable.ic_icon_arrow_left),
                                 stringResource(R.string.navigate_back),

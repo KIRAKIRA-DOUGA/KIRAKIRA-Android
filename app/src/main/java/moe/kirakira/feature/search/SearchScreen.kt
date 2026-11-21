@@ -12,10 +12,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -50,8 +49,9 @@ import moe.kirakira.ui.components.SearchVideosEmptyLogo
 import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.components.search.TagSearchDialog
 import moe.kirakira.ui.components.smoothScrollToTop
-import moe.kirakira.ui.components.video.VideoCardRow
+import moe.kirakira.ui.components.video.FeedVideoCard
 import moe.kirakira.ui.components.video.VideoCardRowSpacing
+import moe.kirakira.ui.components.video.VideoFeedGrid
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 @Composable
@@ -89,28 +89,48 @@ private fun SearchScreenContent(
     contentPadding: PaddingValues,
     onScrollToTopActionChange: ((suspend () -> Unit)?) -> Unit,
 ) {
-    val listState = remember(state.generation) { LazyListState(state.scrollIndex, state.scrollOffset) }
-    val historyListState = rememberLazyListState()
-    val activeListState by rememberUpdatedState(if (state.submitted == null) historyListState else listState)
-    val scrollToTop: suspend () -> Unit = remember {
-        { activeListState.smoothScrollToTop() }
-    }
-    DisposableEffect(onScrollToTopActionChange, scrollToTop, activeListState) {
-        onScrollToTopActionChange(scrollToTop)
-        onDispose { onScrollToTopActionChange(null) }
-    }
-    StatusBarScrollToTopEffect(activeListState, enabled = !state.pickerOpen)
-    val currentEvent by rememberUpdatedState(onEvent)
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
-            .distinctUntilChanged().collect { (index, offset) ->
-                currentEvent(SearchEvent.Scrolled(state.generation, index, offset))
-            }
-    }
     val videos = remember(state.videos.data, state.sort, state.descending) {
         sortedSearchVideos(state.videos.data.orEmpty(), state.sort, state.descending)
     }
-    val rows = remember(videos, state.layout) { videos.chunked(state.layout.columns) }
+    val showStatus = state.videos.error != null || videos.isEmpty()
+    val listState = remember(state.generation) {
+        val headers = buildList {
+            if (state.historyError) add("history-error")
+            add("search-header")
+            if (showStatus) add("status")
+        }
+        val headerIndex = state.scrollKey?.let(headers::indexOf) ?: -1
+        val videoIndex = videos.indexOfFirst { it.id.toString() == state.scrollKey }
+        val index = when {
+            headerIndex >= 0 -> headerIndex
+            videoIndex >= 0 -> headers.size + videoIndex
+            else -> 0
+        }
+        LazyGridState(index, if (headerIndex >= 0 || videoIndex >= 0) state.scrollOffset else 0)
+    }
+    val historyListState = rememberLazyListState()
+    val showResults = state.submitted != null
+    val latestShowResults by rememberUpdatedState(showResults)
+    val latestGridState by rememberUpdatedState(listState)
+    val scrollToTop: suspend () -> Unit = remember {
+        { if (latestShowResults) latestGridState.smoothScrollToTop() else historyListState.smoothScrollToTop() }
+    }
+    DisposableEffect(onScrollToTopActionChange, scrollToTop) {
+        onScrollToTopActionChange(scrollToTop)
+        onDispose { onScrollToTopActionChange(null) }
+    }
+    StatusBarScrollToTopEffect(historyListState, enabled = !showResults && !state.pickerOpen)
+    StatusBarScrollToTopEffect(listState, enabled = showResults && !state.pickerOpen)
+    val currentEvent by rememberUpdatedState(onEvent)
+    LaunchedEffect(listState, showResults) {
+        if (!showResults) return@LaunchedEffect
+        snapshotFlow {
+            val key = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == listState.firstVisibleItemIndex }?.key
+            key to listState.firstVisibleItemScrollOffset
+        }.distinctUntilChanged().collect { (key, offset) ->
+            if (key is String) currentEvent(SearchEvent.Scrolled(state.generation, key, offset))
+        }
+    }
     val sectionSpacing = 12.dp
     val density = LocalDensity.current
     var headerHeightPx by remember { mutableIntStateOf(0) }
@@ -146,13 +166,12 @@ private fun SearchScreenContent(
                     isActive = state.submitted == null && !state.pickerOpen,
                 )
             }
-            if (state.submitted != null) LazyColumn(
+            if (showResults) VideoFeedGrid(
+                layout = state.layout,
                 state = listState,
-                modifier = Modifier.widthIn(max = 840.dp).fillMaxSize(),
                 contentPadding = listContentPadding,
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                if (state.historyError) item("history-error") {
+            ) { columns ->
+                if (state.historyError) item("history-error", span = { GridItemSpan(maxLineSpan) }) {
                     SearchHistoryError(
                         onEvent,
                         modifier = Modifier
@@ -161,7 +180,7 @@ private fun SearchScreenContent(
                         canDismiss = state.historyLoaded,
                     )
                 }
-                item("search-header") {
+                item("search-header", span = { GridItemSpan(maxLineSpan) }) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -173,13 +192,13 @@ private fun SearchScreenContent(
                         SearchResultControls(state, onEvent)
                     }
                 }
-                if (state.videos.error != null || state.videos.data.isNullOrEmpty()) {
-                    item("status") {
+                if (showStatus) {
+                    item("status", span = { GridItemSpan(maxLineSpan) }) {
                         ContentStatus(
                             state.videos.copy(loading = state.videos.loading && state.videos.data == null),
                             onRetry = { onEvent(SearchEvent.Refresh) },
                             modifier = Modifier.fillMaxWidth().then(
-                                if (rows.isEmpty()) statusModifier else Modifier.padding(bottom = sectionSpacing),
+                                if (videos.isEmpty()) statusModifier else Modifier.padding(bottom = sectionSpacing),
                             ),
                             empty = state.videos.data.isNullOrEmpty(),
                             emptyTitle = stringResource(R.string.search_videos_empty),
@@ -189,13 +208,11 @@ private fun SearchScreenContent(
                         )
                     }
                 }
-                itemsIndexed(rows, key = { _, row -> row.first().id }) { index, row ->
-                    VideoCardRow(
-                        videos = row,
-                        layout = state.layout,
-                        onOpenVideo = onOpenVideo,
+                itemsIndexed(videos, key = { _, video -> video.id.toString() }) { index, video ->
+                    FeedVideoCard(
+                        video, state.layout, onOpenVideo,
                         modifier = Modifier.fillMaxWidth().padding(
-                            bottom = if (index == rows.lastIndex) 0.dp else VideoCardRowSpacing,
+                            bottom = if (index / columns == videos.lastIndex / columns) 0.dp else VideoCardRowSpacing,
                         ),
                     )
                 }

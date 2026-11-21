@@ -47,6 +47,8 @@ import androidx.compose.ui.unit.sp
 import moe.kirakira.R
 import moe.kirakira.ui.components.awaitSlidingSelectionChange
 import moe.kirakira.ui.components.frostedBarBackground
+import moe.kirakira.ui.components.navigation.AnimatedNavigationIcon
+import moe.kirakira.ui.components.navigation.NavigationIcon
 import moe.kirakira.ui.components.rememberSlidingSelection
 import moe.kirakira.ui.components.rememberSlidingSelectionPressProgress
 import moe.kirakira.ui.components.slidingSelectionIndicator
@@ -60,12 +62,12 @@ private val BarContentPadding = 4.dp
 
 internal enum class AppDestination(
     @param:StringRes val label: Int,
-    val icon: MainTabIcon,
+    val icon: NavigationIcon,
 ) {
-    HOME(R.string.nav_home, MainTabIcon.HOME),
-    SEARCH(R.string.nav_search, MainTabIcon.SEARCH),
-    FOLLOWING(R.string.nav_following, MainTabIcon.FOLLOWING),
-    ME(R.string.nav_me, MainTabIcon.ME),
+    HOME(R.string.nav_home, NavigationIcon.HOME),
+    SEARCH(R.string.nav_search, NavigationIcon.SEARCH),
+    FOLLOWING(R.string.nav_following, NavigationIcon.FOLLOWING),
+    ME(R.string.nav_me, NavigationIcon.PERSON),
 }
 
 @Composable
@@ -214,7 +216,7 @@ internal fun MainBottomBar(
                         verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically),
                     ) {
                         CompositionLocalProvider(LocalContentColor provides contentColor) {
-                            AnimatedTabIcon(icon = item.icon, selected = selected)
+                            AnimatedNavigationIcon(icon = item.icon, selected = selected)
                             Text(
                                 text = stringResource(item.label),
                                 style = MaterialTheme.typography.labelSmall,

@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
@@ -39,6 +38,7 @@ import androidx.compose.material3.SearchBarState
 import androidx.compose.material3.SearchBarValue
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
@@ -93,6 +93,10 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import moe.kirakira.R
+import moe.kirakira.ui.adaptive.LocalAppWindowLayout
+import moe.kirakira.ui.adaptive.pageContentWidth
+import moe.kirakira.ui.adaptive.LocalWindowPane
+import moe.kirakira.ui.adaptive.WindowPane
 import moe.kirakira.ui.theme.ThemeColorDefaults
 
 /** Dialog-backed search for pages whose results navigate without a shared media source. */
@@ -118,14 +122,7 @@ internal fun PageSearchBar(
     )
     if (!isActive || !enabled || !state.isOpen) return
 
-    Dialog(
-        onDismissRequest = { scope.launch { state.animateToCollapsed() } },
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false,
-        ),
-    ) {
-        SearchDialogWindowEffect()
+    FullScreenSearchDialog(onDismiss = { scope.launch { state.animateToCollapsed() } }) {
         var dialogOnScreen by remember { mutableStateOf<Offset?>(null) }
         Box(Modifier.fillMaxSize().onGloballyPositioned { dialogOnScreen = it.positionOnScreen() }) {
             val origin = dialogOnScreen
@@ -142,7 +139,7 @@ internal fun PageSearchBar(
     }
 }
 
-private val SearchBarState.isOpen: Boolean
+internal val SearchBarState.isOpen: Boolean
     get() = targetValue == SearchBarValue.Expanded || currentValue == SearchBarValue.Expanded || isAnimating
 
 /** The title owns top insets; the persistent search bar only owns horizontal insets. */
@@ -163,7 +160,7 @@ internal fun PageSearchBarAnchor(
         contentAlignment = Alignment.Center,
     ) {
         Box(
-            modifier = Modifier.widthIn(max = maxContentWidth).fillMaxWidth()
+            modifier = Modifier.pageContentWidth(maxContentWidth).fillMaxWidth()
                 .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
         ) {
             SearchBar(
@@ -330,7 +327,29 @@ private fun PageSearchResults(
 }
 
 @Composable
-internal fun SearchDialogWindowEffect() {
+internal fun FullScreenSearchDialog(
+    onDismiss: () -> Unit,
+    dismissOnBackPress: Boolean = true,
+    content: @Composable () -> Unit,
+) {
+    val pane = if (LocalAppWindowLayout.current.primaryPane != null) LocalWindowPane.current else null
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
+            dismissOnBackPress = dismissOnBackPress,
+        ),
+    ) {
+        SearchDialogWindowEffect()
+        WindowPane(pane) {
+            CompositionLocalProvider(LocalPageBackButtonVisible provides true, content = content)
+        }
+    }
+}
+
+@Composable
+private fun SearchDialogWindowEffect() {
     val view = LocalView.current
     val window = (view.parent as? DialogWindowProvider)?.window ?: return
     val colors = MaterialTheme.colorScheme

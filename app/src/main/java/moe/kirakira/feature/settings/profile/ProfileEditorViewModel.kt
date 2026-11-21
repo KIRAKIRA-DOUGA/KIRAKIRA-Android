@@ -345,6 +345,19 @@ internal class ProfileEditorViewModel(
     }
 
     fun dismissDiscard() { _state.update { it.copy(confirmDiscard = false) } }
+
+    /** A confirmed search may keep this entry alive to locate another field. */
+    fun discardDraft() {
+        val previous = _state.value
+        cleanup()
+        if (previous.completionOnly) {
+            _state.value = ProfileEditorState()
+            load()
+        } else {
+            _state.value = ProfileEditorState(original = previous.original, draft = previous.original, loading = false)
+        }
+    }
+
     fun dismissMessage() { _state.update { it.copy(message = null) } }
     private fun deleteFile(file: File) {
         deleteWhenIdle(pendingImageWork(file.parentFile)) { file.delete() }

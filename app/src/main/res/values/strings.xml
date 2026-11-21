@@ -543,6 +543,7 @@
     <string name="settings_section_mini_player">Mini player</string>
     <string name="settings_section_animations">Animations</string>
     <string name="settings_predictive_back">Predictive back</string>
+    <string name="settings_background_depth">Background depth</string>
     <string name="danmaku_section_display">Display</string>
     <string name="danmaku_section_types">Danmaku types</string>
     <string name="tag_title">Tag</string>
@@ -597,6 +598,7 @@
     <string name="invitation_creation_retry_message">The invitation may already have been created. Check the list first. Generating again may create another invitation.</string>
     <string name="invitation_generate_again">Generate again</string>
     <string name="settings_search">Search settings</string>
+    <string name="settings_select_item">Choose a setting</string>
     <string name="settings_search_empty">No matching settings</string>
 
     <string name="component_gallery_title">Component library</string>

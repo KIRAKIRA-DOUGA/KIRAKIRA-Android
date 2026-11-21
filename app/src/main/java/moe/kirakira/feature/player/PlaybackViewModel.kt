@@ -37,6 +37,8 @@ import okhttp3.OkHttpClient
 
 internal data class VideoQualityOption(val height: Int, val bitrate: Int?)
 
+internal class MiniPlayerExit(val videoId: Int, val player: ExoPlayer, val loading: Boolean)
+
 internal val playbackSpeeds = PlaybackSpeedRules.speeds
 
 /** Host-owned playback, paused on restoration; never stores URLs or credentials in SavedState. */
@@ -51,6 +53,8 @@ internal class PlaybackViewModel(
     var videoId by mutableStateOf<Int?>(null)
         private set
     var miniPlayer by mutableStateOf(false)
+        private set
+    var miniPlayerExit by mutableStateOf<MiniPlayerExit?>(null)
         private set
     private var pageVideoId: Int? = null
     var bounds by mutableStateOf<Rect?>(null)
@@ -92,6 +96,7 @@ internal class PlaybackViewModel(
     }
 
     fun showVideo(id: Int) {
+        if (miniPlayerExit?.videoId == id) finishMiniPlayerExit()
         if (videoId != id) {
             release()
             initiallyReadyPartIds.clear()
@@ -143,7 +148,28 @@ internal class PlaybackViewModel(
         initiallyReadyPartIds.clear()
     }
 
+    fun beginMiniPlayerExit(): MiniPlayerExit? {
+        val id = videoId ?: return null
+        val current = player?.takeIf { miniPlayer } ?: return null
+        finishMiniPlayerExit()
+        val exit = MiniPlayerExit(id, current, buffering || initialLoading)
+        current.pause()
+        // Keep video output attached while retiring the old media session and history sampling.
+        release(keepPlayer = true)
+        miniPlayer = false
+        bounds = null
+        miniPlayerExit = exit
+        return exit
+    }
+
+    fun finishMiniPlayerExit(exit: MiniPlayerExit? = miniPlayerExit) {
+        if (exit == null || miniPlayerExit !== exit) return
+        miniPlayerExit = null
+        exit.player.release()
+    }
+
     fun clearSession() {
+        finishMiniPlayerExit()
         closeMiniPlayer()
         videoId = null
         pageVideoId = null
@@ -355,7 +381,10 @@ internal class PlaybackViewModel(
                             player.playbackState == Player.STATE_ENDED) flushHistory()
                     }
                     override fun onPlayerError(error: PlaybackException) {
-                        if (this@playerSetup !== this@PlaybackViewModel.player) return
+                        if (this@playerSetup !== this@PlaybackViewModel.player) {
+                            miniPlayerExit?.takeIf { it.player === this@playerSetup }?.let(::finishMiniPlayerExit)
+                            return
+                        }
                         failed = true
                         buffering = false
                         initialLoading = false
@@ -426,7 +455,7 @@ internal class PlaybackViewModel(
         return PlaybackHistorySample(id, revision, current.currentPosition.coerceAtLeast(0), durationMs)
     }
 
-    fun release() {
+    private fun release(keepPlayer: Boolean = false) {
         dismissResumeNotice()
         flushHistory()
         player?.let { positionMs = it.currentPosition.coerceAtLeast(0) }
@@ -438,7 +467,7 @@ internal class PlaybackViewModel(
         mediaSession = null
         val previous = player
         player = null
-        previous?.release()
+        if (!keepPlayer) previous?.release()
         qualityOptions = emptyList()
         selectedQualityHeight = null
         actualVideoHeight = null
@@ -448,7 +477,10 @@ internal class PlaybackViewModel(
         buffering = false
         initialLoading = false
     }
-    override fun onCleared() { release() }
+    override fun onCleared() {
+        finishMiniPlayerExit()
+        release()
+    }
 }
 
 /** A separate public-media transport: no API cookie jar, headers or authentication interceptors. */

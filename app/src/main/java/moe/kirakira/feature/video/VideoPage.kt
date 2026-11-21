@@ -12,13 +12,17 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.minus
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -31,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.focusProperties
@@ -43,6 +48,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalResources
@@ -50,6 +56,8 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -72,11 +80,17 @@ import moe.kirakira.data.settings.DanmakuSettings
 import moe.kirakira.data.settings.PlaybackSettings
 import moe.kirakira.feature.imageviewer.ViewerImage
 import moe.kirakira.feature.player.MediaVolumeController
+import moe.kirakira.feature.player.MiniPlayerExit
 import moe.kirakira.feature.player.PlaybackPageViewport
 import moe.kirakira.feature.player.PlaybackViewModel
 import moe.kirakira.feature.player.PlaybackViewportState
 import moe.kirakira.feature.player.PlayerUiState
+import moe.kirakira.feature.player.TabletopTransport
 import moe.kirakira.feature.player.VideoPlayer
+import moe.kirakira.ui.adaptive.LocalAppWindowLayout
+import moe.kirakira.ui.adaptive.WindowPane
+import moe.kirakira.ui.adaptive.clampTo
+import moe.kirakira.ui.adaptive.excludedInsets
 import moe.kirakira.ui.components.StatusBarScrollToTopPauseEffect
 import moe.kirakira.ui.components.messageRes
 import moe.kirakira.ui.components.video.rememberVideoZoomPlaceholder
@@ -87,6 +101,12 @@ private data class InlinePlayerLayout(
     val width: Dp,
     val height: Dp,
     val contentPadding: PaddingValues,
+    val bounds: IntRect? = null,
+)
+
+private data class FullscreenRequest(
+    val inlineLayout: InlinePlayerLayout,
+    val rotateToLandscape: Boolean,
 )
 
 @Composable
@@ -107,6 +127,7 @@ internal fun VideoPage(
     settingsRepository: AccountSettingsRepository? = null,
     isActive: Boolean = true,
     surfaceVisible: Boolean = true,
+    miniPlayerExit: MiniPlayerExit? = null,
     initialImage: String? = null,
     onQualityPreference: (Int?) -> Unit = {},
     danmakuSettings: DanmakuSettings? = null,
@@ -144,15 +165,20 @@ internal fun VideoPage(
     val activity = remember(context) { context.mainActivity() }
     val pip = activity?.pictureInPicture == true
     val configuration = LocalConfiguration.current
-    // Multi-window and Android 16+ large displays can ignore Activity orientation requests.
-    val fullscreenInCurrentWindow = activity == null || activity.isInMultiWindowMode ||
-        (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA && configuration.smallestScreenWidthDp >= 600)
+    val window = LocalAppWindowLayout.current
+    val safeWindow = window.safeBounds
+    val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
+    val panes = with(density) { videoPaneLayout(window, layoutDirection) }
+    val wideWindow = with(density) { safeWindow.width.toDp() >= 600.dp && safeWindow.height.toDp() >= 480.dp }
+    val canFullscreenInPlace = activity == null || activity.isInMultiWindowMode ||
+        window.primaryPane != null || wideWindow ||
+        (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA && configuration.smallestScreenWidthDp >= 600)
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
-    var fullscreen by remember { mutableStateOf(false) }
+    var fullscreenRequest by remember { mutableStateOf<FullscreenRequest?>(null) }
+    val fullscreen = fullscreenRequest != null
     var windowFullscreen by remember { mutableStateOf(false) }
-    var fullscreenInlineLayout by remember { mutableStateOf<InlinePlayerLayout?>(null) }
     val detailsInteractive = isActive && !pip && !fullscreen && !windowFullscreen
     StatusBarScrollToTopPauseEffect(paused = isActive && !detailsInteractive)
     if (publicationRetry != null && detailsInteractive) {
@@ -168,11 +194,12 @@ internal fun VideoPage(
             },
         )
     }
-    fun requestFullscreen(target: Boolean) {
-        fullscreen = target
-        if (!target) fullscreenInlineLayout = null
-        val windowTarget = target && isActive && !pip
-        if (windowFullscreen != windowTarget) activity?.setVideoFullscreen(windowTarget)
+    fun requestFullscreen(request: FullscreenRequest?) {
+        fullscreenRequest = request
+        val windowTarget = request != null && isActive && !pip
+        if (windowTarget || windowFullscreen) {
+            activity?.setVideoFullscreen(windowTarget, rotateToLandscape = request?.rotateToLandscape == true)
+        }
         windowFullscreen = windowTarget
     }
     val snackbar = remember { SnackbarHostState() }
@@ -188,10 +215,19 @@ internal fun VideoPage(
     fun unavailable() { scope.launch { snackbar.showSnackbar(resources.getString(R.string.video_action_unavailable)) } }
     val lifecycleOwner = LocalLifecycleOwner.current
     val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsStateWithLifecycle()
-    LaunchedEffect(access, value, resume, playbackSettings, isActive, lifecycleState, session.revision, playback.videoId) {
-        if (playback.videoId != videoId) return@LaunchedEffect
+    LaunchedEffect(
+        access, value, resume, playbackSettings, isActive, lifecycleState, session.revision, playback.videoId, miniPlayerExit,
+    ) {
         // Read the latest state: a refresh can finish before the collected UI state catches up.
         val currentAccess = model.access.value
+        if (miniPlayerExit != null) {
+            if (currentAccess.unavailable || currentAccess.playbackInvalidationPending) {
+                playback.finishMiniPlayerExit(miniPlayerExit)
+                if (currentAccess.playbackInvalidationPending) model.playbackInvalidated()
+            }
+            return@LaunchedEffect
+        }
+        if (playback.videoId != videoId) return@LaunchedEffect
         if (currentAccess.playbackInvalidationPending) {
             playback.setContent("", emptyList())
             if (playback.miniPlayer) playback.closeMiniPlayer()
@@ -223,8 +259,8 @@ internal fun VideoPage(
             keyboard?.hide()
         }
     }
-    LaunchedEffect(fullscreen, pip, isActive, activity) {
-        requestFullscreen(fullscreen && isActive)
+    LaunchedEffect(pip, isActive, activity) {
+        requestFullscreen(fullscreenRequest.takeIf { isActive })
     }
     DisposableEffect(activity) {
         onDispose {
@@ -235,7 +271,7 @@ internal fun VideoPage(
     NavigationBackHandler(
         rememberNavigationEventState(FullscreenInfo),
         isBackEnabled = isActive && fullscreenActive && !pip,
-        onBackCompleted = { requestFullscreen(false) },
+        onBackCompleted = { requestFullscreen(null) },
     )
     Box(
         modifier.fillMaxSize()
@@ -244,15 +280,33 @@ internal fun VideoPage(
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             contentWindowInsets = WindowInsets.safeDrawing,
-            snackbarHost = { if (!pip) SnackbarHost(snackbar) },
         ) { padding ->
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val topPadding = padding.calculateTopPadding()
                 val startPadding = padding.calculateStartPadding(layoutDirection)
                 val endPadding = padding.calculateEndPadding(layoutDirection)
-                val playerWidth = (maxWidth - startPadding - endPadding).coerceAtLeast(0.dp)
-                val contentHeight = (maxHeight - topPadding).coerceAtLeast(0.dp)
-                val playerHeight = (playerWidth * 9f / 16f).coerceAtMost(contentHeight * 0.42f)
+                val viewportSize = IntSize(constraints.maxWidth, constraints.maxHeight)
+                val inlinePane = panes.viewing?.clampTo(viewportSize.width, viewportSize.height)
+                val detailPane = panes.details?.clampTo(viewportSize.width, viewportSize.height)
+                val introductionColumn = panes.introductionColumn?.clampTo(viewportSize.width, viewportSize.height)
+                val availableWidth = inlinePane?.let { with(density) { it.width.toDp() } }
+                    ?: (maxWidth - startPadding - endPadding).coerceAtLeast(0.dp)
+                val contentHeight = inlinePane?.let { with(density) { it.height.toDp() } }
+                    ?: (maxHeight - topPadding).coerceAtLeast(0.dp)
+                val maxPlayerHeight = if (introductionColumn != null) contentHeight * (2f / 3f) else contentHeight
+                val playerWidth = if (panes.stacked) availableWidth else minOf(availableWidth, maxPlayerHeight * (16f / 9f))
+                val playerHeight = if (panes.stacked) minOf(playerWidth * (9f / 16f), contentHeight * 0.42f)
+                    else playerWidth * (9f / 16f)
+                val playerRect = inlinePane?.let { pane ->
+                    with(density) {
+                        val width = playerWidth.roundToPx()
+                        val height = playerHeight.roundToPx()
+                        val left = pane.left + (pane.width - width) / 2
+                        val top = if (panes.stacked || introductionColumn != null) pane.top
+                            else pane.top + (pane.height - height) / 2
+                        IntRect(left, top, left + width, top + height)
+                    }
+                }
                 val currentInlineLayout = InlinePlayerLayout(
                     width = playerWidth,
                     height = playerHeight,
@@ -262,23 +316,92 @@ internal fun VideoPage(
                         end = endPadding,
                         bottom = padding.calculateBottomPadding(),
                     ),
+                    bounds = playerRect,
                 )
+                val introductionPane = introductionColumn?.let { column ->
+                    column.copy(top = (playerRect?.bottom ?: column.top).coerceIn(column.top, column.bottom))
+                }
+                fun contentPadding(pane: IntRect?) = if (pane == null) padding
+                    else padding - pane.excludedInsets(viewportSize).asPaddingValues(density)
+                val detailPadding = contentPadding(detailPane)
+                val introductionPadding = contentPadding(introductionPane)
+                val imeVisible = WindowInsets.ime.getBottom(density) > 0
                 // The IME can shorten portrait bounds; rotation can update Configuration before the new bounds arrive.
                 val landscapeWindow = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE &&
                     maxWidth > maxHeight
-                val playerFillsWindow = pip ||
-                    (fullscreen && (landscapeWindow || fullscreenInCurrentWindow))
-                val inlineLayout = if (fullscreen && !playerFillsWindow) {
-                    fullscreenInlineLayout ?: currentInlineLayout
+                val request = fullscreenRequest
+                val playerFillsWindow = pip || (request != null && (!request.rotateToLandscape || landscapeWindow))
+                val inlineLayout = if (request != null && !playerFillsWindow) {
+                    request.inlineLayout
                 } else currentInlineLayout
-                Box(
-                    Modifier.fillMaxSize()
-                        .padding(
-                            top = inlineLayout.contentPadding.calculateTopPadding(),
-                        )
-                        .drawWithContent {
-                            if (!playerFillsWindow) drawContent()
+                val playerFullscreenPane = panes.viewing.takeIf { window.primaryPane != null && !pip }
+                val tabletopTransport = panes.tabletop && !fullscreenActive && !pip && !imeVisible
+                val playerAvailable = !accessBlocked && isActive && playback.videoId == videoId &&
+                    (playback.player != null || value?.parts?.getOrNull(playback.selectedPart)?.url != null)
+                VideoScreen(
+                    VideoUiState(
+                        detail = displayedDetail,
+                        access = access,
+                        comments = comments,
+                        danmaku = danmaku,
+                        busy = busy,
+                        mutation = mutation,
+                        signedIn = signedIn,
+                        sessionRevision = session.revision,
+                        commentDraft = commentDraft.text,
+                        danmakuDraft = danmakuDraft.text,
+                        posted = posted,
+                        danmakuStyle = danmakuStyle,
+                    ),
+                    model::refresh, { requireLogin(model::follow) }, { requireLogin { model.vote(it) } },
+                    { comment, reaction -> requireLogin { model.voteComment(comment, reaction) } },
+                    model::comments, model::refreshComments, model::retryComments,
+                    model::loadAdjacentComments, model::consumeCommentLocation, model::ensureTab,
+                    updateCommentDraft, updateDanmakuDraft,
+                    { requireLogin(model::sendComment) }, { requireLogin { model.sendDanmaku(playback.positionMs) } },
+                    model::refreshDanmaku, model::retryDanmaku, onOpenProfile,
+                    ::unavailable,
+                    {
+                        val title = value?.summary?.title.takeIf {
+                            model.session.value.revision == session.revision
                         }
+                        if (!shareContent(context, videoShareUrl(videoId), title)) {
+                            scope.launch { snackbar.showSnackbar(resources.getString(R.string.share_unavailable)) }
+                        }
+                    },
+                    { requireLogin {} }, detailPadding,
+                    onViewCover = {
+                        val image = value?.summary?.image.takeIf {
+                            model.session.value.revision == session.revision && detailsInteractive
+                        }
+                        deliveryImageUrl(image)?.let { url ->
+                            onOpenImage(
+                                ViewerImage(
+                                    source = ImageSource.RemoteUrl(url),
+                                    description = resources.getString(
+                                        R.string.video_cover_description, value?.summary?.title.orEmpty(),
+                                    ),
+                                    fileName = "cover_$videoId",
+                                    thumbnail = deliveryImageUrl(image, 720)?.let(ImageSource::RemoteUrl),
+                                ),
+                            )
+                        }
+                    },
+                    onDanmakuStyle = model::updateDanmakuStyle,
+                    commentComposer = commentComposer, danmakuComposer = danmakuComposer,
+                    recentKaomoji = recentKaomoji, onKaomojiInserted = kaomojiModel::record,
+                    isActive = detailsInteractive,
+                    selectedPart = playback.selectedPart,
+                    onSelectPart = playback::selectPart,
+                    onOpenTag = onOpenTag,
+                    playerHeight = if (panes.stacked) inlineLayout.height else 0.dp,
+                    modifier = Modifier.fillMaxSize()
+                        .padding(top = if (detailPane == null) inlineLayout.contentPadding.calculateTopPadding() else 0.dp)
+                        .drawWithContent { if (!playerFillsWindow) drawContent() }
+                        .then(
+                            if (introductionPane != null) Modifier.background(MaterialTheme.colorScheme.background)
+                            else Modifier,
+                        )
                         .then(
                             if (detailsInteractive) Modifier else Modifier
                                 .clearAndSetSemantics { }
@@ -290,78 +413,43 @@ internal fun VideoPage(
                                     }
                                 },
                         )
-                        .focusProperties {
-                            onEnter = { if (!detailsInteractive) cancelFocusChange() }
-                        }
+                        .focusProperties { onEnter = { if (!detailsInteractive) cancelFocusChange() } }
                         .focusGroup(),
-                ) {
-                    VideoScreen(
-                        VideoUiState(
-                            detail = displayedDetail,
-                            access = access,
-                            comments = comments,
-                            danmaku = danmaku,
-                            busy = busy,
-                            mutation = mutation,
-                            signedIn = signedIn,
-                            sessionRevision = session.revision,
-                            commentDraft = commentDraft.text,
-                            danmakuDraft = danmakuDraft.text,
-                            posted = posted,
-                            danmakuStyle = danmakuStyle,
-                        ),
-                        model::refresh, { requireLogin(model::follow) }, { requireLogin { model.vote(it) } },
-                        { comment, reaction -> requireLogin { model.voteComment(comment, reaction) } },
-                        model::comments, model::refreshComments, model::retryComments,
-                        model::loadAdjacentComments, model::consumeCommentLocation, model::ensureTab,
-                        updateCommentDraft, updateDanmakuDraft,
-                        { requireLogin(model::sendComment) }, { requireLogin { model.sendDanmaku(playback.positionMs) } },
-                        model::refreshDanmaku, model::retryDanmaku, onOpenProfile,
-                        ::unavailable,
-                        {
-                            val title = value?.summary?.title.takeIf {
-                                model.session.value.revision == session.revision
-                            }
-                            if (!shareContent(context, videoShareUrl(videoId), title)) {
-                                scope.launch { snackbar.showSnackbar(resources.getString(R.string.share_unavailable)) }
-                            }
-                        },
-                        { requireLogin {} }, inlineLayout.contentPadding,
-                        onViewCover = {
-                            val image = value?.summary?.image.takeIf {
-                                model.session.value.revision == session.revision && detailsInteractive
-                            }
-                            deliveryImageUrl(image)?.let { url ->
-                                onOpenImage(
-                                    ViewerImage(
-                                        source = ImageSource.RemoteUrl(url),
-                                        description = resources.getString(
-                                            R.string.video_cover_description, value?.summary?.title.orEmpty(),
-                                        ),
-                                        fileName = "cover_$videoId",
-                                        thumbnail = deliveryImageUrl(image, 720)?.let(ImageSource::RemoteUrl),
-                                    ),
-                                )
-                            }
-                        },
-                        onDanmakuStyle = model::updateDanmakuStyle,
-                        commentComposer = commentComposer, danmakuComposer = danmakuComposer,
-                        recentKaomoji = recentKaomoji, onKaomojiInserted = kaomojiModel::record,
-                        isActive = detailsInteractive,
-                        selectedPart = playback.selectedPart,
-                        onSelectPart = playback::selectPart,
-                        onOpenTag = onOpenTag,
-                        playerHeight = inlineLayout.height,
-                        modifier = Modifier.fillMaxSize(),
-                    )
+                    detailPane = detailPane,
+                    introductionPane = introductionPane,
+                    introductionPadding = introductionPadding,
+                    wideWindow = wideWindow,
+                    aboveTabs = {
+                        if (tabletopTransport) TabletopTransport(
+                            showPause = playback.showPauseIcon,
+                            loading = playback.buffering || playback.initialLoading,
+                            canPlay = playerAvailable,
+                            canSeek = playerAvailable && playback.durationMs > 0 && !playback.initialLoading &&
+                                playback.player?.isCurrentMediaItemSeekable == true,
+                            position = playback.positionMs,
+                            duration = playback.durationMs,
+                            onToggle = playback::toggle,
+                            onSeek = playback::seek,
+                        )
+                    },
+                )
+                if (playerFillsWindow && playerFullscreenPane != null) {
+                    Spacer(Modifier.fillMaxSize().background(Color.Black))
+                } else if (!playerFillsWindow && !panes.stacked) {
+                    val backdrop = if (introductionColumn != null && introductionPane != null) {
+                        introductionColumn.copy(bottom = introductionPane.top)
+                    } else inlinePane
+                    WindowPane(backdrop) { Spacer(Modifier.fillMaxSize().background(Color.Black)) }
                 }
                 VideoPlayerViewport(
                     inlineLayout = inlineLayout,
                     fullscreen = playerFillsWindow,
+                    fullscreenPane = playerFullscreenPane,
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize()
                             .onGloballyPositioned {
+                                if (miniPlayerExit != null) return@onGloballyPositioned
                                 val bounds = it.boundsInWindow().let { b ->
                                     Rect(b.left.toInt(), b.top.toInt(), b.right.toInt(), b.bottom.toInt())
                                 }
@@ -394,10 +482,9 @@ internal fun VideoPage(
                             onSpeed = playback::changeSpeed,
                             onContinuousSpeed = playback::changeContinuousSpeed,
                             onPreservesPitch = playback::changePreservesPitch,
-                            player = playback.player.takeIf {
-                                !accessBlocked && surfaceVisible && playback.videoId == videoId
-                            },
-                            state = PlayerUiState(
+                            player = if (accessBlocked || !surfaceVisible) null
+                                else miniPlayerExit?.player ?: playback.player.takeIf { playback.videoId == videoId },
+                            state = if (miniPlayerExit != null) PlayerUiState() else PlayerUiState(
                                 qualityOptions = playback.qualityOptions,
                                 selectedQualityHeight = playback.selectedQualityHeight,
                                 actualVideoHeight = playback.actualVideoHeight,
@@ -414,14 +501,19 @@ internal fun VideoPage(
                                 durationMs = playback.durationMs,
                                 bufferedPositionMs = playback.bufferedPositionMs,
                                 resumeNoticePositionMs = playback.resumeNoticePositionMs,
-                                available = !accessBlocked && isActive && playback.videoId == videoId &&
-                                    (playback.player != null || value?.parts?.getOrNull(playback.selectedPart)?.url != null),
+                                available = playerAvailable,
                             ),
                             image = if (accessBlocked) null else value?.summary?.image ?: initialImage,
                             artworkPlaceholder = artworkPlaceholder.takeUnless { accessBlocked },
                             fullscreen = fullscreenActive,
                             fullscreenLayoutReady = playerFillsWindow,
-                            inlinePlayerBottom = inlineLayout.contentPadding.calculateTopPadding() + inlineLayout.height,
+                            inlinePlayerBottom = when {
+                                introductionPane != null -> with(density) { introductionPane.top.toDp() }
+                                inlinePane == null -> inlineLayout.contentPadding.calculateTopPadding() + inlineLayout.height
+                                else -> inlineLayout.height
+                            },
+                            externalTransport = tabletopTransport,
+                            confinedToPane = playerFullscreenPane != null,
                             pictureInPicture = pip,
                             onToggle = playback::toggle,
                             onRetry = playback::play,
@@ -430,14 +522,20 @@ internal fun VideoPage(
                             onVolume = mediaVolume::set,
                             onBack = {
                                 if (isActive && !pip) {
-                                    if (fullscreenActive) requestFullscreen(false)
+                                    if (fullscreenActive) requestFullscreen(null)
                                     else onBack()
                                 }
                             },
                             onFullscreen = {
                                 if (isActive && !pip) {
-                                    if (!fullscreen) fullscreenInlineLayout = currentInlineLayout
-                                    requestFullscreen(!fullscreen)
+                                    val nextRequest = if (fullscreenRequest == null) {
+                                        // Keep the entry policy through rotation and picture-in-picture.
+                                        FullscreenRequest(
+                                            currentInlineLayout,
+                                            rotateToLandscape = !canFullscreenInPlace,
+                                        )
+                                    } else null
+                                    requestFullscreen(nextRequest)
                                 }
                             },
                             modifier = Modifier.fillMaxSize(),
@@ -445,12 +543,17 @@ internal fun VideoPage(
                     }
                 }
                 if (!playerFillsWindow) {
-                    // Keep the status-bar backdrop in place while the system prepares the landscape window.
+                    // Keep white status icons legible in every layout and during fullscreen entry.
                     Spacer(
                         Modifier.fillMaxWidth()
                             .height(inlineLayout.contentPadding.calculateTopPadding())
                             .background(Color.Black),
                     )
+                }
+                if (!pip && !playerFillsWindow) WindowPane(detailPane) {
+                    Box(Modifier.fillMaxSize().padding(detailPadding), contentAlignment = Alignment.BottomCenter) {
+                        SnackbarHost(snackbar)
+                    }
                 }
             }
         }
@@ -461,21 +564,23 @@ internal fun VideoPage(
 private fun VideoPlayerViewport(
     inlineLayout: InlinePlayerLayout,
     fullscreen: Boolean,
+    fullscreenPane: IntRect?,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
     val layoutDirection = LocalLayoutDirection.current
     // Remeasure one persistent player node; SurfaceView never moves between composition branches.
     Layout(content = content, modifier = modifier.fillMaxSize()) { measurables, constraints ->
-        val width = if (fullscreen) constraints.maxWidth else {
-            inlineLayout.width.roundToPx().coerceIn(0, constraints.maxWidth)
-        }
-        val height = if (fullscreen) constraints.maxHeight else {
-            inlineLayout.height.roundToPx().coerceIn(0, constraints.maxHeight)
-        }
-        val player = measurables.single().measure(Constraints.fixed(width, height))
-        layout(constraints.maxWidth, constraints.maxHeight) {
-            player.placeRelative(
+        val width = constraints.maxWidth
+        val height = constraints.maxHeight
+        val explicit = if (fullscreen) fullscreenPane else inlineLayout.bounds
+        val viewport = explicit?.clampTo(width, height)
+        val playerWidth = viewport?.width ?: if (fullscreen) width else inlineLayout.width.roundToPx().coerceIn(0, width)
+        val playerHeight = viewport?.height ?: if (fullscreen) height else inlineLayout.height.roundToPx().coerceIn(0, height)
+        val player = measurables.single().measure(Constraints.fixed(playerWidth, playerHeight))
+        layout(width, height) {
+            if (viewport != null) player.place(viewport.left, viewport.top)
+            else player.placeRelative(
                 x = if (fullscreen) 0 else inlineLayout.contentPadding.calculateStartPadding(layoutDirection).roundToPx(),
                 y = if (fullscreen) 0 else inlineLayout.contentPadding.calculateTopPadding().roundToPx(),
             )

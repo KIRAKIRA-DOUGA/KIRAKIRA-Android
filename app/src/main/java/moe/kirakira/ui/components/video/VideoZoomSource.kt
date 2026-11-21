@@ -26,6 +26,7 @@ internal class VideoZoomState {
     var origin by mutableStateOf<VideoZoomOrigin?>(null)
         private set
     var ownerProvider: (() -> Any?)? = null
+    var onOpenVideo: ((Int, () -> Unit) -> Unit)? = null
     private var hiddenOrigin by mutableStateOf<VideoZoomOrigin?>(null)
     private val sources = mutableStateMapOf<Pair<Any?, Int>, Map<Any, VideoZoomSource>>()
 
@@ -42,15 +43,12 @@ internal class VideoZoomState {
 
     fun canOpen(owner: Any?): Boolean = ownerProvider?.let { it() == owner } ?: true
 
-    fun select(origin: VideoZoomOrigin) {
+    fun select(origin: VideoZoomOrigin?) {
         hiddenOrigin = null
         this.origin = origin
     }
 
-    fun clear() {
-        hiddenOrigin = null
-        origin = null
-    }
+    fun clear() = select(null)
 
     fun hideSource(origin: VideoZoomOrigin) {
         if (this.origin === origin) hiddenOrigin = origin
@@ -68,7 +66,7 @@ internal class VideoZoomState {
             ?: participants.values.lastOrNull { it.bounds() != null }
     }
 
-    fun bounds(origin: VideoZoomOrigin): Rect = source(origin)?.bounds() ?: origin.bounds
+    fun liveBounds(origin: VideoZoomOrigin): Rect? = source(origin)?.bounds()
 
     fun painter(origin: VideoZoomOrigin): Painter? = source(origin)?.painter ?: origin.painter
 }
@@ -109,15 +107,18 @@ internal class VideoZoomSource(
 
     fun open(onOpen: () -> Unit) {
         if (!state.canOpen(owner)) return
-        val bounds = bounds()
-        if (bounds != null) {
+        val origin = bounds()?.let {
             // Retain the loaded image itself. A source Scene may be replaced during navigation,
             // which invalidates its GraphicsLayer even though its image should remain continuous.
-            state.select(VideoZoomOrigin(owner, videoId, token, bounds, image, shape(), painter))
-        } else {
-            state.clear()
+            VideoZoomOrigin(owner, videoId, token, it, image, shape(), painter)
         }
-        onOpen()
+        val open = {
+            if (state.canOpen(owner)) {
+                state.select(origin)
+                onOpen()
+            }
+        }
+        state.onOpenVideo?.invoke(videoId, open) ?: open()
     }
 }
 
