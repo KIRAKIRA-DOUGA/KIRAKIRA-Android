@@ -27,7 +27,7 @@
 
 [Type.kt](../../app/src/main/java/moe/kirakira/ui/theme/Type.kt) 在 `BrandTitleFontFamily` 中注册两份随 APK 打包的 Montserrat 正体 TTF：SemiBold（600）和 Bold（700）。两份字体保留上游完整字符集。固定来源与校验值见 [Montserrat 来源记录](../../third_party/montserrat/README.md)，OFL 许可全文可在应用的[开源组件](../../third_party/aboutlibraries/README.md)中离线查看。
 
-静态页面顶栏标题使用 SemiBold（600）。共享 `CollapsibleTopAppBar` 覆盖设置、历史、收藏、标签及账号切换等页面，展开和收起时使用同一字重。关注、我、资料占位、关注／粉丝列表、开源组件、邀请码和头像裁剪的独立顶栏在调用处接入。关于页的 `for Android` 同样使用 SemiBold，字号、行高和字距沿用 `titleSmall`。`AccountFlowHeader` 的流程大标题使用 Bold（700）。
+静态页面顶栏标题使用 SemiBold（600）。共享 `PageTopAppBar` 覆盖设置、历史、收藏、标签及账号切换等页面。关注、我、资料占位、关注／粉丝列表、开源组件、邀请码和头像裁剪的独立顶栏在调用处接入。关于页的 `for Android` 同样使用 SemiBold，字号、行高和字距沿用 `titleSmall`。`AccountFlowHeader` 的流程大标题使用 Bold（700）。
 
 中文等未包含的字形由 Android 系统字体回退显示；混排中的拉丁字母、数字及受支持标点使用 Montserrat，不按界面语言切换字体或拆分字符串。全局 `Typography()` 仍使用 Material 3 默认排版，正文、普通控件、用户昵称（含资料页吸顶顶栏）、视频标题、评论及统计数字不在品牌字体范围内。`@username`、验证码和代码保留现有等宽字体；KIRAKIRA 字标仍为矢量图，关于页的 `Alpha!` 与版本信息保留原样。
 
@@ -35,7 +35,7 @@
 
 主题层的 [ThemeSemanticColors](../../app/src/main/java/moe/kirakira/ui/theme/ThemeSemanticColors.kt) 提供不可变的成功色 `success/onSuccess` 与警告色 `warning/onWarning`，通过 `MaterialTheme.semanticColors` 读取，供成功／完成及警告状态复用，不占用 Material 3 的既有颜色角色。`KIRAKIRATheme` 根据自身 `darkTheme` 参数通过 `CompositionLocal` 提供配色：浅色固定使用 `#008577`，深色使用 `#00594F`，`onSuccess` 默认值为白色，主题生成时直接使用该默认值，不引用个性色预设，不受强调色或系统强调色影响。警告色浅色使用 `#FFC107/#3E2E00`，深色使用 `#5D4300/#FFE082`，同样不随强调色变化。
 
-安全页顶部卡片在已开启二步验证时使用 `success/onSuccess`，确认未开启时使用 `warning/onWarning`，待核对时使用 `surfaceContainerLow/onSurface`。保护状态同时由文案及盾牌／警示图标表达。邀请码顶部卡片使用 `primary` 与 `onPrimary` 实色配对，默认呈品牌粉色并随主题强调色变化。安全页与邀请码页的这些卡片和关于页页头共用圆角档位与 2dp 彩色投影，图标底座使用低透明度前景色。邀请码生成按钮在浅深主题的可用状态均采用白色容器与 `primary` 文字、图标，直接使用官方 `Button` 并设置 `elevation = null`，所有交互状态均无阴影，保留官方 Expressive 尺寸和按压形变，禁用配色沿用统计块的低透明度前景色。加载指示器使用卡片前景色。
+安全页顶部卡片在已开启二步验证时使用 `success/onSuccess`，确认未开启时使用 `warning/onWarning`，待核对时使用 `surfaceContainerLow/onSurface`。保护状态同时由文案及盾牌／警示图标表达。邀请码顶部卡片使用 `primary` 与 `onPrimary` 实色配对，默认呈品牌粉色并随主题强调色变化。安全页与邀请码页的这些卡片和关于页页头共用圆角档位与 2dp 彩色投影，图标底座使用低透明度前景色。邀请码生成按钮在浅深主题的可用状态均采用白色容器与 `primary` 文字、图标，直接使用官方 `Button` 并设置 `elevation = null`，所有交互状态均无阴影，保留官方 Expressive 尺寸和按压形变。生成期间保留白色容器与 `primary` 前景，底边进度条使用 `onPrimaryFixed`。
 
 ### 配色生成
 
@@ -75,7 +75,7 @@ Chip 通过公开参数设置 `shape = CircleShape` 和 `border = null`，保留
 
 [自定义选色对话框](../../app/src/main/java/moe/kirakira/feature/settings/CustomColorDialog.kt)使用 [colorpicker-compose](https://github.com/skydoves/colorpicker-compose)（Apache-2.0）的 HSV 色盘与亮度滑条，封装在 Material 3 `AlertDialog` 中，补充亮度无障碍调节与 HEX／RGB／OKLCH 输入。它只增加 Compose 选色绘制与手势代码，不引入 View 互操作，许可证由 AboutLibraries 收集。
 
-主题色对话框和弹幕颜色面板共用 [ColorEditorControls](../../app/src/main/java/moe/kirakira/ui/components/ColorEditorControls.kt)。`ColorEditorState` 保存不透明 ARGB 草稿、格式和原始输入，重建后恢复草稿，控制器只留在组合内。输入区与预览通过插槽传入，容器和确认／取消操作仍由调用方负责；主题色确认返回 ARGB，弹幕确认时才去掉 alpha 转为 RGB。弹幕入口保留 HEX 界面；主题入口使用 `CustomColorInput` 菜单切换 HEX、RGB、OKLCH，在输入框前导位置显示唯一的 40dp 原色色块。切换格式转换上一次有效颜色，不改变实际颜色；重复选择当前格式不重置草稿。色盘和滑条更新当前格式的输入，有效输入同步控制器，无效或未完成输入保留上一次有效颜色并禁用应用。格式只属于可恢复的对话框草稿，不增加持久化设置。
+主题色对话框和弹幕颜色面板共用 [ColorEditorControls](../../app/src/main/java/moe/kirakira/ui/components/ColorEditorControls.kt)。`ColorEditorState` 保存不透明 ARGB 草稿、格式和原始输入，重建后恢复草稿，控制器只留在组合内。输入区与预览通过插槽传入，容器和确认／取消操作仍由调用方负责；主题色确认返回 ARGB，弹幕确认时才去掉 alpha 转为 RGB。弹幕入口保留 HEX 界面；主题入口使用 `CustomColorInput` 菜单切换 HEX、RGB、OKLCH，在输入框前导位置显示唯一的 40dp 原色色块，色块两侧各留 8dp。切换格式转换上一次有效颜色，不改变实际颜色；重复选择当前格式不重置草稿。单行输入使用 `TextFieldState`，选区和横向滚动由 Compose 编辑器管理。色盘和滑条按当前格式直接替换编辑值；有效的文字编辑同步到控制器，程序替换不回传。无效或未完成输入保留上一次有效颜色并禁用应用；确认时重新读取当前输入。格式只属于可恢复的对话框草稿，不增加持久化设置。
 
 格式化与解析位于 `core/color`：严格的 `formatRgbHex`／`parseRgbHex` 统一六位 HEX 转换，供主题与弹幕共用；弹幕协议不带 `#`，不接受空白。界面通过 `formatRgbColor`／`parseRgbColor` 添加 `#` 或接受可选前缀及首尾空白。HEX 使用六位十六进制；RGB 使用 0–255 整数，接受空格或逗号分隔及可选的 `rgb(...)` 包装；OKLCH 接受三个分量及可选的 `oklch(...)` 包装，L 为 0–1 或百分比、C 为 0–0.4、H 为有限度数并归一化至 0–360。Oklab 转换采用[原作者的公开公式](https://bottosson.github.io/posts/oklab/)，OKLCH 显示六位小数，底层仍保存不透明的 8 位 sRGB。超出色域时固定亮度和色相，通过二分降低彩度至 sRGB 色域内，保留原始输入并提示调整，色块和最终确认使用实际映射颜色；此处采用固定色相的彩度压缩，不是 CSS 完整色域映射算法。
 
@@ -101,7 +101,7 @@ Chip 通过公开参数设置 `shape = CircleShape` 和 `border = null`，保留
 
 MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引入 View 组件库；两项配色依赖的实际 APK 增量需通过同构建配置比较，不以依赖包大小代替。
 
-页面顶栏的标题槽通过 `TopAppBarDefaults.topAppBarColors(titleContentColor = MaterialTheme.colorScheme.primary)` 使用当前主题主色。共享 `CollapsibleTopAppBar` 与主界面的公共颜色配置集中设置，独立顶栏在调用处设置。静态页面标题使用[品牌标题字体](#品牌标题字体)，字号与行高沿用组件默认值。资料页吸顶顶栏中的用户昵称使用系统默认字体和 `FontWeight.Bold`（700）。背景与导航图标沿用各页面配置。
+页面顶栏的标题槽通过 `TopAppBarDefaults.topAppBarColors(titleContentColor = MaterialTheme.colorScheme.primary)` 使用当前主题主色。普通顶栏通过 `appTopAppBarColors` 复用配色，特殊场景在调用处设置。静态页面标题使用[品牌标题字体](#品牌标题字体)，字号与行高沿用组件默认值。资料页吸顶顶栏中的用户昵称使用系统默认字体和 `FontWeight.Bold`（700）。背景与导航图标沿用各页面配置。
 
 ### 应用语言
 
@@ -113,17 +113,17 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 
 ### 栏面阴影
 
-[ThemeShadows](../../app/src/main/java/moe/kirakira/ui/theme/ThemeShadows.kt) 的 `barSurfaceLayer(shape, alpha, shadowElevation)` 统一承载栏面形状、透明度与原生投影，使用官方 `graphicsLayer`，默认阴影高度通过 `BarShadowElevation` 固定为 4dp；认证与账号安全流程的 `AccountFlowScaffold` 顶栏通过共享正文滚动状态在顶部使用 0dp、滚离顶部后使用 4dp。默认矩形、alpha 为 1，胶囊底栏传入与背景一致的圆角形状；阴影配色和强度由平台光照模型决定，不手动映射模糊、扩张或双层不透明度。图层仅按形状裁剪内容，保持默认 `CompositingStrategy.Auto`，不使用阴影蒙版、差集裁剪或阴影版本特判。
+[ThemeShadows](../../app/src/main/java/moe/kirakira/ui/theme/ThemeShadows.kt) 的 `barSurfaceLayer(shape, alpha, shadowElevation)` 统一承载栏面形状、透明度与原生投影，使用官方 `graphicsLayer`，默认阴影高度通过 `BarShadowElevation` 固定为 4dp；认证与账号安全流程的 `AccountFlowScaffold` 顶栏通过共享正文滚动状态在顶部使用 0dp、滚离顶部后使用 4dp。宽窗口侧栏显式传入 8dp，沿用矩形和不透明背景，仅使用原生中性投影。默认矩形、alpha 为 1，胶囊底栏传入与背景一致的圆角形状；阴影配色和强度由平台光照模型决定，不手动映射模糊、扩张或双层不透明度。图层仅按形状裁剪内容，保持默认 `CompositingStrategy.Auto`，不使用阴影蒙版、差集裁剪或阴影版本特判。
 
 原生 [Outline.alpha](https://developer.android.com/reference/android/graphics/Outline#setAlpha(float)) 描述轮廓内内容的不透明程度，[Android 11 绘制实现](https://android.googlesource.com/platform/frameworks/base/+/android-11.0.0_r1/libs/hwui/pipeline/skia/ReorderBarrierDrawables.cpp#208) 据此选择透明遮挡面的阴影路径。仅降低背景颜色的 alpha、却让承载阴影的图层维持 alpha 为 1，会使半透明栏面透出按不透明遮挡面优化后的阴影内缘。
 
 `frostedBarBackground` 在 Android 8.1–11 绘制不透明主题 `surface`，将 0.9 的 alpha 与 elevation 放在同一个背景图层中；Compose 同步图层 alpha 到原生轮廓，保持 90% 不透明度且不重复相乘。Android 12+ 的 Haze 背景图层保持 alpha 为 1，继续使用既有采样配置和同一原生 elevation 机制。同一背景图层先显式绘制不透明主题 `surface`，再叠加 Sources 模糊；Haze 的 `backgroundColor` 仅在效果实际绘制时生效，采样源或坐标未就绪时可能跳过效果，因此不能单靠它为原生投影提供不透明遮挡面。显式底色保证首帧及转场淡入时投影层仍有实际填充，不改变模糊参数、导航 alpha 或阴影高度。
 
-普通顶栏和胶囊底栏通过独立的背景子节点承载透明度、形状与阴影，文字、图标、选中背景和指示器作为独立前景绘制，不随背景变淡。背景使用 `matchParentSize()` 跟随实际栏高且不参与测量，胶囊前景继续由透明 `Surface` 保留内容裁剪与触摸语义。视频页的共享背景涵盖播放器占位区域与 Tab，下沿跟随播放器高度与实测 Tab 高度之和，Tab 上缘不单独投影；实际播放器保持独立绘制。资料页的原生图层承载封面、资料区与 Tab 共用的不透明顶部背景，下沿跟随 Tab 实测位置，避免独立 Tab 的上缘投影落到同一表面的资料区；资料顶栏毛玻璃背景的 `shadowElevation` 保持默认 0dp。尺寸、折叠程度与字体缩放由原有布局决定，不增加额外留白、空投影图层或持久化状态。
+普通顶栏和胶囊底栏通过独立的背景子节点承载透明度、形状与阴影，文字、图标、选中背景和指示器作为独立前景绘制，不随背景变淡。Android 12+ 的 `FrostedScaffold` 普通顶栏将带原生 elevation 的不透明底层与裁剪在栏面内的 Haze 分开绘制，保留向正文投射的阴影，不加边线；旧系统仍由同一个半透明图层承载底色和阴影。背景使用 `matchParentSize()` 跟随实际栏高且不参与测量，胶囊前景继续由透明 `Surface` 保留内容裁剪与触摸语义。视频页的共享背景涵盖播放器占位区域与 Tab，下沿跟随播放器高度与实测 Tab 高度之和，Tab 上缘不单独投影；实际播放器保持独立绘制。资料页的原生图层承载封面、资料区与 Tab 共用的不透明顶部背景，下沿跟随 Tab 实测位置，避免独立 Tab 的上缘投影落到同一表面的资料区；资料顶栏毛玻璃背景的 `shadowElevation` 保持默认 0dp。尺寸、折叠程度与字体缩放由原有布局决定，不增加额外留白、空投影图层或持久化状态。
 
 浅色与深色模式共用相同的栏面阴影高度规则，实际投影由平台光照与图层透明度决定。连接列表继续使用固定 1dp 平台 elevation 投影，由普通容器 `shadow` 或懒列表宿主 `GraphicsLayer.shadowElevation` 承载；评论／弹幕输入框使用 `Surface.shadowElevation` 的固定 4dp 原生高度，发送按钮使用同一 4dp 高度，其彩色与中性色路径见[按钮动态阴影](#按钮动态阴影)。刷新阴影仅由官方 `IndicatorBox` 容器承载，跟随容器位移与显示状态，不在外层重复投影。连接列表继续延伸并裁剪分段投影轮廓，账号侧滑组继续通过 `clipContent` 控制内容裁剪。
 
-栏面图层 Modifier 为普通函数，普通调用处使用固定高度，认证与账号安全流程由 `AccountFlowScaffold` 持有正文滚动状态，并向 `FrostedScaffold.topBarShadowElevation` 传入滚动对应的高度；主题、ViewModel 和导航不保存或传递阴影状态，外观页没有关闭入口，也不读取旧阴影偏好。大标题展开或折叠、Tab 切换及吸顶不改变阴影高度；经典强调色仍关闭色调高度叠加。
+栏面图层 Modifier 为普通函数，普通调用处使用固定高度，认证与账号安全流程由 `AccountFlowScaffold` 持有正文滚动状态，并向 `FrostedScaffold.topBarShadowElevation` 传入滚动对应的高度；主题、ViewModel 和导航不保存或传递阴影状态，外观页没有关闭入口，也不读取旧阴影偏好。Tab 切换及吸顶不改变阴影高度；经典强调色仍关闭色调高度叠加。
 
 普通表单输入的默认配色集中在 `FilledTextFieldDefaults`，密码呈现集中在 `PasswordTextField`；危险实心与文字按钮的配色集中在 `DestructiveActions`。各页面只提供状态与操作语义，接入见[账号流程布局](components.md#账号流程布局)和[危险操作](components.md#危险操作)。
 
@@ -149,7 +149,7 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 
 双层投影由 [MaterialColorShadow](../../app/src/main/java/moe/kirakira/ui/components/MaterialColorShadow.kt) 通过官方 `ShadowContext` 和 `DropShadowPainter` 统一绘制，在最低支持版本同样绘制彩色投影，几何参数采用 Google 官方 [Material Web 双层 elevation 实现](https://github.com/material-components/material-web/blob/main/elevation/internal/_elevation.scss)，高度映射采用官方 [elevation tokens](https://github.com/material-components/material-web/blob/main/tokens/versions/v0_192/_md-sys-elevation.scss)。
 
-关注按钮在两种状态间保留同一投影节点，根据阴影显隐方向控制不透明度：关注变为已关注时，在遮罩展开最初 30% 的进度内从完整投影平滑淡出至零；已关注变为关注时，在最后 30% 的进度内从零平滑淡入。反向打断时沿用同一扩散层的进度映射，不瞬间添加或移除投影。加载禁用立即隐藏阴影；恢复可用时立即恢复当前视觉状态及遮罩进度应有的投影，不附加延迟或启用淡入，也不重置状态切换的阴影时间轴。原状态无投影时继续保持零投影，直到原有末段淡入阶段。禁用期间投影高度回到静止值，投影节点不参与绘制，避免重新启用时从零高度爬升。普通切换按钮保留投影，以同一遮罩进度在两种状态的阴影颜色与强度间渐变，反向打断沿用当前进度；先将两个端点映射为实际彩色或黑色中性投影，再插值颜色与透明度，避免中性色判定阈值造成强度跳变。投影颜色通过绘制阶段的 `ColorFilter` 着色，透明度乘到两层 painter，不随颜色或透明度帧重建轮廓或阴影位图；静态强度与交互高度映射保持原样。
+关注按钮在两种状态间保留同一投影节点，根据阴影显隐方向控制不透明度：关注变为已关注时，在遮罩展开最初 30% 的进度内从完整投影平滑淡出至零；已关注变为关注时，在最后 30% 的进度内从零平滑淡入。反向打断时沿用同一扩散层的进度映射，不瞬间添加或移除投影。加载时保留当前遮罩进度对应的投影，投影高度回到静止值。恢复可用后继续按遮罩进度变化，原状态无投影时沿用原有的末段淡入。禁用期间投影高度回到静止值，投影节点不参与绘制，避免重新启用时从零高度爬升。普通切换按钮保留投影，以同一遮罩进度在两种状态的阴影颜色与强度间渐变，反向打断沿用当前进度；先将两个端点映射为实际彩色或黑色中性投影，再插值颜色与透明度，避免中性色判定阈值造成强度跳变。投影颜色通过绘制阶段的 `ColorFilter` 着色，透明度乘到两层 painter，不随颜色或透明度帧重建轮廓或阴影位图；静态强度与交互高度映射保持原样。
 
 投影在 `drawWithCache` 中读取动画形状的当前 `Outline`，并封装为固定轮廓后交给阴影缓存；形状进度、尺寸或高度变化会重建绘制缓存，静止时复用两层绘制器与渲染缓存。不能将内部轮廓会变化但身份稳定的动画 `Shape` 直接作为阴影缓存键，否则按压或选中形变后可能继续使用旧圆角。此修复只调整轮廓缓存时机，颜色、强度、扩张、模糊和偏移仍使用下表的共享映射。
 

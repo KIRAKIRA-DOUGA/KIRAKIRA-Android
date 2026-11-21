@@ -5,6 +5,7 @@
 ## 项目约束
 
 - Kotlin + Jetpack Compose，单 Activity、单 `:app` 模块，包名 `moe.kirakira`。界面基于 Material 3 Expressive，配 Material Design 2 风格经典强调色、高度阴影与 KIRAKIRA 彩色阴影，复用 `KIRAKIRATheme`。不新增 XML Layout、Fragment、ViewBinding 或 DataBinding 页面。
+- 界面动画曲线统一使用 Material 3 Expressive（M3E）的 `MaterialTheme.motionScheme`。Rail 进出使用无回弹曲线。
 - 新功能放 `feature/<name>/`，共享 UI 放 `ui/components/`，按需增加 `data/` 与 `core/`，不预建空层。
 - 单向数据流：业务状态在 ViewModel，可复用 UI 接收状态与回调，首个可选参数为 `modifier: Modifier = Modifier`；组合执行体中不请求网络、写存储或导航，取消异常继续传播。
 - 导航使用 Navigation 3（`@Serializable` + `NavKey`、`ActivityNavDisplay`、`NavigationPage`），页面不重复配置宿主转场。
@@ -21,9 +22,9 @@
 | 带滑动指示块的分段单选 | `Segmented` | [按钮、单选框与阴影](CONTRIBUTING.md#按钮单选框与阴影) |
 | 列表、分组、菜单、Dialog、数量标题 | 官方 `ListItem`／`SegmentedListItem`、`ConnectedListGroup`、`ConnectedLazyColumn`、`MenuPopup`（组间用 `MenuDivider`）、`ActionDialog`；危险确认图标复用 `DestructiveActionIcon` | [列表、开关与弹层](CONTRIBUTING.md#列表开关与弹层) |
 | 账号、认证、资料与隐私表单 | `AccountFlowScaffold`、`FilledTextField`、`PasswordTextField`、`OtpInputField` | [账号表单与保存](CONTRIBUTING.md#账号表单与保存) |
-| 加载、刷新与错误 | `IndeterminateCircularProgressIndicator`、`ContentPullToRefresh`、`ContentUnavailableView`、Snackbar（禁止 Toast）；操作按钮使用底边横向进度条，资料页关注／粉丝数用骨架占位 | [加载与刷新](CONTRIBUTING.md#加载与刷新) |
-| 应用栏与滚动 | `FrostedScaffold` | [毛玻璃应用栏](CONTRIBUTING.md#毛玻璃应用栏) |
-| 图标、用户名、文案 | 优先使用 Cerasus 图标，错误图标使用主题 `error`，用户名使用 `@username`，中英文字符串同步 | [图标与用户名](CONTRIBUTING.md#图标与用户名)、[文案、本地化与无障碍](CONTRIBUTING.md#文案本地化与无障碍) |
+| 加载、刷新与错误 | `IndeterminateCircularProgressIndicator`、`ContentPullToRefresh`、`ContentUnavailableView`、Snackbar（禁止 Toast）；操作按钮加载时保留正常配色并阻止重复操作，圆形图标按钮使用居中圆形加载器，文字按钮使用底边横向进度条，资料页关注／粉丝数用骨架占位 | [加载与刷新](CONTRIBUTING.md#加载与刷新) |
+| 应用栏与滚动 | `FrostedScaffold`、`PageTopAppBar`（带返回的固定标题栏） | [毛玻璃应用栏](CONTRIBUTING.md#毛玻璃应用栏) |
+| 图标、用户名、文案 | 优先使用 Cerasus 图标，错误图标使用主题 `error`，用户名使用 `@username`，英语、简繁中文与日语字符串同步 | [图标与用户名](CONTRIBUTING.md#图标与用户名)、[文案、本地化与无障碍](CONTRIBUTING.md#文案本地化与无障碍) |
 | 配色 | `rememberSeedColorScheme`、`MaterialTheme.colorScheme` | [主题配色约束](CONTRIBUTING.md#主题配色约束) |
 
 视频详情操作条复用官方按钮，采用固定轮廓与无阴影样式，布局与菜单见[视频简介](docs/implementation/content.md#视频简介)。

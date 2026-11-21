@@ -176,9 +176,9 @@
 
 [顶栏淡色图标底纹实现](implementation/components.md#顶栏淡色图标底纹)
 
-### 可选的可折叠大标题栏
+### 固定页面顶栏
 
-[可选的可折叠大标题栏实现](implementation/components.md#可选的可折叠大标题栏)
+[固定页面顶栏实现](implementation/components.md#固定页面顶栏)
 
 ### 可复用的顶栏搜索
 

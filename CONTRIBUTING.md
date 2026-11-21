@@ -48,6 +48,7 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 
 ### 组件、状态与副作用
 
+- 界面动画曲线统一取自 Material 3 Expressive（M3E）的 `MaterialTheme.motionScheme`。位移与形变按需选用空间动效（Spatial），透明度、颜色等有界属性选用效果动效（Effects）。Rail 进出的位移与透明度共用无回弹的 `defaultEffectsSpec`。
 - 使用 Material 3 Expressive 的组件、形状、排版与动效，配色采用 Material Design 2 风格的经典强调色与中性表面，阴影结合高度投影与 KIRAKIRA 彩色定制；保持浅色、深色及系统强调色兼容，不用手绘控件替代已有标准组件。参考 [Compose Material 3](https://developer.android.com/develop/ui/compose/designsystems/material3)。
 - 使用单向数据流：状态向下传递，事件通过回调向上传递。可复用组件接收所需状态和回调，不直接获取 ViewModel、Repository 或导航控制器。
 - 可复用 UI 的第一个可选参数使用 `modifier: Modifier = Modifier`，作用于组件根节点；内容插槽放最后。[参数示例](docs/implementation/components.md#可复用-ui-参数示例)见实现说明。
@@ -135,7 +136,7 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 
 共享组件及参数接入见[账号流程布局](docs/implementation/components.md#账号流程布局)。
 
-- 资料编辑通过 `SettingsScaffold.actions` 在顶栏右侧使用官方平面 `TextButton` 保存，不使用底部保存栏、FAB 或悬浮工具栏。保留单行标签、本地化无障碍语义，无修改、保存中及图片准备期间禁用；保存时保留标签并在按钮底边显示横向进度条，服务端已保存但同步失败时切换为“重试同步”，只完成剩余步骤。资料保留未保存修改的返回确认。
+- 资料编辑通过 `SettingsScaffold.actions` 在顶栏右侧使用官方平面 `TextButton` 保存，不使用底部保存栏、FAB 或悬浮工具栏。保留单行标签、本地化无障碍语义，无修改和图片准备期间禁用。保存时保留标签和正常配色，在底边显示横向进度条并阻止重复提交，服务端已保存但同步失败时切换为“重试同步”，只完成剩余步骤。资料保留未保存修改的返回确认。
 
   隐私设置在单项选择或“全部设为”后立即提交，由 ViewModel 统一管理请求和当前账号，不另设“应用”按钮；请求期间禁用重复操作，明确失败时恢复最近确认的显示值并提示；结果不确定或写后核对失败时暂停编辑，仅重读核对后恢复操作，不保留待提交草稿或离开确认，提交完成前阻止返回以免取消写请求。顶栏裸图标重置需确认生日、年龄、关注、粉丝和收藏将全部公开，确认后立即提交，取消不改变设置，已是默认值时禁用；保存反馈位于同一顶栏操作位置。两页保留设置页 640dp 内容宽度上限、16dp 留白及宿主 IME 避让，底部系统 Insets 随内容滚动，Snackbar 交由 Scaffold 管理。头像裁剪保留底部旋转与完成操作栏。
 
@@ -159,12 +160,12 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 
 ### 文案、本地化与无障碍
 
-- 新界面文案必须放入字符串资源，包含错误、导航标题和无障碍描述；使用格式化资源和 plurals，不拼接可翻译句子。组件库的入口描述、标题、新增操作和无障碍文案同步中英文。既有开发者示例正文可沿用中文，复用组件已有的本地化文案保持原样。
-- 界面文案标点遵循 [Material 3 UX 写作指南](https://m3.material.io/foundations/content-design/style-guide/grammar-and-punctuation)：按钮、标签、导航项、菜单项、Tooltip、单行状态、短错误提示和空状态等单句文案不加句末标点；多句说明保留句号，较长或复杂说明可按上下文保留；问句使用问号；进行中的状态使用省略号，不在按钮或菜单项上添加省略号。中文使用 `。`、`？`、`！` 等中文标点，英文使用对应英文标点。感叹号仅在确有语气或品牌意图时使用，`about_alpha` 的 `Alpha!` 是 About 页的特意文案，保留该例外。
+- 新界面文案必须放入字符串资源，包含错误、导航标题和无障碍描述；使用格式化资源和 plurals，不拼接可翻译句子。组件库的入口描述、标题、新增操作和无障碍文案同步各支持语言。既有开发者示例正文可沿用中文，复用组件已有的本地化文案保持原样。
+- 界面文案标点遵循 [Material 3 UX 写作指南](https://m3.material.io/foundations/content-design/style-guide/grammar-and-punctuation)：按钮、标签、导航项、菜单项、Tooltip、单行状态、短错误提示和空状态等单句文案不加句末标点；多句说明保留句号，较长或复杂说明可按上下文保留；问句使用问号；进行中的状态使用省略号，不在按钮或菜单项上添加省略号。中文和日语使用 `。`、`？`、`！` 等全角标点，英文使用对应英文标点。感叹号仅在确有语气或品牌意图时使用，`about_alpha` 的 `Alpha!` 是 About 页的特意文案，保留该例外。
 - 除非用户明确要求，界面中不添加解释功能如何运作的说明文字；功能机制与实现细节记录在相应文档中。界面保留必要的操作标签、状态反馈、错误信息和无障碍提示，不主动加入机制说明或实现细节。
 - 分类名称使用简短、具体的名词，例如“用户”“内容”；“管理”“规则”“更多”仅在具有实际含义时使用。开启流程已通过引导和选项表达启用任务时，省略重复的“未启用”提示；概览中的当前状态，以及失败、待核对和结果不确定的提示必须保留。
-- 当前支持英语与中文：`res/values/strings.xml` 是完整英语界面回退资源，`res/values-zh/strings.xml` 提供中文；新增可翻译 key 必须同时补齐两套文案。品牌名标记 `translatable="false"`。跟随系统语言，Android 13+ 通过 `res/xml/locales_config.xml` 声明应用语言；新增语言同步配置并检查长文案和字体缩放。
-- 不在应用中内置 Demo 账号、评论、弹幕、视频或邀请码等演示内容。设计预览优先使用空表单、游客账号与空列表，不依赖真实服务。按钮、导航标题、输入提示、功能待接入提示、数量标签和无障碍描述仍须维护中英文翻译。
+- 当前支持英语、简体中文、繁体中文与日语：`res/values/strings.xml` 是完整英语界面回退资源，`res/values-zh/strings.xml` 提供简体中文，`res/values-b+zh+Hant/strings.xml` 提供繁体中文（台湾用语），`res/values-ja/strings.xml` 提供日语；新增可翻译 key 必须同时补齐四套文案，术语优先与 Cerasus 多语言资源保持一致。品牌名标记 `translatable="false"`。跟随系统语言，Android 13+ 通过 `res/xml/locales_config.xml` 声明应用语言；新增语言同步配置并检查长文案和字体缩放。
+- 不在应用中内置 Demo 账号、评论、弹幕、视频或邀请码等演示内容。设计预览优先使用空表单、游客账号与空列表，不依赖真实服务。按钮、导航标题、输入提示、功能待接入提示、数量标签和无障碍描述仍须维护各支持语言的翻译。
 - 交互控件提供语义与可读标签，纯装饰图标使用空描述；保证触摸目标、字体缩放和 TalkBack 可用。实现时兼顾浅色、深色、窄屏和宽屏，使用 `start/end` 方向及系统 Insets，避免用固定屏幕尺寸布局；不因此默认增加设备或截图测试。
 
 ### 加载与刷新
@@ -192,16 +193,15 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 - 模糊使用主题 `surface`、20dp 模糊和 80% 不透明度的底色遮罩，不增加噪点或折射，不改变前景色。依赖版本以版本目录为准。
 - 顶部安全区域放入滚动内容，刷新指示器通过 `indicatorTopPadding` 保持在栏下；非滚动表单保留安全避让。本人及作者资料页保留既有吸顶标签布局，将包含滚动封面的顶部共享背景接入该页采样状态，封面尺寸与裁切不随背景宿主高度变化。视频页的分页内容、顶部共享背景与 Tab 前景必须为同级节点，依次绘制，毛玻璃背景覆盖滚动内容，Tab 前景位于背景之上；背景下沿使用当前布局实测 Tab 高度。Tab 栏仅采样分页内容，实测栏高放入列表顶部 `contentPadding`，刷新指示器、评论分页工具栏和输入面板高度同步避让。接入与限制见[实现说明](docs/implementation/components.md#毛玻璃应用栏)。
 
-### 可选的可折叠大标题栏
+### 固定页面顶栏
 
-共享 `CollapsibleTopAppBar` 适合有返回入口、希望通过纵向滚动展开大标题的二级页面，不要求所有页面使用；固定小标题、搜索页、播放器等按场景选择合适的官方顶栏。
+带标题和返回入口的普通二级页面使用 `PageTopAppBar`。顶栏固定在页面顶部，不随正文滚动；搜索、认证流程和媒体等场景保留各自的布局。
 
-- 每页独立创建 `rememberCollapsibleTopAppBarScrollBehavior()`，将同一状态传给顶栏并接入父容器的 `nestedScroll`；默认首次进入折叠，状态恢复后保留展开程度。
 - 顶栏接收资源解析后的标题与事件，页面保留内容、滚动状态及 Snackbar 等职责。
 - 普通毛玻璃页面的顶部与底部系统内边距必须随内容滚动：`Column` 放在 `verticalScroll()` 后，`LazyColumn` 使用 `contentPadding`。不要在滚动容器外应用完整 `innerPadding` 截短底部 edge-to-edge 区域；消费 Insets 防止重复避让，确保末项能滚动至导航栏上方。
 - 短内容页也让滚动容器占满可用高度，使空白区域能接收下拉手势。
 
-参数、首次展开设置和完整接入示例见[实现说明](docs/implementation/components.md#可选的可折叠大标题栏)。
+接入示例见[实现说明](docs/implementation/components.md#固定页面顶栏)。
 
 ## 认证状态约束
 
@@ -245,7 +245,7 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 
 Material 3 采用显式固定版本例外，以使用公开的 Expressive 主题与分段列表 API；其余 Compose 依赖由 BOM 管理。`androidx.compose.material:material` 仅用于复用官方 Material 2 圆形加载器，不将页面或主题迁移到 Material 2；未进行同配置 APK 对比时，不宣称体积变化。依赖与插件的具体版本号只维护在版本目录，文档不重复记录；开发环境与工具链配置来源见[开发环境](docs/development.md#开发环境)。实验性 opt-in 限于实际调用点；升级或转为稳定版时检查主题、导航、搜索栏及中英文布局相关 API 的兼容性，检查范围遵循下方默认构建约定，不使用编译器抑制绕过内部 API 可见性。
 
-导航依赖采用 AndroidX 官方 Navigation 3，显式引入 `navigation3-runtime` 和 `navigation3-ui`，不使用 Navigation 2 的 `navigation-compose`；Navigation 3 不由 Compose BOM 管理。认证的 `lifecycle-viewmodel-compose`、`lifecycle-viewmodel-navigation3` 与主题的 `lifecycle-runtime-compose` 均与现有 Lifecycle 版本保持一致。暂不添加 adaptive 等无当前需求的扩展库。接入背景见[实现说明](docs/implementation.md)，Navigation 3 另见[官方入门指南](https://developer.android.com/guide/navigation/navigation-3/get-started)。
+导航依赖采用 AndroidX 官方 Navigation 3，显式引入 `navigation3-runtime` 和 `navigation3-ui`，不使用 Navigation 2 的 `navigation-compose`；Navigation 3 不由 Compose BOM 管理。认证的 `lifecycle-viewmodel-compose`、`lifecycle-viewmodel-navigation3` 与主题的 `lifecycle-runtime-compose` 均与现有 Lifecycle 版本保持一致。Material 3 Adaptive 由既有 Compose BOM 管理，仅接入核心库获取窗口与折叠姿态，以适配主导航和视频详情。宽窗口的一级页面使用宿主级的 Cerasus 风格侧栏，窄窗口保留自定义底栏交互；不为此增加第二套导航宿主。接入背景见[实现说明](docs/implementation.md)，Navigation 3 另见[官方入门指南](https://developer.android.com/guide/navigation/navigation-3/get-started)。
 
 不得提交 `local.properties`、访问令牌、签名密钥或带个人信息的日志。客户端内置值不能视为秘密；服务端凭据不得写入客户端代码。权限按功能最小需要声明。
 
