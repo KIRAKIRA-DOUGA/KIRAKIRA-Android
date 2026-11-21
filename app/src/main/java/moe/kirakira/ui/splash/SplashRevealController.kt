@@ -3,19 +3,28 @@ package moe.kirakira.ui.splash
 import android.animation.ValueAnimator
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.os.Build
+import android.view.SurfaceView
+import android.view.View
+import android.view.ViewGroup
+import android.view.ViewTreeObserver
+import android.window.SplashScreenView
 import androidx.activity.ComponentActivity
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toComposeRect
 import androidx.compose.ui.unit.IntSize
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreenViewProvider
+import androidx.core.view.children
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import moe.kirakira.R
+import android.graphics.Rect as AndroidRect
 
 internal data class SplashRevealInfo(
     val foregroundBoundsInWindow: Rect,
@@ -36,12 +45,20 @@ internal class SplashRevealController(
 
     private var provider: SplashScreenViewProvider? = null
     private var handledExit = false
+    private val transferredIconPreDraw = ViewTreeObserver.OnPreDrawListener {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) replaceTransferredIcon()
+        true
+    }
 
     init {
         activity.lifecycle.addObserver(this)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            activity.window.decorView.viewTreeObserver.addOnPreDrawListener(transferredIconPreDraw)
+        }
     }
 
     fun onSplashExit(splashProvider: SplashScreenViewProvider) {
+        stopWatchingTransferredIcon()
         if (handledExit || !allowAnimation || !ValueAnimator.areAnimatorsEnabled() ||
             !activity.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
         ) {
@@ -62,30 +79,52 @@ internal class SplashRevealController(
 
         val position = IntArray(2)
         icon.getLocationInWindow(position)
-        var bounds = Rect(0f, 0f, icon.width.toFloat(), icon.height.toFloat())
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            // Android 12+ also expands plain vector foregrounds before masking them.
-            // Match the platform's integer rounding to keep the reveal aligned.
-            val viewportScale = 1f / (1f + 2f * AdaptiveIconDrawable.getExtraInsetFraction())
-            val centerX = icon.width / 2
-            val centerY = icon.height / 2
-            val halfWidth = (icon.width / (viewportScale * 2f)).toInt()
-            val halfHeight = (icon.height / (viewportScale * 2f)).toInt()
-            bounds = Rect(
-                (centerX - halfWidth).toFloat(),
-                (centerY - halfHeight).toFloat(),
-                (centerX + halfWidth).toFloat(),
-                (centerY + halfHeight).toFloat(),
-            )
-        }
+        val bounds = foregroundBounds(icon).apply { offset(position[0], position[1]) }
         revealInfo = SplashRevealInfo(
-            foregroundBoundsInWindow = bounds.translate(position[0].toFloat(), position[1].toFloat()),
+            foregroundBoundsInWindow = bounds.toComposeRect(),
             windowSize = IntSize(root.width, root.height),
             backgroundColor = Color(ContextCompat.getColor(activity, R.color.splash_background)),
             iconColor = Color(ContextCompat.getColor(activity, R.color.splash_icon)),
             darkTheme = !activity.resources.getBoolean(R.bool.splash_light_system_bars),
         )
         updateSystemBars()
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun replaceTransferredIcon() {
+        val decor = activity.window.decorView as? ViewGroup ?: return
+        val splash = decor.children.filterIsInstance<SplashScreenView>().firstOrNull() ?: return
+        val icon = splash.iconView as? SurfaceView ?: return
+        if (icon.width <= 0 || icon.height <= 0) return
+        val logo = ContextCompat.getDrawable(activity, R.drawable.ic_splash_foreground) ?: return
+
+        // The copied splash can draw before its icon surface arrives from the starting window.
+        // Draw the same vector in the app window's buffer and hide the transferred surface.
+        val bounds = foregroundBounds(icon)
+        splash.offsetDescendantRectToMyCoords(icon, bounds)
+        logo.bounds = bounds
+        splash.overlay.add(logo)
+        icon.alpha = 0f
+        stopWatchingTransferredIcon()
+    }
+
+    private fun stopWatchingTransferredIcon() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            activity.window.decorView.viewTreeObserver.removeOnPreDrawListener(transferredIconPreDraw)
+        }
+    }
+
+    private fun foregroundBounds(icon: View): AndroidRect {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            return AndroidRect(0, 0, icon.width, icon.height)
+        }
+        // Match the platform's integer rounding when it expands the foreground before masking.
+        val viewportScale = 1f / (1f + 2f * AdaptiveIconDrawable.getExtraInsetFraction())
+        val centerX = icon.width / 2
+        val centerY = icon.height / 2
+        val halfWidth = (icon.width / (viewportScale * 2f)).toInt()
+        val halfHeight = (icon.height / (viewportScale * 2f)).toInt()
+        return AndroidRect(centerX - halfWidth, centerY - halfHeight, centerX + halfWidth, centerY + halfHeight)
     }
 
     fun onOverlayDrawn() {
@@ -96,6 +135,7 @@ internal class SplashRevealController(
     }
 
     fun finish() {
+        stopWatchingTransferredIcon()
         val hadSplash = revealInfo != null || provider != null
         revealInfo = null
         removeSystemSplash()
