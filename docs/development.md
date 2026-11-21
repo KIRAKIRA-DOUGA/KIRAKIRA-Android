@@ -16,6 +16,8 @@
 
 依赖与插件版本以[版本目录](../gradle/libs.versions.toml)为准，文档不重复记录具体版本号。环境配置来源为[应用构建配置](../app/build.gradle.kts)、[Gradle Wrapper](../gradle/wrapper/gradle-wrapper.properties) 与 [Daemon JDK 配置](../gradle/gradle-daemon-jvm.properties)。使用兼容项目工具链的 Android Studio，并安装匹配 compileSdk 37、minor API 2 的 Android SDK Platform。JDK 25 用于运行 Gradle，与 Java 11 的编译兼容设置用途不同。
 
+应用直接声明 `androidx.core:core` 和 `androidx.lifecycle:lifecycle-runtime`，分别提供 `SharedPreferences.edit` 等 Kotlin 扩展和 `repeatOnLifecycle`，无需再直接声明旧的 `-ktx` 模块。Compose 中的 `collectAsStateWithLifecycle` 仍由 `lifecycle-runtime-compose` 提供。
+
 Material 3 单独使用公开 Expressive 主题与分段列表 API 的版本，其余 Compose 库仍由 BOM 管理；原因和升级要求见[贡献指南](../CONTRIBUTING.md#依赖与配置)。
 
 ## 运行与安装
@@ -23,7 +25,7 @@ Material 3 单独使用公开 Expressive 主题与分段列表 API 的版本，�
 1. 使用 Android Studio 打开项目根目录，配置 JDK 25 并同步 Gradle。
 2. 在 SDK Manager 中安装项目要求的 SDK；由 IDE 生成本机 `local.properties`，不要提交此文件。
 3. 创建 API 27 或更高版本的模拟器，或连接启用 USB 调试的设备。
-4. 选择 `app` 运行配置并运行。首次同步需要下载 Gradle 与依赖。
+4. 选择 `app` 运行配置并运行。首次同步需要下载 Gradle 与依赖。Wrapper 下载 Gradle 分发包时按配置中的 `distributionSha256Sum` 校验文件。
 
 也可以在项目根目录执行以下命令；Windows 将 `./gradlew` 替换为 `gradlew.bat`。
 
