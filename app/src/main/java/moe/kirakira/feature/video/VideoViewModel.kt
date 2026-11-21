@@ -28,6 +28,14 @@ import moe.kirakira.ui.content.ContentViewModel
 
 internal data class VideoResumeState(val ready: Boolean = false, val positionMs: Long? = null)
 
+internal data class ComposerDraft(val text: String = "", val clearRevision: Long = 0) {
+    fun cleared() = ComposerDraft(clearRevision = clearRevision + 1)
+
+    // An edit queued by the old editor cannot bring a sent (or account-cleared) draft back.
+    fun withEdit(value: String, expectedRevision: Long) =
+        if (expectedRevision == clearRevision) copy(text = value) else this
+}
+
 internal sealed interface PublicationRetry {
     data object Comment : PublicationRetry
     data class Danmaku(val positionMs: Long) : PublicationRetry
@@ -57,7 +65,7 @@ internal class VideoViewModel(
     val comments = commentList.state
     private val _danmaku = MutableStateFlow(ContentState<List<DanmakuEntry>>())
     val danmaku = _danmaku.asStateFlow()
-    private val _commentDraft = MutableStateFlow("")
+    private val _commentDraft = MutableStateFlow(ComposerDraft())
     val commentDraft = _commentDraft.asStateFlow()
     private val _danmakuStyle = MutableStateFlow(DanmakuStyle())
     val danmakuStyle = _danmakuStyle.asStateFlow()
@@ -65,7 +73,7 @@ internal class VideoViewModel(
         if (mutation.value == null) _danmakuStyle.value = style
     }
 
-    private val _danmakuDraft = MutableStateFlow("")
+    private val _danmakuDraft = MutableStateFlow(ComposerDraft())
     val danmakuDraft = _danmakuDraft.asStateFlow()
     private val _posted = MutableStateFlow<VideoComment?>(null)
     val posted = _posted.asStateFlow()
@@ -87,8 +95,8 @@ internal class VideoViewModel(
             resumeTask = null
             commentList.reset()
             _danmaku.value = ContentState()
-            _commentDraft.value = ""
-            _danmakuDraft.value = ""
+            _commentDraft.update { it.cleared() }
+            _danmakuDraft.update { it.cleared() }
             _danmakuStyle.value = DanmakuStyle()
             _posted.value = null
             _publicationRetry.value = null
@@ -266,19 +274,19 @@ internal class VideoViewModel(
             }
         }
     }
-    fun updateCommentDraft(text: String) {
-        if (mutation.value == null) _commentDraft.value = text
+    fun updateCommentDraft(text: String, clearRevision: Long) {
+        if (mutation.value == null) _commentDraft.update { it.withEdit(text, clearRevision) }
     }
 
-    fun updateDanmakuDraft(text: String) {
-        if (mutation.value == null) _danmakuDraft.value = text
+    fun updateDanmakuDraft(text: String, clearRevision: Long) {
+        if (mutation.value == null) _danmakuDraft.update { it.withEdit(text, clearRevision) }
     }
 
     fun sendComment() = submitComment(allowDuplicate = false)
 
     private fun submitComment(allowDuplicate: Boolean) {
         if (!canAccessContent) return
-        val text = commentDraft.value.trim()
+        val text = commentDraft.value.text.trim()
         if (text.isEmpty() || text.length >= 20000) return
         if (!allowDuplicate && text == unconfirmedComment) {
             _publicationRetry.value = PublicationRetry.Comment
@@ -295,7 +303,7 @@ internal class VideoViewModel(
                 return@mutate
             }
             unconfirmedComment = null
-            _commentDraft.value = ""
+            _commentDraft.update { it.cleared() }
             if (!canAccessContent) return@mutate
             _posted.value = comment
             commentList.posted()
@@ -305,7 +313,7 @@ internal class VideoViewModel(
 
     private fun submitDanmaku(positionMs: Long, allowDuplicate: Boolean) {
         if (!canAccessContent) return
-        val text = danmakuDraft.value.trim()
+        val text = danmakuDraft.value.text.trim()
         if (text.isEmpty() || positionMs < 0) return
         val style = _danmakuStyle.value
         if (!allowDuplicate && (text to style) == unconfirmedDanmaku) {
@@ -323,7 +331,7 @@ internal class VideoViewModel(
                 return@mutate
             }
             unconfirmedDanmaku = null
-            _danmakuDraft.value = ""
+            _danmakuDraft.update { it.cleared() }
             loadDanmaku()
         }
     }

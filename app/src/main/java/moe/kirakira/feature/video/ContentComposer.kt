@@ -24,6 +24,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.maxLength
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
@@ -72,7 +76,6 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Density
@@ -88,11 +91,13 @@ import kotlin.math.roundToInt
 import moe.kirakira.R
 import moe.kirakira.ui.components.ButtonShadowBottomPadding
 import moe.kirakira.ui.components.CircularButtonContent
-import moe.kirakira.ui.components.buttonLoadingSemantics
-import moe.kirakira.ui.components.withEnabledAppearance
+import moe.kirakira.ui.components.ObserveTextFieldBinding
 import moe.kirakira.ui.components.ShadowButton
+import moe.kirakira.ui.components.TextFieldBinding
+import moe.kirakira.ui.components.buttonLoadingSemantics
 import moe.kirakira.ui.components.materialColorShadow
 import moe.kirakira.ui.components.pressToRoundButtonShapes
+import moe.kirakira.ui.components.withEnabledAppearance
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
 /** The composer applies Scaffold safe-drawing insets internally so its panel can reach the edges. */
@@ -130,10 +135,21 @@ internal fun FloatingComposerLayout(
 }
 
 /** Local editing state lives with the video, independently for comments and danmaku. */
-internal class ComposerState {
-    var editor by mutableStateOf(TextFieldValue())
+internal class ComposerState(
+    draft: String = "",
+    selection: TextRange = TextRange(draft.length),
+    private var clearRevision: Long = 0,
+) {
+    val binding = TextFieldBinding(draft, TextFieldState(draft, selection))
+    val editor get() = binding.editor
     var category by mutableStateOf("happy")
     var panelOpen by mutableStateOf(false)
+
+    fun acceptClear(draft: ComposerDraft) {
+        if (clearRevision == draft.clearRevision) return
+        clearRevision = draft.clearRevision
+        binding.replace(draft.text)
+    }
 
     // Event-only observations; neither layout coordinates nor focus belong in saved editing state.
     var inputFocused = false
@@ -142,25 +158,26 @@ internal class ComposerState {
 }
 
 @Composable
-internal fun rememberComposerState(videoId: Int, sessionRevision: Long, draft: String): ComposerState =
-    rememberSaveable(
+internal fun rememberComposerState(videoId: Int, sessionRevision: Long, draft: ComposerDraft): ComposerState {
+    val state = rememberSaveable(
         videoId, sessionRevision,
         saver = listSaver(
             save = { listOf(it.category, it.editor.selection.start, it.editor.selection.end) },
             restore = { saved ->
-                ComposerState().apply {
-                    category = saved[0] as String
-                    editor = TextFieldValue(
-                        draft,
-                        TextRange(
-                            (saved[1] as Int).coerceIn(0, draft.length),
-                            (saved[2] as Int).coerceIn(0, draft.length),
-                        ),
-                    )
-                }
+                ComposerState(
+                    draft.text,
+                    TextRange(
+                        (saved[1] as Int).coerceIn(0, draft.text.length),
+                        (saved[2] as Int).coerceIn(0, draft.text.length),
+                    ),
+                    draft.clearRevision,
+                ).apply { category = saved[0] as String }
             },
         ),
-    ) { ComposerState() }
+    ) { ComposerState(draft.text, clearRevision = draft.clearRevision) }
+    SideEffect { state.acceptClear(draft) }
+    return state
+}
 
 @Composable
 internal fun ContentComposer(
@@ -173,7 +190,7 @@ internal fun ContentComposer(
     busy: Boolean = false,
     maxLength: Int = 2000,
     maxLines: Int = 5,
-    state: ComposerState = remember { ComposerState() },
+    state: ComposerState = remember { ComposerState(draft) },
     active: Boolean = true,
     availableHeight: Dp = 460.dp,
     contentPadding: PaddingValues = PaddingValues(),
@@ -233,9 +250,16 @@ internal fun ContentComposer(
         }
     }
     var tooLong by remember(state) { mutableStateOf(false) }
-    // The ViewModel owns text; selection/composition stay local. External clears must win.
-    val field = if (state.editor.text == draft) state.editor else TextFieldValue(draft, TextRange(draft.length))
-    SideEffect { if (state.editor != field) state.editor = field }
+    val field = state.editor
+    ObserveTextFieldBinding(
+        state.binding,
+        draft,
+        onEdit = {
+            tooLong = false
+            onDraft(it)
+        },
+        enabled = enabled && !busy && active,
+    )
     LaunchedEffect(draft) { if (draft.isEmpty()) tooLong = false }
     LaunchedEffect(active, enabled) {
         if (!active || !enabled) state.panelOpen = false
@@ -253,7 +277,7 @@ internal fun ContentComposer(
             onBackCompleted = { state.panelOpen = false },
         )
     }
-    val compact = draft.isEmpty()
+    val compact = field.text.isEmpty()
     val expansion by animateFloatAsState(
         targetValue = if (compact) 0f else 1f,
         animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
@@ -294,7 +318,7 @@ internal fun ContentComposer(
         }
     }
     val send: @Composable () -> Unit = {
-        val sendEnabled = enabled && !busy && !sending && draft.isNotBlank()
+        val sendEnabled = enabled && !busy && !sending && field.text.isNotBlank()
         val showEnabledAppearance = sendEnabled || sending
         val colors = IconButtonDefaults.filledIconButtonColors()
         // Resolve disabled colors against the surface so scrolling content cannot show through.
@@ -308,7 +332,12 @@ internal fun ContentComposer(
             Modifier.shadow(shadowElevation, CircleShape, clip = false)
         }
         FilledIconButton(
-            onClick = { if (sendEnabled) onSend() },
+            onClick = {
+                if (enabled && !busy && !sending && field.text.isNotBlank()) {
+                    state.binding.publish(onDraft)
+                    onSend()
+                }
+            },
             enabled = sendEnabled,
             modifier = Modifier
                 .size(56.dp)
@@ -353,14 +382,8 @@ internal fun ContentComposer(
                         actions = actions,
                     ) {
                         TextField(
-                            value = field,
-                            onValueChange = {
-                                if (!busy && enabled && it.text.length <= maxLength) {
-                                    state.editor = it
-                                    tooLong = false
-                                    onDraft(it.text)
-                                }
-                            },
+                            state = field,
+                            inputTransformation = InputTransformation.maxLength(maxLength),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .focusRequester(requester)
@@ -372,8 +395,9 @@ internal fun ContentComposer(
                             placeholder = { Text(inputDescription, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                             enabled = enabled,
                             readOnly = busy,
-                            minLines = 1,
-                            maxLines = if (compact) 1 else if (panelOpen) minOf(2, maxLines) else maxLines,
+                            lineLimits = TextFieldLineLimits.MultiLine(
+                                maxHeightInLines = if (compact) 1 else if (panelOpen) minOf(2, maxLines) else maxLines,
+                            ),
                             shape = inputShape,
                             isError = tooLong,
                             supportingText = if (tooLong) {
@@ -424,11 +448,13 @@ internal fun ContentComposer(
                         if (panelVisible && !busy && enabled) {
                             val start = field.selection.min
                             val end = field.selection.max
-                            val next = field.text.replaceRange(start, end, text)
-                            if (next.length <= maxLength) {
-                                state.editor = TextFieldValue(next, TextRange(start + text.length))
+                            if (field.text.length - (end - start) + text.length <= maxLength) {
+                                field.edit {
+                                    replace(start, end, text)
+                                    selection = TextRange(start + text.length)
+                                }
                                 tooLong = false
-                                onDraft(next)
+                                state.binding.publish(onDraft)
                                 onKaomojiInserted(text)
                             } else tooLong = true
                         }

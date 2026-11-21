@@ -131,9 +131,11 @@ internal fun VideoPage(
     val mutation by model.mutation.collectAsStateWithLifecycle()
     val busy = mutation != null
     val session by model.session.collectAsStateWithLifecycle()
-    val commentDraft by model.commentDraft.collectAsStateWithLifecycle()
+    val commentDraft = model.commentDraft.collectAsStateWithLifecycle().value
     val danmakuStyle by model.danmakuStyle.collectAsStateWithLifecycle()
-    val danmakuDraft by model.danmakuDraft.collectAsStateWithLifecycle()
+    val danmakuDraft = model.danmakuDraft.collectAsStateWithLifecycle().value
+    val updateCommentDraft: (String) -> Unit = { model.updateCommentDraft(it, commentDraft.clearRevision) }
+    val updateDanmakuDraft: (String) -> Unit = { model.updateDanmakuDraft(it, danmakuDraft.clearRevision) }
     val commentComposer = rememberComposerState(videoId, session.revision, commentDraft)
     val danmakuComposer = rememberComposerState(videoId, session.revision, danmakuDraft)
     val posted by model.posted.collectAsStateWithLifecycle()
@@ -155,7 +157,15 @@ internal fun VideoPage(
     StatusBarScrollToTopPauseEffect(paused = isActive && !detailsInteractive)
     if (publicationRetry != null && detailsInteractive) {
         PublicationRetryDialog(
-            busy, model::dismissPublicationRetry, model::checkPublication, model::confirmPublicationRetry,
+            busy, model::dismissPublicationRetry, model::checkPublication,
+            {
+                when (publicationRetry) {
+                    PublicationRetry.Comment -> commentComposer.binding.publish(updateCommentDraft)
+                    is PublicationRetry.Danmaku -> danmakuComposer.binding.publish(updateDanmakuDraft)
+                    null -> Unit
+                }
+                model.confirmPublicationRetry()
+            },
         )
     }
     fun requestFullscreen(target: Boolean) {
@@ -295,8 +305,8 @@ internal fun VideoPage(
                             mutation = mutation,
                             signedIn = signedIn,
                             sessionRevision = session.revision,
-                            commentDraft = commentDraft,
-                            danmakuDraft = danmakuDraft,
+                            commentDraft = commentDraft.text,
+                            danmakuDraft = danmakuDraft.text,
                             posted = posted,
                             danmakuStyle = danmakuStyle,
                         ),
@@ -304,7 +314,7 @@ internal fun VideoPage(
                         { comment, reaction -> requireLogin { model.voteComment(comment, reaction) } },
                         model::comments, model::refreshComments, model::retryComments,
                         model::loadAdjacentComments, model::consumeCommentLocation, model::ensureTab,
-                        model::updateCommentDraft, model::updateDanmakuDraft,
+                        updateCommentDraft, updateDanmakuDraft,
                         { requireLogin(model::sendComment) }, { requireLogin { model.sendDanmaku(playback.positionMs) } },
                         model::refreshDanmaku, model::retryDanmaku, onOpenProfile,
                         ::unavailable,
