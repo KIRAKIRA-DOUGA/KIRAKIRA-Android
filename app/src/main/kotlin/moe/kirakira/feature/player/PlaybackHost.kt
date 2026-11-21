@@ -1,0 +1,815 @@
+package moe.kirakira.feature.player
+
+import android.content.Context
+import android.content.ContextWrapper
+import android.graphics.Rect
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.absoluteOffset
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.shape.AbsoluteRoundedCornerShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
+import androidx.compose.material3.LocalRippleConfiguration
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RippleConfiguration
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.computedStateOf
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.AbsoluteAlignment
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.lerp
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.seconds
+import androidx.compose.ui.geometry.Rect as RectF
+import moe.kirakira.MainActivity
+import moe.kirakira.R
+import moe.kirakira.data.settings.PlaybackSettings
+import moe.kirakira.ui.adaptive.LocalAppWindowLayout
+import moe.kirakira.ui.adaptive.clampTo
+import moe.kirakira.ui.adaptive.windowCornerRadii
+import moe.kirakira.ui.components.motion.mediaZoomSpec
+import moe.kirakira.ui.components.motion.rememberEmphasizedEasing
+import moe.kirakira.ui.components.status.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.navigation.PlaybackViewportState
+
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+@Composable
+internal fun PlaybackHost(
+    playback: PlaybackViewModel,
+    videoId: Int,
+    viewportState: PlaybackViewportState,
+    settings: PlaybackSettings?,
+    videoPageActive: Boolean,
+    imageViewerActive: Boolean,
+    videoPageUnderImage: Boolean,
+    videoPageCovered: Boolean,
+    mainNavigationSize: IntSize,
+    miniPlayerExit: MiniPlayerExitViewport?,
+    onRestore: () -> Unit,
+    onCardExitFinished: () -> Unit,
+    modifier: Modifier = Modifier,
+    pageContent: @Composable (Modifier, Boolean, Boolean) -> Unit,
+) {
+    val context = LocalContext.current
+    val activity = remember(context) { context.playerActivity() }
+    val pip = activity?.pictureInPicture == true
+    var horizontal by rememberSaveable { mutableFloatStateOf(1f) }
+    var vertical by rememberSaveable { mutableFloatStateOf(1f) }
+    val outgoing = miniPlayerExit?.session
+    if (outgoing == null) {
+        PlaybackActivityEffects(playback, activity, settings, videoPageActive, pip)
+    } else {
+        DisposableEffect(activity, playback, outgoing) {
+            val observer = LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_STOP) playback.finishMiniPlayerExit(outgoing)
+            }
+            activity?.lifecycle?.addObserver(observer)
+            onDispose {
+                activity?.lifecycle?.removeObserver(observer)
+                playback.finishMiniPlayerExit(outgoing)
+            }
+        }
+    }
+    val player = outgoing?.player ?: playback.player
+    val isMiniPlayer = outgoing != null || playback.miniPlayer
+    val loading = outgoing?.loading ?: (playback.buffering || playback.initialLoading)
+    val showPauseIcon = outgoing == null && playback.showPauseIcon
+    var closeRequested by remember(player) { mutableStateOf(false) }
+    val closing = closeRequested || outgoing != null
+    val exitingCard = outgoing == null && viewportState.exitingVideoId == videoId
+    val navigatingPage = outgoing == null && viewportState.navigatingPage
+    val coveredMini = videoPageCovered && !videoPageActive
+    val miniTarget = isMiniPlayer && !videoPageActive && !videoPageUnderImage &&
+        !pip && !exitingCard && !navigatingPage
+    val visible = videoPageUnderImage || (
+        (videoPageActive || videoPageCovered || isMiniPlayer || pip || exitingCard) &&
+            !imageViewerActive && (outgoing == null || !pip)
+        )
+    val origin = if (miniPlayerExit == null) viewportState.cards.origin?.takeIf { it.videoId == videoId }
+    else miniPlayerExit.origin
+
+    fun pageViewport() = if (miniPlayerExit == null) viewportState.pageViewport else miniPlayerExit.pageViewport
+    val cardProgress = remember(origin) { Animatable(if (origin != null && videoPageActive) 0f else 1f) }
+    val currentCardExitFinished by rememberUpdatedState(onCardExitFinished)
+    val backPreview = outgoing == null && viewportState.backPreviewActive
+    val previewingMiniPlayer = backPreview && viewportState.backToMiniPlayer
+    val previewingCard = backPreview && !viewportState.backToMiniPlayer
+    val returningToCard = exitingCard || previewingCard
+    val hideSource = origin != null && returningToCard && visible && !pip &&
+        viewportState.pageViewport?.videoId == videoId && viewportState.cards.painter(origin) != null
+    DisposableEffect(viewportState.cards, origin, hideSource) {
+        if (hideSource) viewportState.cards.hideSource(origin)
+        onDispose {
+            if (hideSource) viewportState.cards.showSource(origin)
+        }
+    }
+    val zoom = remember(origin) { Animatable(if (miniTarget) 1f else 0f) }
+    val emphasizedEasing = rememberEmphasizedEasing()
+
+    // Expanding uses an iOS-style critically damped spring (as SwiftUI `.smooth`): it starts at rest,
+    // has no fixed end time to brake into, and keeps velocity when interrupted.
+    fun zoomSpec(expanding: Boolean) = if (expanding) {
+        spring(dampingRatio = 1f, stiffness = VIDEO_ZOOM_EXPAND_STIFFNESS, visibilityThreshold = 0.001f)
+    } else {
+        mediaZoomSpec(expanding = false, emphasizedEasing, visibilityThreshold = 0.001f)
+    }
+    LaunchedEffect(zoom, viewportState, miniTarget, pip, previewingMiniPlayer, navigatingPage, coveredMini, closing) {
+        // Ordinary navigation owns the whole page. The native video stays in this tree;
+        // switch to/from its floating presentation only while the covering page obscures it.
+        if (pip || navigatingPage) zoom.snapTo(0f)
+        else if (closing && miniTarget) return@LaunchedEffect
+        else if (coveredMini) zoom.snapTo(if (miniTarget) 1f else 0f)
+        else if (previewingMiniPlayer) {
+            snapshotFlow { viewportState.backProgress }.filterNotNull().collect { zoom.snapTo(it) }
+        } else {
+            val target = if (miniTarget) 1f else 0f
+            if (zoom.value != target) {
+                zoom.animateTo(target, zoomSpec(expanding = !miniTarget))
+            }
+        }
+    }
+    LaunchedEffect(cardProgress, viewportState, videoId, videoPageActive, exitingCard, previewingCard, pip) {
+        when {
+            pip -> cardProgress.snapTo(1f)
+            previewingCard -> snapshotFlow { viewportState.backProgress }.filterNotNull().collect {
+                cardProgress.snapTo(1f - it)
+            }
+
+            exitingCard -> {
+                if (cardProgress.value != 0f) {
+                    cardProgress.animateTo(0f, zoomSpec(expanding = false))
+                }
+                currentCardExitFinished()
+            }
+
+            videoPageActive -> {
+                if (origin != null && cardProgress.value == 0f) {
+                    // Keep the real source on screen until this video's full-size page is laid out.
+                    snapshotFlow { viewportState.pageViewport }
+                        .first { it?.videoId == videoId && it.bounds.width > 0 && it.bounds.height > 0 }
+                    withFrameNanos { }
+                }
+                if (cardProgress.value != 1f) {
+                    cardProgress.animateTo(1f, zoomSpec(expanding = true))
+                }
+            }
+        }
+    }
+    val transitioning by remember(miniTarget, exitingCard, cardProgress) {
+        derivedStateOf {
+            zoom.isRunning || zoom.value != (if (miniTarget) 1f else 0f) || cardProgress.isRunning ||
+                cardProgress.value != (if (exitingCard) 0f else 1f)
+        }
+    }
+    val iconMotion = rememberPlaybackIconMotion(showPauseIcon)
+    val iconColors = IconButtonDefaults.iconButtonColors(contentColor = Color.White)
+    val restoreLabel = stringResource(R.string.player_mini_restore)
+    val toggleLabel = stringResource(if (showPauseIcon) R.string.player_pause else R.string.player_play)
+    var controlsVisible by remember { mutableStateOf(true) }
+    val controlsAlpha by animateFloatAsState(
+        targetValue = if (controlsVisible && miniTarget && !transitioning) 1f else 0f,
+        animationSpec = if (controlsVisible) MaterialTheme.motionScheme.defaultEffectsSpec()
+        else MaterialTheme.motionScheme.fastEffectsSpec(),
+        label = "MiniPlayerControlsAlpha",
+    )
+    val miniNavigationAlpha by animateFloatAsState(
+        targetValue = if (navigatingPage) 0f else 1f,
+        animationSpec = MaterialTheme.motionScheme.fastEffectsSpec(),
+        label = "MiniPlayerNavigationAlpha",
+    )
+    var interaction by remember { mutableIntStateOf(0) }
+    var dragging by remember { mutableStateOf(false) }
+    val dockingAnimation = remember { Animatable(horizontal) }
+    val dockingSpec = tween<Float>(durationMillis = 300, easing = emphasizedEasing)
+    val closeSpec = remember {
+        tween<Float>(durationMillis = 220, easing = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f))
+    }
+    val closeScale = remember(player) { Animatable(1f) }
+    val scope = rememberCoroutineScope()
+    var dockingJob by remember { mutableStateOf<Job?>(null) }
+    LaunchedEffect(closing, player, isMiniPlayer) {
+        if (!closing || player == null || !isMiniPlayer) {
+            closeRequested = false
+            closeScale.snapTo(1f)
+            return@LaunchedEffect
+        }
+        dockingJob?.cancel()
+        if (outgoing == null) playback.pause()
+        closeScale.animateTo(0f, closeSpec)
+        val exit = playback.miniPlayerExit
+        if (exit?.player === player) playback.finishMiniPlayerExit(exit)
+        else if (playback.player === player && playback.miniPlayer) playback.closeMiniPlayer()
+    }
+    val restoreInteraction = remember { MutableInteractionSource() }
+    val toggleInteraction = remember { MutableInteractionSource() }
+    val closeInteraction = remember { MutableInteractionSource() }
+    val restorePressed by restoreInteraction.collectIsPressedAsState()
+    val togglePressed by toggleInteraction.collectIsPressedAsState()
+    val closePressed by closeInteraction.collectIsPressedAsState()
+    val holdingControls = dragging || restorePressed || togglePressed || closePressed
+    val touchExploration = rememberTouchExplorationEnabled()
+    val keepVisible = loading || touchExploration
+    val focusManager = LocalFocusManager.current
+    var controlsHaveFocus by remember { mutableStateOf(false) }
+
+    fun interact() {
+        controlsVisible = true
+        interaction++
+    }
+
+    fun hideControls() {
+        controlsVisible = false
+        interaction++
+    }
+
+    fun controlAction(action: () -> Unit) {
+        if (controlsVisible && !closing && !transitioning && miniTarget && visible) {
+            interact()
+            action()
+        }
+    }
+
+    fun finishDrag() {
+        if (closing || transitioning) return
+        val start = horizontal
+        val target = if (start < 0.5f) 0f else 1f
+        dragging = false
+        interaction++
+        dockingJob?.cancel()
+        dockingJob = scope.launch {
+            dockingAnimation.snapTo(start)
+            dockingAnimation.animateTo(target, dockingSpec) {
+                horizontal = value.coerceIn(0f, 1f)
+            }
+        }
+    }
+
+    LaunchedEffect(miniTarget) {
+        dockingJob?.cancel()
+        if (miniTarget) interact()
+    }
+    LaunchedEffect(keepVisible, holdingControls, interaction, controlsVisible, miniTarget, transitioning, closing) {
+        if (!miniTarget || transitioning || closing) return@LaunchedEffect
+        if (keepVisible) controlsVisible = true
+        else if (controlsVisible && !holdingControls) {
+            delay(3.seconds)
+            hideControls()
+        }
+    }
+    LaunchedEffect(controlsVisible, closing, transitioning) {
+        if ((!controlsVisible || closing || transitioning) && controlsHaveFocus) {
+            focusManager.clearFocus(force = true)
+        }
+    }
+    val controlsLabel =
+        stringResource(if (controlsVisible) R.string.player_hide_controls else R.string.player_show_controls)
+    val density = LocalDensity.current
+    val insets = WindowInsets.safeDrawing.union(WindowInsets.ime)
+    val window = LocalAppWindowLayout.current
+    val view = LocalView.current
+    val configuration = LocalConfiguration.current
+    val windowCorners = remember(view, window.size, window.safeBounds, configuration) { view.windowCornerRadii() }
+    val dockingPane = window.primaryPane
+    val excludedBottom = dockingPane?.let { (window.size.height - it.bottom).coerceAtLeast(0) } ?: 0
+    val safeBottom = (WindowInsets.safeDrawing.getBottom(density) - excludedBottom).coerceAtLeast(0)
+    val keyboardBottom = (WindowInsets.ime.getBottom(density) - excludedBottom).coerceAtLeast(0)
+    val extraBottom by animateDpAsState(
+        targetValue = with(density) {
+            if (keyboardBottom == 0) (mainNavigationSize.height - safeBottom).coerceAtLeast(0).toDp() else 0.dp
+        },
+        animationSpec = tween(durationMillis = 300, easing = emphasizedEasing),
+        label = "MiniPlayerBottomBarInset",
+    )
+    val layoutDirection = LocalLayoutDirection.current
+    BoxWithConstraints(
+        modifier
+            .fillMaxSize()
+            .graphicsLayer {
+                val transform = if (outgoing == null) {
+                    viewportState.navigationReturn?.invoke()
+                        ?: viewportState.navigationPage?.takeIf { it.isTransitioning() }?.transform?.invoke()
+                } else null
+                transformOrigin = TransformOrigin(0f, 0f)
+                scaleX = transform?.scale ?: 1f
+                scaleY = transform?.scale ?: 1f
+                translationX = transform?.x ?: 0f
+                translationY = transform?.y ?: 0f
+                alpha = transform?.alpha ?: 1f
+                val radius = transform?.cornerRadius ?: 0f
+                shape = RoundedCornerShape(radius)
+                clip = radius > 0f
+            },
+        contentAlignment = AbsoluteAlignment.TopLeft,
+    ) {
+        val windowWidth = constraints.maxWidth
+        val windowHeight = constraints.maxHeight
+        val gap = with(density) { 8.dp.toPx() }
+        val pane = dockingPane?.clampTo(windowWidth, windowHeight) ?: IntRect(0, 0, windowWidth, windowHeight)
+        val rail = mainNavigationSize.width
+        val ltr = layoutDirection == LayoutDirection.Ltr
+        val left = maxOf(pane.left, insets.getLeft(density, layoutDirection), if (ltr) rail else 0) + gap
+        val endInset = maxOf(insets.getRight(density, layoutDirection), if (ltr) 0 else rail)
+        val rightEdge = minOf(pane.right, windowWidth - endInset) - gap
+        val top = maxOf(insets.getTop(density), pane.top) + gap
+        val bottomEdge = minOf(windowHeight - insets.getBottom(density), pane.bottom) - gap - with(density) {
+            if (rail > 0 || keyboardBottom > 0) 0f else extraBottom.coerceAtLeast(0.dp).toPx()
+        }
+        val availableWidth = (rightEdge - left).coerceAtLeast(0f)
+        val availableHeight = (bottomEdge - top).coerceAtLeast(0f)
+        val hasDockSpace = with(density) { availableWidth >= 96.dp.toPx() && availableHeight >= 54.dp.toPx() }
+        val widthPx = minOf(with(density) { 192.dp.toPx() }, availableWidth, availableHeight * 16f / 9f)
+            .coerceAtLeast(1f)
+        val heightPx = widthPx * 9f / 16f
+        val maxX = (availableWidth - widthPx).coerceAtLeast(0f)
+        val maxY = (availableHeight - heightPx).coerceAtLeast(0f)
+        val width = with(density) { widthPx.toDp() }
+        val height = with(density) { heightPx.toDp() }
+        val buttonSize = minOf(48.dp, width / 3f, height)
+        val iconSize = minOf(24.dp, buttonSize)
+        val playbackIconSize = minOf(32.dp, buttonSize)
+        val fullBounds = RectF(0f, 0f, windowWidth.toFloat(), windowHeight.toFloat())
+
+        fun playerBounds(): RectF = pageViewport()?.takeIf { it.videoId == videoId }?.bounds
+            ?: RectF(0f, 0f, windowWidth.toFloat(), windowWidth * 9f / 16f)
+
+        fun liveReturnBounds(): RectF? =
+            origin?.let(viewportState.cards::liveBounds)?.translate(-viewportState.windowOrigin)
+
+        fun sourceBounds(): RectF = when {
+            origin == null -> fullBounds
+            returningToCard -> liveReturnBounds() ?: fullBounds
+            else -> origin.bounds.translate(-viewportState.windowOrigin)
+        }
+
+        fun miniBounds(): RectF {
+            val miniX = left + horizontal * maxX
+            val miniY = top + vertical * maxY
+            return RectF(miniX, miniY, miniX + widthPx, miniY + heightPx)
+        }
+
+        fun miniProgress(): Float = when {
+            outgoing == null && viewportState.navigatingPage -> 0f
+            coveredMini -> if (miniTarget) 1f else 0f
+            else -> zoom.value
+        }
+
+        fun viewportFrame(): RectF =
+            lerp(lerp(sourceBounds(), fullBounds, cardProgress.value), miniBounds(), miniProgress())
+
+        fun viewportVisible(): Boolean = visible && (origin == null || pageViewport()?.videoId == videoId) &&
+            (!miniTarget || hasDockSpace)
+
+        fun hasCardBounds() = origin != null && (!returningToCard || liveReturnBounds() != null)
+
+        if (outgoing == null && !pip && !videoPageCovered && !imageViewerActive) {
+            val frame by rememberUpdatedState {
+                if (viewportVisible() && (hasCardBounds() || miniProgress() > 0f)) viewportFrame() else null
+            }
+            val coversSource by rememberUpdatedState {
+                videoPageActive && !exitingCard && !viewportState.backPreviewActive && !viewportState.navigatingPage &&
+                    cardProgress.value == 1f && zoom.value == 0f && viewportVisible()
+            }
+            val sourceCoverage = remember { computedStateOf { coversSource() } }
+            val blurFraction by rememberUpdatedState {
+                if (closing || viewportState.navigatingPage || !viewportVisible()) {
+                    0f
+                } else {
+                    val card = cardProgress.value
+                    val mini = miniProgress()
+                    // Follow the expansion until the video fully covers the background.
+                    val cardBlur = if (videoPageActive && card > 0f && card < 1f && hasCardBounds()) card else 0f
+                    val miniBlur = if (hasDockSpace && mini > 0f && mini < 1f) 1f - mini else 0f
+                    maxOf(cardBlur, miniBlur)
+                }
+            }
+            DisposableEffect(viewportState) {
+                val readFrame = { frame() }
+                val readBlurFraction = { blurFraction() }
+                viewportState.sourceRailFrame = readFrame
+                viewportState.videoZoomBlurFraction = readBlurFraction
+                viewportState.videoCoversSource = sourceCoverage
+                onDispose {
+                    if (viewportState.sourceRailFrame === readFrame) viewportState.sourceRailFrame = null
+                    if (viewportState.videoZoomBlurFraction === readBlurFraction) {
+                        viewportState.videoZoomBlurFraction = null
+                    }
+                    if (viewportState.videoCoversSource === sourceCoverage) viewportState.videoCoversSource = null
+                }
+            }
+        }
+
+        fun sourceScale(): Float {
+            if (!hasCardBounds()) return 1f
+            val source = sourceBounds()
+            val player = playerBounds()
+            return maxOf(source.width / player.width.coerceAtLeast(1f), source.height / player.height.coerceAtLeast(1f))
+        }
+
+        fun pageScale(): Float {
+            val startScale = sourceScale()
+            val pageScale = startScale + (1f - startScale) * cardProgress.value
+            val miniScale = widthPx / playerBounds().width.coerceAtLeast(1f)
+            return pageScale + (miniScale - pageScale) * miniProgress()
+        }
+
+        fun pageOffset(): Offset {
+            val player = playerBounds()
+            val cardOffset = if (hasCardBounds()) {
+                (sourceBounds().center - player.center * sourceScale()) * (1f - cardProgress.value)
+            } else Offset.Zero
+            val miniScale = widthPx / player.width.coerceAtLeast(1f)
+            val miniOffset = miniBounds().topLeft - player.topLeft * miniScale
+            return lerp(cardOffset, miniOffset, miniProgress()) - viewportFrame().topLeft
+        }
+
+        val dragMaxX by rememberUpdatedState(maxX)
+        val dragMaxY by rememberUpdatedState(maxY)
+        Box(
+            Modifier
+                .absoluteOffset {
+                    val bounds = viewportFrame()
+                    IntOffset(bounds.left.roundToInt(), bounds.top.roundToInt())
+                }
+                .layout { measurable, _ ->
+                    val bounds = viewportFrame()
+                    val child = measurable.measure(
+                        Constraints.fixed(
+                            if (visible) bounds.width.roundToInt().coerceAtLeast(1) else 0,
+                            if (visible) bounds.height.roundToInt().coerceAtLeast(1) else 0,
+                        ),
+                    )
+                    layout(child.width, child.height) { child.place(0, 0) }
+                }
+                .graphicsLayer {
+                    val scale = if (miniTarget) closeScale.value else 1f
+                    transformOrigin = TransformOrigin.Center
+                    scaleX = scale
+                    scaleY = scale
+                    val card = cardProgress.value
+                    val mini = miniProgress()
+                    val sourceRadius = origin?.shape?.topStart?.toPx(origin.bounds.size, this) ?: 0f
+                    val baseRadius = sourceRadius * (1f - card) * (1f - mini) + 8.dp.toPx() * mini
+                    val windowWeight = if (pip || videoPageCovered) 0f else card * (1f - mini)
+                    fun radius(windowRadius: Float) = (baseRadius + windowRadius * windowWeight).coerceAtLeast(0f)
+                    shape = AbsoluteRoundedCornerShape(
+                        topLeft = radius(windowCorners.topLeft),
+                        topRight = radius(windowCorners.topRight),
+                        bottomRight = radius(windowCorners.bottomRight),
+                        bottomLeft = radius(windowCorners.bottomLeft),
+                    )
+                    // Lift away from the source, then land flush at either end of the card transition.
+                    val lift = if (card > 0f && card < 1f && hasCardBounds()) 4f * card * (1f - card) else 0f
+                    shadowElevation = if (pip) 0f else 8.dp.toPx() * (lift + (1f - lift) * mini.coerceIn(0f, 1f))
+                    clip = true
+                    alpha = when {
+                        !viewportVisible() -> 0f
+                        returningToCard && liveReturnBounds() == null -> cardProgress.value.coerceIn(0f, 1f)
+                        origin == null || viewportState.cards.painter(origin) == null -> cardProgress.value.coerceIn(
+                            0f,
+                            1f,
+                        )
+
+                        else -> 1f
+                    }
+                    if (coveredMini && miniTarget) alpha *= miniNavigationAlpha
+                }
+                .background(Color.Black)
+                .pointerInput(transitioning, outgoing) {
+                    if (!transitioning || outgoing != null) return@pointerInput
+                    awaitPointerEventScope {
+                        while (true) {
+                            awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
+                        }
+                    }
+                }
+                .onGloballyPositioned {
+                    if (outgoing == null && (miniTarget || transitioning)) {
+                        val bounds = it.boundsInWindow()
+                        playback.updateBounds(
+                            Rect(bounds.left.toInt(), bounds.top.toInt(), bounds.right.toInt(), bounds.bottom.toInt()),
+                        )
+                    }
+                }
+                .pointerInput(player, closing, miniTarget, transitioning, visible, hasDockSpace) {
+                    if (closing || !miniTarget || transitioning || !visible || !hasDockSpace) return@pointerInput
+                    try {
+                        detectDragGestures(
+                            onDragStart = { dockingJob?.cancel(); dragging = true },
+                            onDragEnd = { finishDrag() },
+                            onDragCancel = { finishDrag() },
+                        ) { change, delta ->
+                            change.consume()
+                            horizontal = if (dragMaxX > 0) {
+                                (horizontal + delta.x / dragMaxX).coerceIn(0f, 1f)
+                            } else 1f
+                            vertical = if (dragMaxY > 0) {
+                                (vertical + delta.y / dragMaxY).coerceIn(0f, 1f)
+                            } else 1f
+                        }
+                    } finally {
+                        dragging = false
+                    }
+                }
+                .then(
+                    if (miniTarget) Modifier
+                        .semantics { contentDescription = controlsLabel }
+                        .clickable(
+                            enabled = !closing && !transitioning && visible && hasDockSpace,
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClickLabel = controlsLabel,
+                        ) { if (keepVisible || !controlsVisible) interact() else hideControls() }
+                    else Modifier,
+                )
+                .then(
+                    if (closing || transitioning || !visible || imageViewerActive || (miniTarget && !hasDockSpace)) {
+                        Modifier.clearAndSetSemantics { }
+                    } else Modifier,
+                ),
+        ) {
+            // Measure the page at window size for both destinations. Only its layer transform
+            // and the outer clipping frame change, so the native video view is never reparented.
+            pageContent(
+                Modifier
+                    .layout { measurable, constraints ->
+                        val child = measurable.measure(Constraints.fixed(windowWidth, windowHeight))
+                        layout(constraints.maxWidth, constraints.maxHeight) { child.place(0, 0) }
+                    }
+                    .graphicsLayer {
+                        val scale = pageScale()
+                        val offset = pageOffset()
+                        transformOrigin = TransformOrigin(0f, 0f)
+                        scaleX = scale
+                        scaleY = scale
+                        translationX = offset.x
+                        translationY = offset.y
+                    },
+                videoPageActive && !imageViewerActive && !transitioning && !navigatingPage && visible,
+                visible,
+            )
+            if (origin != null) {
+                Canvas(
+                    Modifier
+                        .matchParentSize()
+                        .graphicsLayer {
+                            val progress = ((cardProgress.value - 0.15f) / 0.7f).coerceIn(0f, 1f)
+                            val reveal = progress * progress * (3f - 2f * progress)
+                            alpha = (1f - reveal) * (1f - miniProgress().coerceIn(0f, 1f))
+                        }
+                        .clearAndSetSemantics { },
+                ) {
+                    val painter = viewportState.cards.painter(origin) ?: return@Canvas
+                    val artwork = lerp(
+                        lerp(sourceBounds(), playerBounds(), cardProgress.value), miniBounds(), miniProgress(),
+                    ).translate(-viewportFrame().topLeft)
+                    if (artwork.width > 0f && artwork.height > 0f) translate(artwork.left, artwork.top) {
+                        clipRect(0f, 0f, artwork.width, artwork.height) {
+                            val intrinsic = painter.intrinsicSize
+                            val sourceSize =
+                                if (intrinsic.width > 0f && intrinsic.height > 0f) intrinsic else artwork.size
+                            val factor = ContentScale.Crop.computeScaleFactor(sourceSize, artwork.size)
+                            val drawnSize = Size(sourceSize.width * factor.scaleX, sourceSize.height * factor.scaleY)
+                            translate(
+                                (artwork.width - drawnSize.width) / 2f,
+                                (artwork.height - drawnSize.height) / 2f,
+                            ) {
+                                with(painter) { draw(drawnSize) }
+                            }
+                        }
+                    }
+                }
+            }
+            if (miniTarget && !closing && !transitioning && !controlsVisible && visible) {
+                // Intercept taps while controls fade out so revealing them cannot trigger an action.
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .zIndex(1f)
+                        .clearAndSetSemantics { }
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) { interact() },
+                )
+            }
+            if (miniTarget || transitioning) CompositionLocalProvider(
+                LocalMinimumInteractiveComponentSize provides buttonSize,
+                LocalRippleConfiguration provides RippleConfiguration(color = Color.White),
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            alpha = if (outgoing == null && viewportState.navigatingPage) 0f else controlsAlpha
+                        }
+                        .then(if (!controlsVisible) Modifier.clearAndSetSemantics { } else Modifier)
+                        .focusProperties {
+                            onEnter = { if (!controlsVisible || closing || transitioning) cancelFocusChange() }
+                        }
+                        .onFocusChanged { controlsHaveFocus = it.hasFocus }
+                        .focusGroup()
+                        .background(Color.Black.copy(alpha = 0.5f)),
+                ) {
+                    IconButton(
+                        onClick = { controlAction(onRestore) },
+                        enabled = !closing && !transitioning && visible && hasDockSpace,
+                        colors = iconColors,
+                        interactionSource = restoreInteraction,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .size(buttonSize),
+                    ) {
+                        Icon(
+                            painterResource(R.drawable.ic_icon_fullscreen),
+                            restoreLabel,
+                            modifier = Modifier.size(iconSize),
+                        )
+                    }
+                    IconButton(
+                        onClick = { controlAction(playback::toggle) },
+                        enabled = !closing && !transitioning && visible && hasDockSpace,
+                        colors = iconColors,
+                        interactionSource = toggleInteraction,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(buttonSize)
+                            .semantics {
+                                if (loading) contentDescription = toggleLabel
+                            },
+                    ) {
+                        if (loading) {
+                            IndeterminateCircularProgressIndicator(
+                                modifier = Modifier.size(iconSize),
+                                color = Color.White,
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            AnimatedPlaybackIcon(
+                                motion = iconMotion,
+                                description = toggleLabel,
+                                modifier = Modifier.size(playbackIconSize),
+                            )
+                        }
+                    }
+                    IconButton(
+                        onClick = { controlAction { closeRequested = true } },
+                        enabled = !closing && !transitioning && visible && hasDockSpace,
+                        colors = iconColors,
+                        interactionSource = closeInteraction,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .size(buttonSize),
+                    ) {
+                        Icon(
+                            painterResource(R.drawable.ic_icon_close),
+                            stringResource(R.string.player_mini_close),
+                            modifier = Modifier.size(iconSize),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+@Composable
+private fun PlaybackActivityEffects(
+    playback: PlaybackViewModel,
+    activity: MainActivity?,
+    settings: PlaybackSettings?,
+    videoPageActive: Boolean,
+    pip: Boolean,
+) {
+    val view = LocalView.current
+    LaunchedEffect(playback, settings?.autoQuality, settings?.preferredVideoHeight) {
+        settings?.let { playback.setQualityPreference(it.autoQuality, it.preferredVideoHeight) }
+    }
+    LaunchedEffect(activity, videoPageActive) {
+        if (!videoPageActive) activity?.setVideoFullscreen(false)
+    }
+    DisposableEffect(activity, playback, view) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP && activity?.isChangingConfigurations != true) {
+                playback.flushHistory()
+                if (activity?.isInPictureInPictureMode != true) playback.closeMiniPlayer()
+            }
+        }
+        activity?.lifecycle?.addObserver(observer)
+        onDispose {
+            activity?.lifecycle?.removeObserver(observer)
+            activity?.updatePictureInPicture(false, null)
+            view.keepScreenOn = false
+        }
+    }
+    LaunchedEffect(pip) {
+        if (!pip && activity != null && !activity.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            playback.closeMiniPlayer()
+        }
+    }
+    DisposableEffect(playback.playing, view) {
+        view.keepScreenOn = playback.playing
+        onDispose { view.keepScreenOn = false }
+    }
+    LaunchedEffect(
+        playback.player, playback.playing, playback.failed, playback.bounds, playback.actualVideoHeight,
+        settings?.outsideAppMiniPlayer, videoPageActive, playback.miniPlayer, pip,
+    ) {
+        val size = playback.player?.videoSize
+        val ratio = if (size != null && size.width > 0 && size.height > 0) {
+            size.width.toFloat() * size.pixelWidthHeightRatio / size.height
+        } else 16f / 9f
+        activity?.updatePictureInPicture(
+            eligible = (videoPageActive || playback.miniPlayer) && playback.player != null && !playback.failed,
+            bounds = playback.bounds,
+            aspectRatio = ratio,
+            autoEnter = playback.playing && settings?.outsideAppMiniPlayer == true,
+        )
+    }
+}
+
+private fun Context.playerActivity(): MainActivity? = when (this) {
+    is MainActivity -> this
+    is ContextWrapper -> baseContext.playerActivity()
+    else -> null
+}
+
+/** Stiffness of a unit-mass spring with a 0.4 s response, `(2π / response)²`, as SwiftUI and UIKit define it. */
+private const val VIDEO_ZOOM_EXPAND_STIFFNESS = 438.6f

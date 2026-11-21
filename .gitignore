@@ -6,6 +6,9 @@
 .gradle/
 build/
 
+# Kotlin compiler sessions and error logs
+.kotlin/
+
 # Local configuration file (sdk path, etc)
 local.properties
 

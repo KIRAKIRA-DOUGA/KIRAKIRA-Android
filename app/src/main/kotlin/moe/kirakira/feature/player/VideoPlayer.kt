@@ -1,0 +1,916 @@
+package moe.kirakira.feature.player
+
+import android.view.accessibility.AccessibilityManager
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.updateTransition
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.DragInteraction
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LocalRippleConfiguration
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RippleConfiguration
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberSliderState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.Placeable
+import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import androidx.media3.common.Player
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.delay
+import moe.kirakira.R
+import moe.kirakira.data.content.DanmakuEntry
+import moe.kirakira.data.settings.DanmakuSettings
+import moe.kirakira.data.settings.PlaybackSettings
+import moe.kirakira.ui.components.icon.AnimatedSlashIcon
+import moe.kirakira.ui.components.icon.SlashIconType
+import moe.kirakira.ui.components.icon.rememberSlashIconProgress
+import moe.kirakira.ui.components.selection.SmoothSlider
+import moe.kirakira.ui.components.status.ContentUnavailablePresentation
+import moe.kirakira.ui.components.status.ContentUnavailableState
+import moe.kirakira.ui.components.status.ContentUnavailableView
+import moe.kirakira.ui.components.status.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.video.VideoArtwork
+import moe.kirakira.ui.components.video.durationText
+import moe.kirakira.ui.theme.KIRAKIRATheme
+
+private val PlayerSeekThumbSize = DpSize(16.dp, 16.dp)
+private val PlayerSeekVisualOffset = 8.dp
+
+internal data class PlayerUiState(
+    val playing: Boolean = false,
+    val showPauseIcon: Boolean = playing,
+    val buffering: Boolean = false,
+    val initialLoading: Boolean = false,
+    val artworkPending: Boolean = false,
+    val failed: Boolean = false,
+    val positionMs: Long = 0,
+    val durationMs: Long = 0,
+    val bufferedPositionMs: Long = 0,
+    val resumeNoticePositionMs: Long? = null,
+    val available: Boolean = false,
+    val qualityOptions: List<VideoQualityOption> = emptyList(),
+    val selectedQualityHeight: Int? = null,
+    val actualVideoHeight: Int? = null,
+    val speed: Float = 1f,
+    val continuousSpeed: Boolean = false,
+    val preservesPitch: Boolean = true,
+)
+
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+
+@Composable
+internal fun VideoPlayer(
+    player: Player?,
+    state: PlayerUiState,
+    image: String?,
+    fullscreen: Boolean,
+    pictureInPicture: Boolean,
+    onToggle: () -> Unit,
+    onSeek: (Long) -> Unit,
+    onBack: () -> Unit,
+    onFullscreen: () -> Unit,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+    fullscreenLayoutReady: Boolean = fullscreen,
+    inlinePlayerBottom: Dp = 0.dp,
+    externalTransport: Boolean = false,
+    confinedToPane: Boolean = false,
+    artworkPlaceholder: Painter? = null,
+    active: Boolean = true,
+    onReadVolume: () -> Float? = { null },
+    onVolume: (Float) -> Float? = { null },
+    onQuality: (Int?) -> Unit = {},
+    onSpeed: (Float) -> Unit = {},
+    onContinuousSpeed: (Boolean) -> Unit = {},
+    onPreservesPitch: (Boolean) -> Unit = {},
+    danmaku: List<DanmakuEntry> = emptyList(),
+    playbackSettings: PlaybackSettings? = null,
+    danmakuSettings: DanmakuSettings? = null,
+    danmakuContentKey: Any = Unit,
+    onDanmakuEnabled: (Boolean) -> Unit = {},
+    onOutsideAppMiniPlayerChange: (Boolean) -> Unit = {},
+    onInAppMiniPlayerChange: (Boolean) -> Unit = {},
+    onAutoplayChange: (Boolean) -> Unit = {},
+    onDanmakuSettingsChange: (DanmakuSettings) -> Unit = {},
+) {
+    var artworkLoading by remember(image) { mutableStateOf(!image.isNullOrBlank()) }
+    val waitingForArtwork = player == null && (state.artworkPending || artworkLoading)
+    val showingInitialLoading = state.initialLoading && player != null && !state.failed
+    val playbackIconMotion = rememberPlaybackIconMotion(
+        playing = state.showPauseIcon,
+    )
+    val danmakuIconProgress = rememberSlashIconProgress(
+        slashed = danmakuSettings?.enabled != true,
+        ready = danmakuSettings != null,
+    )
+    val settingsAvailable = active && !pictureInPicture && !state.failed && (!fullscreen || fullscreenLayoutReady)
+    var settingsPanel by remember(fullscreen, settingsAvailable) { mutableStateOf<PlayerSettingsPanel?>(null) }
+    val inPlayerSheet = fullscreen || confinedToPane
+    val inPlayerSheetOpen = inPlayerSheet && settingsPanel != null
+    var controlsVisible by remember { mutableStateOf(true) }
+    var interaction by remember { mutableIntStateOf(0) }
+    var dragged by remember(player) { mutableStateOf<Float?>(null) }
+    var showRemainingTime by remember(player) { mutableStateOf(false) }
+    val sliderInteraction = remember { MutableInteractionSource() }
+    val dragging by sliderInteraction.collectIsDraggedAsState()
+    val pressing by sliderInteraction.collectIsPressedAsState()
+    LaunchedEffect(sliderInteraction) {
+        sliderInteraction.interactions.collect { event ->
+            if (event is DragInteraction.Cancel || event is PressInteraction.Cancel && !dragging) {
+                dragged = null
+            }
+        }
+    }
+    val touchExploration = rememberTouchExplorationEnabled()
+    val keepVisibleBase =
+        settingsPanel != null || state.buffering || waitingForArtwork || showingInitialLoading || state.failed ||
+            dragging || pressing || dragged != null || touchExploration || state.resumeNoticePositionMs != null
+
+    fun interact() {
+        controlsVisible = true; interaction++
+    }
+
+    val gestureScope = rememberCoroutineScope()
+    val latestPosition by rememberUpdatedState { player?.currentPosition?.coerceAtLeast(0) ?: state.positionMs }
+    val latestDuration by rememberUpdatedState(state.durationMs.coerceAtLeast(0))
+    val latestSeek by rememberUpdatedState(onSeek)
+    val latestToggle by rememberUpdatedState(onToggle)
+    val latestReadVolume by rememberUpdatedState(onReadVolume)
+    val latestVolume by rememberUpdatedState(onVolume)
+    val latestSingleTap by rememberUpdatedState {
+        if (keepVisibleBase) interact() else {
+            controlsVisible = !controlsVisible
+            interaction++
+        }
+    }
+    val latestInteractionFinished by rememberUpdatedState { interaction++ }
+    val configuration = LocalConfiguration.current
+    var playerSize by remember { mutableStateOf(IntSize.Zero) }
+    val gestureIdentity = Triple(danmakuContentKey, fullscreen, configuration to playerSize)
+    val gestures = remember(player, gestureIdentity) {
+        PlayerGestureState(
+            scope = gestureScope,
+            position = { latestPosition() },
+            duration = { latestDuration },
+            seek = { latestSeek(it) },
+            readVolume = { latestReadVolume() },
+            changeVolume = { latestVolume(it) },
+            singleTap = { latestSingleTap() },
+            togglePlayback = { latestToggle() },
+            interactionFinished = { latestInteractionFinished() },
+        )
+    }
+    val gestureEnabled = player != null && active && !pictureInPicture && !state.failed &&
+        !state.initialLoading && !showingInitialLoading && settingsPanel == null && !touchExploration
+    val gestureSeekable = state.durationMs > 0 && player?.isCurrentMediaItemSeekable == true
+    DisposableEffect(gestures, gestureEnabled, gestureSeekable) {
+        onDispose { gestures.reset() }
+    }
+    val seekingByGesture = gestures.previewPositionMs != null
+    val keepVisible = keepVisibleBase || gestures.dragging
+    val gestureModifier = Modifier.playerGestures(gestures, gestureEnabled, gestureSeekable, gestureIdentity)
+
+    fun controlAction(action: () -> Unit) {
+        if (controlsVisible && (!fullscreen || settingsPanel == null)) {
+            gestures.reset()
+            interact()
+            action()
+        }
+    }
+
+    val focusManager = LocalFocusManager.current
+    var controlsHaveFocus by remember { mutableStateOf(false) }
+    val controlsInteractive = controlsVisible && !inPlayerSheetOpen
+    LaunchedEffect(controlsInteractive, active, pictureInPicture) {
+        if ((!controlsInteractive || !active || pictureInPicture) && controlsHaveFocus) {
+            focusManager.clearFocus(force = true)
+        }
+    }
+    LaunchedEffect(keepVisible, seekingByGesture, interaction, controlsVisible, fullscreen, pictureInPicture) {
+        if (keepVisibleBase || seekingByGesture) controlsVisible = true
+        else if (!gestures.dragging && controlsVisible && !pictureInPicture) {
+            delay(3.seconds)
+            controlsVisible = false
+        }
+    }
+    LaunchedEffect(fullscreen, pictureInPicture, active, state.failed, state.initialLoading, waitingForArtwork) {
+        settingsPanel = null
+        interact()
+    }
+    val controlsLabel =
+        stringResource(if (controlsVisible) R.string.player_hide_controls else R.string.player_show_controls)
+    // Children consume their own controls first; the background handles remaining input.
+    val tapInteraction = if (gestureEnabled) gestureModifier.semantics {
+        contentDescription = controlsLabel
+        onClick(label = controlsLabel) { latestSingleTap(); true }
+    }.onKeyEvent { event ->
+        val activate = event.key == Key.Enter || event.key == Key.NumPadEnter || event.key == Key.DirectionCenter
+        if (activate) {
+            if (event.type == KeyEventType.KeyUp) latestSingleTap()
+            true
+        } else false
+    }.focusable() else Modifier.clickable(
+        interactionSource = remember { MutableInteractionSource() },
+        indication = null,
+        onClickLabel = controlsLabel,
+    ) { latestSingleTap() }
+    val screenInteraction = if (pictureInPicture || !active || inPlayerSheetOpen) Modifier else tapInteraction
+    Box(
+        modifier
+            .background(Color.Black)
+            .onSizeChanged { playerSize = it }
+            .then(screenInteraction),
+    ) {
+        if (player != null) {
+            PlayerContentFrame(player = player, modifier = Modifier.fillMaxSize()) {
+                if (!pictureInPicture && !state.failed) {
+                    VideoArtwork(image = image, modifier = Modifier.fillMaxSize(), placeholder = artworkPlaceholder)
+                }
+            }
+        } else {
+            VideoArtwork(
+                image = image,
+                modifier = Modifier.fillMaxSize(),
+                placeholder = artworkPlaceholder,
+                onLoadingChange = { artworkLoading = it },
+            )
+        }
+        if (player != null && active && !pictureInPicture && !state.failed && danmakuSettings?.enabled == true) {
+            DanmakuOverlay(player, danmaku, danmakuSettings, danmakuContentKey)
+        }
+        if (gestureEnabled) {
+            PlayerGestureOverlay(
+                gestures,
+                Modifier
+                    .fillMaxSize()
+                    .then(if (fullscreen && !confinedToPane) Modifier.windowInsetsPadding(WindowInsets.safeDrawing) else Modifier)
+                    .zIndex(2f),
+            )
+        }
+        if (active && !pictureInPicture) {
+            // Keep the shield through a drag when revealing controls, preserving the pointer owner.
+            if (!inPlayerSheetOpen && (!controlsVisible || gestures.dragging)) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .zIndex(1f)
+                        .then(if (gestureEnabled) gestureModifier else tapInteraction)
+                        .clearAndSetSemantics { },
+                )
+            }
+            CompositionLocalProvider(
+                LocalRippleConfiguration provides RippleConfiguration(color = Color.White),
+            ) {
+                AnimatedVisibility(
+                    visible = controlsVisible || state.buffering,
+                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                    exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .then(if (!controlsInteractive) Modifier.clearAndSetSemantics { } else Modifier)
+                            .focusProperties {
+                                onEnter = { if (!controlsInteractive) cancelFocusChange() }
+                            }
+                            .onFocusChanged { controlsHaveFocus = it.hasFocus }
+                            .focusGroup()
+                            .background(
+                                Brush.verticalGradient(
+                                    0f to Color.Black.copy(alpha = 0.55f),
+                                    0.3f to Color.Transparent,
+                                    0.6f to Color.Transparent,
+                                    1f to Color.Black.copy(alpha = 0.75f),
+                                ),
+                            ),
+                    ) {
+                        val iconColors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = Color.Black.copy(alpha = 0.6f),
+                            contentColor = Color.White,
+                            disabledContainerColor = Color.Black.copy(alpha = 0.3f),
+                            disabledContentColor = Color.White.copy(alpha = 0.38f),
+                        )
+                        val contentModifier = Modifier
+                            .fillMaxSize()
+                            .then(if (fullscreen && !confinedToPane) Modifier.windowInsetsPadding(WindowInsets.safeDrawing) else Modifier)
+                        val backButton: @Composable () -> Unit = {
+                            FilledIconButton(
+                                onClick = { controlAction(onBack) },
+                                colors = iconColors,
+                            ) {
+                                Icon(
+                                    painterResource(R.drawable.ic_icon_arrow_left),
+                                    stringResource(
+                                        if (fullscreen) R.string.player_exit_fullscreen else R.string.navigate_back,
+                                    ),
+                                    Modifier.size(IconButtonDefaults.smallIconSize),
+                                )
+                            }
+                        }
+                        val fullscreenButton: @Composable () -> Unit = {
+                            FilledIconButton(
+                                onClick = { controlAction(onFullscreen) },
+                                colors = iconColors,
+                            ) {
+                                Icon(
+                                    painterResource(
+                                        if (fullscreen) R.drawable.ic_icon_fullscreen_exit else R.drawable.ic_icon_fullscreen,
+                                    ),
+                                    stringResource(
+                                        if (fullscreen) R.string.player_exit_fullscreen else R.string.player_fullscreen,
+                                    ),
+                                    Modifier.size(IconButtonDefaults.smallIconSize),
+                                )
+                            }
+                        }
+                        val topBar: @Composable () -> Unit = {
+                            TopAppBar(
+                                title = {},
+                                navigationIcon = { backButton() },
+                                actions = {
+                                    if (state.failed) {
+                                        fullscreenButton()
+                                    } else if (!showingInitialLoading) {
+                                        PlayerSettingsButtons(
+                                            state = state,
+                                            enabled = settingsAvailable,
+                                            onOpen = { panel -> controlAction { settingsPanel = panel } },
+                                            settingsOpen = settingsPanel == PlayerSettingsPanel.GENERAL,
+                                        )
+                                    }
+                                },
+                                colors = TopAppBarDefaults.topAppBarColors(
+                                    containerColor = Color.Transparent,
+                                    scrolledContainerColor = Color.Transparent,
+                                    navigationIconContentColor = Color.White,
+                                    actionIconContentColor = Color.White,
+                                ),
+                                windowInsets = WindowInsets(0, 0, 0, 0),
+                            )
+                        }
+                        if (state.failed) {
+                            Column(contentModifier) {
+                                topBar()
+                                ContentUnavailableView(
+                                    state = ContentUnavailableState.ERROR,
+                                    title = stringResource(R.string.player_error),
+                                    description = null,
+                                    onRetry = { controlAction(onRetry) },
+                                    retryEnabled = state.available,
+                                    presentation = ContentUnavailablePresentation.MEDIA,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f),
+                                )
+                            }
+                        } else {
+                            val seekLabel = stringResource(R.string.player_seek)
+                            val seekThumbSize = PlayerSeekThumbSize
+                            val sliderColors = SliderDefaults.colors(
+                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                                inactiveTrackColor = Color.Transparent,
+                                disabledThumbColor = Color.White.copy(alpha = 0.38f),
+                                disabledActiveTrackColor = Color.White.copy(alpha = 0.38f),
+                                disabledInactiveTrackColor = Color.Transparent,
+                            )
+                            val bufferColors = SliderDefaults.colors(
+                                activeTrackColor = Color.White.copy(alpha = 0.55f),
+                                inactiveTrackColor = Color.White.copy(alpha = 0.2f),
+                                disabledActiveTrackColor = Color.White.copy(alpha = 0.3f),
+                                disabledInactiveTrackColor = Color.White.copy(alpha = 0.15f),
+                            )
+                            val slider = rememberSliderState()
+                            val bufferSlider = rememberSliderState()
+                            val displayedPositionMs = dragged?.let { (it * state.durationMs).toLong() }
+                                ?: gestures.previewPositionMs
+                                ?: state.positionMs
+                            SideEffect {
+                                bufferSlider.value =
+                                    (state.bufferedPositionMs.toFloat() / state.durationMs.coerceAtLeast(1)).coerceIn(
+                                        0f,
+                                        1f,
+                                    )
+                                slider.value =
+                                    (displayedPositionMs.toFloat() / state.durationMs.coerceAtLeast(1)).coerceIn(0f, 1f)
+                            }
+                            PlayerControlsLayout(
+                                modifier = contentModifier,
+                                fullscreen = fullscreen && !confinedToPane,
+                                topBar = topBar,
+                                playback = { buttonSize ->
+                                    if (!externalTransport) PlayerPlaybackControl(
+                                        state = state,
+                                        motion = playbackIconMotion,
+                                        artworkLoading = waitingForArtwork,
+                                        buttonSize = buttonSize,
+                                        onToggle = { controlAction(onToggle) },
+                                    )
+                                },
+                                time = {
+                                    if (!externalTransport) {
+                                        val resumePosition = state.resumeNoticePositionMs
+                                        Box(
+                                            Modifier
+                                                .heightIn(min = 48.dp)
+                                                .padding(start = 16.dp)
+                                                .clickable(
+                                                    enabled = resumePosition == null,
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = null,
+                                                    onClickLabel = stringResource(R.string.player_toggle_time_format),
+                                                ) {
+                                                    controlAction { showRemainingTime = !showRemainingTime }
+                                                },
+                                            contentAlignment = Alignment.CenterStart,
+                                        ) {
+                                            PlayerTimeLabel(
+                                                positionMs = displayedPositionMs,
+                                                durationMs = state.durationMs,
+                                                showRemainingTime = showRemainingTime,
+                                                resumePositionMs = resumePosition,
+                                            )
+                                        }
+                                    }
+                                },
+                                actions = {
+                                    FlowRow(
+                                        modifier = Modifier
+                                            .heightIn(min = 48.dp)
+                                            .padding(end = 4.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
+                                        itemVerticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        val danmakuLabel = stringResource(R.string.danmaku_display)
+                                        Switch(
+                                            checked = danmakuSettings?.enabled == true,
+                                            onCheckedChange = { enabled -> controlAction { onDanmakuEnabled(enabled) } },
+                                            enabled = active && danmakuSettings != null,
+                                            colors = SwitchDefaults.colors(
+                                                checkedThumbColor = Color.White,
+                                                checkedTrackColor = Color.Black.copy(alpha = 0.6f),
+                                                checkedBorderColor = Color.White.copy(alpha = 0.45f),
+                                                checkedIconColor = Color.Black,
+                                                uncheckedThumbColor = Color.White.copy(alpha = 0.65f),
+                                                uncheckedTrackColor = Color.Black.copy(alpha = 0.6f),
+                                                uncheckedBorderColor = Color.White.copy(alpha = 0.45f),
+                                                uncheckedIconColor = Color.Black,
+                                                disabledCheckedThumbColor = Color.White.copy(alpha = 0.38f),
+                                                disabledCheckedTrackColor = Color.Black.copy(alpha = 0.3f),
+                                                disabledCheckedBorderColor = Color.White.copy(alpha = 0.12f),
+                                                disabledCheckedIconColor = Color.Black.copy(alpha = 0.38f),
+                                                disabledUncheckedThumbColor = Color.White.copy(alpha = 0.38f),
+                                                disabledUncheckedTrackColor = Color.Black.copy(alpha = 0.3f),
+                                                disabledUncheckedBorderColor = Color.White.copy(alpha = 0.12f),
+                                                disabledUncheckedIconColor = Color.Black.copy(alpha = 0.38f),
+                                            ),
+                                            modifier = Modifier.semantics { contentDescription = danmakuLabel },
+                                            thumbContent = {
+                                                AnimatedSlashIcon(
+                                                    type = SlashIconType.DANMAKU,
+                                                    progress = { danmakuIconProgress.value },
+                                                    description = null,
+                                                    modifier = Modifier.size(SwitchDefaults.IconSize),
+                                                )
+                                            },
+                                        )
+                                        fullscreenButton()
+                                    }
+                                },
+                                progress = {
+                                    if (!externalTransport) SmoothSlider(
+                                        state = slider,
+                                        colors = sliderColors,
+                                        onValueChange = { value ->
+                                            controlAction { slider.value = value; dragged = value }
+                                        },
+                                        onValueChangeFinished = {
+                                            controlAction {
+                                                dragged?.let { onSeek((it * state.durationMs).toLong()) }
+                                            }
+                                            dragged = null
+                                        },
+                                        enabled = state.durationMs > 0 && !state.initialLoading,
+                                        interactionSource = sliderInteraction,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp - seekThumbSize.width / 2)
+                                            .height(36.dp)
+                                            .semantics { contentDescription = seekLabel },
+                                        thumb = {
+                                            SliderDefaults.Thumb(
+                                                interactionSource = sliderInteraction,
+                                                isVertical = false,
+                                                colors = sliderColors,
+                                                enabled = state.durationMs > 0 && !state.initialLoading,
+                                                thumbSize = seekThumbSize,
+                                                modifier = Modifier.offset(y = PlayerSeekVisualOffset),
+                                            )
+                                        },
+                                        track = { sliderState ->
+                                            // Both layers share the official geometry; only the upper layer is seekable.
+                                            Box(Modifier.offset(y = PlayerSeekVisualOffset)) {
+                                                SliderDefaults.Track(
+                                                    sliderState = bufferSlider,
+                                                    colors = bufferColors,
+                                                    modifier = Modifier
+                                                        .height(4.dp)
+                                                        .clearAndSetSemantics { },
+                                                    enabled = state.durationMs > 0 && !state.initialLoading,
+                                                    trackCornerSize = 2.dp,
+                                                    trackInsideCornerSize = 2.dp,
+                                                    thumbTrackGapSize = 0.dp,
+                                                    drawStopIndicator = null,
+                                                )
+                                                SliderDefaults.Track(
+                                                    sliderState = sliderState,
+                                                    colors = sliderColors,
+                                                    modifier = Modifier.height(4.dp),
+                                                    enabled = state.durationMs > 0 && !state.initialLoading,
+                                                    trackCornerSize = 2.dp,
+                                                    trackInsideCornerSize = 2.dp,
+                                                    thumbTrackGapSize = 0.dp,
+                                                    drawStopIndicator = null,
+                                                )
+                                            }
+                                        },
+                                    )
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        if (settingsAvailable) settingsPanel?.let { panel ->
+            PlayerSettingsSheet(
+                panel = panel,
+                state = state,
+                fullscreen = fullscreen,
+                inlinePlayerBottom = inlinePlayerBottom,
+                onDismiss = { settingsPanel = null; interact() },
+                onQuality = onQuality,
+                onSpeed = onSpeed,
+                onContinuousSpeed = onContinuousSpeed,
+                onPreservesPitch = onPreservesPitch,
+                playbackSettings = playbackSettings,
+                danmakuSettings = danmakuSettings,
+                onOutsideAppMiniPlayerChange = onOutsideAppMiniPlayerChange,
+                onInAppMiniPlayerChange = onInAppMiniPlayerChange,
+                onAutoplayChange = onAutoplayChange,
+                onDanmakuSettingsChange = onDanmakuSettingsChange,
+                modifier = if (inPlayerSheet) Modifier.matchParentSize() else Modifier,
+                confinedToPane = confinedToPane,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlayerTimeLabel(
+    positionMs: Long,
+    durationMs: Long,
+    showRemainingTime: Boolean,
+    resumePositionMs: Long?,
+) {
+    val style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum")
+    if (resumePositionMs != null) {
+        Text(
+            text = stringResource(R.string.player_resumed_position, durationText(resumePositionMs)),
+            style = style,
+            color = Color.White,
+            modifier = Modifier
+                .background(Color.Black.copy(alpha = 0.6f), MaterialTheme.shapes.small)
+                .padding(horizontal = 8.dp, vertical = 6.dp)
+                .semantics { liveRegion = LiveRegionMode.Polite },
+        )
+        return
+    }
+
+    val total = remember(durationMs) { durationText(durationMs) }
+    if (durationMs <= 0) {
+        Text("${durationText(positionMs)} / $total", style = style, color = Color.White)
+        return
+    }
+
+    val remainingMs = (durationMs - positionMs).coerceAtLeast(0)
+    val displayedMs = if (showRemainingTime) remainingMs else positionMs
+    val displayedTime = remember(displayedMs / 1000) { durationText(displayedMs) }
+    val sign = if (showRemainingTime) "-" else ""
+    val transition = updateTransition(showRemainingTime, label = "PlayerTimeMode")
+    val motion = MaterialTheme.motionScheme
+    val sizeSpec = motion.fastSpatialSpec<IntSize>()
+    val fadeSpec = motion.fastEffectsSpec<Float>()
+    FlowRow(
+        modifier = Modifier.clearAndSetSemantics { text = AnnotatedString("$sign$displayedTime / $total") },
+        itemVerticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            transition.AnimatedVisibility(
+                visible = { it },
+                enter = fadeIn(fadeSpec) + expandHorizontally(sizeSpec, expandFrom = Alignment.Start),
+                exit = fadeOut(fadeSpec) + shrinkHorizontally(sizeSpec, shrinkTowards = Alignment.Start),
+            ) {
+                Text("-", style = style, color = Color.White)
+            }
+            transition.AnimatedContent(
+                contentAlignment = Alignment.CenterStart,
+                transitionSpec = {
+                    (fadeIn(fadeSpec) togetherWith fadeOut(fadeSpec)).using(
+                        SizeTransform { _, _ -> sizeSpec },
+                    )
+                },
+            ) { remaining ->
+                val time = when {
+                    remaining == showRemainingTime -> displayedTime
+                    remaining -> durationText(remainingMs)
+                    else -> durationText(positionMs)
+                }
+                Text(time, style = style, color = Color.White)
+            }
+        }
+        Text(" / $total", style = style, color = Color.White)
+    }
+}
+
+@Composable
+private fun PlayerPlaybackControl(
+    state: PlayerUiState,
+    motion: PlaybackIconMotion,
+    artworkLoading: Boolean,
+    buttonSize: Dp,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .size(buttonSize)
+            .background(Color.Black.copy(alpha = 0.6f), CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (state.buffering || state.initialLoading) {
+            IndeterminateCircularProgressIndicator(modifier = Modifier.size(40.dp), color = Color.White)
+        } else {
+            IconButton(
+                onClick = onToggle,
+                enabled = state.available,
+                colors = IconButtonDefaults.iconButtonColors(
+                    contentColor = Color.White,
+                    disabledContentColor = Color.White.copy(alpha = 0.38f),
+                ),
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                if (artworkLoading) {
+                    val playLabel = stringResource(R.string.player_play)
+                    IndeterminateCircularProgressIndicator(
+                        modifier = Modifier.size(40.dp).semantics { contentDescription = playLabel },
+                        color = Color.White,
+                    )
+                } else {
+                    AnimatedPlaybackIcon(
+                        motion = motion,
+                        description = stringResource(if (state.showPauseIcon) R.string.player_pause else R.string.player_play),
+                        modifier = Modifier.size(if (buttonSize < 64.dp) 28.dp else 48.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+private enum class PlayerControlSlot { TOP, TIME, ACTIONS, PROGRESS, PLAYBACK }
+
+@Composable
+private fun PlayerControlsLayout(
+    fullscreen: Boolean,
+    modifier: Modifier = Modifier,
+    topBar: @Composable () -> Unit,
+    time: @Composable () -> Unit,
+    actions: @Composable () -> Unit,
+    progress: @Composable () -> Unit,
+    playback: @Composable (Dp) -> Unit,
+) {
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+    val insets = WindowInsets.safeDrawing
+    val horizontalOffset = (insets.getRight(density, layoutDirection) - insets.getLeft(density, layoutDirection)) / 2
+    val centerOffset = if (fullscreen) IntOffset(
+        if (layoutDirection == LayoutDirection.Ltr) horizontalOffset else -horizontalOffset,
+        (insets.getBottom(density) - insets.getTop(density)) / 2,
+    ) else IntOffset.Zero
+    val controlsScroll = rememberScrollState()
+    BoxWithConstraints(modifier) {
+        val viewportHeight = with(density) { maxHeight.roundToPx() }
+        SubcomposeLayout(
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(controlsScroll, enabled = controlsScroll.maxValue > 0),
+        ) { constraints ->
+            val width = constraints.maxWidth
+            val loose = Constraints(maxWidth = width)
+            val gap = 8.dp.roundToPx()
+            val rowGap = 4.dp.roundToPx()
+            val bottomPadding = 4.dp.roundToPx()
+            fun measure(slot: PlayerControlSlot, content: @Composable () -> Unit): Placeable =
+                subcompose(slot) { Box { content() } }.single().measure(loose)
+
+            val top = measure(PlayerControlSlot.TOP, topBar)
+            val timestamp = measure(PlayerControlSlot.TIME, time)
+            val trailing = measure(PlayerControlSlot.ACTIONS, actions)
+            val seek = measure(PlayerControlSlot.PROGRESS, progress)
+            fun rows(items: List<Placeable>): List<List<Placeable>> {
+                val result = mutableListOf<List<Placeable>>()
+                var row = mutableListOf<Placeable>()
+                var usedWidth = 0
+                items.forEach { item ->
+                    if (row.isNotEmpty() && usedWidth + gap + item.width > width) {
+                        result.add(row)
+                        row = mutableListOf()
+                        usedWidth = 0
+                    }
+                    if (row.isNotEmpty()) usedWidth += gap
+                    row.add(item)
+                    usedWidth += item.width
+                }
+                if (row.isNotEmpty()) result.add(row)
+                return result
+            }
+
+            fun rowsHeight(rows: List<List<Placeable>>): Int =
+                rows.sumOf { row -> row.maxOf { it.height } } + rowGap * (rows.size - 1)
+
+            fun arrangeRows(rows: List<List<Placeable>>, startY: Int, place: (Placeable, Int, Int) -> Unit) {
+                var y = startY
+                rows.forEach { row ->
+                    val rowHeight = row.maxOf { it.height }
+                    val rowWidth = row.sumOf { it.width } + gap * (row.size - 1)
+                    var x = if (row.first() == timestamp) 0 else width - rowWidth
+                    row.forEachIndexed { index, item ->
+                        if (index == 1 && row.first() == timestamp) x += width - rowWidth
+                        place(item, x, y + (rowHeight - item.height) / 2)
+                        x += item.width + gap
+                    }
+                    y += rowHeight + rowGap
+                }
+            }
+
+            // Center on the video, compensating for asymmetric fullscreen safe Insets.
+            val regularRows = rows(listOf(timestamp, trailing))
+            val centerSize = 64.dp.roundToPx()
+            val centerX = (width - centerSize) / 2 + centerOffset.x
+            val centerY = (viewportHeight - centerSize) / 2 + centerOffset.y
+            val centerGap = 2.dp.roundToPx()
+            val regularRowsY = viewportHeight - bottomPadding - rowsHeight(regularRows)
+            val regularSeekY = regularRowsY - seek.height
+            val seekVisibleTop = regularSeekY +
+                (seek.height - PlayerSeekThumbSize.height.roundToPx()) / 2 + PlayerSeekVisualOffset.roundToPx()
+            val seekVisibleBottom = seekVisibleTop + PlayerSeekThumbSize.height.roundToPx()
+            var compact = centerX < 0 || centerX + centerSize > width || centerY < top.height + centerGap ||
+                centerY + centerSize + centerGap > seekVisibleTop && centerY < seekVisibleBottom + centerGap
+            arrangeRows(regularRows, regularRowsY) { item, x, y ->
+                if (x < centerX + centerSize + centerGap && x + item.width + centerGap > centerX &&
+                    y < centerY + centerSize + centerGap && y + item.height + centerGap > centerY
+                ) {
+                    compact = true
+                }
+            }
+            val play = measure(PlayerControlSlot.PLAYBACK) { playback(if (compact) 48.dp else 64.dp) }
+            val footerRows = if (compact) rows(listOf(timestamp, play, trailing)) else regularRows
+            val footerHeight = rowsHeight(footerRows) + seek.height + bottomPadding
+            val minimumHeight = top.height + footerHeight + if (compact) gap else 0
+            val height = maxOf(viewportHeight, minimumHeight)
+            layout(width, height) {
+                top.placeRelative(0, 0)
+                if (!compact) {
+                    play.placeRelative(centerX, centerY)
+                }
+                seek.placeRelative(0, height - footerHeight)
+                arrangeRows(footerRows, height - bottomPadding - rowsHeight(footerRows)) { item, x, y ->
+                    item.placeRelative(x, y)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun rememberTouchExplorationEnabled(): Boolean {
+    val context = LocalContext.current
+    val manager = remember(context) { context.getSystemService(AccessibilityManager::class.java) }
+    var enabled by remember(manager) { mutableStateOf(manager?.isTouchExplorationEnabled == true) }
+    DisposableEffect(manager) {
+        val listener = AccessibilityManager.TouchExplorationStateChangeListener { enabled = it }
+        manager?.addTouchExplorationStateChangeListener(listener)
+        enabled = manager?.isTouchExplorationEnabled == true
+        onDispose { manager?.removeTouchExplorationStateChangeListener(listener) }
+    }
+    return enabled
+}
+
+@Preview(widthDp = 360, heightDp = 203)
+@Composable
+private fun VideoPlayerPreview() {
+    KIRAKIRATheme {
+        VideoPlayer(
+            player = null,
+            state = PlayerUiState(available = true, durationMs = 180_000, positionMs = 45_000, bufferedPositionMs = 120_000),
+            image = null,
+            fullscreen = false,
+            pictureInPicture = false,
+            onToggle = {},
+            onSeek = {},
+            onBack = {},
+            onFullscreen = {},
+            onRetry = {},
+        )
+    }
+}

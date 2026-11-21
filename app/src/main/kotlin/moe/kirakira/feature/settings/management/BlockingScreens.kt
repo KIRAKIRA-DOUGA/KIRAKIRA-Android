@@ -1,0 +1,450 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
+package moe.kirakira.feature.settings.management
+
+import android.content.res.Configuration
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SegmentedListItem
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import moe.kirakira.R
+import moe.kirakira.data.settings.RuleCategory
+import moe.kirakira.data.settings.RuleEntry
+import moe.kirakira.data.settings.RulePage
+import moe.kirakira.feature.settings.SettingsDefaults
+import moe.kirakira.feature.settings.SettingsSectionHeader
+import moe.kirakira.feature.settings.search.LocalSettingsSearchTarget
+import moe.kirakira.feature.settings.search.settingsSearchAnchor
+import moe.kirakira.ui.components.avatar.AccountAvatar
+import moe.kirakira.ui.components.button.FlatTextButton
+import moe.kirakira.ui.components.button.ShadowButton
+import moe.kirakira.ui.components.button.ShadowFilledTonalButton
+import moe.kirakira.ui.components.button.ShadowFloatingActionButton
+import moe.kirakira.ui.components.button.pressToRoundButtonShapes
+import moe.kirakira.ui.components.form.CharacterCount
+import moe.kirakira.ui.components.form.FilledTextField
+import moe.kirakira.ui.components.form.FilledTextFieldDefaults
+import moe.kirakira.ui.components.form.ObserveTextFieldBinding
+import moe.kirakira.ui.components.form.TextFieldBinding
+import moe.kirakira.ui.components.list.ConnectedListGroup
+import moe.kirakira.ui.components.list.connectedListItemShapes
+import moe.kirakira.ui.components.search.TagSearchDialog
+import moe.kirakira.ui.components.status.ContentUnavailablePresentation
+import moe.kirakira.ui.components.status.ContentUnavailableState
+import moe.kirakira.ui.components.status.ContentUnavailableView
+import moe.kirakira.ui.components.status.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.text.AnimatedCountLabel
+import moe.kirakira.ui.components.text.AnimatedNumberText
+import moe.kirakira.ui.components.text.dateOnlyText
+import moe.kirakira.ui.theme.KIRAKIRATheme
+
+@Composable
+internal fun BlockingOverviewPage(model: BlockingOverviewViewModel, onBack: () -> Unit, onLogin: () -> Unit, onCategory: (RuleCategory) -> Unit) {
+    val state by model.counts.collectAsStateWithLifecycle()
+    val session by model.session.collectAsStateWithLifecycle()
+    androidx.compose.runtime.key(session.revision) {
+        BlockingOverviewScreen(state, session.activeProfile != null && !session.isBusy, onBack, onLogin, model::refresh, onCategory)
+    }
+}
+
+@Composable
+internal fun BlockingOverviewScreen(
+    state: SettingsLoad<Map<RuleCategory, Int>>,
+    signedIn: Boolean,
+    onBack: () -> Unit,
+    onLogin: () -> Unit,
+    onRefresh: () -> Unit,
+    onCategory: (RuleCategory) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    ManagementFrame(
+        title = stringResource(R.string.settings_blocking),
+        shadingIcon = R.drawable.ic_icon_block,
+        signedIn = signedIn,
+        loading = state.loading,
+        loaded = state.data != null,
+        error = state.error,
+        onBack = onBack,
+        onLogin = onLogin,
+        onRefresh = onRefresh,
+        modifier = modifier,
+        searchItemKey = when (LocalSettingsSearchTarget.current?.entry?.id) {
+            "blocking.users", "blocking.hidden" -> "categories-${R.string.management_people}"
+            "blocking.tags", "blocking.keywords", "blocking.regex" -> "categories-${R.string.management_content}"
+            else -> null
+        },
+        searchItemKeys = listOf(R.string.management_people, R.string.management_content).flatMap {
+            listOf("header-$it", "categories-$it", "spacer-$it")
+        },
+    ) {
+        listOf(
+            R.string.management_people to listOf(RuleCategory.BLOCK, RuleCategory.HIDE),
+            R.string.management_content to listOf(RuleCategory.TAG, RuleCategory.KEYWORD, RuleCategory.REGEX),
+        ).forEach { (title, categories) ->
+            item("header-$title") {
+                SettingsSectionHeader(stringResource(title), modifier = Modifier.padding(bottom = 8.dp))
+            }
+            item("categories-$title") {
+                ConnectedListGroup {
+                    categories.forEachIndexed { index, category ->
+                        SegmentedListItem(
+                            onClick = { onCategory(category) },
+                            modifier = Modifier.settingsSearchAnchor(stringResource(category.titleRes())),
+                            shapes = connectedListItemShapes(index, categories.size),
+                            leadingContent = {
+                                Icon(
+                                    painterResource(category.iconRes()),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp),
+                                )
+                            },
+                            trailingContent = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    state.data?.get(category)?.let {
+                                        AnimatedNumberText(
+                                            it,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                    Icon(painterResource(R.drawable.ic_icon_chevron_right), null, Modifier.size(24.dp))
+                                }
+                            },
+                            content = { Text(stringResource(category.titleRes())) },
+                        )
+                    }
+                }
+            }
+            item("spacer-$title") { Spacer(Modifier.height(16.dp)) }
+        }
+    }
+}
+
+@Composable
+internal fun RuleManagementPage(model: RuleManagementViewModel, onBack: () -> Unit, onLogin: () -> Unit) {
+    val state by model.rules.collectAsStateWithLifecycle()
+    val editor by model.editor.collectAsStateWithLifecycle()
+    val busy by model.busy.collectAsStateWithLifecycle()
+    val message by model.message.collectAsStateWithLifecycle()
+    val session by model.session.collectAsStateWithLifecycle()
+    val signedIn = session.activeProfile != null && !session.isBusy
+    key(session.revision) {
+        RuleManagementScreen(model.category, state, signedIn, busy, message, onBack, onLogin, model::refresh,
+            model::more, model::openEditor, model::remove, model::dismissMessage)
+        if (editor.accountRevision == session.revision && signedIn) {
+            if (model.category == RuleCategory.TAG) {
+                val snackbar = remember { SnackbarHostState() }
+                val error = editor.error?.let { stringResource(it) }
+                LaunchedEffect(error) {
+                    if (error != null) {
+                        snackbar.showSnackbar(error)
+                        model.dismissEditorError()
+                    }
+                }
+                TagSearchDialog(
+                    search = editor.tagSearch,
+                    selectedTags = listOfNotNull(editor.selectedTag),
+                    onQueryChange = model::input,
+                    onRetry = model::retryTagSearch,
+                    onToggleTag = model::selectTag,
+                    onDismiss = model::closeEditor,
+                    onConfirm = model::submit,
+                    confirmLabel = stringResource(R.string.management_confirm_add),
+                    confirming = busy,
+                    snackbarHost = { SnackbarHost(snackbar) },
+                )
+            } else {
+                RuleEditorSheet(model.category, editor, busy, model::input, model::submit, model::closeEditor)
+            }
+        }
+    }
+}
+
+@Composable
+internal fun RuleManagementScreen(
+    category: RuleCategory,
+    state: SettingsLoad<RulePage>,
+    signedIn: Boolean,
+    busy: Boolean,
+    message: Int?,
+    onBack: () -> Unit,
+    onLogin: () -> Unit,
+    onRefresh: () -> Unit,
+    onMore: () -> Unit,
+    onAdd: () -> Unit,
+    onRemove: (RuleEntry) -> Unit,
+    onDismissMessage: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val language = LocalConfiguration.current.locales[0].toLanguageTag()
+    val density = LocalDensity.current
+    var countHeight by remember { mutableIntStateOf(0) }
+    ManagementFrame(
+        title = stringResource(category.titleRes()), signedIn = signedIn, loading = state.loading,
+        shadingIcon = category.iconRes(),
+        loaded = state.data != null, error = null, onBack = onBack, onLogin = onLogin,
+        leadingContentHeight = with(density) { if (state.data != null) countHeight.toDp() else 0.dp },
+        onRefresh = onRefresh, modifier = modifier, appending = state.appending,
+        message = message, onDismissMessage = onDismissMessage,
+        onRetry = if (state.appending) onMore else onRefresh,
+        floatingActionButton = {
+            ShadowFloatingActionButton(
+                onClick = onAdd,
+                enabled = !busy,
+                // Together with Scaffold's 16dp margins, fit the 12dp elevation shadow at the edges.
+                modifier = Modifier.padding(end = 2.dp, bottom = 10.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_icon_add),
+                    contentDescription = stringResource(R.string.management_add),
+                )
+            }
+        },
+    ) { statusModifier ->
+        val page = state.data
+        if (page != null) {
+            item {
+                AnimatedCountLabel(
+                    count = page.total.toLong(),
+                    template = pluralStringResource(R.plurals.management_rule_count, page.total),
+                    modifier = Modifier
+                        .onSizeChanged { countHeight = it.height }
+                        .padding(horizontal = SettingsDefaults.HorizontalPadding)
+                        .padding(bottom = 8.dp)
+                        .semantics { heading() },
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (page.entries.isEmpty() && state.error == null) item {
+                ManagementEmpty(
+                    category.iconRes(),
+                    stringResource(R.string.management_no_rules),
+                    statusModifier,
+                )
+            }
+            connectedItemsIndexed(
+                groupKey = category.name,
+                items = page.entries,
+                key = { _, entry -> entry.value },
+            ) { index, entry ->
+                val user = category == RuleCategory.BLOCK || category == RuleCategory.HIDE
+                val label = if (user) entry.name?.takeIf(String::isNotBlank) ?: entry.uid?.toString() ?: entry.value
+                    else entry.tag?.displayName(language) ?: entry.value
+                SegmentedListItem(
+                    shapes = connectedListItemShapes(index, page.entries.size),
+                    leadingContent = {
+                        if (user) AccountAvatar(entry.avatar)
+                        else Icon(painterResource(category.iconRes()), contentDescription = null, modifier = Modifier.size(24.dp))
+                    },
+                    supportingContent = {
+                        Column {
+                            if (user && entry.uid != null) Text(stringResource(R.string.management_uid, entry.uid))
+                            entry.tag?.originalName()?.takeIf { it != label }?.let { Text(it) }
+                            Text(dateOnlyText(entry.createdAt))
+                        }
+                    },
+                    trailingContent = {
+                        IconButton(onClick = { onRemove(entry) }, enabled = !busy && (!user || entry.uid != null)) {
+                            Icon(painterResource(R.drawable.ic_icon_close), stringResource(R.string.management_remove_named, label), Modifier.size(24.dp))
+                        }
+                    },
+                    content = { Text(label, fontFamily = if (category == RuleCategory.REGEX) FontFamily.Monospace else null) },
+                )
+            }
+            if (page.entries.size < page.total) item {
+                Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                    if (state.loading && state.appending) IndeterminateCircularProgressIndicator()
+                    else FlatTextButton(
+                        onClick = onMore,
+                        enabled = !busy && !state.loading && (state.error == null || state.appending),
+                    ) {
+                        Text(stringResource(R.string.management_load_more))
+                    }
+                }
+            }
+        }
+        state.error?.let { error ->
+            item("error") {
+                ContentUnavailableView(
+                    state = ContentUnavailableState.ERROR,
+                    modifier = Modifier.fillMaxWidth().then(
+                        if (page?.entries.isNullOrEmpty()) statusModifier
+                        else Modifier.padding(top = 8.dp),
+                    ),
+                    description = stringResource(error),
+                    onRetry = if (state.appending) onMore else onRefresh,
+                    presentation = ContentUnavailablePresentation.INLINE,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RuleEditorSheet(
+    category: RuleCategory,
+    state: RuleEditor,
+    busy: Boolean,
+    onInput: (String) -> Unit,
+    onSubmit: () -> Unit,
+    onClose: () -> Unit,
+) {
+    val binding = remember { TextFieldBinding(state.input) }
+    ObserveTextFieldBinding(binding, state.input, onInput, !busy)
+    val user = category == RuleCategory.BLOCK || category == RuleCategory.HIDE
+    val currentBusy by rememberUpdatedState(busy)
+    val sheetColor = if (state.profile != null) {
+        MaterialTheme.colorScheme.surfaceContainerLow
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+    ModalBottomSheet(
+        onDismissRequest = onClose,
+        containerColor = sheetColor,
+        sheetState = rememberBottomSheetState(
+            initialValue = SheetValue.Hidden,
+            enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+            confirmValueChange = { it != SheetValue.Hidden || !currentBusy },
+        ),
+        sheetGesturesEnabled = !busy,
+    ) {
+        Column(
+            Modifier.widthIn(max = 640.dp).fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Icon(painterResource(category.iconRes()), contentDescription = null, modifier = Modifier.size(24.dp))
+            Text(stringResource(category.titleRes()), style = MaterialTheme.typography.headlineSmall)
+            FilledTextField(
+                state = binding.editor, modifier = Modifier.fillMaxWidth(), enabled = !busy,
+                colors = FilledTextFieldDefaults.colors(sheetColor),
+                lineLimits = if (category == RuleCategory.REGEX) {
+                    TextFieldLineLimits.Default
+                } else {
+                    TextFieldLineLimits.SingleLine
+                },
+                label = { Text(stringResource(if (user) R.string.management_uid_label else category.titleRes())) },
+                keyboardOptions = KeyboardOptions(keyboardType = if (user) KeyboardType.Number else KeyboardType.Text),
+                errorMessage = state.error?.let { stringResource(it) },
+                supportingText = {
+                    if (state.error != null) Text(stringResource(state.error))
+                    else if (category == RuleCategory.KEYWORD || category == RuleCategory.REGEX) {
+                        CharacterCount(count = binding.editor.text.trim().length, limit = 30)
+                    }
+                },
+            )
+            state.profile?.let { profile ->
+                ConnectedListGroup {
+                    SegmentedListItem(
+                        shapes = connectedListItemShapes(0, 1),
+                        leadingContent = { AccountAvatar(profile.avatar) },
+                        supportingContent = { Text(stringResource(R.string.management_uid, profile.uid)) },
+                        content = { Text(profile.name.ifBlank { profile.uid.toString() }) },
+                    )
+                }
+            }
+            ShadowButton(
+                onClick = {
+                    binding.publish(onInput)
+                    onSubmit()
+                },
+                enabled = binding.editor.text.isNotBlank(),
+                loading = busy,
+                modifier = Modifier.fillMaxWidth().heightIn(min = ButtonDefaults.MediumContainerHeight),
+                shapes = pressToRoundButtonShapes(ButtonDefaults.MediumContainerHeight),
+            ) {
+                val action = if (user && state.profile == null) R.string.management_lookup else R.string.management_confirm_add
+                Text(stringResource(action))
+            }
+            ShadowFilledTonalButton(
+                onClick = onClose,
+                enabled = !busy,
+                modifier = Modifier.fillMaxWidth().heightIn(min = ButtonDefaults.MediumContainerHeight),
+                shapes = pressToRoundButtonShapes(ButtonDefaults.MediumContainerHeight),
+            ) {
+                Text(stringResource(R.string.account_cancel))
+            }
+        }
+    }
+}
+
+@Preview(name = "Blocking · Dark", uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Preview(name = "Blocking · 中文", locale = "zh")
+@Preview(name = "Blocking · Large text", fontScale = 2f)
+@Composable
+private fun BlockingPreview() {
+    KIRAKIRATheme(dynamicColor = false) {
+        BlockingOverviewScreen(SettingsLoad(RuleCategory.entries.associateWith { 0 }), true, {}, {}, {}, {})
+    }
+}
+
+@Preview(name = "Rules · Empty", locale = "zh")
+@Preview(name = "Rules · Empty · Large text", fontScale = 2f)
+@Composable
+private fun EmptyRulesPreview() {
+    KIRAKIRATheme(dynamicColor = false) {
+        RuleManagementScreen(
+            category = RuleCategory.BLOCK,
+            state = SettingsLoad(RulePage(emptyList(), 0, 1)),
+            signedIn = true,
+            busy = false,
+            message = null,
+            onBack = {},
+            onLogin = {},
+            onRefresh = {},
+            onMore = {},
+            onAdd = {},
+            onRemove = {},
+            onDismissMessage = {},
+        )
+    }
+}

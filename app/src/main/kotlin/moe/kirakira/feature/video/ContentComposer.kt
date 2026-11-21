@@ -1,0 +1,541 @@
+package moe.kirakira.feature.video
+
+import android.content.res.Configuration
+import androidx.annotation.StringRes
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.maxLength
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.constrainHeight
+import androidx.compose.ui.unit.dp
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
+import kotlin.math.abs
+import kotlin.math.roundToInt
+import moe.kirakira.R
+import moe.kirakira.ui.components.button.ButtonShadowBottomPadding
+import moe.kirakira.ui.components.button.CircularButtonContent
+import moe.kirakira.ui.components.button.ShadowButton
+import moe.kirakira.ui.components.button.buttonLoadingSemantics
+import moe.kirakira.ui.components.button.pressToRoundButtonShapes
+import moe.kirakira.ui.components.button.withEnabledAppearance
+import moe.kirakira.ui.components.form.ObserveTextFieldBinding
+import moe.kirakira.ui.components.form.TextFieldBinding
+import moe.kirakira.ui.theme.KIRAKIRATheme
+import moe.kirakira.ui.theme.materialColorShadow
+
+/** The composer applies Scaffold safe-drawing insets internally so its panel can reach the edges. */
+@Composable
+internal fun FloatingComposerLayout(
+    contentPadding: PaddingValues,
+    composer: @Composable (Dp) -> Unit,
+    modifier: Modifier = Modifier,
+    topPadding: Dp = 0.dp,
+    content: @Composable (Dp) -> Unit,
+) {
+    var composerHeight by remember { mutableIntStateOf(0) }
+    val height = with(LocalDensity.current) { composerHeight.toDp() }
+    val layoutDirection = LocalLayoutDirection.current
+    val bottomPadding = contentPadding.calculateBottomPadding()
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        val availableHeight = (maxHeight - topPadding - 12.dp).coerceAtLeast(0.dp)
+        Box(
+            Modifier.fillMaxSize().padding(
+                start = contentPadding.calculateStartPadding(layoutDirection),
+                end = contentPadding.calculateEndPadding(layoutDirection),
+            ),
+        ) {
+            content(maxOf(bottomPadding + 12.dp, height) + 12.dp)
+        }
+        Box(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .onSizeChanged { composerHeight = it.height },
+        ) {
+            composer(availableHeight)
+        }
+    }
+}
+
+/** Local editing state lives with the video, independently for comments and danmaku. */
+internal class ComposerState(
+    draft: String = "",
+    selection: TextRange = TextRange(draft.length),
+    private var clearRevision: Long = 0,
+) {
+    val binding = TextFieldBinding(draft, TextFieldState(draft, selection))
+    val editor get() = binding.editor
+    var category by mutableStateOf("happy")
+    var panelOpen by mutableStateOf(false)
+
+    fun acceptClear(draft: ComposerDraft) {
+        if (clearRevision == draft.clearRevision) return
+        clearRevision = draft.clearRevision
+        binding.replace(draft.text)
+    }
+
+    // Event-only observations; neither layout coordinates nor focus belong in saved editing state.
+    var inputFocused = false
+    var inputCoordinates: LayoutCoordinates? = null
+    var panelCoordinates: LayoutCoordinates? = null
+}
+
+@Composable
+internal fun rememberComposerState(videoId: Int, sessionRevision: Long, draft: ComposerDraft): ComposerState {
+    val state = rememberSaveable(
+        videoId, sessionRevision,
+        saver = listSaver(
+            save = { listOf(it.category, it.editor.selection.start, it.editor.selection.end) },
+            restore = { saved ->
+                ComposerState(
+                    draft.text,
+                    TextRange(
+                        (saved[1] as Int).coerceIn(0, draft.text.length),
+                        (saved[2] as Int).coerceIn(0, draft.text.length),
+                    ),
+                    draft.clearRevision,
+                ).apply { category = saved[0] as String }
+            },
+        ),
+    ) { ComposerState(draft.text, clearRevision = draft.clearRevision) }
+    SideEffect { state.acceptClear(draft) }
+    return state
+}
+
+@Composable
+internal fun ContentComposer(
+    draft: String,
+    @StringRes label: Int,
+    onDraft: (String) -> Unit,
+    onSend: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    busy: Boolean = false,
+    maxLength: Int = 2000,
+    maxLines: Int = 5,
+    state: ComposerState = remember { ComposerState(draft) },
+    active: Boolean = true,
+    availableHeight: Dp = 460.dp,
+    contentPadding: PaddingValues = PaddingValues(),
+    recent: List<String> = emptyList(),
+    onKaomojiInserted: (String) -> Unit = {},
+    onLogin: (() -> Unit)? = null,
+    sending: Boolean = false,
+    trailingIcon: (@Composable (() -> Unit) -> Unit)? = null,
+) {
+    val focus = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    // VideoPage already applies the top inset; this dock owns the side and bottom insets.
+    val layoutDirection = LocalLayoutDirection.current
+    val startPadding = contentPadding.calculateStartPadding(layoutDirection)
+    val endPadding = contentPadding.calculateEndPadding(layoutDirection)
+    val bottomPadding = contentPadding.calculateBottomPadding()
+    val inputPadding = PaddingValues(start = startPadding + 16.dp, end = endPadding + 16.dp)
+    if (onLogin != null) {
+        LaunchedEffect(state, active) {
+            state.panelOpen = false
+            if (active) {
+                focus.clearFocus(force = true)
+                keyboard?.hide()
+            }
+        }
+        val buttonHeight = ButtonDefaults.MediumContainerHeight
+        Box(
+            modifier
+                .fillMaxWidth()
+                .padding(bottom = bottomPadding + ButtonShadowBottomPadding)
+                .padding(inputPadding),
+            contentAlignment = Alignment.BottomCenter,
+        ) {
+            ShadowButton(
+                onClick = onLogin,
+                modifier = Modifier.widthIn(max = 640.dp).fillMaxWidth().heightIn(min = buttonHeight),
+                shapes = pressToRoundButtonShapes(buttonHeight),
+                contentPadding = ButtonDefaults.contentPaddingFor(buttonHeight),
+            ) {
+                Text(
+                    stringResource(R.string.content_login_to_interact),
+                    style = ButtonDefaults.textStyleFor(buttonHeight),
+                )
+            }
+        }
+        return
+    }
+    val containerColor = MaterialTheme.colorScheme.surface
+    val shadowElevation = 4.dp
+    val inputDescription = stringResource(label)
+    val requester = remember { FocusRequester() }
+    DisposableEffect(state) {
+        onDispose {
+            state.inputFocused = false
+            state.inputCoordinates = null
+            state.panelCoordinates = null
+        }
+    }
+    var tooLong by remember(state) { mutableStateOf(false) }
+    val field = state.editor
+    ObserveTextFieldBinding(
+        state.binding,
+        draft,
+        onEdit = {
+            tooLong = false
+            onDraft(it)
+        },
+        enabled = enabled && !busy && active,
+    )
+    LaunchedEffect(draft) { if (draft.isEmpty()) tooLong = false }
+    LaunchedEffect(active, enabled) {
+        if (!active || !enabled) state.panelOpen = false
+    }
+    var inputHeight by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    val panelContentHeight = (availableHeight - with(density) { inputHeight.toDp() } - 8.dp - bottomPadding)
+        .coerceIn(0.dp, 300.dp)
+    val keyboardVisible = WindowInsets.ime.getBottom(density) > 0
+    val panelOpen = state.panelOpen && active && enabled
+    val panelVisible = panelOpen && !keyboardVisible && panelContentHeight >= 96.dp
+    if (panelOpen) {
+        NavigationBackHandler(
+            state = rememberNavigationEventState(NavigationEventInfo.None),
+            onBackCompleted = { state.panelOpen = false },
+        )
+    }
+    val compact = field.text.isEmpty()
+    val expansion by animateFloatAsState(
+        targetValue = if (compact) 0f else 1f,
+        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+        visibilityThreshold = 0.0001f,
+        label = "Composer expansion",
+    )
+    val horizontalExpansion by animateFloatAsState(
+        targetValue = if (compact) 0f else 1f,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        visibilityThreshold = 0.0001f,
+        label = "Composer controls",
+    )
+    val inputShape = remember(expansion) { ComposerInputShape(expansion) }
+    val actions: @Composable () -> Unit = {
+        IconButton(
+            onClick = {
+                tooLong = false
+                if (panelOpen) {
+                    state.panelOpen = false
+                    requester.requestFocus()
+                    keyboard?.show()
+                } else {
+                    focus.clearFocus()
+                    keyboard?.hide()
+                    state.panelOpen = true
+                }
+            },
+            enabled = enabled && !busy,
+        ) {
+            Icon(
+                painterResource(if (panelOpen) R.drawable.ic_icon_keyboard else R.drawable.ic_custom_kaomoji),
+                stringResource(if (panelOpen) R.string.kaomoji_keyboard else R.string.kaomoji_title),
+                modifier = Modifier.size(24.dp),
+            )
+        }
+        if (trailingIcon != null) {
+            trailingIcon { state.panelOpen = false }
+        }
+    }
+    val send: @Composable () -> Unit = {
+        val sendEnabled = enabled && !busy && !sending && field.text.isNotBlank()
+        val showEnabledAppearance = sendEnabled || sending
+        val colors = IconButtonDefaults.filledIconButtonColors()
+        // Resolve disabled colors against the surface so scrolling content cannot show through.
+        val disabledContainerColor = colors.disabledContainerColor.compositeOver(containerColor)
+        val sendContainerColor = if (showEnabledAppearance) colors.containerColor else disabledContainerColor
+        val maximumChannel = maxOf(sendContainerColor.red, sendContainerColor.green, sendContainerColor.blue)
+        val minimumChannel = minOf(sendContainerColor.red, sendContainerColor.green, sendContainerColor.blue)
+        val sendShadow = if (showEnabledAppearance && maximumChannel - minimumChannel > 0.02f) {
+            Modifier.materialColorShadow(CircleShape, sendContainerColor) { shadowElevation.value }
+        } else {
+            Modifier.shadow(shadowElevation, CircleShape, clip = false)
+        }
+        FilledIconButton(
+            onClick = {
+                if (enabled && !busy && !sending && field.text.isNotBlank()) {
+                    state.binding.publish(onDraft)
+                    onSend()
+                }
+            },
+            enabled = sendEnabled,
+            modifier = Modifier
+                .size(56.dp)
+                .buttonLoadingSemantics(sending)
+                .then(sendShadow),
+            shape = CircleShape,
+            colors = colors.copy(
+                disabledContainerColor = disabledContainerColor,
+                disabledContentColor = colors.disabledContentColor.compositeOver(disabledContainerColor),
+            ).withEnabledAppearance(sending),
+        ) {
+            CircularButtonContent(sending) {
+                Icon(painterResource(R.drawable.ic_icon_send), stringResource(R.string.content_send))
+            }
+        }
+    }
+    Column(
+        modifier.fillMaxWidth(),
+    ) {
+        Box(
+            Modifier.fillMaxWidth().padding(inputPadding),
+            contentAlignment = Alignment.BottomCenter,
+        ) {
+            Row(
+                modifier = Modifier
+                    .widthIn(max = 640.dp)
+                    .fillMaxWidth()
+                    .onGloballyPositioned { state.inputCoordinates = it }
+                    .onSizeChanged { inputHeight = it.height },
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                Surface(
+                    modifier = Modifier.weight(1f),
+                    shape = inputShape,
+                    color = containerColor,
+                    shadowElevation = shadowElevation,
+                ) {
+                    ComposerInputLayout(
+                        expansion = expansion,
+                        horizontalExpansion = horizontalExpansion,
+                        actions = actions,
+                    ) {
+                        TextField(
+                            state = field,
+                            inputTransformation = InputTransformation.maxLength(maxLength),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(requester)
+                                .onFocusChanged {
+                                    state.inputFocused = it.isFocused
+                                    if (it.isFocused) state.panelOpen = false
+                                }
+                                .semantics { contentDescription = inputDescription },
+                            placeholder = { Text(inputDescription, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            enabled = enabled,
+                            readOnly = busy,
+                            lineLimits = TextFieldLineLimits.MultiLine(
+                                maxHeightInLines = if (compact) 1 else if (panelOpen) minOf(2, maxLines) else maxLines,
+                            ),
+                            shape = inputShape,
+                            isError = tooLong,
+                            supportingText = if (tooLong) {
+                                { Text(stringResource(R.string.kaomoji_too_long, maxLength)) }
+                            } else null,
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = containerColor,
+                                unfocusedContainerColor = containerColor,
+                                disabledContainerColor = containerColor,
+                                errorContainerColor = containerColor,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                                disabledIndicatorColor = Color.Transparent,
+                                errorIndicatorColor = Color.Transparent,
+                            ),
+                        )
+                    }
+                }
+                send()
+            }
+        }
+        // Keep the safe-area floor stable and the panel anchored to the bottom throughout the transition.
+        Box(Modifier.fillMaxWidth().heightIn(min = bottomPadding + 12.dp)) {
+            androidx.compose.animation.AnimatedVisibility(
+                visible = panelVisible,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .then(if (panelVisible) Modifier else Modifier.clearAndSetSemantics { }),
+                // Limit the content height below, leaving the animated size room for spring overshoot.
+                enter = expandVertically(
+                    animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                    expandFrom = Alignment.Top,
+                    clip = false,
+                ),
+                exit = shrinkVertically(
+                    animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                    shrinkTowards = Alignment.Top,
+                    clip = false,
+                ),
+                label = "Kaomoji panel",
+            ) {
+                KaomojiPicker(
+                    category = state.category,
+                    recent = recent,
+                    onCategory = { state.category = it },
+                    onSelect = { text ->
+                        if (panelVisible && !busy && enabled) {
+                            val start = field.selection.min
+                            val end = field.selection.max
+                            if (field.text.length - (end - start) + text.length <= maxLength) {
+                                field.edit {
+                                    replace(start, end, text)
+                                    selection = TextRange(start + text.length)
+                                }
+                                tooLong = false
+                                state.binding.publish(onDraft)
+                                onKaomojiInserted(text)
+                            } else tooLong = true
+                        }
+                    },
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .fillMaxWidth()
+                        .height(panelContentHeight + bottomPadding)
+                        .onGloballyPositioned { state.panelCoordinates = it },
+                    enabled = panelVisible && !busy,
+                    contentPadding = PaddingValues(start = startPadding, end = endPadding, bottom = bottomPadding),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ComposerInputLayout(
+    expansion: Float,
+    horizontalExpansion: Float,
+    actions: @Composable () -> Unit,
+    editor: @Composable () -> Unit,
+) {
+    // Keep the bottom-aligned controls steady while the surface expands above them.
+    val horizontalProgress = horizontalExpansion * abs(horizontalExpansion)
+    Layout(
+        content = {
+            Box(Modifier.animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())) { editor() }
+            Row(verticalAlignment = Alignment.CenterVertically) { actions() }
+        },
+    ) { measurables, constraints ->
+        val width = constraints.maxWidth
+        val compactInset = 4.dp.roundToPx()
+        val expandedInset = 8.dp.roundToPx()
+        val controlConstraints = constraints.copy(minWidth = 0, minHeight = 0)
+        val actionButtons = measurables[1].measure(
+            controlConstraints.copy(maxWidth = (width - expandedInset * 2).coerceAtLeast(0)),
+        )
+        val reservedWidth = actionButtons.width + compactInset
+        val editorWidth = (width - reservedWidth * (1f - horizontalProgress.coerceIn(0f, 1f)))
+            .roundToInt().coerceIn(0, width)
+        val input = measurables[0].measure(
+            constraints.copy(minWidth = editorWidth, maxWidth = editorWidth, minHeight = 0),
+        )
+        val controlsHeight = actionButtons.height
+        val inputHeight = maxOf(input.height, controlsHeight)
+        val height = constraints.constrainHeight(
+            (inputHeight + ((controlsHeight + expandedInset) * expansion).roundToInt())
+                .coerceAtLeast(maxOf(inputHeight, controlsHeight + compactInset * 2)),
+        )
+        val compactActionsX = width - reservedWidth
+        val actionOffset = compactActionsX + (expandedInset - compactActionsX) * horizontalProgress
+        // Resist overshoot smoothly inside the edge instead of hard-clamping the spring.
+        val actionsX = if (actionOffset < expandedInset) {
+            expandedInset / (1f + (expandedInset - actionOffset) / expandedInset)
+        } else actionOffset
+        layout(width, height) {
+            input.placeRelative(0, 0)
+            actionButtons.placeRelativeWithLayer(0, height - compactInset - actionButtons.height) {
+                translationX = if (layoutDirection == LayoutDirection.Ltr) actionsX else -actionsX
+            }
+        }
+    }
+}
+
+private class ComposerInputShape(private val expansion: Float) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val compactRadius = minOf(size.width, size.height) / 2f
+        val expandedRadius = with(density) { 28.dp.toPx() }.coerceAtMost(compactRadius)
+        val radius = (compactRadius + (expandedRadius - compactRadius) * expansion).coerceIn(0f, compactRadius)
+        return Outline.Rounded(RoundRect(0f, 0f, size.width, size.height, CornerRadius(radius)))
+    }
+}
+
+@Preview(name = "Composer · Light", showBackground = true, widthDp = 360)
+@Preview(name = "Composer · Dark", uiMode = Configuration.UI_MODE_NIGHT_YES, widthDp = 360)
+@Preview(name = "Composer · Large text", fontScale = 2f, widthDp = 320)
+@Composable
+private fun ContentComposerPreview() {
+    KIRAKIRATheme {
+        ContentComposer("", R.string.comment_write, {}, {})
+    }
+}

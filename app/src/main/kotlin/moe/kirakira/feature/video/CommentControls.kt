@@ -1,0 +1,183 @@
+package moe.kirakira.feature.video
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FloatingToolbarDefaults
+import androidx.compose.material3.HorizontalFloatingToolbar
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
+import moe.kirakira.R
+import moe.kirakira.ui.components.button.FlatTextButton
+import moe.kirakira.ui.components.button.ShadowButton
+import moe.kirakira.ui.components.form.FilledTextField
+import moe.kirakira.ui.components.overlay.ActionDialog
+import moe.kirakira.ui.components.text.AnimatedCountLabel
+import moe.kirakira.ui.components.text.AnimatedPageCount
+import moe.kirakira.ui.theme.BarShadowElevation
+
+@Composable
+internal fun CommentToolbar(
+    currentPage: Int,
+    totalPages: Int,
+    enabled: Boolean,
+    onPage: (Int) -> Unit,
+    onOpenJump: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val pageTemplate = stringResource(R.string.video_comments_page_count)
+    val pageLabel = pageTemplate.format(currentPage.toString(), totalPages.toString())
+    val pageDescription = stringResource(R.string.video_comments_page_description, currentPage, totalPages)
+    val pageTextStyle = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
+    val pageButtonPadding = ButtonDefaults.TextButtonContentPadding
+    val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val pageTextHeight = with(density) {
+        textMeasurer.measure(pageLabel, pageTextStyle, softWrap = false, maxLines = 1).size.height.toDp()
+    }
+    val toolbarHeight = (
+        pageTextHeight + pageButtonPadding.calculateTopPadding() + pageButtonPadding.calculateBottomPadding()
+    ).coerceAtLeast(48.dp)
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    HorizontalFloatingToolbar(
+        expanded = true,
+        // Constrain the official 64dp minimum to a compact height that follows font scaling.
+        modifier = modifier.height(toolbarHeight),
+        colors = FloatingToolbarDefaults.standardFloatingToolbarColors(
+            toolbarContainerColor = MaterialTheme.colorScheme.surface,
+            toolbarContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        ),
+        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
+        expandedShadowElevation = BarShadowElevation,
+        collapsedShadowElevation = BarShadowElevation,
+    ) {
+        IconButton(onClick = { onPage(currentPage - 1) }, enabled = enabled && currentPage > 1) {
+            Icon(
+                painterResource(R.drawable.ic_icon_chevron_right),
+                contentDescription = stringResource(R.string.video_comments_previous_page),
+                modifier = Modifier.graphicsLayer { rotationZ = if (rtl) 0f else 180f },
+            )
+        }
+        FlatTextButton(
+            onClick = onOpenJump,
+            enabled = enabled,
+            modifier = Modifier.weight(1f, fill = false).semantics { contentDescription = pageDescription },
+            contentPadding = pageButtonPadding,
+        ) {
+            AnimatedPageCount(
+                currentPage = currentPage,
+                totalPages = totalPages,
+                template = pageTemplate,
+                style = pageTextStyle,
+            )
+        }
+        IconButton(onClick = { onPage(currentPage + 1) }, enabled = enabled && currentPage < totalPages) {
+            Icon(
+                painterResource(R.drawable.ic_icon_chevron_right),
+                contentDescription = stringResource(R.string.video_comments_next_page),
+                modifier = Modifier.graphicsLayer { rotationZ = if (rtl) 180f else 0f },
+            )
+        }
+    }
+}
+
+@Composable
+internal fun CommentJumpDialog(
+    currentPage: Int,
+    totalPages: Int,
+    enabled: Boolean,
+    loading: Boolean,
+    errorMessage: String?,
+    onDismiss: () -> Unit,
+    onJump: (Int) -> Unit,
+) {
+    val input = rememberSaveable(saver = Saver(
+        save = { it.text.toString() },
+        restore = { TextFieldState(it) },
+    )) { TextFieldState(currentPage.toString()) }
+    val target = input.text.toString().toIntOrNull()
+    val valid = enabled && !loading && target != null && target in 1..totalPages
+    val keyboard = LocalSoftwareKeyboardController.current
+    val jump = {
+        val page = input.text.toString().toIntOrNull()
+        if (enabled && !loading && page != null && page in 1..totalPages) {
+            keyboard?.hide()
+            onJump(page)
+        }
+    }
+    val jumpLabel = stringResource(R.string.video_comments_jump)
+    ActionDialog(
+        onDismissRequest = { if (!loading) onDismiss() },
+        icon = { Icon(painterResource(R.drawable.ic_icon_keyboard), contentDescription = null) },
+        title = { Text(stringResource(R.string.video_comments_jump_title)) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                FilledTextField(
+                    state = input,
+                    modifier = Modifier.fillMaxWidth(),
+                    readOnly = loading,
+                    label = { Text(stringResource(R.string.video_comments_page)) },
+                    lineLimits = TextFieldLineLimits.SingleLine,
+                    isError = input.text.isNotEmpty() && (target == null || target !in 1..totalPages),
+                    supportingText = {
+                        AnimatedCountLabel(totalPages.toLong(), stringResource(R.string.video_comments_jump_range))
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Go),
+                    onKeyboardAction = { jump() },
+                )
+                if (errorMessage != null) {
+                    Text(
+                        text = errorMessage,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                }
+            }
+        },
+        actions = {
+            ShadowButton(onClick = jump, enabled = valid, loading = loading) {
+                Text(jumpLabel)
+            }
+            FlatTextButton(
+                contentPadding = ButtonDefaults.ContentPadding,
+                enabled = !loading,
+                onClick = onDismiss,
+            ) {
+                Text(stringResource(R.string.video_comments_cancel))
+            }
+        },
+    )
+}

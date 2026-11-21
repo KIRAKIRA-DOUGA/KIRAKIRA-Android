@@ -1,0 +1,113 @@
+package moe.kirakira.feature.settings.playback
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
+import moe.kirakira.R
+import moe.kirakira.data.settings.DanmakuSettingRanges
+import moe.kirakira.data.settings.DanmakuSettings
+import moe.kirakira.feature.settings.SettingsDefaults
+import moe.kirakira.feature.settings.SettingsMasterSwitchItem
+import moe.kirakira.feature.settings.SettingsPage
+import moe.kirakira.feature.settings.SettingsSection
+import moe.kirakira.feature.settings.SettingsSliderItem
+import moe.kirakira.feature.settings.SettingsSwitchItem
+import moe.kirakira.ui.components.list.ConnectedListGroup
+import moe.kirakira.ui.theme.KIRAKIRATheme
+
+@Composable
+internal fun DanmakuSettingsScreen(
+    settings: DanmakuSettings?,
+    onChange: (DanmakuSettings) -> Unit,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    SettingsPage(
+        title = stringResource(R.string.settings_danmaku),
+        onBack = onBack,
+        shadingIcon = R.drawable.ic_custom_danmaku,
+        modifier = modifier,
+    ) {
+        DanmakuSettingsContent(settings, onChange)
+    }
+}
+
+@Composable
+internal fun DanmakuSettingsContent(
+    settings: DanmakuSettings?,
+    onChange: (DanmakuSettings) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val value = settings ?: DanmakuSettings()
+    val ready = settings != null
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(SettingsDefaults.SectionSpacing)) {
+        ConnectedListGroup {
+            SettingsMasterSwitchItem(
+                title = stringResource(R.string.danmaku_display),
+                checked = value.enabled,
+                onCheckedChange = { onChange(value.copy(enabled = it)) },
+                icon = R.drawable.ic_custom_danmaku,
+                enabled = ready,
+            )
+        }
+        SettingsSection(title = stringResource(R.string.danmaku_section_display)) {
+            SettingsSliderItem(
+                title = stringResource(R.string.danmaku_opacity),
+                value = value.opacityPercent, range = DanmakuSettingRanges.opacity.range, step = DanmakuSettingRanges.opacity.step,
+                valueLabel = stringResource(R.string.danmaku_percent, value.opacityPercent),
+                onValueChange = { onChange(value.copy(opacityPercent = it)) },
+                index = 0, count = 4, icon = R.drawable.ic_icon_opacity, enabled = ready,
+            )
+            SettingsSliderItem(
+                title = stringResource(R.string.danmaku_font_scale),
+                value = value.fontScalePercent, range = DanmakuSettingRanges.fontScale.range, step = DanmakuSettingRanges.fontScale.step,
+                valueLabel = stringResource(R.string.danmaku_percent, value.fontScalePercent),
+                onValueChange = { onChange(value.copy(fontScalePercent = it)) },
+                index = 1, count = 4, icon = R.drawable.ic_icon_font_size, enabled = ready,
+            )
+            SettingsSliderItem(
+                title = stringResource(R.string.danmaku_area),
+                value = value.areaPercent, range = DanmakuSettingRanges.area.range, step = DanmakuSettingRanges.area.step,
+                valueLabel = stringResource(R.string.danmaku_percent, value.areaPercent),
+                onValueChange = { onChange(value.copy(areaPercent = it)) },
+                index = 2, count = 4, icon = R.drawable.ic_icon_fit, enabled = ready,
+            )
+            SettingsSliderItem(
+                title = stringResource(R.string.danmaku_speed),
+                value = value.speedTenths, range = DanmakuSettingRanges.speed.range, step = DanmakuSettingRanges.speed.step,
+                valueLabel = stringResource(R.string.danmaku_speed_value, value.speedTenths / 10f),
+                onValueChange = { onChange(value.copy(speedTenths = it)) },
+                index = 3, count = 4, icon = R.drawable.ic_icon_speed, enabled = ready,
+            )
+        }
+        SettingsSection(title = stringResource(R.string.danmaku_section_types)) {
+            SettingsSwitchItem(
+                stringResource(R.string.danmaku_style_rtl), value.showRtl, { onChange(value.copy(showRtl = it)) },
+                0, 4, icon = R.drawable.ic_icon_danmaku_rtl, enabled = ready,
+            )
+            SettingsSwitchItem(
+                stringResource(R.string.danmaku_style_top), value.showTop, { onChange(value.copy(showTop = it)) },
+                1, 4, icon = R.drawable.ic_icon_danmaku_top, enabled = ready,
+            )
+            SettingsSwitchItem(
+                stringResource(R.string.danmaku_style_bottom), value.showBottom,
+                { onChange(value.copy(showBottom = it)) },
+                2, 4, icon = R.drawable.ic_icon_danmaku_bottom, enabled = ready,
+            )
+            SettingsSwitchItem(
+                stringResource(R.string.danmaku_style_ltr), value.showLtr, { onChange(value.copy(showLtr = it)) },
+                3, 4, icon = R.drawable.ic_icon_danmaku_ltr, enabled = ready,
+            )
+        }
+    }
+}
+
+@Preview(locale = "zh", showBackground = true)
+@Preview(locale = "en", showBackground = true)
+@Composable
+private fun DanmakuSettingsPreview() {
+    KIRAKIRATheme { DanmakuSettingsScreen(DanmakuSettings(), {}, {}) }
+}
