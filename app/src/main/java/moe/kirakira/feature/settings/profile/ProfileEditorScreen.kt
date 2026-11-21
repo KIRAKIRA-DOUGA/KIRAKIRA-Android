@@ -16,8 +16,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
@@ -27,7 +27,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonShapes
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SelectableDates
@@ -41,6 +40,7 @@ import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -72,8 +72,8 @@ import moe.kirakira.feature.settings.SettingsFormCard
 import moe.kirakira.feature.settings.SettingsScaffold
 import moe.kirakira.feature.settings.SettingsSection
 import moe.kirakira.feature.settings.settingsSearchAnchor
-import moe.kirakira.ui.components.AppChipDefaults
 import moe.kirakira.ui.components.AccountAvatar
+import moe.kirakira.ui.components.AppChipDefaults
 import moe.kirakira.ui.components.CharacterCount
 import moe.kirakira.ui.components.ContentLoadingView
 import moe.kirakira.ui.components.ContentUnavailableAction
@@ -81,14 +81,20 @@ import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.FilledTextField
 import moe.kirakira.ui.components.FlatTextButton
+import moe.kirakira.ui.components.LocalTextFieldEdits
 import moe.kirakira.ui.components.MenuPopup
+import moe.kirakira.ui.components.ObserveTextFieldBinding
 import moe.kirakira.ui.components.ShadowFilledIconButton
+import moe.kirakira.ui.components.TextFieldBinding
+import moe.kirakira.ui.components.TextFieldEdits
 import moe.kirakira.ui.components.UsernameText
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.dateOnlyText
 import moe.kirakira.ui.components.dismissKeyboardOnBlankTap
 import moe.kirakira.ui.components.menuItemColors
+import moe.kirakira.ui.components.menuItemShapes
 import moe.kirakira.ui.components.messageRes
+import moe.kirakira.ui.components.rememberBoundTextField
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorDefaults
 
@@ -105,7 +111,14 @@ internal fun ProfileEditorScreen(
     onRemoveLabel: (Int) -> Unit,
     modifier: Modifier = Modifier,
     snackbar: SnackbarHostState = remember { SnackbarHostState() },
+    edits: TextFieldEdits = remember { TextFieldEdits() },
 ) {
+    val labelInput = remember { TextFieldBinding(state.labelInput) }
+    fun addLabel() {
+        if (!state.editable) return
+        onAddLabel(labelInput.editor.text.toString())
+        labelInput.replace("")
+    }
     val saveLabel = stringResource(
         when {
             state.saveUnconfirmed -> R.string.security_check_status
@@ -116,7 +129,10 @@ internal fun ProfileEditorScreen(
     val saveDescription = if (state.completionOnly && !state.saveUnconfirmed) stringResource(R.string.profile_finish_save) else null
     SettingsScaffold(
         title = stringResource(R.string.settings_profile),
-        onBack = onBack,
+        onBack = {
+            edits.flush()
+            onBack()
+        },
         shadingIcon = R.drawable.ic_icon_badge,
         modifier = modifier.dismissKeyboardOnBlankTap(),
         imePadding = true,
@@ -124,8 +140,12 @@ internal fun ProfileEditorScreen(
         actions = {
             if (state.draft != null) {
                 FlatTextButton(
-                    onClick = onSave,
-                    enabled = state.dirty && !state.loading && !state.preparingImage,
+                    onClick = {
+                        edits.flush()
+                        if (labelInput.editor.text.isNotBlank()) addLabel()
+                        onSave()
+                    },
+                    enabled = (state.dirty || labelInput.editor.text.isNotBlank()) && !state.loading && !state.preparingImage,
                     loading = state.busy,
                 ) {
                     Text(
@@ -153,26 +173,31 @@ internal fun ProfileEditorScreen(
                 primaryAction = ContentUnavailableAction(stringResource(R.string.auth_sign_in), onLogin),
                 modifier = Modifier.padding(padding),
             )
-            else -> SettingsColumn(padding = padding) {
-                ProfileIdentity(state, onPickAvatar)
-                if (state.error != null) SettingsErrorCard(stringResource(
-                    when {
-                        state.saveUnconfirmed -> R.string.profile_save_unconfirmed
-                        state.completionOnly -> R.string.profile_saved_pending
-                        else -> state.error.messageRes()
-                    }))
-                SettingsSection {
-                    SettingsFormCard {
-                        ProfileTextField(state, "username", state.draft.username,
-                            stringResource(R.string.auth_username), R.drawable.ic_icon_at, onEdit)
-                        ProfileTextField(state, "nickname", state.draft.nickname,
-                            stringResource(R.string.auth_nickname), R.drawable.ic_icon_person, onEdit)
-                        ProfileTextField(state, "signature", state.draft.signature,
-                            stringResource(R.string.profile_bio), R.drawable.ic_icon_edit, onEdit, multiline = true)
+            else -> CompositionLocalProvider(LocalTextFieldEdits provides edits) {
+                SettingsColumn(padding = padding) {
+                    ProfileIdentity(state) {
+                        edits.flush()
+                        onPickAvatar()
                     }
+                    if (state.error != null) SettingsErrorCard(stringResource(
+                        when {
+                            state.saveUnconfirmed -> R.string.profile_save_unconfirmed
+                            state.completionOnly -> R.string.profile_saved_pending
+                            else -> state.error.messageRes()
+                        }))
+                    SettingsSection {
+                        SettingsFormCard {
+                            ProfileTextField(state, "username", state.draft.username,
+                                stringResource(R.string.auth_username), R.drawable.ic_icon_at, onEdit)
+                            ProfileTextField(state, "nickname", state.draft.nickname,
+                                stringResource(R.string.auth_nickname), R.drawable.ic_icon_person, onEdit)
+                            ProfileTextField(state, "signature", state.draft.signature,
+                                stringResource(R.string.profile_bio), R.drawable.ic_icon_edit, onEdit, multiline = true)
+                        }
+                    }
+                    PersonalInformation(state, onEdit)
+                    ProfileLabels(state, labelInput, ::addLabel, onRemoveLabel, onEdit)
                 }
-                PersonalInformation(state, onEdit)
-                ProfileLabels(state, onAddLabel, onRemoveLabel, onEdit)
             }
         }
     }
@@ -249,10 +274,10 @@ private fun ProfileTextField(
 ) {
     val error = state.fieldErrors[field]
     FilledTextField(
-        value = value, onValueChange = { onEdit(field, it) },
+        state = rememberBoundTextField(value, { onEdit(field, it) }, state.editable),
         modifier = Modifier.settingsSearchAnchor(label).fillMaxWidth(), enabled = state.editable,
         label = { Text(label) }, leadingIcon = { ProfileIcon(icon) },
-        singleLine = !multiline, minLines = if (multiline) 3 else 1, maxLines = if (multiline) 6 else 1,
+        lineLimits = if (multiline) TextFieldLineLimits.MultiLine(3, 6) else TextFieldLineLimits.SingleLine,
         errorMessage = error?.let { stringResource(it) },
         supportingText = if (error != null || multiline) ({
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -314,7 +339,7 @@ private fun PersonalInformation(state: ProfileEditorState, onEdit: (String, Stri
                         onDismissRequest = { showGender = false },
                     ) {
                         val colors = menuItemColors()
-                        val shapes = MenuDefaults.itemShapes()
+                        val shapes = menuItemShapes()
                         genderValues.forEachIndexed { index, value ->
                             SelectableDropdownMenuItem(
                                 selected = draft.gender == value,
@@ -367,38 +392,59 @@ private fun BirthdayDialog(value: String, onDismiss: () -> Unit, onSelect: (Stri
 }
 
 @Composable
-private fun ProfileLabels(state: ProfileEditorState, onAdd: (String) -> Unit, onRemove: (Int) -> Unit,
-    onEdit: (String, String) -> Unit) {
-    val input = state.labelInput
-    fun add() { onAdd(input) }
-    SettingsSection { SettingsFormCard {
-        if (!state.draft?.labels.isNullOrEmpty()) FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            state.draft.labels.forEachIndexed { index, label ->
-                key(label.id, label.labelName) {
-                    InputChip(selected = false, onClick = { onRemove(index) }, enabled = state.editable,
-                        shape = CircleShape,
-                        border = null,
-                        colors = AppChipDefaults.inputColors(),
-                        label = { Text(label.labelName, maxLines = 3, overflow = TextOverflow.Ellipsis) },
-                        trailingIcon = { ProfileIcon(R.drawable.ic_icon_close,
-                            stringResource(R.string.profile_remove_label, label.labelName)) })
+private fun ProfileLabels(
+    state: ProfileEditorState,
+    binding: TextFieldBinding,
+    onAdd: () -> Unit,
+    onRemove: (Int) -> Unit,
+    onEdit: (String, String) -> Unit,
+) {
+    val labels = state.draft?.labels.orEmpty()
+    ObserveTextFieldBinding(binding, state.labelInput, { onEdit("labelInput", it) }, state.editable)
+    SettingsSection {
+        // The first chip row already reserves space above its visible pills for touch targets.
+        SettingsFormCard(topPadding = if (labels.isEmpty()) 16.dp else 8.dp) {
+            if (labels.isNotEmpty()) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    labels.forEachIndexed { index, label ->
+                        key(label.id, label.labelName) {
+                            InputChip(
+                                selected = false,
+                                onClick = { onRemove(index) },
+                                enabled = state.editable,
+                                shape = CircleShape,
+                                border = null,
+                                colors = AppChipDefaults.inputColors(),
+                                label = { Text(label.labelName, maxLines = 3, overflow = TextOverflow.Ellipsis) },
+                                trailingIcon = {
+                                    ProfileIcon(R.drawable.ic_icon_close,
+                                        stringResource(R.string.profile_remove_label, label.labelName))
+                                },
+                            )
+                        }
+                    }
                 }
             }
+            FilledTextField(
+                state = binding.editor,
+                modifier = Modifier.settingsSearchAnchor(stringResource(R.string.profile_add_label)).fillMaxWidth(),
+                enabled = state.editable,
+                label = { Text(stringResource(R.string.profile_add_label)) },
+                lineLimits = TextFieldLineLimits.SingleLine,
+                leadingIcon = { ProfileIcon(R.drawable.ic_icon_tag) },
+                trailingIcon = {
+                    IconButton(onClick = onAdd, enabled = state.editable && binding.editor.text.isNotBlank()) {
+                        ProfileIcon(R.drawable.ic_icon_add, stringResource(R.string.profile_add_label))
+                    }
+                },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                onKeyboardAction = { onAdd() },
+            )
         }
-        FilledTextField(
-            value = input,
-            onValueChange = { onEdit("labelInput", it) },
-            modifier = Modifier.settingsSearchAnchor(stringResource(R.string.profile_add_label)).fillMaxWidth(),
-            enabled = state.editable,
-            label = { Text(stringResource(R.string.profile_add_label)) }, singleLine = true,
-            leadingIcon = { ProfileIcon(R.drawable.ic_icon_tag) },
-            trailingIcon = { IconButton(onClick = ::add, enabled = state.editable && input.isNotBlank()) {
-                ProfileIcon(R.drawable.ic_icon_add, stringResource(R.string.profile_add_label))
-            } }, keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { add() }))
-    } }
+    }
 }
 
 @Composable

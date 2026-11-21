@@ -7,8 +7,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FloatingToolbarDefaults
@@ -18,10 +19,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
@@ -122,14 +121,18 @@ internal fun CommentJumpDialog(
     onDismiss: () -> Unit,
     onJump: (Int) -> Unit,
 ) {
-    var input by rememberSaveable { mutableStateOf(currentPage.toString()) }
-    val target = input.toIntOrNull()
+    val input = rememberSaveable(saver = Saver(
+        save = { it.text.toString() },
+        restore = { TextFieldState(it) },
+    )) { TextFieldState(currentPage.toString()) }
+    val target = input.text.toString().toIntOrNull()
     val valid = enabled && !loading && target != null && target in 1..totalPages
     val keyboard = LocalSoftwareKeyboardController.current
     val jump = {
-        if (valid) {
+        val page = input.text.toString().toIntOrNull()
+        if (enabled && !loading && page != null && page in 1..totalPages) {
             keyboard?.hide()
-            onJump(target)
+            onJump(page)
         }
     }
     val jumpLabel = stringResource(R.string.video_comments_jump)
@@ -143,18 +146,17 @@ internal fun CommentJumpDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 FilledTextField(
-                    value = input,
-                    onValueChange = { input = it },
+                    state = input,
                     modifier = Modifier.fillMaxWidth(),
                     readOnly = loading,
                     label = { Text(stringResource(R.string.video_comments_page)) },
-                    singleLine = true,
-                    isError = input.isNotEmpty() && (target == null || target !in 1..totalPages),
+                    lineLimits = TextFieldLineLimits.SingleLine,
+                    isError = input.text.isNotEmpty() && (target == null || target !in 1..totalPages),
                     supportingText = {
                         AnimatedCountLabel(totalPages.toLong(), stringResource(R.string.video_comments_jump_range))
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Go),
-                    keyboardActions = KeyboardActions(onGo = { jump() }),
+                    onKeyboardAction = { jump() },
                 )
                 if (errorMessage != null) {
                     Text(

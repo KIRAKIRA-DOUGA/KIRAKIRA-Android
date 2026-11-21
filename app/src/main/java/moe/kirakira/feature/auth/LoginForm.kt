@@ -3,8 +3,8 @@ package moe.kirakira.feature.auth
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -24,6 +24,7 @@ import moe.kirakira.R
 import moe.kirakira.ui.components.AccountFlowDefaults
 import moe.kirakira.ui.components.FilledTextField
 import moe.kirakira.ui.components.PasswordTextField
+import moe.kirakira.ui.components.rememberBoundTextField
 
 @Composable
 internal fun LoginForm(
@@ -44,8 +45,7 @@ internal fun LoginForm(
     val passwordError = state.fieldErrors[AuthField.PASSWORD]
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(AccountFlowDefaults.FieldSpacing)) {
         FilledTextField(
-            value = state.email,
-            onValueChange = onEmailChange,
+            state = rememberBoundTextField(state.email, onEmailChange, state.canEdit && isActive),
             modifier = Modifier
                 .fillMaxWidth()
                 .focusRequester(emailFocusRequester)
@@ -53,7 +53,7 @@ internal fun LoginForm(
                 .semantics { contentType = ContentType.EmailAddress + ContentType.Username },
             enabled = state.canEdit && isActive,
             label = { Text(stringResource(R.string.auth_email)) },
-            singleLine = true,
+            lineLimits = TextFieldLineLimits.SingleLine,
             errorMessage = emailError?.let { stringResource(it) },
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.None,
@@ -61,13 +61,12 @@ internal fun LoginForm(
                 keyboardType = KeyboardType.Email,
                 imeAction = ImeAction.Next,
             ),
-            keyboardActions = KeyboardActions(onNext = { passwordFocusRequester.requestFocus() }),
+            onKeyboardAction = { passwordFocusRequester.requestFocus() },
         )
         PasswordTextField(
-            value = state.password,
+            state = rememberBoundTextField(state.password, onPasswordChange, state.canEdit && isActive),
             passwordVisible = passwordVisible,
             onPasswordVisibilityChange = onPasswordVisibilityChange,
-            onValueChange = onPasswordChange,
             modifier = Modifier
                 .fillMaxWidth()
                 .focusRequester(passwordFocusRequester)
@@ -88,10 +87,10 @@ internal fun LoginForm(
                 keyboardType = KeyboardType.Password,
                 imeAction = if (state.step == AuthStep.REGISTER_CREDENTIALS) ImeAction.Next else ImeAction.Done,
             ),
-            keyboardActions = KeyboardActions(
-                onNext = { focusManager.moveFocus(FocusDirection.Next) },
-                onDone = { if (state.canSubmit) onSubmit() },
-            ),
+            onKeyboardAction = {
+                if (state.step == AuthStep.REGISTER_CREDENTIALS) focusManager.moveFocus(FocusDirection.Next)
+                else onSubmit()
+            },
         )
     }
 }

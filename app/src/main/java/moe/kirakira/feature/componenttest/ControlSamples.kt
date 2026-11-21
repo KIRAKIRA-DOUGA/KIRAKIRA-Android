@@ -3,11 +3,17 @@ package moe.kirakira.feature.componenttest
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.byValue
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Checkbox
@@ -36,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -45,6 +52,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import moe.kirakira.R
 import moe.kirakira.ui.components.AppChipDefaults
+import moe.kirakira.ui.components.CharacterCount
 import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.ui.components.FilledTextField
 import moe.kirakira.ui.components.FilledTextFieldDefaults
@@ -149,57 +157,84 @@ internal fun SliderSamples() {
 @Composable
 internal fun InputSamples(component: GalleryComponent, parentContainerColor: Color) {
     var showError by rememberSaveable { mutableStateOf(false) }
-    var value by remember { mutableStateOf("") }
+    val editor = remember(component) { TextFieldState() }
     val colors = FilledTextFieldDefaults.colors(parentContainerColor)
-    SampleSection(R.string.component_gallery_variant_states) {
-        SampleRow {
-            Text("错误状态", Modifier.align(Alignment.CenterVertically))
-            Switch(
-                checked = showError,
-                onCheckedChange = { showError = it },
-                modifier = Modifier.semantics { contentDescription = "输入框错误状态" },
-            )
-        }
-        when (component) {
-            GalleryComponent.TEXT_FIELD -> {
-                FilledTextField(
-                    value = value, onValueChange = { value = it },
-                    modifier = Modifier.fillMaxWidth(), colors = colors, label = { Text("普通输入框") },
-                    errorMessage = if (showError) "输入内容有误" else null,
-                )
-                FilledTextField(
-                    value = "禁用内容", onValueChange = {}, enabled = false,
-                    modifier = Modifier.fillMaxWidth(), colors = colors, label = { Text("禁用输入框") },
-                )
-                FilledTextField(
-                    value = "只读内容", onValueChange = {}, readOnly = true,
-                    modifier = Modifier.fillMaxWidth(), colors = colors, label = { Text("只读输入框") },
-                )
-            }
-            GalleryComponent.PASSWORD -> {
-                var visible by remember { mutableStateOf(false) }
-                val lifecycle = LocalLifecycleOwner.current.lifecycle
-                DisposableEffect(lifecycle) {
-                    val observer = LifecycleEventObserver { _, event ->
-                        if (event == Lifecycle.Event.ON_STOP) visible = false
+    if (component == GalleryComponent.TEXT_FIELD) {
+        SampleSection(R.string.component_gallery_variant_editable) {
+            InputErrorToggle(showError) { showError = it }
+            FilledTextField(
+                state = editor,
+                inputTransformation = InputTransformation.byValue { _, proposed -> proposed.take(SAMPLE_TEXT_LIMIT) },
+                modifier = Modifier.fillMaxWidth(),
+                colors = colors,
+                label = { Text("普通输入框") },
+                errorMessage = if (showError) "输入内容有误" else null,
+                supportingText = {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (showError) {
+                            Text("输入内容有误", Modifier.weight(1f))
+                        } else {
+                            Spacer(Modifier.weight(1f))
+                        }
+                        CharacterCount(count = editor.text.length, limit = SAMPLE_TEXT_LIMIT)
                     }
-                    lifecycle.addObserver(observer)
-                    onDispose { lifecycle.removeObserver(observer) }
-                }
-                PasswordTextField(
-                    value = value, onValueChange = { value = it },
-                    passwordVisible = visible, onPasswordVisibilityChange = { visible = !visible },
-                    modifier = Modifier.fillMaxWidth(), colors = colors, label = { Text("密码") },
-                    errorMessage = if (showError) "密码格式有误" else null,
-                )
-            }
-            GalleryComponent.OTP -> OtpInputField(
-                value = value, onValueChange = { value = it },
-                label = "六位验证码", enabled = true, modifier = Modifier.fillMaxWidth(),
-                error = if (showError) "验证码有误" else null, colors = colors,
+                },
             )
-            else -> error("Not an input sample: $component")
         }
+        SampleSection(R.string.component_gallery_variant_read_only_disabled) {
+            FilledTextField(
+                state = remember { TextFieldState("只读内容") }, readOnly = true,
+                modifier = Modifier.fillMaxWidth(), colors = colors, label = { Text("只读输入框") },
+            )
+            FilledTextField(
+                state = remember { TextFieldState("禁用内容") }, enabled = false,
+                modifier = Modifier.fillMaxWidth(), colors = colors, label = { Text("禁用输入框") },
+            )
+        }
+    } else {
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            InputErrorToggle(showError) { showError = it }
+            when (component) {
+                GalleryComponent.PASSWORD -> {
+                    var visible by remember { mutableStateOf(false) }
+                    val lifecycle = LocalLifecycleOwner.current.lifecycle
+                    DisposableEffect(lifecycle) {
+                        val observer = LifecycleEventObserver { _, event ->
+                            if (event == Lifecycle.Event.ON_STOP) visible = false
+                        }
+                        lifecycle.addObserver(observer)
+                        onDispose { lifecycle.removeObserver(observer) }
+                    }
+                    PasswordTextField(
+                        state = editor,
+                        passwordVisible = visible, onPasswordVisibilityChange = { visible = !visible },
+                        modifier = Modifier.fillMaxWidth(), colors = colors, label = { Text("密码") },
+                        errorMessage = if (showError) "密码格式有误" else null,
+                    )
+                }
+                GalleryComponent.OTP -> OtpInputField(
+                    state = editor,
+                    label = "六位验证码", enabled = true, modifier = Modifier.fillMaxWidth(),
+                    error = if (showError) "验证码有误" else null, colors = colors,
+                )
+                else -> error("Not an input sample: $component")
+            }
+        }
+    }
+}
+
+private const val SAMPLE_TEXT_LIMIT = 200
+
+@Composable
+private fun InputErrorToggle(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+            .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(stringResource(R.string.component_gallery_show_error), Modifier.weight(1f))
+        Switch(checked = checked, onCheckedChange = null)
     }
 }
 

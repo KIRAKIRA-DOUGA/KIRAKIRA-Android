@@ -1,8 +1,9 @@
 package moe.kirakira.feature.settings.security
 
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.KeyboardActionHandler
+import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -36,6 +37,7 @@ import moe.kirakira.ui.components.FormTextButton
 import moe.kirakira.ui.components.OtpInputField
 import moe.kirakira.ui.components.OtpInputType
 import moe.kirakira.ui.components.PasswordTextField
+import moe.kirakira.ui.components.rememberBoundTextField
 
 @Composable
 internal fun SecurityCurrentEmail(email: String, modifier: Modifier = Modifier) {
@@ -69,10 +71,10 @@ internal fun SecurityTextField(
             focusRequester.requestFocus()
         }
     }
+    val editor = rememberBoundTextField(state.form[field], { onEdit(field, it) }, isActive && enabled)
     if (field == SecurityField.CODE || field == SecurityField.NEW_EMAIL_CODE) {
         OtpInputField(
-            value = state.form[field],
-            onValueChange = { onEdit(field, it) },
+            state = editor,
             label = stringResource(label),
             enabled = isActive && enabled,
             modifier = modifier.focusRequester(focusRequester),
@@ -100,37 +102,32 @@ internal fun SecurityTextField(
         keyboardType = keyboardType,
         imeAction = if (onDone != null) ImeAction.Done else ImeAction.Next,
     )
-    val actions = KeyboardActions(
-        onNext = {
-            if (isActive && enabled) {
-                if (onNext != null) onNext() else focus.moveFocus(FocusDirection.Next)
-            }
-        },
-        onDone = { if (isActive && enabled) onDone?.invoke() },
-    )
+    val actions = KeyboardActionHandler {
+        if (isActive && enabled) {
+            if (onDone != null) onDone() else if (onNext != null) onNext() else focus.moveFocus(FocusDirection.Next)
+        }
+    }
     if (password) {
         PasswordTextField(
-            value = state.form[field],
-            onValueChange = { onEdit(field, it) },
+            state = editor,
             passwordVisible = visible,
             onPasswordVisibilityChange = { visible = !visible },
             modifier = fieldModifier,
             enabled = isActive && enabled,
             errorMessage = error,
             keyboardOptions = options,
-            keyboardActions = actions,
+            onKeyboardAction = actions,
             label = { Text(stringResource(label)) },
         )
     } else {
         FilledTextField(
-            value = state.form[field],
-            onValueChange = { onEdit(field, it) },
+            state = editor,
             modifier = fieldModifier,
             enabled = isActive && enabled,
             errorMessage = error,
-            singleLine = true,
+            lineLimits = TextFieldLineLimits.SingleLine,
             keyboardOptions = options,
-            keyboardActions = actions,
+            onKeyboardAction = actions,
             label = { Text(stringResource(label)) },
         )
     }

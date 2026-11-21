@@ -7,6 +7,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -25,7 +26,9 @@ import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
 import moe.kirakira.ui.components.DestructiveActionIcon
 import moe.kirakira.ui.components.FlatTextButton
+import moe.kirakira.ui.components.LocalTextFieldEdits
 import moe.kirakira.ui.components.ShadowButton
+import moe.kirakira.ui.components.TextFieldEdits
 import moe.kirakira.ui.components.messageRes
 
 @Composable
@@ -50,6 +53,7 @@ internal fun SecuritySettingsScreen(
     modifier: Modifier = Modifier,
     step: SecurityStep = state.step,
     isActive: Boolean = true,
+    edits: TextFieldEdits = remember(step, state.revision, isActive) { TextFieldEdits() },
 ) {
     val snackbar = remember { SnackbarHostState() }
     val message = state.message?.let { stringResource(it) }
@@ -103,24 +107,26 @@ internal fun SecuritySettingsScreen(
             }
         }
     } else {
-        SecurityFlowScreen(
-            state = state,
-            step = step,
-            email = email,
-            sessionBusy = sessionBusy,
-            isActive = isActive,
-            snackbarHostState = snackbar,
-            onBack = onBack,
-            onLogin = onLogin,
-            onRefresh = onRefresh,
-            onSelectFactor = onSelectFactor,
-            onEdit = onEdit,
-            onSendCode = onSendCode,
-            onSubmit = onSubmit,
-            onFinishCodes = onFinishCodes,
-            onCopied = onCopied,
-            modifier = modifier,
-        )
+        CompositionLocalProvider(LocalTextFieldEdits provides edits) {
+            SecurityFlowScreen(
+                state = state,
+                step = step,
+                email = email,
+                sessionBusy = sessionBusy,
+                isActive = isActive,
+                snackbarHostState = snackbar,
+                onBack = onBack,
+                onLogin = onLogin,
+                onRefresh = onRefresh,
+                onSelectFactor = onSelectFactor,
+                onEdit = onEdit,
+                onSendCode = { edits.flush(); onSendCode(it) },
+                onSubmit = { edits.flush(); onSubmit() },
+                onFinishCodes = onFinishCodes,
+                onCopied = onCopied,
+                modifier = modifier,
+            )
+        }
     }
     if (state.confirmDiscardCodes && isActive) {
         ActionDialog(

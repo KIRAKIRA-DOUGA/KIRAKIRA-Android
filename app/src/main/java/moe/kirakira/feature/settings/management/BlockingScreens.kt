@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -35,13 +36,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -64,17 +65,19 @@ import moe.kirakira.ui.components.AccountAvatar
 import moe.kirakira.ui.components.AnimatedCountLabel
 import moe.kirakira.ui.components.AnimatedNumberText
 import moe.kirakira.ui.components.CharacterCount
+import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.ui.components.ContentUnavailablePresentation
 import moe.kirakira.ui.components.ContentUnavailableState
 import moe.kirakira.ui.components.ContentUnavailableView
-import moe.kirakira.ui.components.ConnectedListGroup
 import moe.kirakira.ui.components.FilledTextField
 import moe.kirakira.ui.components.FilledTextFieldDefaults
 import moe.kirakira.ui.components.FlatTextButton
 import moe.kirakira.ui.components.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.components.ObserveTextFieldBinding
 import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.ShadowFilledTonalButton
 import moe.kirakira.ui.components.ShadowFloatingActionButton
+import moe.kirakira.ui.components.TextFieldBinding
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.dateOnlyText
 import moe.kirakira.ui.components.pressToRoundButtonShapes
@@ -336,6 +339,8 @@ private fun RuleEditorSheet(
     onSubmit: () -> Unit,
     onClose: () -> Unit,
 ) {
+    val binding = remember { TextFieldBinding(state.input) }
+    ObserveTextFieldBinding(binding, state.input, onInput, !busy)
     val user = category == RuleCategory.BLOCK || category == RuleCategory.HIDE
     val currentBusy by rememberUpdatedState(busy)
     val sheetColor = if (state.profile != null) {
@@ -360,16 +365,20 @@ private fun RuleEditorSheet(
             Icon(painterResource(category.iconRes()), contentDescription = null, modifier = Modifier.size(24.dp))
             Text(stringResource(category.titleRes()), style = MaterialTheme.typography.headlineSmall)
             FilledTextField(
-                value = state.input, onValueChange = onInput, modifier = Modifier.fillMaxWidth(), enabled = !busy,
+                state = binding.editor, modifier = Modifier.fillMaxWidth(), enabled = !busy,
                 colors = FilledTextFieldDefaults.colors(sheetColor),
-                singleLine = category != RuleCategory.REGEX,
+                lineLimits = if (category == RuleCategory.REGEX) {
+                    TextFieldLineLimits.Default
+                } else {
+                    TextFieldLineLimits.SingleLine
+                },
                 label = { Text(stringResource(if (user) R.string.management_uid_label else category.titleRes())) },
                 keyboardOptions = KeyboardOptions(keyboardType = if (user) KeyboardType.Number else KeyboardType.Text),
                 errorMessage = state.error?.let { stringResource(it) },
                 supportingText = {
                     if (state.error != null) Text(stringResource(state.error))
                     else if (category == RuleCategory.KEYWORD || category == RuleCategory.REGEX) {
-                        CharacterCount(count = state.input.trim().length, limit = 30)
+                        CharacterCount(count = binding.editor.text.trim().length, limit = 30)
                     }
                 },
             )
@@ -384,8 +393,11 @@ private fun RuleEditorSheet(
                 }
             }
             ShadowButton(
-                onClick = onSubmit,
-                enabled = state.input.isNotBlank(),
+                onClick = {
+                    binding.publish(onInput)
+                    onSubmit()
+                },
+                enabled = binding.editor.text.isNotBlank(),
                 loading = busy,
                 modifier = Modifier.fillMaxWidth().heightIn(min = ButtonDefaults.MediumContainerHeight),
                 shapes = pressToRoundButtonShapes(ButtonDefaults.MediumContainerHeight),

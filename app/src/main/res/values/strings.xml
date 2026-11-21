@@ -633,6 +633,9 @@
     <string name="component_gallery_sheet">Bottom sheet</string>
     <string name="component_gallery_snackbar">Snackbar</string>
     <string name="component_gallery_variant_styles">Styles</string>
+    <string name="component_gallery_variant_editable">Editable</string>
+    <string name="component_gallery_variant_read_only_disabled">Read-only and disabled</string>
+    <string name="component_gallery_show_error">Show error</string>
     <string name="component_gallery_variant_states">States</string>
     <string name="component_gallery_variant_icon_and_text">Icon and text</string>
     <string name="component_gallery_variant_icon_only">Icon only</string>

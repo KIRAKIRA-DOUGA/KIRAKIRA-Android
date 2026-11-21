@@ -621,6 +621,9 @@
     <string name="component_gallery_sheet">底部弹层</string>
     <string name="component_gallery_snackbar">Snackbar</string>
     <string name="component_gallery_variant_styles">样式</string>
+    <string name="component_gallery_variant_editable">可编辑</string>
+    <string name="component_gallery_variant_read_only_disabled">只读与禁用</string>
+    <string name="component_gallery_show_error">显示错误</string>
     <string name="component_gallery_variant_states">状态</string>
     <string name="component_gallery_variant_icon_and_text">图标和文字</string>
     <string name="component_gallery_variant_icon_only">纯图标</string>

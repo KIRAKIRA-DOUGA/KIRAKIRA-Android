@@ -22,9 +22,15 @@ import moe.kirakira.ui.components.ActionDialog
 import moe.kirakira.ui.components.DestructiveActionIcon
 import moe.kirakira.ui.components.FlatTextButton
 import moe.kirakira.ui.components.ShadowButton
+import moe.kirakira.ui.components.TextFieldEdits
 
 @Composable
-internal fun ProfileEditorPage(model: ProfileEditorViewModel, onBack: () -> Unit, onLogin: () -> Unit) {
+internal fun ProfileEditorPage(
+    model: ProfileEditorViewModel,
+    edits: TextFieldEdits,
+    onBack: () -> Unit,
+    onLogin: () -> Unit,
+) {
     val state by model.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val resources by rememberUpdatedState(LocalResources.current)
@@ -69,6 +75,7 @@ internal fun ProfileEditorPage(model: ProfileEditorViewModel, onBack: () -> Unit
             snackbar = snackbar)
     } else ProfileEditorScreen(
         state = state,
+        edits = edits,
         onBack = { if (model.requestBack()) onBack() },
         onLogin = onLogin, onRetry = model::load, onSave = model::save, onEdit = model::edit,
         onPickAvatar = {

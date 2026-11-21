@@ -58,7 +58,7 @@ internal fun CustomColorDialog(
         },
         actions = {
             ShadowButton(
-                onClick = { parsedColor?.let(onConfirm) },
+                onClick = { state.parsedColor?.let(onConfirm) },
                 enabled = parsedColor != null,
             ) {
                 Text(stringResource(R.string.theme_color_apply))

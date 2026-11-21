@@ -17,8 +17,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.byValue
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldColors
@@ -51,7 +54,6 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import moe.kirakira.data.auth.VerificationCodeFormat
 
@@ -63,30 +65,25 @@ internal enum class OtpInputType(val format: VerificationCodeFormat) {
 /** Six visual cells share one editor, preserving paste, deletion, selection, and IME behavior. */
 @Composable
 internal fun OtpInputField(
-    value: String,
-    onValueChange: (String) -> Unit,
+    state: TextFieldState,
     label: String,
     enabled: Boolean,
     modifier: Modifier = Modifier,
     error: String? = null,
     inputType: OtpInputType = OtpInputType.NUMERIC,
-    onRecoveryCodePaste: ((String) -> Unit)? = null,
+    allowRecoveryCode: Boolean = false,
     onNext: (() -> Unit)? = null,
     onDone: (() -> Unit)? = null,
     colors: TextFieldColors = FilledTextFieldDefaults.colors(),
 ) {
-    // Selection and focus are local; the flow owns the code and never saves it to disk.
-    var selection by remember { mutableStateOf(TextRange(value.length)) }
+    val value = state.text
+    val editorSelection = state.selection
     var isFocused by remember { mutableStateOf(false) }
     val editorFocus = remember { FocusRequester() }
     val interaction = remember { MutableInteractionSource() }
     val idleInteraction = remember { MutableInteractionSource() }
     val keyboard = LocalSoftwareKeyboardController.current
     val motion = MaterialTheme.motionScheme
-    val editorSelection = TextRange(
-        selection.start.coerceIn(0, value.length),
-        selection.end.coerceIn(0, value.length),
-    )
     val activeCell = editorSelection.min.coerceAtMost(inputType.format.length - 1)
     val cursorColor = if (error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
     val cursorAlpha = if (enabled && isFocused) {
@@ -135,22 +132,14 @@ internal fun OtpInputField(
             if (error != null) ErrorIcon()
         }
         BasicTextField(
-            value = TextFieldValue(value, editorSelection),
-            onValueChange = { edited ->
-                val code = inputType.format.filterInput(edited.text)
-                if (VerificationCodeFormat.RECOVERY.isValid(code) && onRecoveryCodePaste != null) {
-                    onRecoveryCodePaste(code)
-                } else {
-                    val next = code.take(inputType.format.length)
-                    selection = TextRange(
-                        edited.selection.start.coerceIn(0, next.length),
-                        edited.selection.end.coerceIn(0, next.length),
-                    )
-                    onValueChange(next)
-                }
+            state = state,
+            inputTransformation = InputTransformation.byValue { _, proposed ->
+                val code = inputType.format.filterInput(proposed.toString())
+                if (allowRecoveryCode && VerificationCodeFormat.RECOVERY.isValid(code)) code
+                else code.take(inputType.format.length)
             },
             enabled = enabled,
-            singleLine = true,
+            lineLimits = TextFieldLineLimits.SingleLine,
             interactionSource = interaction,
             textStyle = codeStyle.copy(color = Color.Transparent),
             cursorBrush = SolidColor(Color.Transparent),
@@ -164,10 +153,9 @@ internal fun OtpInputField(
                 keyboardType = if (inputType == OtpInputType.ALPHANUMERIC) KeyboardType.Ascii else KeyboardType.Number,
                 imeAction = if (onNext != null) ImeAction.Next else ImeAction.Done,
             ),
-            keyboardActions = KeyboardActions(
-                onNext = { if (enabled) onNext?.invoke() },
-                onDone = { if (enabled) onDone?.invoke() },
-            ),
+            onKeyboardAction = {
+                if (enabled) (onNext ?: onDone)?.invoke()
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .focusRequester(editorFocus)
@@ -176,7 +164,7 @@ internal fun OtpInputField(
                     contentDescription = label
                     if (error != null) this.error(error)
                 },
-            decorationBox = { editor ->
+            decorator = { editor ->
                 Box {
                     // Retain the real editor's full bounds and semantics under the decorative cells.
                     Box(Modifier
@@ -198,7 +186,9 @@ internal fun OtpInputField(
                                         if (enabled) Modifier.pointerInput(index, value.length) {
                                             detectTapGestures {
                                                 val start = index.coerceAtMost(value.length)
-                                                selection = TextRange(start, (start + 1).coerceAtMost(value.length))
+                                                state.edit {
+                                                    selection = TextRange(start, (start + 1).coerceAtMost(length))
+                                                }
                                                 editorFocus.requestFocus()
                                                 keyboard?.show()
                                             }

@@ -44,7 +44,7 @@ internal fun DanmakuColorEditor(
         }
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             FlatTextButton(onClick = onDismiss) { Text(stringResource(R.string.theme_color_cancel)) }
-            ShadowButton(onClick = { parsedColor?.let { onConfirm(it and 0xFFFFFF) } }, enabled = parsedColor != null) {
+            ShadowButton(onClick = { state.parsedColor?.let { onConfirm(it and 0xFFFFFF) } }, enabled = parsedColor != null) {
                 Text(stringResource(R.string.theme_color_apply))
             }
         }

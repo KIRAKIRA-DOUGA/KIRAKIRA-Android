@@ -81,7 +81,12 @@ internal class AuthViewModel(
                 savedStateHandle[EMAIL_KEY] = result.draft.email
                 passwordNeedsSave = false
                 _uiState.update {
-                    it.copy(email = result.draft.email, password = result.draft.password, fieldErrors = emptyMap())
+                    it.copy(
+                        email = result.draft.email,
+                        password = result.draft.password,
+                        fieldErrors = emptyMap(),
+                        credentialFillRevision = id,
+                    )
                 }
                 submit(language)
             }

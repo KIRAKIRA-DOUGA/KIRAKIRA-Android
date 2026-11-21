@@ -4,8 +4,10 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.KeyboardActionHandler
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -35,10 +37,14 @@ import moe.kirakira.ui.components.AccountFlowSection
 import moe.kirakira.ui.components.FilledTextField
 import moe.kirakira.ui.components.FormButtonEdge
 import moe.kirakira.ui.components.FormTextButton
+import moe.kirakira.ui.components.LocalTextFieldEdits
+import moe.kirakira.ui.components.ObserveTextFieldBinding
 import moe.kirakira.ui.components.OtpInputField
 import moe.kirakira.ui.components.OtpInputType
 import moe.kirakira.ui.components.PasswordTextField
+import moe.kirakira.ui.components.TextFieldBinding
 import moe.kirakira.ui.components.accountFlowCodeTextStyle
+import moe.kirakira.ui.components.rememberBoundTextField
 
 @Composable
 internal fun AuthForm(
@@ -71,8 +77,7 @@ internal fun AuthForm(
                 )
                 if (state.step == AuthStep.REGISTER_CREDENTIALS) {
                     AuthTextField(
-                        value = state.confirmPassword,
-                        onValueChange = { onFieldChange(AuthField.CONFIRM_PASSWORD, it) },
+                        editor = rememberBoundTextField(state.confirmPassword, { onFieldChange(AuthField.CONFIRM_PASSWORD, it) }, state.canEdit && isActive),
                         label = R.string.auth_confirm_password,
                         enabled = state.canEdit && isActive,
                         modifier = Modifier.focusRequester(focusRequesters.getValue(AuthField.CONFIRM_PASSWORD)),
@@ -81,8 +86,7 @@ internal fun AuthForm(
                         secret = true,
                     )
                     AuthTextField(
-                        value = state.passwordHint,
-                        onValueChange = { onFieldChange(AuthField.PASSWORD_HINT, it) },
+                        editor = rememberBoundTextField(state.passwordHint, { onFieldChange(AuthField.PASSWORD_HINT, it) }, state.canEdit && isActive),
                         label = R.string.auth_password_hint,
                         enabled = state.canEdit && isActive,
                         modifier = Modifier.focusRequester(focusRequesters.getValue(AuthField.PASSWORD_HINT)),
@@ -93,8 +97,7 @@ internal fun AuthForm(
             }
             AuthStep.REGISTER_INVITATION -> {
                 AuthTextField(
-                    value = state.invitation,
-                    onValueChange = { onFieldChange(AuthField.INVITATION, it) },
+                    editor = rememberBoundTextField(state.invitation, { onFieldChange(AuthField.INVITATION, it) }, state.canEdit && isActive),
                     label = R.string.auth_invitation,
                     enabled = state.canEdit && isActive,
                     modifier = Modifier.focusRequester(focusRequesters.getValue(AuthField.INVITATION)),
@@ -104,8 +107,7 @@ internal fun AuthForm(
             }
             AuthStep.REGISTER_PROFILE -> {
                 AuthTextField(
-                    value = state.username,
-                    onValueChange = { onFieldChange(AuthField.USERNAME, it) },
+                    editor = rememberBoundTextField(state.username, { onFieldChange(AuthField.USERNAME, it) }, state.canEdit && isActive),
                     label = R.string.auth_username,
                     enabled = state.canEdit && isActive,
                     modifier = Modifier.focusRequester(focusRequesters.getValue(AuthField.USERNAME))
@@ -113,8 +115,7 @@ internal fun AuthForm(
                     errorRes = state.fieldErrors[AuthField.USERNAME],
                 )
                 AuthTextField(
-                    value = state.nickname,
-                    onValueChange = { onFieldChange(AuthField.NICKNAME, it) },
+                    editor = rememberBoundTextField(state.nickname, { onFieldChange(AuthField.NICKNAME, it) }, state.canEdit && isActive),
                     label = R.string.auth_nickname,
                     enabled = state.canEdit && isActive,
                     modifier = Modifier.focusRequester(focusRequesters.getValue(AuthField.NICKNAME)),
@@ -124,8 +125,7 @@ internal fun AuthForm(
             }
             AuthStep.FORGOT_EMAIL -> {
                 AuthTextField(
-                    value = state.email,
-                    onValueChange = onEmailChange,
+                    editor = rememberBoundTextField(state.email, onEmailChange, state.canEdit && isActive),
                     label = R.string.auth_email,
                     enabled = state.canEdit && isActive,
                     modifier = Modifier.focusRequester(emailFocusRequester).semantics {
@@ -144,8 +144,7 @@ internal fun AuthForm(
                     if (state.step == AuthStep.RESET_PASSWORD) {
                         Column(verticalArrangement = Arrangement.spacedBy(AccountFlowDefaults.FieldSpacing)) {
                             AuthTextField(
-                                value = state.password,
-                                onValueChange = onPasswordChange,
+                                editor = rememberBoundTextField(state.password, onPasswordChange, state.canEdit && isActive),
                                 label = R.string.auth_new_password,
                                 enabled = state.canEdit && isActive,
                                 modifier = Modifier.focusRequester(focusRequesters.getValue(AuthField.PASSWORD)),
@@ -154,8 +153,7 @@ internal fun AuthForm(
                                 secret = true,
                             )
                             AuthTextField(
-                                value = state.confirmPassword,
-                                onValueChange = { onFieldChange(AuthField.CONFIRM_PASSWORD, it) },
+                                editor = rememberBoundTextField(state.confirmPassword, { onFieldChange(AuthField.CONFIRM_PASSWORD, it) }, state.canEdit && isActive),
                                 label = R.string.auth_confirm_password,
                                 enabled = state.canEdit && isActive,
                                 modifier = Modifier.focusRequester(focusRequesters.getValue(AuthField.CONFIRM_PASSWORD)),
@@ -199,10 +197,24 @@ internal fun AuthForm(
                             null
                         },
                     ) {
+                        val allowRecoveryCode = state.step == AuthStep.LOGIN_TOTP
+                        val edits = LocalTextFieldEdits.current
+                        val codeBinding = remember(edits) { TextFieldBinding(state.code) }
+                        ObserveTextFieldBinding(
+                            binding = codeBinding,
+                            text = state.code,
+                            onEdit = { code ->
+                                if (allowRecoveryCode && VerificationCodeFormat.RECOVERY.isValid(code)) {
+                                    recoveryInput = true
+                                }
+                                onFieldChange(AuthField.CODE, code)
+                            },
+                            enabled = state.canEdit && isActive,
+                            normalize = String::trim,
+                        )
                         if (useRecoveryInput) {
                             AuthTextField(
-                                value = state.code,
-                                onValueChange = { onFieldChange(AuthField.CODE, it) },
+                                editor = codeBinding.editor,
                                 label = R.string.security_recovery_code,
                                 enabled = state.canEdit && isActive,
                                 modifier = Modifier.focusRequester(focusRequesters.getValue(AuthField.CODE)),
@@ -218,8 +230,7 @@ internal fun AuthForm(
                                 R.string.auth_verification_code
                             }
                             OtpInputField(
-                                value = state.code,
-                                onValueChange = { onFieldChange(AuthField.CODE, it) },
+                                state = codeBinding.editor,
                                 label = stringResource(codeLabel),
                                 enabled = state.canEdit && isActive,
                                 modifier = Modifier
@@ -231,14 +242,7 @@ internal fun AuthForm(
                                 } else {
                                     OtpInputType.NUMERIC
                                 },
-                                onRecoveryCodePaste = if (state.step == AuthStep.LOGIN_TOTP) {
-                                    { code ->
-                                        recoveryInput = true
-                                        onFieldChange(AuthField.CODE, code)
-                                    }
-                                } else {
-                                    null
-                                },
+                                allowRecoveryCode = allowRecoveryCode,
                                 onDone = onSubmit,
                             )
                         }
@@ -247,6 +251,7 @@ internal fun AuthForm(
                                 onClick = {
                                     focusManager.clearFocus()
                                     recoveryInput = !useRecoveryInput
+                                    codeBinding.replace("")
                                     onFieldChange(AuthField.CODE, "")
                                 },
                                 enabled = state.canEdit && isActive,
@@ -270,8 +275,7 @@ internal fun AuthForm(
 
 @Composable
 private fun AuthTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
+    editor: TextFieldState,
     @StringRes label: Int,
     enabled: Boolean,
     modifier: Modifier = Modifier,
@@ -292,41 +296,36 @@ private fun AuthTextField(
         keyboardType = keyboardType,
         imeAction = if (onSubmit != null) ImeAction.Done else ImeAction.Next,
     )
-    val actions = KeyboardActions(
-        onNext = {
-            if (enabled) {
-                if (onNext != null) onNext() else focus.moveFocus(FocusDirection.Next)
-            }
-        },
-        onDone = { if (enabled) onSubmit?.invoke() },
-    )
+    val actions = KeyboardActionHandler {
+        if (enabled) {
+            if (onSubmit != null) onSubmit() else if (onNext != null) onNext() else focus.moveFocus(FocusDirection.Next)
+        }
+    }
     if (secret) {
         var visible by remember { mutableStateOf(false) }
         LaunchedEffect(enabled) { visible = false }
         PasswordTextField(
-            value = value,
-            onValueChange = onValueChange,
+            state = editor,
             passwordVisible = visible,
             onPasswordVisibilityChange = { visible = !visible },
             modifier = fieldModifier.semantics { contentType = ContentType.NewPassword },
             enabled = enabled,
             errorMessage = error,
             keyboardOptions = options,
-            keyboardActions = actions,
+            onKeyboardAction = actions,
             label = { Text(stringResource(label)) },
         )
     } else {
         FilledTextField(
-            value = value,
-            onValueChange = onValueChange,
+            state = editor,
             modifier = fieldModifier,
             label = { Text(stringResource(label)) },
             textStyle = textStyle,
             enabled = enabled,
-            singleLine = true,
+            lineLimits = TextFieldLineLimits.SingleLine,
             errorMessage = error,
             keyboardOptions = options,
-            keyboardActions = actions,
+            onKeyboardAction = actions,
         )
     }
 }

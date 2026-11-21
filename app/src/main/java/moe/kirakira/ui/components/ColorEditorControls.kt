@@ -6,17 +6,25 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -44,37 +52,48 @@ internal class ColorEditorState(
     initialFormat: ColorValueFormat = ColorValueFormat.HEX,
     initialInput: String = formatColorValue(initialArgb, initialFormat),
 ) {
-    var argb by mutableIntStateOf(initialArgb or 0xFF000000.toInt())
-        private set
+    val editor = TextFieldState(initialInput)
     var format by mutableStateOf(initialFormat)
         private set
-    var input by mutableStateOf(initialInput)
-        private set
-    private var parsedInput by mutableStateOf(parseColorValue(initialInput, initialFormat))
-    val parsedColor: Int? get() = if (parsedInput != null) argb else null
+    private var lastValidArgb by mutableIntStateOf(initialArgb or 0xFF000000.toInt())
+    private val parsedInput by derivedStateOf { parseColorValue(editor.text.toString(), format) }
+    private var pickerValue by mutableStateOf(initialInput to lastValidArgb)
+    private var lastObservedInput = initialInput
+    val argb: Int get() = parsedColor ?: lastValidArgb
+    val parsedColor: Int?
+        get() = parsedInput?.let {
+            // Formatting (especially OKLCH) need not round-trip to the exact picker color.
+            val (text, argb) = pickerValue
+            if (editor.text.toString() == text) argb else it.argb
+        }
     val gamutMapped: Boolean get() = parsedInput?.gamutMapped == true
 
     fun selectColor(color: Int) {
-        argb = color or 0xFF000000.toInt()
-        input = formatColorValue(argb, format)
-        parsedInput = parseColorValue(input, format)
+        lastValidArgb = color or 0xFF000000.toInt()
+        val text = formatColorValue(lastValidArgb, format)
+        pickerValue = text to lastValidArgb
+        lastObservedInput = text
+        if (editor.text.toString() != text) editor.setTextAndPlaceCursorAtEnd(text)
     }
 
     fun selectFormat(value: ColorValueFormat) {
         if (format == value) return
+        val color = argb
         format = value
-        selectColor(argb)
+        selectColor(color)
     }
 
-    fun updateInput(value: String) {
-        input = value
-        parsedInput = parseColorValue(value, format)
-        parsedInput?.let { argb = it.argb }
+    /** Only user edits drive the picker; picker-originated edits already have the right position. */
+    fun acceptEditorInput(): Int? {
+        val text = editor.text.toString()
+        if (text == lastObservedInput) return null
+        lastObservedInput = text
+        return parsedColor?.also { lastValidArgb = it }
     }
 
     companion object {
         val Saver = listSaver<ColorEditorState, Any>(
-            save = { listOf(it.argb, it.format.name, it.input) },
+            save = { listOf(it.argb, it.format.name, it.editor.text.toString()) },
             restore = { ColorEditorState(it[0] as Int, ColorValueFormat.valueOf(it[1] as String), it[2] as String) },
         )
     }
@@ -154,7 +173,14 @@ internal fun ColorEditorInput(
     onColorChanged: (Int) -> Unit,
     modifier: Modifier = Modifier,
     leadingContent: (@Composable () -> Unit)? = null,
+    colors: TextFieldColors = FilledTextFieldDefaults.colors(),
 ) {
+    val syncPicker by rememberUpdatedState(onColorChanged)
+    LaunchedEffect(state) {
+        snapshotFlow { state.editor.text.toString() }.collect {
+            state.acceptEditorInput()?.let(syncPicker)
+        }
+    }
     val label = when (state.format) {
         ColorValueFormat.HEX -> R.string.theme_color_hex
         ColorValueFormat.RGB -> R.string.theme_color_rgb
@@ -172,16 +198,13 @@ internal fun ColorEditorInput(
     }
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         FilledTextField(
-            value = state.input,
-            onValueChange = { value ->
-                state.updateInput(value)
-                state.parsedColor?.let(onColorChanged)
-            },
+            state = state.editor,
             modifier = Modifier.fillMaxWidth(),
+            colors = colors,
             label = { Text(stringResource(label)) },
             placeholder = { Text(hint) },
             leadingIcon = leadingContent,
-            singleLine = true,
+            lineLimits = TextFieldLineLimits.SingleLine,
             errorMessage = if (state.parsedColor == null) stringResource(error) else null,
             keyboardOptions = KeyboardOptions(
                 capitalization = if (state.format == ColorValueFormat.HEX) {

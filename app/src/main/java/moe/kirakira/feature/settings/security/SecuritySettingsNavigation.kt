@@ -21,6 +21,7 @@ import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import androidx.navigationevent.compose.rememberNavigationEventDispatcherOwner
 import moe.kirakira.data.auth.SecondFactor
 import moe.kirakira.data.auth.verificationMailLanguage
+import moe.kirakira.ui.components.TextFieldEdits
 import moe.kirakira.ui.navigation.ActivityNavDisplay
 import moe.kirakira.ui.navigation.LocalNavigationPageTransform
 import moe.kirakira.ui.navigation.NavigationPage
@@ -41,6 +42,7 @@ internal fun SecuritySettingsNavigation(
 ) {
     val backStack = rememberNavBackStack(*state.step.routePath().toTypedArray())
     val dispatcherOwner = rememberNavigationEventDispatcherOwner(enabled = isActive)
+    val edits = remember(state.step, state.revision, isActive) { TextFieldEdits() }
     val autofill = LocalAutofillManager.current
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -57,8 +59,12 @@ internal fun SecuritySettingsNavigation(
         backStack.lastOrNull() == SecurityStepRoute(step) && model.state.value.step == step &&
         model.state.value.revision == state.revision && state.revision == model.session.value.revision
 
+    fun canPreviewBack(step: SecurityStep): Boolean =
+        isCurrent(step) && model.state.value.canLeaveStep && !edits.hasPendingChanges
+
     fun back(step: SecurityStep) {
         if (!isCurrent(step)) return
+        edits.flush()
         autofill?.cancel()
         focus.clearFocus()
         keyboard?.hide()
@@ -75,13 +81,13 @@ internal fun SecuritySettingsNavigation(
             predictiveBackEnabled = predictiveBackEnabled,
             canNavigateBack = {
                 val route = backStack.lastOrNull() as? SecurityStepRoute
-                route != null && isCurrent(route.step) && model.state.value.canLeaveStep
+                route != null && canPreviewBack(route.step)
             },
             onBackRequested = {
                 val route = backStack.lastOrNull() as? SecurityStepRoute
                 when {
                     route == null || !isCurrent(route.step) -> false
-                    model.state.value.canLeaveStep -> true
+                    canPreviewBack(route.step) -> true
                     else -> { back(route.step); false }
                 }
             },
@@ -97,6 +103,7 @@ internal fun SecuritySettingsNavigation(
                             email = email,
                             sessionBusy = sessionBusy,
                             isActive = isActive,
+                            edits = edits,
                             onBack = { back(route.step) },
                             onLogin = onLogin,
                         )
@@ -115,6 +122,7 @@ private fun SecurityStepPage(
     email: String?,
     sessionBusy: Boolean,
     isActive: Boolean,
+    edits: TextFieldEdits,
     onBack: () -> Unit,
     onLogin: () -> Unit,
 ) {
@@ -152,6 +160,7 @@ private fun SecurityStepPage(
         isActive = currentStep,
         email = email,
         sessionBusy = sessionBusy,
+        edits = edits,
         onBack = { whenCurrent(onBack) },
         onLogin = { whenCurrent(onLogin) },
         onRefresh = { whenCurrent(model::refresh) },

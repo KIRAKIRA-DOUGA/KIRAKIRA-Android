@@ -2,6 +2,7 @@ package moe.kirakira.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalAutofillManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -40,6 +41,7 @@ import moe.kirakira.feature.settings.security.SecuritySettingsPage
 import moe.kirakira.feature.settings.security.SecuritySettingsViewModel
 import moe.kirakira.feature.settings.settingsSearchCatalog
 import moe.kirakira.ui.theme.ThemeColorSettings
+import moe.kirakira.ui.components.TextFieldEdits
 import moe.kirakira.ui.theme.ThemeMode
 
 internal fun registerSettingsEntries(
@@ -70,14 +72,19 @@ internal fun registerSettingsEntries(
                         val model = viewModel {
                             ProfileEditorViewModel(dependencies.createProfileRepository(), context)
                         }
+                        val edits = remember(model) { TextFieldEdits() }
                         RegisterNavigationBackGuard(
                             navigation = navigation,
                             route = currentRoute,
-                            canNavigateBack = { model.canNavigateBack },
-                            requestBack = model::requestBack,
+                            canNavigateBack = { model.canNavigateBack && !edits.hasPendingChanges },
+                            requestBack = {
+                                edits.flush()
+                                model.requestBack()
+                            },
                         )
                         ProfileEditorPage(
                             model = model,
+                            edits = edits,
                             onBack = { navigation.popFrom(currentRoute) },
                             onLogin = { navigation.openFrom(currentRoute, AuthRoute()) },
                         )

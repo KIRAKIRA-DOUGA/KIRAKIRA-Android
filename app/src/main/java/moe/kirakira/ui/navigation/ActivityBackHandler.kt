@@ -76,7 +76,7 @@ internal fun <T : Any> ActivityBackHandler(
                     return
                 }
                 val allowed = if (started != null && predictiveBackEnabled) {
-                    started.allowed
+                    started.allowed && currentCanNavigateBack()
                 } else {
                     currentBackRequest()
                 }
@@ -94,7 +94,14 @@ internal fun <T : Any> ActivityBackHandler(
                 if (currentZoomState != null) {
                     popIfCurrent(key)
                     currentZoomState?.backProgress = null
-                } else motion.complete { popIfCurrent(key) }
+                } else motion.complete {
+                    if (currentCanNavigateBack()) {
+                        popIfCurrent(key)
+                    } else {
+                        motion.reset()
+                        if (currentSceneState.entries.last().contentKey == key) currentBackRequest()
+                    }
+                }
             }
 
             private fun popIfCurrent(key: Any) {

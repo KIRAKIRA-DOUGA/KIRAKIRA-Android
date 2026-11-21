@@ -28,6 +28,7 @@ internal data class AuthUiState(
     val fieldErrors: Map<AuthField, Int> = emptyMap(),
     val focusField: AuthField? = null,
     val focusRequestId: Long = 0,
+    val credentialFillRevision: Long = 0,
     val credentialOperation: AuthCredentialOperation? = null,
     val submission: AuthSubmission = AuthSubmission.IDLE,
     val passwordResetUnconfirmed: Boolean = false,

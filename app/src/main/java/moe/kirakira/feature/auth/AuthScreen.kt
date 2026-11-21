@@ -13,6 +13,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +36,8 @@ import moe.kirakira.ui.components.AccountFlowScaffold
 import moe.kirakira.ui.components.AccountFlowSubmitButton
 import moe.kirakira.ui.components.FormButtonEdge
 import moe.kirakira.ui.components.FormTextButton
+import moe.kirakira.ui.components.LocalTextFieldEdits
+import moe.kirakira.ui.components.TextFieldEdits
 
 @Composable
 internal fun AuthScreen(
@@ -58,6 +61,11 @@ internal fun AuthScreen(
     onRecoveryHelp: () -> Unit = {},
     focusRequesters: Map<AuthField, FocusRequester> = remember { AuthField.entries.associateWith { FocusRequester() } },
 ) {
+    val edits = remember(state.step, state.credentialFillRevision, isActive) { TextFieldEdits() }
+    val submit = {
+        edits.flush()
+        onSubmit()
+    }
     val title = when (state.step) {
         AuthStep.REGISTER_PROFILE -> R.string.auth_profile_title
         AuthStep.REGISTER_CREDENTIALS -> R.string.auth_credentials_title
@@ -116,7 +124,9 @@ internal fun AuthScreen(
     AccountFlowScaffold(
         icon = stepIcon,
         iconSize = if (state.step == AuthStep.LOGIN) 40.dp else 32.dp,
-        onBack = onBack.takeIf { state.step != AuthStep.LOGIN && !state.blocksBack },
+        onBack = if (state.step != AuthStep.LOGIN && !state.blocksBack) {
+            { edits.flush(); onBack() }
+        } else null,
         backButtonModifier = Modifier.testTag("auth_back"),
         modifier = modifier.testTag("auth_${state.step.name}"),
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -131,7 +141,7 @@ internal fun AuthScreen(
                                 else -> submitLabel
                             },
                         ),
-                        onClick = onSubmit,
+                        onClick = submit,
                         enabled = state.canSubmit,
                         busy = state.isSubmitting && !state.resending,
                         modifier = Modifier.testTag("auth_submit"),
@@ -154,19 +164,21 @@ internal fun AuthScreen(
                 state.step != AuthStep.SAVE_PASSWORD_RESET
             ) {
                 Spacer(Modifier.height(AccountFlowDefaults.HeaderSpacing))
-                AuthForm(
-                    state = state,
-                    passwordVisible = passwordVisible,
-                    emailFocusRequester = emailFocusRequester,
-                    focusRequesters = focusRequesters,
-                    onEmailChange = onEmailChange,
-                    onPasswordChange = onPasswordChange,
-                    onPasswordVisibilityChange = onPasswordVisibilityChange,
-                    onSubmit = onSubmit,
-                    onFieldChange = onFieldChange,
-                    onResend = onResend,
-                    isActive = isActive,
-                )
+                CompositionLocalProvider(LocalTextFieldEdits provides edits) {
+                    AuthForm(
+                        state = state,
+                        passwordVisible = passwordVisible,
+                        emailFocusRequester = emailFocusRequester,
+                        focusRequesters = focusRequesters,
+                        onEmailChange = onEmailChange,
+                        onPasswordChange = onPasswordChange,
+                        onPasswordVisibilityChange = onPasswordVisibilityChange,
+                        onSubmit = submit,
+                        onFieldChange = onFieldChange,
+                        onResend = { edits.flush(); onResend() },
+                        isActive = isActive,
+                    )
+                }
             }
             if (state.step == AuthStep.LOGIN) {
                 Spacer(Modifier.height(AccountFlowDefaults.FieldSpacing))
@@ -175,7 +187,7 @@ internal fun AuthScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     FormTextButton(
-                        onClick = onForgotPassword,
+                        onClick = { edits.flush(); onForgotPassword() },
                         enabled = state.canEdit && isActive,
                         edge = FormButtonEdge.START,
                     ) {
@@ -186,7 +198,7 @@ internal fun AuthScreen(
                         contentAlignment = Alignment.CenterEnd,
                     ) {
                         FormTextButton(
-                            onClick = onRegister,
+                            onClick = { edits.flush(); onRegister() },
                             enabled = state.canEdit && isActive,
                             edge = FormButtonEdge.END,
                             modifier = Modifier.testTag("auth_register"),
