@@ -50,11 +50,12 @@ internal fun DestructiveButtonContent(
     contentPadding: PaddingValues,
     interactionSource: MutableInteractionSource,
     color: Color,
+    showDecoration: Boolean,
     content: @Composable RowScope.() -> Unit,
 ) {
     Layout(
         content = {
-            Spacer(Modifier.destructiveDecoration(interactionSource, color))
+            Spacer(if (showDecoration) Modifier.destructiveDecoration(interactionSource, color) else Modifier)
             Row(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,

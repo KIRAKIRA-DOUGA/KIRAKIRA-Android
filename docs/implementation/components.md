@@ -124,11 +124,13 @@ ConnectedLazyColumn(state = listState, contentPadding = PaddingValues(16.dp)) {
 
 ### 按钮加载反馈
 
-实心、浅色、文字、切换与图标按钮可传入 `loading`。加载期间按钮保持原文案与图标，禁用点击并通过本地化状态描述和不确定进度语义反馈。发送验证码、关注和评论／弹幕发送等入口依据各自的在途操作显示进度。
+按钮通过 `loading` 接收在途操作状态。加载期间沿用正常前景、容器配色和静止投影，同时锁定点击与选择回调。`enabled` 继续控制空闲时能否操作，即使调用方在请求期间传入 `enabled = false`，当前操作按钮仍显示加载外观。按钮保留操作名称，并提供本地化状态描述和不确定进度语义。发送验证码、关注和评论／弹幕发送等入口只在对应操作执行时显示进度。
 
-`ButtonLoadingIndicator` 先测量按钮，再用 Material 的最小触摸目标对齐线定位可见表面。在表面底边叠加 4dp 高的 `IndeterminateLinearProgressIndicator`，沿当前按钮轮廓裁剪，轨道透明。默认使用主题 `onSurface`，自定义背景可传入配套前景色。覆盖层不参与按钮尺寸计算，读屏通过按钮本身获取进度。 [按钮加载组件](../../app/src/main/java/moe/kirakira/ui/components/ButtonLoadingIndicator.kt)
+带文字的按钮保留原有文案和图标。`ButtonLoadingIndicator` 先测量按钮，再用 Material 的最小触摸目标对齐线定位可见表面。在表面底边叠加 4dp 高的 `IndeterminateLinearProgressIndicator`，沿当前按钮轮廓裁剪，轨道透明。填充按钮使用配套前景色，平面文字按钮使用主题 `onSurfaceVariant`。切换按钮在颜色扩散未结束时开始加载，进度条沿用表面的扩散遮罩，在圆内外分别使用对应的前景色。覆盖层不参与按钮尺寸计算。 [按钮加载组件](../../app/src/main/java/moe/kirakira/ui/components/ButtonLoadingIndicator.kt)
 
 两段圆角进度线按 Cerasus 的 MD2 式节奏伸缩，沿布局方向扫过轨道，每 2 秒循环一次。系统关闭动画时，显示居中的静态圆角线段。 [共享线形进度条](../../app/src/main/java/moe/kirakira/ui/components/IndeterminateLinearProgressIndicator.kt) · [动画来源](../../third_party/cerasus-icons/README.md#不确定线形进度动画)
+
+圆形图标按钮通过 `CircularButtonContent` 在图标位置显示 24dp、2dp 线宽的 `IndeterminateCircularProgressIndicator`。图标保留占位和无障碍名称。实心图标按钮使用配套前景色，裸图标按钮默认使用主题 `onSurfaceVariant`，图片查看器的保存与复制使用白色。
 
 ### 滑杆点击动画
 
@@ -162,7 +164,7 @@ ConnectedLazyColumn(state = listState, contentPadding = PaddingValues(16.dp)) {
 
 `FollowButton` 通过 `ShadowToggleButton` 渲染，提供关注文案、图标、配色和无障碍描述。它用 `visualChecked` 在禁用期间保留原来的视觉选择，恢复可用后同步轮廓、背景和前景。按钮的选中语义使用实际关注状态。`shadowWhenChecked = false` 让已关注状态的投影淡出，过渡中的投影沿用未关注时的容器色。 [按钮动态阴影](theme.md#按钮动态阴影)
 
-两者通过 `ButtonColorReveal` 和 `ButtonRevealContent` 共同绘制背景与前景：有图标时以实测图标中心为圆心，没有图标时以可见按钮中心为圆心；图标中心通过布局坐标转换到按钮可见表面，随尺寸动画保持对齐。状态更新后以 600ms、`FastOutSlowInEasing` 将新颜色圆形扩散至整个表面，遵循系统动画时长缩放，触摸、键盘、无障碍及程序更新均使用同一起点规则。背景裁剪复用当前动画轮廓，并按官方最小交互区域的对齐线避开触摸留白；官方按钮容器透明，保留边框、涟漪及选择语义。前景在过渡期间只保留基础状态与单一扩散层，按各自状态提供内容和前景色；圆内显示新内容，圆外保留旧内容。前景将按钮坐标转换到文字／图标自身坐标，以同一图标中心或按钮中心起点、半径和进度互补裁剪；只保留当前目标分支的内容语义，关注按钮从当前可见文案提供本地化操作名称。快速反向切换时沿用图标中心或按钮中心起点及当前半径，让现有扩散层收回至 0；再次切换则从当前进度继续展开，不追加冻结的圆形层。恢复基础状态时目标宽度立即转向基础分支，避免文字碎片与旧宽度滞留。主题配色引入第三种颜色时将上一目标归为基础，仅保留一个新扩散层。加载禁用期间只显示官方禁用容器色，暂停扩散并保留原状态背景；恢复可用后才向最终状态扩散，同一目标从已有进度续播，剩余时长按至目标进度的距离计算。状态未变且无中断层时直接恢复，不播放状态扩散。动画状态只驻留组合内存，不改变业务状态和请求时机。
+两者通过 `ButtonColorReveal` 和 `ButtonRevealContent` 共同绘制背景与前景：有图标时以实测图标中心为圆心，没有图标时以可见按钮中心为圆心；图标中心通过布局坐标转换到按钮可见表面，随尺寸动画保持对齐。状态更新后以 600ms、`FastOutSlowInEasing` 将新颜色圆形扩散至整个表面，遵循系统动画时长缩放，触摸、键盘、无障碍及程序更新均使用同一起点规则。背景裁剪复用当前动画轮廓，并按官方最小交互区域的对齐线避开触摸留白；官方按钮容器透明，保留边框、涟漪及选择语义。前景在过渡期间只保留基础状态与单一扩散层，按各自状态提供内容和前景色；圆内显示新内容，圆外保留旧内容。前景将按钮坐标转换到文字／图标自身坐标，以同一图标中心或按钮中心起点、半径和进度互补裁剪；只保留当前目标分支的内容语义，关注按钮从当前可见文案提供本地化操作名称。快速反向切换时沿用图标中心或按钮中心起点及当前半径，让现有扩散层收回至 0；再次切换则从当前进度继续展开，不追加冻结的圆形层。恢复基础状态时目标宽度立即转向基础分支，避免文字碎片与旧宽度滞留。主题配色引入第三种颜色时将上一目标归为基础，仅保留一个新扩散层。加载时保留当前前景和背景并暂停扩散。操作完成后向最终状态扩散，同一目标从已有进度续播，剩余时长按至目标进度的距离计算。状态未变且无中断层时直接恢复，不播放状态扩散。动画状态只驻留组合内存，不改变业务状态和请求时机。
 
 两种按钮的 `ButtonRevealContent` 均以当前目标分支决定目标尺寸，新旧分支居中叠放；使用 `animateContentSize`、主题 `fastSpatialSpec` 和居中对齐平滑调整内容宽度。尺寸动画位于官方按钮内部，使表面、轮廓与投影跟随实际布局尺寸变化。
 
@@ -391,7 +393,7 @@ TOTP 页面把二维码与打开验证器操作放在同一区域，密钥与复
 
 ## 危险操作
 
-[DestructiveActions](../../app/src/main/java/moe/kirakira/ui/components/DestructiveActions.kt) 提供共用危险配色。实心按钮通过 `ShadowButton(destructive = true)` 使用主题 `error/onError`，覆盖登出、移除／清除账号、舍弃内容、隐私重置及关闭／解绑验证；该语义优先于调用方的 `colors`。安全流程由 `AccountFlowSubmitButton.destructive` 传递，加载时沿用原有禁用与进度反馈。`DestructiveTextButton` 保持官方平面文字按钮，菜单项继续使用 `SegmentedMenuItem.destructive`；取消、普通重试及禁用颜色保留 Material 默认值。
+[DestructiveActions](../../app/src/main/java/moe/kirakira/ui/components/DestructiveActions.kt) 提供共用危险配色。实心按钮通过 `ShadowButton(destructive = true)` 使用主题 `error/onError`，覆盖登出、移除／清除账号、舍弃内容、隐私重置及关闭／解绑验证；该语义优先于调用方的 `colors`。安全流程由 `AccountFlowSubmitButton.destructive` 传递，加载时保留危险配色和静止投影，隐藏浮动装饰并显示底边进度条。`DestructiveTextButton` 保持官方平面文字按钮，菜单项继续使用 `SegmentedMenuItem.destructive`；取消、普通重试及禁用颜色保留 Material 默认值。
 
 [DestructiveDecoration](../../app/src/main/java/moe/kirakira/ui/components/DestructiveDecoration.kt) 在可用危险实心按钮的内容后方绘制五个 Cerasus `close` 图标。横向起点为容器宽度的 0%、20%、50%、60%、80%，基础尺寸为 36、24、48、16、32dp，默认缩放 1.5 倍；每个图形以 4 秒线性周期从自身高度的 +150% 移至 −150%，中点透明度为 0.4、两端为 0，依次延迟 1.6 秒启动。悬停使用 1 秒回弹过渡，缩放至 2 倍并旋转 90°；触屏继续沿用官方按压反馈。装饰使用与按钮实际可见表面同尺寸的独立绘制节点，文字单独测量且保留原布局；五个图形共用固定尺寸的矢量栅格缓存，仅通过画布缩放产生大小差异，避免同帧反复改写缓存造成图形截断。由官方表面裁剪到与投影共用的动画轮廓，不占布局空间、不添加语义，也不改变内容内边距与点击区域。逐帧状态仅在绘制阶段读取；禁用、加载或系统动画缩放为零时不组合循环动画。来源与移植差异见 [Cerasus 图标与动画](../../third_party/cerasus-icons/README.md#危险按钮装饰)。
 

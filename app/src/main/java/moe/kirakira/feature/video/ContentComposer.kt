@@ -87,7 +87,9 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 import moe.kirakira.R
 import moe.kirakira.ui.components.ButtonShadowBottomPadding
-import moe.kirakira.ui.components.ButtonLoadingIndicator
+import moe.kirakira.ui.components.CircularButtonContent
+import moe.kirakira.ui.components.buttonLoadingSemantics
+import moe.kirakira.ui.components.withEnabledAppearance
 import moe.kirakira.ui.components.ShadowButton
 import moe.kirakira.ui.components.materialColorShadow
 import moe.kirakira.ui.components.pressToRoundButtonShapes
@@ -292,33 +294,33 @@ internal fun ContentComposer(
         }
     }
     val send: @Composable () -> Unit = {
-        val sendEnabled = enabled && !busy && draft.isNotBlank()
+        val sendEnabled = enabled && !busy && !sending && draft.isNotBlank()
+        val showEnabledAppearance = sendEnabled || sending
         val colors = IconButtonDefaults.filledIconButtonColors()
         // Resolve disabled colors against the surface so scrolling content cannot show through.
         val disabledContainerColor = colors.disabledContainerColor.compositeOver(containerColor)
-        val sendContainerColor = if (sendEnabled) colors.containerColor else disabledContainerColor
+        val sendContainerColor = if (showEnabledAppearance) colors.containerColor else disabledContainerColor
         val maximumChannel = maxOf(sendContainerColor.red, sendContainerColor.green, sendContainerColor.blue)
         val minimumChannel = minOf(sendContainerColor.red, sendContainerColor.green, sendContainerColor.blue)
-        val sendShadow = if (sendEnabled && maximumChannel - minimumChannel > 0.02f) {
+        val sendShadow = if (showEnabledAppearance && maximumChannel - minimumChannel > 0.02f) {
             Modifier.materialColorShadow(CircleShape, sendContainerColor) { shadowElevation.value }
         } else {
             Modifier.shadow(shadowElevation, CircleShape, clip = false)
         }
-        ButtonLoadingIndicator(
-            loading = sending,
+        FilledIconButton(
+            onClick = { if (sendEnabled) onSend() },
+            enabled = sendEnabled,
+            modifier = Modifier
+                .size(56.dp)
+                .buttonLoadingSemantics(sending)
+                .then(sendShadow),
             shape = CircleShape,
-            modifier = Modifier.size(56.dp),
-        ) { buttonModifier ->
-            FilledIconButton(
-                onClick = onSend,
-                enabled = sendEnabled,
-                modifier = buttonModifier.then(sendShadow),
-                shape = CircleShape,
-                colors = colors.copy(
-                    disabledContainerColor = disabledContainerColor,
-                    disabledContentColor = colors.disabledContentColor.compositeOver(disabledContainerColor),
-                ),
-            ) {
+            colors = colors.copy(
+                disabledContainerColor = disabledContainerColor,
+                disabledContentColor = colors.disabledContentColor.compositeOver(disabledContainerColor),
+            ).withEnabledAppearance(sending),
+        ) {
+            CircularButtonContent(sending) {
                 Icon(painterResource(R.drawable.ic_icon_send), stringResource(R.string.content_send))
             }
         }

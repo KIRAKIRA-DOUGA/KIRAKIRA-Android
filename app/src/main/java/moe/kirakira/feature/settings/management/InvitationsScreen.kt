@@ -72,6 +72,7 @@ import moe.kirakira.ui.components.StatusBarScrollToTopEffect
 import moe.kirakira.ui.components.cardColorShadow
 import moe.kirakira.ui.components.connectedListItemShapes
 import moe.kirakira.ui.components.pressToRoundButtonShapes
+import moe.kirakira.ui.components.withEnabledAppearance
 import moe.kirakira.ui.components.smoothScrollToTop
 import moe.kirakira.ui.theme.KIRAKIRATheme
 
@@ -222,24 +223,23 @@ private fun InvitationStatistics(
                 InvitationStatistic(stringResource(R.string.invitation_used), state.data?.let { it.size - unused }, accountRevision)
             }
             val shapes = pressToRoundButtonShapes(ButtonDefaults.MediumContainerHeight)
+            val colors = ButtonDefaults.buttonColors(
+                containerColor = Color.White,
+                contentColor = MaterialTheme.colorScheme.primary,
+            )
             ButtonLoadingIndicator(
                 loading = busy,
                 shape = shapes.shape,
                 modifier = Modifier.fillMaxWidth().heightIn(min = ButtonDefaults.MediumContainerHeight),
-                color = MaterialTheme.colorScheme.onPrimary,
+                color = MaterialTheme.colorScheme.onPrimaryFixed,
             ) { buttonModifier ->
                 Button(
-                    onClick = onCreate,
+                    onClick = { if (!busy) onCreate() },
                     enabled = !busy,
                     modifier = buttonModifier,
                     shapes = shapes,
                     contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight, hasStartIcon = true),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White,
-                        contentColor = MaterialTheme.colorScheme.primary,
-                        disabledContainerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.12f),
-                        disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.38f),
-                    ),
+                    colors = colors.withEnabledAppearance(busy),
                     elevation = null,
                 ) {
                     Icon(painterResource(R.drawable.ic_icon_add), null,

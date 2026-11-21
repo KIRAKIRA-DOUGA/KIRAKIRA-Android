@@ -29,6 +29,7 @@ internal fun IndeterminateLinearProgressIndicator(
     modifier: Modifier = Modifier,
     color: Color = ProgressIndicatorDefaults.linearColor,
     trackColor: Color = ProgressIndicatorDefaults.linearTrackColor,
+    drawSegments: DrawScope.((Color) -> Unit) -> Unit = { draw -> draw(color) },
 ) {
     val transition = rememberInfiniteTransition(label = "Linear progress")
     val firstTranslation by transition.animateFloat(0f, 2.006111f, FirstLineTranslation, label = "First translation")
@@ -46,12 +47,14 @@ internal fun IndeterminateLinearProgressIndicator(
         if (trackColor.alpha > 0f) {
             drawRoundRect(trackColor, cornerRadius = CornerRadius(size.minDimension / 2f))
         }
-        if (durationScale?.scaleFactor == 0f) {
-            drawProgressSegment(centerFraction = 0.5f, lengthFraction = 0.4f, color = color)
-        } else {
-            // Cerasus offsets each wrapper's left edge and scales its line around the center.
-            drawProgressSegment(-1.451666f + 0.5f + firstTranslation, firstLength, color)
-            drawProgressSegment(-0.548889f + 0.5f + secondTranslation, secondLength, color)
+        drawSegments { segmentColor ->
+            if (durationScale?.scaleFactor == 0f) {
+                drawProgressSegment(centerFraction = 0.5f, lengthFraction = 0.4f, color = segmentColor)
+            } else {
+                // Cerasus offsets each wrapper's left edge and scales its line around the center.
+                drawProgressSegment(-1.451666f + 0.5f + firstTranslation, firstLength, segmentColor)
+                drawProgressSegment(-0.548889f + 0.5f + secondTranslation, secondLength, segmentColor)
+            }
         }
     }
 }

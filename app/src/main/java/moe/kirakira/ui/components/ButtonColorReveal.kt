@@ -22,14 +22,15 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.addOutline
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -85,6 +86,10 @@ internal class ButtonColorReveal(initialChecked: Boolean, initialColor: Color, i
 
 internal class ButtonColorWave(val checked: Boolean, val color: Color) {
     val progress = Animatable(0f)
+
+    fun radius(origin: Offset, width: Float, height: Float): Float =
+        hypot(max(origin.x, width - origin.x), max(origin.y, height - origin.y)) *
+            progress.value.coerceIn(0f, 1f)
 }
 
 @Composable
@@ -93,16 +98,18 @@ internal fun rememberButtonColorReveal(
     color: Color,
     disabledColor: Color,
     enabled: Boolean,
+    loading: Boolean,
 ): ButtonColorReveal {
     val reveal = remember { ButtonColorReveal(checked, color, disabledColor.takeUnless { enabled }) }
     val motionSpec = tween<Float>(durationMillis = REVEAL_DURATION_MILLIS, easing = FastOutSlowInEasing)
-    LaunchedEffect(checked, color, disabledColor, enabled) {
+    LaunchedEffect(checked, color, disabledColor, enabled, loading) {
         if (!enabled) {
             // Disabled appearance is temporary; retain the previous state as the reveal's base.
             reveal.disabledColor = disabledColor
         } else {
             reveal.disabledColor = null
-            // A follow request may disable the button before its checked state is confirmed.
+            // Keep the visible palette while the operation is in flight; resume from the same radius.
+            if (loading) return@LaunchedEffect
             if (checked != reveal.baseChecked || color != reveal.baseColor || reveal.layers.isNotEmpty()) {
                 val activeWave = reveal.layers.singleOrNull()
                 val returningToBase = activeWave != null && checked == reveal.baseChecked && color == reveal.baseColor
@@ -163,12 +170,50 @@ internal fun Modifier.buttonColorReveal(shape: Shape, reveal: ButtonColorReveal)
                 drawRect(reveal.baseColor)
                 reveal.layers.forEach { wave ->
                     val origin = reveal.origin(width, height)
-                    val radius = hypot(max(origin.x, width - origin.x), max(origin.y, height - origin.y))
-                    drawCircle(wave.color, radius * wave.progress.value.coerceIn(0f, 1f), origin)
+                    drawCircle(wave.color, wave.radius(origin, width, height), origin)
                 }
             }
         }
     }
+}
+
+private fun ButtonColorReveal.circleIn(
+    wave: ButtonColorWave,
+    root: LayoutCoordinates,
+    local: LayoutCoordinates,
+): Path {
+    val inset = visualInset
+    val width = (root.size.width - inset.x * 2f).coerceAtLeast(0f)
+    val height = (root.size.height - inset.y * 2f).coerceAtLeast(0f)
+    val origin = origin(width, height)
+    val center = local.localPositionOf(root, origin + Offset(inset.x.toFloat(), inset.y.toFloat()))
+    return Path().apply { addOval(Rect(center, wave.radius(origin, width, height))) }
+}
+
+@Composable
+internal fun ButtonRevealLoadingIndicator(
+    reveal: ButtonColorReveal,
+    foregroundColor: (Boolean) -> Color,
+    modifier: Modifier = Modifier,
+) {
+    var coordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    IndeterminateLinearProgressIndicator(
+        modifier = modifier.onGloballyPositioned { coordinates = it },
+        trackColor = Color.Transparent,
+        drawSegments = { draw ->
+            val baseColor = foregroundColor(reveal.baseChecked)
+            val wave = if (reveal.disabledColor == null) reveal.layers.singleOrNull() else null
+            val root = reveal.coordinates
+            val local = coordinates
+            if (wave == null || root == null || local == null || !root.isAttached || !local.isAttached) {
+                draw(baseColor)
+            } else {
+                val mask = reveal.circleIn(wave, root, local)
+                clipPath(mask, clipOp = ClipOp.Difference) { draw(baseColor) }
+                clipPath(mask) { draw(foregroundColor(wave.checked)) }
+            }
+        },
+    )
 }
 
 /** Each foreground branch is clipped by the very same circles as the background. */
@@ -200,24 +245,11 @@ internal fun ButtonRevealContent(
                                 if (root == null || local == null || !root.isAttached || !local.isAttached) {
                                     return@drawWithContent
                                 }
-                                val inset = reveal.visualInset
-                                val width = (root.size.width - inset.x * 2f).coerceAtLeast(0f)
-                                val height = (root.size.height - inset.y * 2f).coerceAtLeast(0f)
-                                fun circle(layer: ButtonColorWave): Path {
-                                    val origin = reveal.origin(width, height)
-                                    val center = local.localPositionOf(
-                                        root,
-                                        origin + Offset(inset.x.toFloat(), inset.y.toFloat()),
-                                    )
-                                    val radius = hypot(max(origin.x, width - origin.x), max(origin.y, height - origin.y)) *
-                                        layer.progress.value.coerceIn(0f, 1f)
-                                    return Path().apply { addOval(Rect(center, radius)) }
-                                }
-                                var mask = wave?.let { circle(it) } ?: Path().apply {
+                                var mask = wave?.let { reveal.circleIn(it, root, local) } ?: Path().apply {
                                     addRect(Rect(Offset.Zero, size))
                                 }
                                 waves.drop(index).forEach { later ->
-                                    mask = Path.combine(PathOperation.Difference, mask, circle(later))
+                                    mask = Path.combine(PathOperation.Difference, mask, reveal.circleIn(later, root, local))
                                 }
                                 clipPath(mask) { this@drawWithContent.drawContent() }
                             },

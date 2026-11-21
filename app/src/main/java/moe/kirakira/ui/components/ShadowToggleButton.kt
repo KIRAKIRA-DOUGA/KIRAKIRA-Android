@@ -24,7 +24,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 
 /**
  * Official toggle button with a shared animated outline for its surface and project shadow.
- * [visualChecked] can retain the displayed state while a disabled button awaits confirmation.
+ * [visualChecked] can retain the displayed state while an operation awaits confirmation.
  */
 @Composable
 internal fun ShadowToggleButton(
@@ -45,6 +45,7 @@ internal fun ShadowToggleButton(
     content: @Composable RowScope.(Boolean) -> Unit,
 ) {
     val interactive = enabled && !loading
+    val showEnabledAppearance = enabled || loading
     val source = interactionSource ?: remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     val restingTargetShape = if (visualChecked) shapes.checkedShape else shapes.shape
@@ -57,18 +58,24 @@ internal fun ShadowToggleButton(
         checked = visualChecked,
         color = containerColor,
         disabledColor = colors.disabledContainerColor,
-        enabled = interactive,
+        enabled = showEnabledAppearance,
+        loading = loading,
     )
     fun foregroundColor(checked: Boolean): Color = when {
-        !enabled -> colors.disabledContentColor
+        !showEnabledAppearance -> colors.disabledContentColor
         checked -> colors.checkedContentColor
         else -> colors.contentColor
     }
 
-    ButtonLoadingIndicator(loading, outline, modifier) { buttonModifier ->
+    ButtonLoadingIndicator(
+        loading = loading,
+        shape = outline,
+        modifier = modifier,
+        indicator = { ButtonRevealLoadingIndicator(reveal, ::foregroundColor, it) },
+    ) { buttonModifier ->
         ToggleButton(
             checked = checked,
-            onCheckedChange = onCheckedChange,
+            onCheckedChange = { if (interactive) onCheckedChange(it) },
             modifier = buttonModifier.buttonShadow(
                 outline,
                 containerColor,
@@ -78,6 +85,7 @@ internal fun ShadowToggleButton(
                 tint = {
                     if (shadowWhenChecked) reveal.shadowColor() else materialShadowColor(colors.containerColor)
                 },
+                showShadow = showEnabledAppearance,
             ).buttonColorReveal(outline, reveal),
             buttonSize = buttonSize,
             enabled = interactive,

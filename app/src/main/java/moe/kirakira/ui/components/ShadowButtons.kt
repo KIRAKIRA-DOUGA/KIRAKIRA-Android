@@ -81,19 +81,11 @@ internal fun ShadowButton(
     val source = interactionSource ?: remember { MutableInteractionSource() }
     val outline = rememberButtonShadowShape(shapes.shape, shapes.pressedShape, interactive, source)
     val resolvedColors = if (destructive) DestructiveActionDefaults.buttonColors() else colors
-    val showEnabledAppearance = interactive || previewEnabledAppearance
-    val buttonColors = if (!interactive && previewEnabledAppearance) {
-        resolvedColors.copy(
-            disabledContainerColor = resolvedColors.containerColor,
-            disabledContentColor = resolvedColors.contentColor,
-        )
-    } else {
-        resolvedColors
-    }
+    val showEnabledAppearance = enabled || loading || previewEnabledAppearance
     var visualSize by remember { mutableStateOf(Size.Zero) }
-    ButtonLoadingIndicator(loading, outline, modifier) { buttonModifier ->
+    ButtonLoadingIndicator(loading, outline, resolvedColors.contentColor, modifier) { buttonModifier ->
         Button(
-            onClick = onClick,
+            onClick = { if (interactive) onClick() },
             modifier = buttonModifier
                 .then(
                     if (destructive) Modifier.observeButtonMeasurement { placeable ->
@@ -105,10 +97,13 @@ internal fun ShadowButton(
                         )
                     } else Modifier,
                 )
-                .buttonShadow(outline, resolvedColors.containerColor, showEnabledAppearance, source),
+                .buttonShadow(
+                    outline, resolvedColors.containerColor, interactive, source,
+                    showShadow = showEnabledAppearance,
+                ),
             enabled = interactive,
             shape = outline,
-            colors = buttonColors,
+            colors = resolvedColors.withEnabledAppearance(!interactive && showEnabledAppearance),
             elevation = null,
             border = border,
             contentPadding = contentPadding,
@@ -120,6 +115,7 @@ internal fun ShadowButton(
                     contentPadding = contentPadding,
                     interactionSource = source,
                     color = resolvedColors.contentColor,
+                    showDecoration = !loading,
                     content = content,
                 )
             } else {
@@ -145,13 +141,16 @@ internal fun ShadowFilledTonalButton(
     val interactive = enabled && !loading
     val source = interactionSource ?: remember { MutableInteractionSource() }
     val outline = rememberButtonShadowShape(shapes.shape, shapes.pressedShape, interactive, source)
-    ButtonLoadingIndicator(loading, outline, modifier) { buttonModifier ->
+    ButtonLoadingIndicator(loading, outline, colors.contentColor, modifier) { buttonModifier ->
         FilledTonalButton(
-            onClick = onClick,
-            modifier = buttonModifier.buttonShadow(outline, colors.containerColor, interactive, source),
+            onClick = { if (interactive) onClick() },
+            modifier = buttonModifier.buttonShadow(
+                outline, colors.containerColor, interactive, source,
+                showShadow = enabled || loading,
+            ),
             enabled = interactive,
             shape = outline,
-            colors = colors,
+            colors = colors.withEnabledAppearance(loading),
             elevation = null,
             border = border,
             contentPadding = contentPadding,
@@ -175,16 +174,20 @@ internal fun ShadowFilledIconButton(
     val interactive = enabled && !loading
     val source = interactionSource ?: remember { MutableInteractionSource() }
     val outline = rememberButtonShadowShape(shapes.shape, shapes.pressedShape, interactive, source)
-    ButtonLoadingIndicator(loading, outline, modifier) { buttonModifier ->
-        FilledIconButton(
-            onClick = onClick,
-            modifier = buttonModifier.buttonShadow(outline, colors.containerColor, interactive, source),
-            enabled = interactive,
-            shape = outline,
-            colors = colors,
-            interactionSource = source,
-            content = content,
-        )
+    FilledIconButton(
+        onClick = { if (interactive) onClick() },
+        modifier = modifier
+            .buttonLoadingSemantics(loading)
+            .buttonShadow(
+                outline, colors.containerColor, interactive, source,
+                showShadow = enabled || loading,
+            ),
+        enabled = interactive,
+        shape = outline,
+        colors = colors.withEnabledAppearance(loading),
+        interactionSource = source,
+    ) {
+        CircularButtonContent(loading, content = content)
     }
 }
 
@@ -261,6 +264,7 @@ internal fun Modifier.buttonShadow(
     floating: Boolean = false,
     opacity: () -> Float = { 1f },
     tint: () -> Color = { materialShadowColor(containerColor) },
+    showShadow: Boolean = enabled,
 ): Modifier {
     val pressed by interactionSource.collectIsPressedAsState()
     val hovered by interactionSource.collectIsHoveredAsState()
@@ -268,7 +272,7 @@ internal fun Modifier.buttonShadow(
     var visualInset by remember { mutableStateOf(IntOffset.Zero) }
     val shadowShape = remember(shape, visualInset) { ButtonShadowOutline(shape, visualInset) }
     val elevation by rememberButtonShadowElevation(enabled, pressed, hovered || focused, floating)
-    if (!enabled) return this
+    if (!showShadow) return this
     return observeButtonMeasurement { placeable ->
         visualInset = IntOffset(
             placeable[MinimumInteractiveLeftAlignmentLine].coerceAtLeast(0),
