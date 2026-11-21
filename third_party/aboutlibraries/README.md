@@ -18,7 +18,7 @@ AboutLibraries 的 Android Gradle 插件为每个构建变体自动生成
 - [Material Symbols](../material-symbols/README.md) 和 [AOSP 转场](../android-motion/README.md)
   的来源记录及 LICENSE 继续保留在各自目录；更新这些组件时同步本目录的条目与正文。
 - [AndroidX 搜索展开布局](../android-search/README.md) 以手动条目保留适配源码、版权及 Apache-2.0 正文。
-- [Cerasus 图标与颜文字](../cerasus-icons/README.md) 以手动条目保留来源与 AGPL-3.0 许可全文。
+- Cerasus 是 KIRAKIRA 自有项目，不作为第三方组件列出；[资源来源与许可](../cerasus-icons/README.md)保留在仓库内。
 - [NumberFlow](../number-flow/README.md) 的固定提交源码通过手动条目保留来源、版权和 Apache-2.0 全文。
 - [Montserrat](../montserrat/README.md) 的固定提交 SemiBold 和 Bold 字体通过手动条目保留来源、版权和 OFL-1.1 全文。
 - 保留上游名称、许可证原文和版权声明，不翻译或缩写法律文本。不要把 README 中的说明视为上游 NOTICE 的替代。

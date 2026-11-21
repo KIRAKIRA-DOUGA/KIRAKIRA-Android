@@ -9,8 +9,6 @@
 - 设计理由：沿用 Cerasus 三条错位弹幕轨道，2dp 视觉线宽与圆头已协调于 Material Symbols Rounded。使用 `ic_custom_` 命名以区分官方图标，替代原先借用的聊天气泡与字幕图标。
 - 使用位置：设置页弹幕入口、视频播放页弹幕列表空状态，以及播放器 Material 3 Expressive Switch 的开启／关闭滑块图标。评论仍使用聊天气泡。
 
-应用内许可正文同步维护于 [AboutLibraries 手动声明](../aboutlibraries/README.md)。
-
 ## 设置齿轮
 
 设置入口、设置页旋转底纹和播放器设置按钮共用 `ic_icon_settings.xml`。该资源沿用 Cerasus 的旧版 Material Icons 齿轮，转换为 Android VectorDrawable 时保留原始路径和 24 × 24 画布，颜色由 Compose 主题提供。许可沿用本目录 GNU AGPL v3.0。 [Cerasus settings.svg](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Cerasus/blob/dd5b8cdcabaac4d03ad190f6b7037bfab494c72b/assets/icons/settings.svg)

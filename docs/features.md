@@ -389,7 +389,7 @@ GitHub、开源组件、隐私政策和服务条款入口直接分组展示，�
 
 “我 → 设置 → 关于 → 开源组件”使用 AboutLibraries 自带的 Material 3 列表和组件详情 Sheet，继承应用主题，支持离线阅读及返回栈、列表位置恢复。此页保留第三方列表样式，外层导航与顶栏沿用项目组件。
 
-许可证数据按 Debug / Release 构建自动生成，并补充 Cerasus 图标、Material Symbols 与 AOSP 转场移植声明。生成、维护与检查方法统一见[开源声明说明](../third_party/aboutlibraries/README.md)。
+许可证数据按 Debug / Release 构建自动生成，并补充 Material Symbols 与 AOSP 转场等未通过 Gradle 引入的第三方组件声明。生成、维护与检查方法见[开源声明说明](../third_party/aboutlibraries/README.md)。
 
 ## 启动屏
 
