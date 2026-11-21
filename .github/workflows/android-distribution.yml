@@ -35,7 +35,24 @@ jobs:
           java-version: '25'
           cache: gradle
       - name: Install Android SDK
-        run: sdkmanager 'platforms;android-37.2' "build-tools;$ANDROID_BUILD_TOOLS"
+        shell: bash
+        run: |
+          sdk_root="$RUNNER_TEMP/android-sdk"
+          tools_dir=$(mktemp -d "$RUNNER_TEMP/android-command-line-tools.XXXXXX")
+          tools_zip="$tools_dir/tools.zip"
+          # Linux archive and SHA-256 from developer.android.com/studio#command-line-tools-only.
+          curl --fail --silent --show-error --location --retry 3 \
+            --output "$tools_zip" \
+            https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip
+          printf '%s  %s\n' '4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583' "$tools_zip" | sha256sum -c -
+
+          unzip -q "$tools_zip" -d "$tools_dir"
+          mkdir -p "$sdk_root/cmdline-tools"
+          mv "$tools_dir/cmdline-tools" "$sdk_root/cmdline-tools/22.0"
+          # AGP's default Build Tools and the separate version used for signing.
+          "$sdk_root/cmdline-tools/22.0/bin/sdkmanager" --sdk_root="$sdk_root" --install \
+            'platforms;android-37.2' 'build-tools;36.0.0' "build-tools;$ANDROID_BUILD_TOOLS" < <(yes)
+          printf 'ANDROID_HOME=%s\nANDROID_SDK_ROOT=%s\n' "$sdk_root" "$sdk_root" >> "$GITHUB_ENV"
       - name: Build release APK
         shell: bash
         run: |
