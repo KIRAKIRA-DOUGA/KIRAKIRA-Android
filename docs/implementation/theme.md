@@ -103,6 +103,14 @@ MaterialKolor 提供灰阶生成、HCT 工具与 Compose 适配代码，不引�
 
 页面顶栏的标题槽通过 `TopAppBarDefaults.topAppBarColors(titleContentColor = MaterialTheme.colorScheme.primary)` 使用当前主题主色。共享 `CollapsibleTopAppBar` 与主界面的公共颜色配置集中设置，独立顶栏在调用处设置。静态页面标题使用[品牌标题字体](#品牌标题字体)，字号与行高沿用组件默认值。资料页吸顶顶栏中的用户昵称使用系统默认字体和 `FontWeight.Bold`（700）。背景与导航图标沿用各页面配置。
 
+### 应用语言
+
+`core/system/AppLanguage.kt` 定义 `AppLanguage`（跟随系统、`en`、`zh`、`zh-Hant`、`ja`），`locales_config.xml` 同步声明可选语言。读取标签时，中文按书写系统区分简繁：`Hant` 或未标书写系统的台湾、香港、澳门地区归为繁体中文，其余归为简体中文。Android 13+ 通过 `LocaleManager.applicationLocales` 读写，清空列表即交还系统管理。`MainActivity` 自行处理 `locale|layoutDirection`，资源与 `LocalConfiguration` 原地更新后 Compose 重组。
+
+较低版本仅在 `kirakira_settings` 的 `app_language` 保存手动选择。启动时和 Activity 收到配置变化后，将手动选择应用到默认 `LocaleList`、Activity 与 Application 资源。切回跟随系统时删除偏好并恢复设备当时的语言列表，后续配置变化由系统更新资源。`ProvideAppLanguage` 始终包住低版本的主题，为组合提供相应的 `LocalContext`、`LocalConfiguration` 与 `LocalLayoutDirection`，切换时保留组合状态。
+
+`LanguageSettingsScreen` 在语言配置变化、收到系统语言广播或页面恢复时重新读取当前选项及设备语言。页面复用 `SettingsPage`、`SettingsSection` 与 `SettingsRadioItem`，跟随系统与语言列表分两组，置于同一 `selectableGroup`。语言行显示单行母语名称，本地化名称用于搜索锚点。顶栏底纹使用 `ic_icon_translate`。
+
 ### 栏面阴影
 
 [ThemeShadows](../../app/src/main/java/moe/kirakira/ui/theme/ThemeShadows.kt) 的 `barSurfaceLayer(shape, alpha, shadowElevation)` 统一承载栏面形状、透明度与原生投影，使用官方 `graphicsLayer`，默认阴影高度通过 `BarShadowElevation` 固定为 4dp；认证与账号安全流程的 `AccountFlowScaffold` 顶栏通过共享正文滚动状态在顶部使用 0dp、滚离顶部后使用 4dp。默认矩形、alpha 为 1，胶囊底栏传入与背景一致的圆角形状；阴影配色和强度由平台光照模型决定，不手动映射模糊、扩张或双层不透明度。图层仅按形状裁剪内容，保持默认 `CompositingStrategy.Auto`，不使用阴影蒙版、差集裁剪或阴影版本特判。

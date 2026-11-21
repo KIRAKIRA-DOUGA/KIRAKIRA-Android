@@ -21,6 +21,7 @@ import moe.kirakira.feature.settings.DanmakuSettingsViewModel
 import moe.kirakira.feature.settings.LicensesScreen
 import moe.kirakira.feature.settings.PlaybackSettingsScreen
 import moe.kirakira.feature.settings.PlaybackSettingsViewModel
+import moe.kirakira.feature.settings.LanguageSettingsScreen
 import moe.kirakira.feature.settings.SettingsScreen
 import moe.kirakira.feature.settings.SettingsSearchPage
 import moe.kirakira.feature.settings.SettingsSearchTargetProvider
@@ -175,6 +176,11 @@ internal fun registerSettingsEntries(
                     )
                 }
             }
+            LanguageSettingsRoute -> {
+                NavigationPage {
+                    LanguageSettingsScreen(onBack = { navigation.popFrom(currentRoute) })
+                }
+            }
             AppearanceRoute -> {
                 NavigationPage {
                     AppearanceScreen(
@@ -217,6 +223,7 @@ internal fun registerSettingsEntries(
                     SettingsSearchPage.ABOUT -> AboutRoute
                     SettingsSearchPage.DANMAKU -> DanmakuSettingsRoute
                     SettingsSearchPage.PLAYBACK -> PlaybackSettingsRoute
+                    SettingsSearchPage.LANGUAGE -> LanguageSettingsRoute
                     SettingsSearchPage.APPEARANCE -> AppearanceRoute
                     SettingsSearchPage.ACCOUNT, SettingsSearchPage.HOME -> null
                 }
@@ -233,6 +240,7 @@ internal fun registerSettingsEntries(
                     onNavigateToBlocking = { navigation.openFrom(SettingsRoute, BlockingOverviewRoute) },
                     onNavigateToInvitations = { navigation.openFrom(SettingsRoute, InvitationsRoute) },
                     onNavigateToDanmaku = { navigation.openFrom(SettingsRoute, DanmakuSettingsRoute) },
+                    onNavigateToLanguage = { navigation.openFrom(SettingsRoute, LanguageSettingsRoute) },
                     onNavigateToPlayback = { navigation.openFrom(SettingsRoute, PlaybackSettingsRoute) },
                     signedIn = accountState.activeProfile != null,
                     accountBusy = accountState.isBusy || accountState.isLoading,
@@ -290,6 +298,7 @@ internal fun registerSettingsEntries(
         }
         entry<DanmakuSettingsRoute> { route -> renderSettingsDestination(route, route) }
         entry<PlaybackSettingsRoute> { route -> renderSettingsDestination(route, route) }
+        entry<LanguageSettingsRoute> { route -> renderSettingsDestination(route, route) }
         entry<AppearanceRoute> { route -> renderSettingsDestination(route, route) }
         entry<LicensesRoute> {
             NavigationPage {

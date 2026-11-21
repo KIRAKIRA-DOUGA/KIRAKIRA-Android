@@ -8,7 +8,7 @@ import moe.kirakira.R
 import moe.kirakira.ui.theme.ThemePresetColor
 
 internal enum class SettingsSearchPage {
-    HOME, APPEARANCE, PLAYBACK, DANMAKU, PROFILE, PRIVACY, SECURITY, BLOCKING, INVITATIONS, ABOUT, ACCOUNT,
+    HOME, APPEARANCE, LANGUAGE, PLAYBACK, DANMAKU, PROFILE, PRIVACY, SECURITY, BLOCKING, INVITATIONS, ABOUT, ACCOUNT,
 }
 
 internal data class SettingsSearchEntry(
@@ -100,6 +100,14 @@ internal val settingsSearchCatalog: List<SettingsSearchEntry> = buildList {
         "danmaku.top" to R.string.danmaku_style_top,
         "danmaku.bottom" to R.string.danmaku_style_bottom,
         "danmaku.ltr" to R.string.danmaku_style_ltr,
+    )
+    page("language", R.string.settings_language, SettingsSearchPage.LANGUAGE, R.drawable.ic_icon_translate)
+    items(SettingsSearchPage.LANGUAGE, R.string.settings_language, R.drawable.ic_icon_translate, false,
+        "language.system" to R.string.language_system,
+        "language.english" to R.string.language_english,
+        "language.chinese_simplified" to R.string.language_chinese_simplified,
+        "language.chinese_traditional" to R.string.language_chinese_traditional,
+        "language.japanese" to R.string.language_japanese,
     )
     page("about", R.string.settings_about, SettingsSearchPage.ABOUT, R.drawable.ic_icon_info)
     items(SettingsSearchPage.ABOUT, R.string.settings_about, R.drawable.ic_icon_info, false,

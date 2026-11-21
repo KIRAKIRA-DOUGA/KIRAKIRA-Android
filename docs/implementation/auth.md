@@ -89,7 +89,7 @@
 
 密码传输格式与 Cerasus `generateHash` 一致：UTF-8 原密码的 SHA-256，小写 64 位十六进制，不能 trim 原密码或把 DTO 中旧的 bcrypt 注释当作契约。摘要依然等价于敏感凭据，只在内存保留，不得记录。
 
-邮件模板／业务名分别是 `SendLoginVerificationCode` / `login`、`SendRegistrationVerificationCode` / `registration`、`SendResetPasswordVerificationCode` / `forgot-password`；语言为 `zh-Hans-CN` 或 `en-US`。认证页、认证步骤和安全步骤共用 `verificationMailLanguage` 将应用 Locale 映射到邮件语言，不与标签语言映射混用。Rosales 的冷却按邮箱跨业务共用，Repository 使用单调时钟记录 60 秒截止值并串行发送；冷却间隔与协程轮询延迟使用 `kotlin.time.Duration`，截止时间保留系统毫秒值，剩余冷却仅在交给界面时向上取整为秒数；服务端冷却或每日发送／校验上限优先于 `success`。邮箱验证码为六位数字；TOTP 输入允许备用／恢复码。`VerificationCodeFormat` 集中定义六位数字、六位字母数字备用码与二十四位恢复码；输入组件复用长度和字符过滤，认证、安全设置及一次性材料读取复用格式校验，各流程继续管理提交和错误提示。注册用户名与昵称均为必填，字符策略与 Cerasus `assets/pomsky/username.pom` 对齐，表单长度上限为 20 个 UTF-16 单元。
+邮件模板／业务名分别是 `SendLoginVerificationCode` / `login`、`SendRegistrationVerificationCode` / `registration`、`SendResetPasswordVerificationCode` / `forgot-password`；语言为 `zh-Hans-CN`、`ja` 或 `en-US`：中文（含繁体）发送简体中文，日语发送日语，其余发送英语。Rosales 的繁体中文邮件模板尚为空，请求 `zh-Hant-TW` 会因读不到标题而发送失败，模板补齐前不使用。认证页、认证步骤和安全步骤共用 `verificationMailLanguage` 将应用 Locale 映射到邮件语言，不与标签语言映射混用。Rosales 的冷却按邮箱跨业务共用，Repository 使用单调时钟记录 60 秒截止值并串行发送；冷却间隔与协程轮询延迟使用 `kotlin.time.Duration`，截止时间保留系统毫秒值，剩余冷却仅在交给界面时向上取整为秒数；服务端冷却或每日发送／校验上限优先于 `success`。邮箱验证码为六位数字；TOTP 输入允许备用／恢复码。`VerificationCodeFormat` 集中定义六位数字、六位字母数字备用码与二十四位恢复码；输入组件复用长度和字符过滤，认证、安全设置及一次性材料读取复用格式校验，各流程继续管理提交和错误提示。注册用户名与昵称均为必填，字符策略与 Cerasus `assets/pomsky/username.pom` 对齐，表单长度上限为 20 个 UTF-16 单元。
 
 ### 网络与错误
 

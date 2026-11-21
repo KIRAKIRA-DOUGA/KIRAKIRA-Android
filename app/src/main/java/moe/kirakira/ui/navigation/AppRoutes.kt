@@ -93,6 +93,9 @@ internal data object DanmakuSettingsRoute : NavKey
 internal data object PlaybackSettingsRoute : NavKey
 
 @Serializable
+internal data object LanguageSettingsRoute : NavKey
+
+@Serializable
 internal data object BlockingOverviewRoute : NavKey
 
 @Serializable

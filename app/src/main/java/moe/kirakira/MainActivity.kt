@@ -27,6 +27,9 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import moe.kirakira.core.system.ProvideAppLanguage
+import moe.kirakira.core.system.initializeLegacyAppLanguage
+import moe.kirakira.core.system.reapplyLegacyAppLanguage
 import moe.kirakira.ui.splash.SplashReveal
 import moe.kirakira.ui.splash.SplashRevealController
 import moe.kirakira.ui.theme.KIRAKIRATheme
@@ -121,6 +124,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        reapplyLegacyAppLanguage(this)
         applySystemBars()
         // AndroidX reapplies edge-to-edge from a child View after the Activity configuration callback.
         window.decorView.apply {
@@ -140,6 +144,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        initializeLegacyAppLanguage(this)
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
         // Theme loading can finish before Compose applies and lays out the first page.
@@ -165,42 +170,44 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.LIGHT -> false
                 ThemeMode.DARK -> true
             }
-            KIRAKIRATheme(
-                darkTheme = darkTheme,
-                dynamicColor = themeColors.useSystemColors,
-                seedColor = Color(themeColors.seedColorArgb),
-            ) {
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .onGloballyPositioned { appContentReady = true },
+            ProvideAppLanguage {
+                KIRAKIRATheme(
+                    darkTheme = darkTheme,
+                    dynamicColor = themeColors.useSystemColors,
+                    seedColor = Color(themeColors.seedColorArgb),
                 ) {
-                    KIRAKIRAApp(
-                        themeMode = themeMode,
-                        onThemeModeChange = themeViewModel::setThemeMode,
-                        themeColors = themeColors,
-                        onThemeColorsChange = themeViewModel::setThemeColors,
-                        predictiveBackEnabled = predictiveBackEnabled,
-                        onPredictiveBackEnabledChange = themeViewModel::setPredictiveBackEnabled,
-                        modifier = if (revealInfo != null) Modifier.clearAndSetSemantics { } else Modifier,
-                        onVideoPageActiveChange = { active ->
-                            // Keep the latest page style while the launch overlay owns the bars.
-                            appDarkTheme = darkTheme
-                            videoPageActive = active
-                            applySystemBars()
-                        },
-                        onImageViewerActiveChange = { active ->
-                            appDarkTheme = darkTheme
-                            imageViewerActive = active
-                            applySystemBars()
-                        },
-                    )
-                    if (revealInfo != null) {
-                        SplashReveal(
-                            info = revealInfo,
-                            onOverlayDrawn = splashRevealController::onOverlayDrawn,
-                            onFinished = splashRevealController::finish,
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .onGloballyPositioned { appContentReady = true },
+                    ) {
+                        KIRAKIRAApp(
+                            themeMode = themeMode,
+                            onThemeModeChange = themeViewModel::setThemeMode,
+                            themeColors = themeColors,
+                            onThemeColorsChange = themeViewModel::setThemeColors,
+                            predictiveBackEnabled = predictiveBackEnabled,
+                            onPredictiveBackEnabledChange = themeViewModel::setPredictiveBackEnabled,
+                            modifier = if (revealInfo != null) Modifier.clearAndSetSemantics { } else Modifier,
+                            onVideoPageActiveChange = { active ->
+                                // Keep the latest page style while the launch overlay owns the bars.
+                                appDarkTheme = darkTheme
+                                videoPageActive = active
+                                applySystemBars()
+                            },
+                            onImageViewerActiveChange = { active ->
+                                appDarkTheme = darkTheme
+                                imageViewerActive = active
+                                applySystemBars()
+                            },
                         )
+                        if (revealInfo != null) {
+                            SplashReveal(
+                                info = revealInfo,
+                                onOverlayDrawn = splashRevealController::onOverlayDrawn,
+                                onFinished = splashRevealController::finish,
+                            )
+                        }
                     }
                 }
             }

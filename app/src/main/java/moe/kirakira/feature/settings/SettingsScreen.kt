@@ -59,6 +59,7 @@ fun SettingsScreen(
     onNavigateToAppearance: () -> Unit,
     onNavigateToAccount: () -> Unit,
     modifier: Modifier = Modifier,
+    onNavigateToLanguage: () -> Unit = {},
     onNavigateToPlayback: () -> Unit = {},
     onNavigateToDanmaku: () -> Unit = {},
     onNavigateToBlocking: () -> Unit = {},
@@ -120,6 +121,7 @@ fun SettingsScreen(
             SettingsEntry(R.string.settings_appearance, R.drawable.ic_icon_palette),
             SettingsEntry(R.string.settings_playback, R.drawable.ic_icon_play),
             SettingsEntry(R.string.settings_danmaku, R.drawable.ic_custom_danmaku),
+            SettingsEntry(R.string.settings_language, R.drawable.ic_icon_translate),
             SettingsEntry(R.string.settings_about, R.drawable.ic_icon_info),
         )
     }
@@ -199,6 +201,7 @@ fun SettingsScreen(
                         onAboutClick = onNavigateToAbout,
                         onAppearanceClick = onNavigateToAppearance,
                         onPlaybackClick = onNavigateToPlayback,
+                        onLanguageClick = onNavigateToLanguage,
                         onDanmakuClick = onNavigateToDanmaku,
                     )
                 }
@@ -241,6 +244,7 @@ private fun SettingsGroup(
     entries: List<SettingsEntry>,
     modifier: Modifier = Modifier,
     onPlaybackClick: (() -> Unit)? = null,
+    onLanguageClick: (() -> Unit)? = null,
     onDanmakuClick: (() -> Unit)? = null,
     onBlockingClick: (() -> Unit)? = null,
     onInvitationsClick: (() -> Unit)? = null,
@@ -269,6 +273,7 @@ private fun SettingsGroup(
                         R.string.settings_blocking -> onBlockingClick
                         R.string.settings_invitation_code -> onInvitationsClick
                         R.string.settings_playback -> onPlaybackClick
+                        R.string.settings_language -> onLanguageClick
                         R.string.settings_danmaku -> onDanmakuClick
                         R.string.settings_about -> onAboutClick
                         R.string.settings_appearance -> onAppearanceClick

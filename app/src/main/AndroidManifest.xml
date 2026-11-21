@@ -36,7 +36,7 @@
         <activity
             android:name=".MainActivity"
             android:supportsPictureInPicture="true"
-            android:configChanges="orientation|screenLayout|screenSize|smallestScreenSize"
+            android:configChanges="layoutDirection|locale|orientation|screenLayout|screenSize|smallestScreenSize"
             android:exported="true"
             android:theme="@style/Theme.KIRAKIRA.Splash"
             android:windowSoftInputMode="adjustResize">
