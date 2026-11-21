@@ -120,7 +120,7 @@ Kotlin 和 XML 使用四空格、UTF-8、LF 和文件末尾换行；建议行宽
 
 - 多组列表中的分组菜单直接使用官方 `SegmentedListItem`，通过共享 `connectedListItemShapes(index, count)` 处理首尾与单项主题圆角：组内无间隙、无分隔线，中间连接边为直角；选中、按压、聚焦、悬停与拖动沿用基础形状，保留官方配色、点击反馈及内容内边距。普通 `Column` 分组复用 `ConnectedListGroup`，它提供满宽、零间距布局及固定的 1dp 整组阴影，不额外添加背景或内边距，默认不裁剪内容；多组列表中的独立条目在调用处显式包裹单项分组，`SettingsSection` 内部复用该容器，账号侧滑组通过 `clipContent` 按整体圆角裁剪，裁剪不截断外侧阴影。
 
-  临时弹出的下拉菜单统一使用 `MenuPopup`。整个菜单共用一块主题 `large` 四角等圆的面板与外阴影。原有选项组之间使用 `MenuDivider`，单组直接列出条目。条目使用官方 `SelectableDropdownMenuItem` 和 `MenuDefaults.itemShapes()`，选中项使用 `primary/onPrimary`，未选中及禁用项背景透明。宿主负责 `surface` 毛玻璃背景、内部滚动、锚点定位、进出动画和外部点击／返回关闭。接入方式见[弹出菜单](docs/implementation/components.md#弹出菜单)。
+  临时弹出的下拉菜单统一使用 `MenuPopup`。整个菜单共用一块主题 `large` 四角等圆的面板与外阴影。原有选项组之间使用 `MenuDivider`，单组直接列出条目。条目使用官方 `SelectableDropdownMenuItem` 和共享 `menuItemShapes()`，选中项使用 `primary/onPrimary`，未选中及禁用项背景透明。宿主负责 `surface` 毛玻璃背景、内部滚动、锚点定位、进出动画和外部点击／返回关闭。接入方式见[弹出菜单](docs/implementation/components.md#弹出菜单)。
 
   多组连接懒列表使用 `ConnectedLazyColumn`，通过 `connectedItemsIndexed` 同步声明稳定分组标识及逐项内容，由宿主根据可见行统一绘制每组的 1dp 平台 elevation 阴影；条目只负责内容、形状与交互，不添加行级投影、不延伸和拼接逐行阴影、不通过组合局部上下文判断阴影归属。固定少量菜单可作为普通分组放入一个懒列表条目；可能增长的数据列表保留逐项懒加载、稳定 key、contentType 与分页。宿主仅支持正向垂直列表，连接行必须满宽，不加外部纵向 padding 或位移动画；在标题、分组边界及独立状态区域设置间距，不使用 `SegmentedGap` 分隔组内条目，不新增阴影开关或持久化偏好。侧滑删除按钮的横向间距不受此规则影响。
 

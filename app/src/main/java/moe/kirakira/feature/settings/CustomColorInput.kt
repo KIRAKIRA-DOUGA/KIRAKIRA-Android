@@ -4,10 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.SelectableDropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,6 +29,7 @@ import moe.kirakira.ui.components.ColorEditorState
 import moe.kirakira.ui.components.FlatTextButton
 import moe.kirakira.ui.components.MenuPopup
 import moe.kirakira.ui.components.menuItemColors
+import moe.kirakira.ui.components.menuItemShapes
 
 @Composable
 internal fun CustomColorInput(
@@ -53,7 +54,7 @@ internal fun CustomColorInput(
                 maxHeight = 240.dp,
             ) {
                 val colors = menuItemColors()
-                val shapes = MenuDefaults.itemShapes()
+                val shapes = menuItemShapes()
                 ColorValueFormat.entries.forEach { format ->
                     SelectableDropdownMenuItem(
                         selected = state.format == format,
@@ -77,6 +78,7 @@ internal fun CustomColorInput(
             leadingContent = {
                 Box(
                     modifier = Modifier
+                        .padding(horizontal = 8.dp)
                         .size(40.dp)
                         .background(Color(state.argb), CircleShape)
                         .clearAndSetSemantics {},

@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.SelectableDropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +22,7 @@ import androidx.compose.ui.res.stringResource
 import moe.kirakira.R
 import moe.kirakira.ui.components.MenuPopup
 import moe.kirakira.ui.components.menuItemColors
+import moe.kirakira.ui.components.menuItemShapes
 import moe.kirakira.ui.components.search.SearchIconButton
 import moe.kirakira.ui.components.video.VideoCardLayout
 
@@ -65,7 +65,7 @@ private fun SearchSortMenu(state: SearchUiState, onEvent: (SearchEvent) -> Unit)
             onDismissRequest = { expanded = false },
         ) {
             val colors = menuItemColors()
-            val shapes = MenuDefaults.itemShapes()
+            val shapes = menuItemShapes()
             SearchSort.entries.forEach { sort ->
                 val isSelected = state.sort == sort
                 SelectableDropdownMenuItem(

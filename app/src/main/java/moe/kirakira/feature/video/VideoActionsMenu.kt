@@ -2,7 +2,6 @@ package moe.kirakira.feature.video
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.SelectableDropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -16,6 +15,7 @@ import androidx.compose.ui.res.stringResource
 import moe.kirakira.R
 import moe.kirakira.ui.components.MenuPopup
 import moe.kirakira.ui.components.menuItemColors
+import moe.kirakira.ui.components.menuItemShapes
 
 @Composable
 internal fun VideoActionsMenu(
@@ -38,7 +38,7 @@ internal fun VideoActionsMenu(
                 },
                 text = { Text(stringResource(R.string.video_watch_later)) },
                 leadingIcon = { Icon(painterResource(R.drawable.ic_icon_watch_later), contentDescription = null) },
-                shapes = MenuDefaults.itemShapes(),
+                shapes = menuItemShapes(),
                 colors = menuItemColors(),
             )
             SelectableDropdownMenuItem(
@@ -50,7 +50,7 @@ internal fun VideoActionsMenu(
                 },
                 text = { Text(stringResource(R.string.video_view_cover)) },
                 leadingIcon = { Icon(painterResource(R.drawable.ic_icon_photo), contentDescription = null) },
-                shapes = MenuDefaults.itemShapes(),
+                shapes = menuItemShapes(),
                 colors = menuItemColors(),
             )
             SelectableDropdownMenuItem(
@@ -61,7 +61,7 @@ internal fun VideoActionsMenu(
                 },
                 text = { Text(stringResource(R.string.video_download)) },
                 leadingIcon = { Icon(painterResource(R.drawable.ic_icon_download), contentDescription = null) },
-                shapes = MenuDefaults.itemShapes(),
+                shapes = menuItemShapes(),
                 colors = menuItemColors(),
             )
             SelectableDropdownMenuItem(
@@ -72,7 +72,7 @@ internal fun VideoActionsMenu(
                 },
                 text = { Text(stringResource(R.string.video_report)) },
                 leadingIcon = { Icon(painterResource(R.drawable.ic_icon_flag), contentDescription = null) },
-                shapes = MenuDefaults.itemShapes(),
+                shapes = menuItemShapes(),
                 colors = menuItemColors(),
             )
         }

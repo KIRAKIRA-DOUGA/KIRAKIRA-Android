@@ -18,6 +18,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorPosition
 import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.MenuItemShapes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
@@ -115,8 +116,14 @@ fun MenuPopup(
 internal fun MenuDivider() {
     HorizontalDivider(
         modifier = Modifier.padding(4.dp),
-        color = MaterialTheme.colorScheme.outlineVariant,
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
     )
+}
+
+@Composable
+internal fun menuItemShapes(): MenuItemShapes {
+    val shape = MaterialTheme.shapes.small
+    return MenuDefaults.itemShapes(shape = shape, selectedShape = shape)
 }
 
 @Composable

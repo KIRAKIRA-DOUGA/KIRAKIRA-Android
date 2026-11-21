@@ -106,9 +106,9 @@ ConnectedLazyColumn(state = listState, contentPadding = PaddingValues(16.dp)) {
 
 [MenuPopup](../../app/src/main/java/moe/kirakira/ui/components/MenuPopup.kt) 使用官方可聚焦 `Popup` 和 Material 3 Expressive 的 `Below` 定位器，支持点击外部和返回关闭。缩放与透明度沿用主题 `fastSpatialSpec` 和 `fastEffectsSpec`，退出动画完成后移除 Popup。动画层使用 `LayerOutsets(24.dp)` 为整个面板的外阴影预留绘制空间，保持菜单测量和点击边界。[Compose 图层外扩说明](https://developer.android.com/develop/ui/compose/graphics/draw/modifiers#layer-outsets)
 
-面板四角使用主题 `large`（8dp），背景子节点承载 `MenuDefaults.ShadowElevation` 阴影。内容在同一面板内滚动，上限默认 320dp，配色格式菜单为 240dp。菜单上下留白 4dp，条目使用官方 `SelectableDropdownMenuItem` 和 `MenuDefaults.itemShapes()`，通过 `menuItemColors` 统一透明普通／禁用背景和 `primary/onPrimary` 选中态。调用方提供图标和回调，仅在两个可见组选项之间放置使用 `outlineVariant` 的 `MenuDivider`。
+面板四角使用主题 `large`（8dp），背景子节点承载 `MenuDefaults.ShadowElevation` 阴影。内容在同一面板内滚动，上限默认 320dp，配色格式菜单为 240dp。菜单上下留白 4dp，官方 `SelectableDropdownMenuItem` 自带 4dp 横向内缩。共享 `menuItemShapes()` 让普通与选中条目使用主题 `small`（4dp）圆角，与面板圆角的差值对应内缩量。`menuItemColors` 统一透明普通／禁用背景和 `primary/onPrimary` 选中态。调用方提供图标和回调，仅在两个可见组选项之间放置使用 `surfaceContainerHighest` 的 `MenuDivider`。
 
-背景复用应用栏的 20dp 模糊、零噪点和主题 `surface` 染色。Android 12+ 由 `HazeInput.Sources` 从 Activity 的导航内容采样，自定义配色格式菜单从所在对话框采样。Haze 自动对齐跨窗口坐标，`ClearWhenUnavailable` 清除失效画面。Android 8.1–11 和无采样源的预览使用 90% 不透明度的主题底色。滚动内容和分割线独立绘制在背景上方。[Haze 跨窗口采样说明](https://chrisbanes.github.io/haze/2.1.0/core-concepts/)
+背景复用应用栏的 20dp 模糊、零噪点和主题 `surface` 染色。Android 12+ 由 `HazeInput.Sources` 从 `ActivityNavDisplay` 采样普通导航内容，视频页菜单使用 `VideoScreen` 的独立状态采样简介和详情，自定义配色格式菜单从所在对话框采样。驻留播放器和应用内小窗的 `SurfaceView` 位于这些采样节点之外，避免菜单录制 Compose 图层时扰动视频合成。Haze 自动对齐跨窗口坐标，`ClearWhenUnavailable` 清除失效画面。Android 8.1–11 和无采样源的预览使用 90% 不透明度的主题底色。滚动内容和分割线独立绘制在背景上方。[Haze 跨窗口采样说明](https://chrisbanes.github.io/haze/2.1.0/core-concepts/)
 
 ## 下拉刷新
 

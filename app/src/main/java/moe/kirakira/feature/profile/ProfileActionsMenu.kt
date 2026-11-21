@@ -3,7 +3,6 @@ package moe.kirakira.feature.profile
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.SelectableDropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,6 +18,7 @@ import moe.kirakira.data.settings.RuleCategory
 import moe.kirakira.ui.components.MenuDivider
 import moe.kirakira.ui.components.MenuPopup
 import moe.kirakira.ui.components.menuItemColors
+import moe.kirakira.ui.components.menuItemShapes
 
 internal data class ProfileMenuState(
     val accountRevision: Long,
@@ -50,7 +50,7 @@ internal fun ProfileActionsMenu(
                 },
                 text = { Text(stringResource(R.string.share)) },
                 leadingIcon = { Icon(painterResource(R.drawable.ic_icon_share), contentDescription = null) },
-                shapes = MenuDefaults.itemShapes(),
+                shapes = menuItemShapes(),
                 colors = menuItemColors(),
             )
             if (showRelationshipActions) {
@@ -73,7 +73,7 @@ private fun ProfileRelationshipMenuItems(
     onChangeRule: (RuleCategory) -> Unit,
     onRetry: () -> Unit,
 ) {
-    val shapes = MenuDefaults.itemShapes()
+    val shapes = menuItemShapes()
     listOf(RuleCategory.HIDE, RuleCategory.BLOCK).forEach { category ->
         val block = category == RuleCategory.BLOCK
         val selected = if (block) state.blocked else state.hidden
