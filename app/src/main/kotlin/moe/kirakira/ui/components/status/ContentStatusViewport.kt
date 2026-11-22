@@ -21,6 +21,12 @@ import moe.kirakira.ui.adaptive.pageContentWidth
 
 internal val ContentStatusListMaxWidth = 840.dp
 
+/** Keeps the first row's pressed state clear of the app bar shadow while the list rests at the top. */
+internal val ContentStatusListTopSpacing = 8.dp
+
+/** Lets the last row and inline status scroll above the gesture area. */
+internal val ContentStatusListBottomSpacing = 24.dp
+
 /** A bounded list whose inline status can fill the viewport after accounting for list padding. */
 @Composable
 internal fun ContentStatusList(
@@ -33,8 +39,8 @@ internal fun ContentStatusList(
     val contentPadding = PaddingValues(
         start = scaffoldPadding.calculateStartPadding(direction),
         end = scaffoldPadding.calculateEndPadding(direction),
-        top = scaffoldPadding.calculateTopPadding() + 8.dp,
-        bottom = scaffoldPadding.calculateBottomPadding() + 24.dp,
+        top = scaffoldPadding.calculateTopPadding() + ContentStatusListTopSpacing,
+        bottom = scaffoldPadding.calculateBottomPadding() + ContentStatusListBottomSpacing,
     )
     ContentStatusViewport(modifier = modifier, contentPadding = contentPadding) { statusModifier ->
         LazyColumn(

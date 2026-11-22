@@ -70,6 +70,8 @@ internal fun Modifier.contentDescriptionWhenEnabled(enabled: Boolean, descriptio
 
 [ContentStatusViewport](../../app/src/main/kotlin/moe/kirakira/ui/components/status/ContentStatusViewport.kt) 集中计算列表状态区域的剩余高度。调用方传入与列表共用的实际 `contentPadding`、实测的前置内容高度 `leadingContentHeight`，以及尚未被容器避让的底部遮挡高度 `obscuredBottomHeight`。系统 Insets 和列表留白只从实际 padding 里扣一次，不另外维护合计常数。状态内容比剩余空间高时随列表自然撑开；有记录时的局部错误不使用整页最小高度。
 
+扁平全宽列表用 `ContentStatusList`，它在顶栏之下留 8dp、在底部 Insets 之上留 24dp。8dp 沿用 Material 1／2 的列表首尾留白（M3 只规定列表项内边距）：内容滚到毛玻璃顶栏后方时它不起作用，停在顶部时让首行的按压高亮不贴着顶栏阴影。分段圆角列表自带外边距，不套用这组数值。
+
 ### 圆形加载器
 
 [IndeterminateCircularProgressIndicator](../../app/src/main/kotlin/moe/kirakira/ui/components/status/IndeterminateCircularProgressIndicator.kt) 封装官方 Material 2 的 `CircularProgressIndicator`，使用它原生的旋转与圆弧伸缩动画，只把端点固定为圆头、轨道设为透明。尺寸见[加载与刷新](../ui-guidelines.md#加载与刷新)。
