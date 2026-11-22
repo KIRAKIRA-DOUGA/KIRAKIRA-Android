@@ -61,7 +61,7 @@ internal fun VideoCard(
         if (layout == VideoCardLayout.GRID) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(if (uploader == null) 8.dp else 4.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 VideoArtwork(
                     image = image,
@@ -124,7 +124,16 @@ private fun VideoCardInfo(
     val informationSpacing = if (isGrid) 6.dp else 8.dp
     val iconSize = if (isGrid) 16.dp else 20.dp
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(informationSpacing)) {
-        Column(verticalArrangement = Arrangement.spacedBy(if (isGrid) 2.dp else 8.dp)) {
+        Text(
+            text = title,
+            style = if (isGrid) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
+            fontWeight = if (isGrid) FontWeight.Medium else FontWeight.Normal,
+            color = MaterialTheme.colorScheme.onSurface,
+            minLines = if (isGrid) 2 else 1,
+            maxLines = if (isGrid) 2 else 4,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(if (isGrid) 2.dp else 4.dp)) {
             if (uploader != null) {
                 Text(
                     text = uploader,
@@ -134,42 +143,38 @@ private fun VideoCardInfo(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Text(
-                text = title,
-                style = if (isGrid) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
-                fontWeight = if (isGrid) FontWeight.Medium else FontWeight.Normal,
-                color = MaterialTheme.colorScheme.onSurface,
-                minLines = if (isGrid) 2 else 1,
-                maxLines = if (isGrid) 2 else 4,
-                overflow = TextOverflow.Ellipsis,
-            )
+            VideoCardMetadataRow(viewCount, duration, uploadTime, iconSize)
         }
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-            itemVerticalAlignment = Alignment.CenterVertically,
-        ) {
+    }
+}
+
+@Composable
+private fun VideoCardMetadataRow(viewCount: String, duration: String, uploadTime: String?, iconSize: Dp) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        itemVerticalAlignment = Alignment.CenterVertically,
+    ) {
+        VideoCardMetadata(
+            icon = R.drawable.ic_icon_play,
+            text = viewCount,
+            description = stringResource(R.string.video_views_description, viewCount),
+            iconSize = iconSize,
+        )
+        VideoCardMetadata(
+            icon = R.drawable.ic_icon_duration,
+            text = duration,
+            description = stringResource(R.string.video_duration, duration),
+            iconSize = iconSize,
+        )
+        if (uploadTime != null) {
             VideoCardMetadata(
-                icon = R.drawable.ic_icon_play,
-                text = viewCount,
-                description = stringResource(R.string.video_views_description, viewCount),
+                icon = R.drawable.ic_icon_calendar,
+                text = uploadTime,
+                description = stringResource(R.string.video_upload_time_description, uploadTime),
                 iconSize = iconSize,
             )
-            VideoCardMetadata(
-                icon = R.drawable.ic_icon_duration,
-                text = duration,
-                description = stringResource(R.string.video_duration, duration),
-                iconSize = iconSize,
-            )
-            if (uploadTime != null) {
-                VideoCardMetadata(
-                    icon = R.drawable.ic_icon_calendar,
-                    text = uploadTime,
-                    description = stringResource(R.string.video_upload_time_description, uploadTime),
-                    iconSize = iconSize,
-                )
-            }
         }
     }
 }
