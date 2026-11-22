@@ -73,7 +73,10 @@ import moe.kirakira.ui.components.form.dismissKeyboardOnBlankTap
 import moe.kirakira.ui.components.icon.ShadingIcon
 import moe.kirakira.ui.components.scaffold.FrostedScaffold
 import moe.kirakira.ui.components.scaffold.PageTopAppBar
+import moe.kirakira.ui.components.scaffold.centeredTopAppBarContent
 import moe.kirakira.ui.content.TagSearchState
+
+internal val TagSearchMaxWidth = 840.dp
 
 private enum class TagSearchExit { DISMISS, CONFIRM }
 
@@ -324,6 +327,11 @@ private fun TagSearchDialogContent(
                     PageTopAppBar(
                         title = stringResource(R.string.search_choose_tags),
                         onBack = onDismiss,
+                        modifier = Modifier
+                            .windowInsetsPadding(
+                                TopAppBarDefaults.windowInsets.only(WindowInsetsSides.Horizontal),
+                            )
+                            .centeredTopAppBarContent(TagSearchMaxWidth),
                         actions = actions,
                     )
                 }
@@ -335,7 +343,7 @@ private fun TagSearchDialogContent(
                 ) {
                     SearchFieldContainer(
                         modifier = Modifier
-                            .widthIn(max = 840.dp)
+                            .widthIn(max = TagSearchMaxWidth)
                             .fillMaxWidth()
                             .padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
                         backgroundModifier = backgroundModifier,
