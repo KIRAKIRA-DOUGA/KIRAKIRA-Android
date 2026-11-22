@@ -211,6 +211,7 @@ internal fun VideoCardRow(
     modifier: Modifier = Modifier,
     showUploader: Boolean = true,
     showUploadTime: Boolean = true,
+    columns: Int = layout.columns,
 ) {
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         videos.forEach { video ->
@@ -218,7 +219,7 @@ internal fun VideoCardRow(
                 FeedVideoCard(video, layout, onOpenVideo, Modifier.weight(1f), showUploader, showUploadTime)
             }
         }
-        repeat((layout.columns - videos.size).coerceAtLeast(0)) {
+        repeat((columns - videos.size).coerceAtLeast(0)) {
             Spacer(Modifier.weight(1f))
         }
     }
