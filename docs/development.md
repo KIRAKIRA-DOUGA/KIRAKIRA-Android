@@ -2,7 +2,7 @@
 
 [返回项目首页](../README.md) · [贡献规范](../CONTRIBUTING.md) · [实现说明](implementation.md)
 
-本文维护开发环境、运行方法与目录说明。
+本文说明开发环境、常用命令、API 环境的切换和目录结构。发版流程见[发版](release.md)。
 
 ## 开发环境
 
@@ -47,15 +47,7 @@ Release 在[应用构建配置](../app/build.gradle.kts)中启用 R8 代码和�
 
 `verify` 在[根构建脚本](../build.gradle.kts)中聚合 Debug 构建、单元测试和 Android Lint，不包含设备测试，也不检查全部 Kotlin 格式规则。测试和 Lint 报告位于 `app/build/reports/`。设备测试需要模拟器或连接的设备；已有用例和历史结果不代表当前版本已经验证。
 
-认证专项使用内存传输、账号存储与虚构身份；各变体的隔离方式、完整命令和历史结果统一维护在[认证离线测试](auth-testing.md)。
-
-| 专项入口 | 用途 |
-| --- | --- |
-| 不带专项属性的 `:app:testDebugUnitTest` | JVM 认证、会话与网络用例 |
-| `-Pkirakira.cryptoCheck=true` | 无网络权限的隔离 Keystore 设备验证 |
-| `-Pkirakira.authUiCheck=true` | 无网络权限、使用凭据替身的隔离认证 UI 验证 |
-
-两个专项属性互斥，普通 JVM 命令不带这些属性。认证 UI 中的部分旧断言已不对应当前界面，适用范围见[专项说明](auth-testing.md#认证体验与系统密码专项)。
+认证、会话与网络的 JVM 用例使用内存传输、内存账号库和虚构身份，隔离方式与覆盖范围见[认证离线测试](auth-testing.md)。
 
 PR 默认报告构建结果，纯文档修改报告内容与链接检查结果。远端分支保护由维护者配置。
 
@@ -65,8 +57,8 @@ PR 默认报告构建结果，纯文档修改报告内容与链接检查结果�
 
 ```sh
 android preview render :app \
-  --fqn=moe.kirakira.ui.components.HistorySearchLogoKt.HistorySearchLogoPreview \
-  --fqn=moe.kirakira.ui.components.HistorySearchLogoKt.HistorySearchLogoDarkPreview \
+  --fqn=moe.kirakira.ui.components.illustration.HistorySearchLogoKt.HistorySearchLogoPreview \
+  --fqn=moe.kirakira.ui.components.illustration.HistorySearchLogoKt.HistorySearchLogoDarkPreview \
   --format=json \
   --output=/tmp/history-clock-previews \
   -- --console=plain --no-scan
@@ -78,7 +70,7 @@ android preview render :app \
 
 ```sh
 android studio render-compose-preview \
-  app/src/main/java/moe/kirakira/ui/components/HistorySearchLogo.kt \
+  app/src/main/kotlin/moe/kirakira/ui/components/illustration/HistorySearchLogo.kt \
   HistorySearchLogoPreview \
   --output-image-file=/tmp/history-clock-light.png
 ```
@@ -87,9 +79,9 @@ android studio render-compose-preview \
 
 也可在 Android Studio 打开预览文件，切换到 **Design** 或 **Split** 并刷新 Preview：
 
-- [AuthPreview.kt](../app/src/main/java/moe/kirakira/feature/auth/AuthPreview.kt) 的 `AuthStepPreview` 覆盖认证各步骤。
-- [SecuritySettingsPreview.kt](../app/src/main/java/moe/kirakira/feature/settings/security/SecuritySettingsPreview.kt) 的 `SecurityStepPreview` 覆盖修改邮箱、密码及二步验证各步骤；`TwoFactorEnabledPreview` 分别展示邮箱验证和身份验证器已开启的管理页，`SecuritySettingsPreview` 保留游客态预览。
-- [VideoCard.kt](../app/src/main/java/moe/kirakira/ui/components/video/VideoCard.kt) 的 `Video cards` 预览组展示双列网格和单列列表，`Home` 版本省略上传时间。
+- [AuthPreview.kt](../app/src/main/kotlin/moe/kirakira/feature/auth/AuthPreview.kt) 的 `AuthStepPreview` 覆盖认证各步骤。
+- [SecuritySettingsPreview.kt](../app/src/main/kotlin/moe/kirakira/feature/settings/security/SecuritySettingsPreview.kt) 的 `SecurityStepPreview` 覆盖修改邮箱、密码及二步验证各步骤；`TwoFactorEnabledPreview` 分别展示邮箱验证和身份验证器已开启的管理页，`SecuritySettingsPreview` 保留游客态预览。
+- [VideoCard.kt](../app/src/main/kotlin/moe/kirakira/ui/components/video/VideoCard.kt) 的 `Video cards` 预览组展示双列网格和单列列表，`Home` 版本省略上传时间。
 
 预览直接向界面传入固定状态，不创建 ViewModel 或访问 API。账号安全预览提供中英文版本；邮箱、绑定时间、设置密钥与一次性代码均为预览专用虚构值，密码和验证码输入框保持为空，流程回调不会发送验证码或提交账号修改。
 
@@ -100,42 +92,6 @@ Android Studio 的 Build Variants 可选择 `performance`，再以 Run 启动；
 性能包包含依赖提供的 Baseline Profiles，不新增采集测试或依赖。Gradle 安装时同时提交 APK 和 `.dm` 编译元数据；安装后的实际 ART 编译状态由设备决定。每次采样仍应使用 `adb shell dumpsys package moe.kirakira` 核对实际 Dexopt 状态，并记录首次进入和重复进入。未预编译的设备也可在应用启动并等待 ProfileInstaller 写入后执行 `adb shell cmd package compile -m speed-profile -f moe.kirakira`，冷启动重录；预编译前后的样本分开报告。Debug 请求编译可能被设备限制为 `verify`，命令返回成功不代表代码已预编译。
 
 `performance` 使用本机默认 Debug 密钥，仅供本地采样，禁用真实系统凭据提供者。它与 Debug 使用相同应用 ID 和签名，互相覆盖安装时保留同一后端的数据；不要将此 APK 作为正式发行包。采样完成后可通过 `:app:installDebug` 恢复调试包。默认检查入口仍是 `:app:assembleDebug`，性能采样只在用户要求时执行。
-
-## GitHub Actions 发版
-
-[Android distribution](../.github/workflows/android-distribution.yml) 使用同一套 Release 构建和签名流程。每次 `main` 推送触发的构建成功后，Releases 中的 [CI build](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/releases/tag/ci) 预发行会更新到最新成功构建。CI 的 APK 文件名包含版本号、运行序号和提交 SHA 的前 7 位，例如 `KIRAKIRA-0.4-ci-12-a659b8b.apk`。每次运行的 APK 和同次生成的 `mapping.txt` 可从 Actions 的 **Artifacts** 下载，保留 90 天。
-
-工作流从 Google 下载固定版本的 Android SDK 命令行工具，校验 SHA-256 后把 SDK Platform 和 Build Tools 安装到 runner 的临时目录。Release 构建与签名使用同一 SDK，不依赖 runner 预装的 `sdkmanager`。
-
-正式版与 CI 版共享应用 ID 和签名。分发包使用 `3 + GITHUB_RUN_NUMBER` 作为 `versionCode`，其中 3 是已发布的 `0.3` APK 的版本号。CI 的版本名包含运行序号，例如 `0.4-ci.12`。如果手机已安装构建序号更高的 CI，需要等序号更高的正式版才能覆盖更新。两个渠道使用同一个工作流计数。迁移工作流前应确保新计数生成的版本号高于已分发的 APK。
-
-### 首次配置
-
-1. 保护 `main`，要求通过审核的 PR 才能合并。在仓库 **Settings → Rules → Rulesets** 启用独立的 tag 规则集，匹配 `[0-9]*.[0-9]*`，限制创建、更新和删除，仅允许发布维护者绕过。`ci` 不属于正式版本规则；不要给发布工作流绕过正式版本规则的权限。
-2. 在仓库 **Settings → Environments** 新建 `android-signing`。选择 **Selected branches and tags**，仅允许 `main` 分支和 `[0-9]*.[0-9]*` 标签。tag 规则集必须覆盖环境允许的全部标签，而不只是当前工作流匹配的两段或三段数字版本。工作流从触发它的 tag 读取，仅限制名称不能阻止未经审核的工作流访问签名密钥。
-3. 确认前两项已生效，并核对所有已存在的匹配 tag 都指向经审核进入 `main` 的提交。然后使用发布 `0.3` 的原密钥，仅在该 Environment 中设置以下 Secrets，不要设为仓库级 Secrets。Base64 编码应为一行。
-
-   | Secret | 值 |
-   | --- | --- |
-   | `ANDROID_KEYSTORE_BASE64` | 原 keystore 文件的 Base64 |
-   | `ANDROID_KEYSTORE_PASSWORD` | keystore 密码 |
-   | `ANDROID_KEY_ALIAS` | 签名密钥别名 |
-   | `ANDROID_KEY_PASSWORD` | 签名密钥密码 |
-
-4. 下载 [0.3 APK](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/releases/tag/0.3)，用 `apksigner verify --print-certs` 核对证书指纹，用 `aapt2 dump badging` 核对应用 ID 和版本号。工作流已固定该 APK 的公开证书 SHA-256 指纹，签名不匹配时该次构建会失败。
-5. 确认仓库与组织的 Release 设置允许替换 `ci` 附件，tag 规则允许工作流移动 `ci` tag。发布任务使用内置 `GITHUB_TOKEN`。首次推送 `main` 后，核对 Actions 产物和 CI 预发行中的 APK，再确认预发行记录的提交与 `ci` tag 一致。
-
-### 发布正式版
-
-1. 把 [应用构建配置](../app/build.gradle.kts) 的 `appVersionName` 更新为版本号，例如 `0.4`。推送到 `main` 并等该提交的 CI 完成。
-2. 在该提交创建并推送同名 tag。
-
-   ```sh
-   git tag -a 0.4 -m "0.4"
-   git push origin refs/tags/0.4
-   ```
-
-3. 在 Releases 打开生成的草稿，核对 `KIRAKIRA-0.4-release.apk`，补充中文说明并点击 **Publish release**。从对应 Actions 产物长期保存同一 APK 的 `mapping.txt`，可用 APK 的 SHA-256 对照 Release 附件和构建产物。重跑会补齐缺失的草稿附件，保留已有 APK 和说明。
 
 ## API 环境配置
 
@@ -151,11 +107,12 @@ Android Studio 的 Build Variants 可选择 `performance`，再以 Run 启动；
 
 `kirakira.imageProvider` 默认为 `cloudflare-prod`，可设为 `cloudflare-stg` 以使用 Cerasus 的 staging 图片分发地址。其他值会在 Gradle 配置阶段报错。图片环境由该属性独立决定。
 
-增加的 `INTERNET` 与播放器媒体音量使用的 `MODIFY_AUDIO_SETTINGS` 均为普通权限，不弹运行时请求。Manifest 禁用明文流量；OkHttp API 客户端禁止重定向、自动连接重试、响应缓存和请求日志，Coil 头像请求使用独立客户端。OkHttp 用于 API 超时、取消、TLS 与 URL 编码，`coil-network-okhttp` 为已有 Coil 添加远程头像支持；复用现有 serialization，无新 DI／数据库框架。Media3 用于真实视频播放，按同一固定版本声明，不升级现有 Compose BOM。播放器使用无账号会话的独立媒体客户端。体积增量未测量，许可证由 AboutLibraries 收集。
+切换环境时要知道两点：
 
-非生产 API 根地址构建的 `SYSTEM_CREDENTIALS_ENABLED=false`，禁用真实系统密码提供者；仅完整的默认生产根地址启用。
+- **非生产地址的构建不使用真实的系统密码提供者**。只有完整的默认生产根地址构建才会把 `SYSTEM_CREDENTIALS_ENABLED` 设为 true。
+- **账号与 API 根地址绑定**。切换构建环境后，应用不会加载另一个后端的账号，只显示游客；首次在新环境保存会话时，才会替换本机旧环境的账号库。
 
-账号库以 JSON 保存在不参与备份的 `noBackupFilesDir/sessions.json`，正常读写不依赖 Keystore。只有新库主文件及备份都不存在时才尝试迁移旧 `sessions.v1.enc`，首次写入遗留的临时文件清理后可重试；恢复失败保留旧文件，成功写入空新库后提示重新登录。密码和验证码不持久保存。会话与完整 API 根地址绑定；迁移保留原后端的账号数据，切换构建环境时不加载另一后端的账号，首次保存新环境会话才会替换本机旧环境账号库。可选的 userDataBootstrapHint 同样保存在私有账号文件中，仅首页过滤请求使用。协议与已知服务端限制见[API 与会话](implementation/auth.md#api-与会话)。
+Manifest 禁用明文流量。网络客户端、会话存储与迁移的细节见[认证与会话](implementation/auth.md#api-与会话)。
 
 ## 环境排障
 
@@ -168,31 +125,55 @@ Android Studio 的 Build Variants 可选择 `performance`，再以 Run 启动；
 ## 目录结构
 
 ```text
-app/src/main/
-├── java/moe/kirakira/
-│   ├── MainActivity.kt       # Activity 宿主
-│   ├── KIRAKIRAApp.kt        # 应用入口、应用级状态与导航连接
-│   ├── AppDependenciesViewModel.kt # 宿主依赖、共享 API 客户端与历史任务作用域
-│   ├── core/network/        # HTTPS 客户端、响应解码、取消和统一失败类型
-│   ├── data/                # 认证、内容、历史、资料、安全、图片导出与设置的数据访问
-│   ├── feature/             # 主界面、视频、账户、认证与设置等功能
-│   │   └── main/MainScreen.kt # 四栏切换、顶栏与底栏
-│   └── ui/                  # Expressive 主题、共享组件与导航
-│       ├── content/         # 跨功能加载状态与账号请求协调
-│       ├── components/video/ # 共享视频卡片、封面、布局类型与格式化
-│       └── navigation/
-│           ├── AppRoutes.kt  # 页面路由定义
-│           ├── AppNavHost.kt # 统一转场、返回保护与播放协调
-│           ├── AppNavigationState.kt # 组合内导航协调状态
-│           └── *Entries.kt   # 按功能拆分的页面注册
-├── res/                     # 英文 / 中文字符串、图标、系统配置
-└── AndroidManifest.xml
-app/src/test/                 # 本机单元测试
-app/src/androidTest/          # Android 与 Compose UI 测试
-gradle/                      # Wrapper、JDK 配置和版本目录
-docs/                        # 功能、开发、实现索引和认证专项指南
-├── implementation/          # 按专题维护的实现说明
-└── validation/              # 带日期与验证范围的历史记录
+app/src/
+├── main/
+│   ├── kotlin/moe/kirakira/
+│   │   ├── MainActivity.kt           # Activity 宿主
+│   │   ├── KIRAKIRAApp.kt            # 应用入口、应用级状态与导航连接
+│   │   ├── AppDependenciesViewModel.kt # 宿主依赖、共享 API 客户端与历史任务作用域
+│   │   ├── navigation/               # 应用级导航图
+│   │   │   ├── AppRoutes.kt          # 页面路由定义
+│   │   │   ├── AppNavHost.kt         # 统一转场、返回保护与播放协调
+│   │   │   ├── AppNavigationState.kt # 组合内导航协调状态
+│   │   │   ├── AppDesktopRail.kt     # 宽窗口侧栏
+│   │   │   └── *Entries.kt           # 按功能拆分的页面注册
+│   │   ├── core/                     # 网络、凭据、颜色、分享与系统桥接等跨功能基础设施
+│   │   ├── data/                     # 认证、内容、历史、资料、安全、图片导出与设置的数据访问
+│   │   ├── feature/                  # 主界面、视频、播放器、账户、认证与设置等功能
+│   │   │   ├── main/MainScreen.kt    # 四栏切换、顶栏与底栏
+│   │   │   ├── gallery/              # 关于页长按进入的组件库
+│   │   │   └── settings/             # 设置首页与共享设置组件，其余按 about、appearance、playback、
+│   │   │                             # search、privacy、profile、security、management 分包
+│   │   └── ui/
+│   │       ├── adaptive/             # 窗口布局、分栏与窗口圆角
+│   │       ├── components/           # 按组件族分包的跨功能 UI
+│   │       ├── content/              # 跨功能加载状态与账号请求协调
+│   │       ├── navigation/           # ActivityNavDisplay、转场、预测性返回与播放视口等导航宿主
+│   │       ├── splash/               # 启动揭示动画
+│   │       └── theme/                # Expressive 主题、语义配色与共享投影
+│   ├── res/                          # 四种语言字符串、图标、系统配置
+│   ├── keepRules/                    # R8 保留规则
+│   └── AndroidManifest.xml
+├── test/kotlin/                      # 本机 JUnit 4 单元测试与测试替身（moe.kirakira.testing）
+└── androidTest/kotlin/               # Compose UI 设备测试
+gradle/                               # Wrapper、JDK 配置和版本目录
+docs/                                 # 功能现状、界面规范、开发指南、发版和认证专项指南
+├── implementation/                   # 按专题维护的实现说明
+└── validation/                       # 带日期与验证范围的历史记录
+third_party/                          # 第三方来源、许可与随源码编译的 Number Flow
 ```
+
+`ui/components/` 的组件族：
+
+| 包 | 内容 |
+| --- | --- |
+| `avatar`、`icon`、`illustration` | 头像、图标徽标与矢量工具、空状态与页面插画 |
+| `button`、`selection` | 阴影按钮、危险操作、加载反馈，以及分段选择、滑块、单选框与 Chip 配色 |
+| `form` | 账号流程布局、输入框、验证码格与颜色输入 |
+| `list`、`overlay` | 连接列表、分组标题、滚动条，以及对话框与弹出菜单 |
+| `scaffold` | 毛玻璃页面宿主、顶栏、分页 Tab 与回顶 |
+| `status` | 加载、下拉刷新、空内容与错误占位 |
+| `text`、`motion` | 数字动画、可展开文本、用户名与日期文本，以及共享缓动 |
+| `navigation`、`search`、`video` | 底栏与侧栏图标、搜索栏与标签选择、视频卡片与封面 |
 
 后续功能继续按 `feature/<name>/` 组织，详细边界见[贡献指南](../CONTRIBUTING.md#技术选型与架构)。图标来源与许可见 [Cerasus 记录](../third_party/cerasus-icons/README.md)与 [Material Symbols 保留资源](../third_party/material-symbols/README.md)。

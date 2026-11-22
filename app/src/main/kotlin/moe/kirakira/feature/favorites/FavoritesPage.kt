@@ -1,0 +1,61 @@
+package moe.kirakira.feature.favorites
+
+import android.content.res.Configuration
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.dp
+import moe.kirakira.R
+import moe.kirakira.ui.components.icon.ShadingIcon
+import moe.kirakira.ui.components.illustration.FavoritesLogo
+import moe.kirakira.ui.components.scaffold.FrostedScaffold
+import moe.kirakira.ui.components.scaffold.PageTopAppBar
+import moe.kirakira.ui.components.scaffold.topAppBarContentWidth
+import moe.kirakira.ui.components.status.ContentUnavailableState
+import moe.kirakira.ui.components.status.ContentUnavailableView
+import moe.kirakira.ui.theme.KIRAKIRATheme
+
+@Composable
+internal fun FavoritesPage(onBack: () -> Unit, modifier: Modifier = Modifier) {
+    FrostedScaffold(
+        modifier = modifier.fillMaxSize(),
+        topBar = {
+            Box {
+                ShadingIcon(
+                    icon = R.drawable.ic_icon_star,
+                    modifier = Modifier.matchParentSize(),
+                    endPadding = 0.dp,
+                    alignment = Alignment.BottomEnd,
+                    offset = DpOffset(32.dp, 32.dp),
+                )
+                PageTopAppBar(
+                    title = stringResource(R.string.me_favorites),
+                    onBack = onBack,
+                    modifier = Modifier.topAppBarContentWidth(),
+                )
+            }
+        },
+    ) { padding ->
+        ContentUnavailableView(
+            state = ContentUnavailableState.EMPTY,
+            modifier = Modifier.padding(padding).consumeWindowInsets(padding),
+            title = stringResource(R.string.content_not_available_yet),
+            description = null,
+            icon = { FavoritesLogo() },
+        )
+    }
+}
+
+@Preview(name = "收藏", locale = "zh", widthDp = 360, heightDp = 640)
+@Preview(name = "Favorites dark", uiMode = Configuration.UI_MODE_NIGHT_YES, widthDp = 360, heightDp = 640)
+@Composable
+private fun FavoritesPagePreview() {
+    KIRAKIRATheme { FavoritesPage(onBack = {}) }
+}

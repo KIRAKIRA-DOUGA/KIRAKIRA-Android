@@ -19,9 +19,6 @@ val imageDeliveryBaseUrl = when (providers.gradleProperty("kirakira.imageProvide
     "cloudflare-stg" -> "https://kirakira-image.starcitizen.rip/cdn-cgi/imagedelivery/nLUFLrrgVwzQdEx8eL5BaA/"
     else -> error("kirakira.imageProvider must be cloudflare-prod or cloudflare-stg")
 }
-val cryptoCheck = providers.gradleProperty("kirakira.cryptoCheck").map { it.toBooleanStrict() }.orElse(false).get()
-val authUiCheck = providers.gradleProperty("kirakira.authUiCheck").map { it.toBooleanStrict() }.orElse(false).get()
-require(!cryptoCheck || !authUiCheck) { "Select one isolated instrumentation variant at a time" }
 
 val appVersionName = "0.3"
 val distributionVersionCode = providers.gradleProperty("kirakira.distributionVersionCode").map { it.toInt() }
@@ -49,20 +46,6 @@ android {
     }
 
     buildTypes {
-        create("cryptoCheck") {
-            initWith(getByName("debug"))
-            applicationIdSuffix = ".cryptocheck"
-            matchingFallbacks += "debug"
-            buildConfigField("String", "API_BASE_URL", "\"https://auth.example.invalid/\"")
-            buildConfigField("boolean", "SYSTEM_CREDENTIALS_ENABLED", "false")
-        }
-        create("authUiCheck") {
-            initWith(getByName("debug"))
-            applicationIdSuffix = ".authuicheck"
-            matchingFallbacks += "debug"
-            buildConfigField("String", "API_BASE_URL", "\"https://auth.example.invalid/\"")
-            buildConfigField("boolean", "SYSTEM_CREDENTIALS_ENABLED", "false")
-        }
         release {
             optimization {
                 enable = true
@@ -80,23 +63,8 @@ android {
             buildConfigField("boolean", "SYSTEM_CREDENTIALS_ENABLED", "false")
         }
     }
-    testBuildType = when {
-        cryptoCheck -> "cryptoCheck"
-        authUiCheck -> "authUiCheck"
-        else -> "debug"
-    }
-    if (cryptoCheck || authUiCheck) {
-        sourceSets.getByName("androidTest").apply {
-            java.directories.clear()
-            kotlin.directories.apply {
-                clear()
-                add(if (cryptoCheck) "src/cryptoCheckAndroidTest/java" else "src/authUiCheckAndroidTest/java")
-                if (authUiCheck) add("src/authTestShared/java")
-            }
-        }
-    }
+    // Vendored Number Flow sources; see third_party/number-flow/README.md.
     sourceSets.getByName("main").kotlin.directories.add(rootProject.file("third_party/number-flow/src").path)
-    sourceSets.getByName("test").kotlin.directories.add("src/authTestShared/java")
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -117,51 +85,65 @@ androidComponents {
 }
 
 dependencies {
-    implementation(libs.haze)
-    implementation(libs.haze.blur)
-    implementation(libs.media3.exoplayer)
-    implementation(libs.media3.exoplayer.dash)
-    implementation(libs.media3.exoplayer.hls)
-    implementation(libs.media3.ui.compose)
-    implementation(libs.media3.session)
-    implementation(libs.media3.datasource.okhttp)
-
-    implementation(libs.androidx.credentials)
-    implementation(libs.androidx.credentials.play.services.auth)
-    implementation(libs.okhttp)
-    implementation(libs.image.cropper)
-    implementation(libs.coil.network.okhttp)
-    implementation(libs.telephoto.coil3)
-    implementation(libs.coil.compose)
-    implementation(libs.material.kolor)
-    implementation(libs.compose.colorpicker)
-    implementation(libs.aboutlibraries.compose.m3)
+    // Compose and Material
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.adaptive.core)
     implementation(libs.androidx.compose.material)
     implementation(libs.androidx.compose.material3)
-    implementation(libs.androidx.adaptive.core)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
+    debugImplementation(libs.androidx.compose.ui.tooling)
+
+    // AndroidX platform, lifecycle and navigation
     implementation(libs.androidx.core)
     implementation(libs.androidx.core.splashscreen)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.androidx.lifecycle.runtime)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.viewmodel.navigation3)
     implementation(libs.androidx.navigation3.runtime)
     implementation(libs.androidx.navigation3.ui)
+
+    // Network and serialization
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.okhttp)
+
+    // Media playback
+    implementation(libs.media3.datasource.okhttp)
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.exoplayer.dash)
+    implementation(libs.media3.exoplayer.hls)
+    implementation(libs.media3.session)
+    implementation(libs.media3.ui.compose)
+
+    // Images
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
+    implementation(libs.image.cropper)
+    implementation(libs.telephoto.coil3)
+
+    // UI utilities
+    implementation(libs.aboutlibraries.compose.m3)
+    implementation(libs.compose.colorpicker)
+    implementation(libs.haze)
+    implementation(libs.haze.blur)
+    implementation(libs.material.kolor)
     implementation(libs.zxing.core)
+
+    // Local JVM tests (src/test)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+
+    // Instrumented tests (src/androidTest)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-    debugImplementation(libs.androidx.compose.ui.tooling)
 }
 
 aboutLibraries {

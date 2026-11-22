@@ -1,0 +1,351 @@
+package moe.kirakira.feature.imageviewer
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.FloatingToolbarDefaults
+import androidx.compose.material3.HorizontalFloatingToolbar
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconButtonShapes
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.Flow
+import me.saket.telephoto.zoomable.EnabledZoomGestures
+import me.saket.telephoto.zoomable.ZoomableImage
+import me.saket.telephoto.zoomable.ZoomableImageSource
+import me.saket.telephoto.zoomable.ZoomableImageState
+import me.saket.telephoto.zoomable.rememberZoomableImageState
+import moe.kirakira.R
+import moe.kirakira.ui.components.button.LoadingIconButton
+import moe.kirakira.ui.components.button.ShadowFilledIconButton
+import moe.kirakira.ui.components.status.ContentUnavailablePresentation
+import moe.kirakira.ui.components.status.ContentUnavailableState
+import moe.kirakira.ui.components.status.ContentUnavailableView
+import moe.kirakira.ui.components.status.IndeterminateCircularProgressIndicator
+import moe.kirakira.ui.theme.KIRAKIRATheme
+
+/** Stateless navigation/operation surface; zoom state and image requests can be shared by callers. */
+
+@Composable
+fun ImageViewerScreen(
+    image: ZoomableImageSource,
+    description: String,
+    imageState: ZoomableImageState,
+    loadFailed: Boolean,
+    saving: Boolean,
+    copying: Boolean,
+    transitioning: Boolean,
+    controlsVisible: Boolean,
+    snackbarHostState: SnackbarHostState,
+    onBack: () -> Unit,
+    onSave: () -> Unit,
+    onCopy: () -> Unit,
+    onRetry: () -> Unit,
+    onToggleControls: () -> Unit,
+    onInteractionChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    imageModifier: Modifier = Modifier,
+    controlsModifier: Modifier = Modifier,
+    returnToSource: Boolean = true,
+    contentScale: ContentScale = ContentScale.Fit,
+    placeholder: Painter? = null,
+    onViewportChange: (IntSize) -> Unit = {},
+    onDrawableChange: (Boolean) -> Unit = {},
+    onDismissStarted: () -> Boolean = { false },
+    onDismissCancelled: () -> Unit = {},
+    onDismiss: () -> Unit = {},
+    visibilityProgress: () -> Float = { 1f },
+) {
+    var viewportHeight by remember { mutableIntStateOf(0) }
+    val dismissScope = rememberCoroutineScope()
+    val dismiss = remember(dismissScope) { ImageDismissState(dismissScope) }
+    val startDismiss by rememberUpdatedState(onDismissStarted)
+    val cancelDismiss by rememberUpdatedState(onDismissCancelled)
+    val completeDismiss by rememberUpdatedState(onDismiss)
+    val disposeDismiss = remember(dismiss) { onDismissCancelled }
+    DisposableEffect(dismiss) {
+        onDispose {
+            dismiss.dispose()
+            disposeDismiss()
+        }
+    }
+    val available = imageState.isImageDisplayed && !loadFailed && !saving && !copying &&
+        !transitioning && !dismiss.active
+    val gestureEnabled = imageState.isImageDisplayed && !loadFailed && !saving && !copying && !transitioning
+    val canStartDismiss by rememberUpdatedState({
+        val zoom = imageState.zoomableState
+        gestureEnabled && (zoom.zoomFraction ?: 1f) <= 0.001f && !zoom.isAnimationRunning
+    })
+    val controlsDragModifier = Modifier.graphicsLayer {
+        alpha = (1f - dismiss.fraction(viewportHeight.toFloat()) * 3f).coerceIn(0f, 1f)
+    }
+    val saveLabel = stringResource(R.string.image_save)
+    val copyLabel = stringResource(R.string.image_copy)
+    SideEffect { onDrawableChange(imageState.isImageDisplayed || placeholder != null) }
+    val toggleLabel = stringResource(
+        if (controlsVisible) R.string.image_hide_controls else R.string.image_show_controls,
+    )
+    var touching by remember { mutableStateOf(false) }
+    var appBarFocused by remember { mutableStateOf(false) }
+    var toolbarFocused by remember { mutableStateOf(false) }
+    val reportInteraction by rememberUpdatedState(onInteractionChange)
+    LaunchedEffect(touching, appBarFocused, toolbarFocused, dismiss.active) {
+        reportInteraction(touching || appBarFocused || toolbarFocused || dismiss.active)
+    }
+    DisposableEffect(Unit) {
+        onDispose { reportInteraction(false) }
+    }
+    Box(
+        modifier.fillMaxSize().onSizeChanged {
+            viewportHeight = it.height
+            onViewportChange(it)
+        }.pointerInput(Unit) {
+            // Observe touches without consuming them or competing with Telephoto's gestures.
+            try {
+                awaitPointerEventScope {
+                    while (true) {
+                        touching = awaitPointerEvent(PointerEventPass.Initial).changes.any { it.pressed }
+                    }
+                }
+            } finally {
+                touching = false
+            }
+        },
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            drawRect(Color.Black, alpha = 1f - dismiss.fraction(viewportHeight.toFloat()) * 0.9f)
+        }
+        Box(
+            Modifier.fillMaxSize().imageDismissGesture(
+                state = dismiss,
+                enabled = gestureEnabled,
+                canStart = { canStartDismiss() },
+                onStarted = { startDismiss() },
+                onCancelled = { cancelDismiss() },
+                onDismiss = { completeDismiss() },
+            ),
+        ) {
+            Box(
+                imageModifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val remaining = visibilityProgress().coerceIn(0f, 1f)
+                        val fraction = dismiss.fraction(viewportHeight.toFloat())
+                        if (dismiss.dismissing && !returnToSource) {
+                            // With no source to land on, carry the release pose farther downward.
+                            scaleX = 1f - fraction * 0.25f - (1f - remaining) * 0.08f
+                            scaleY = scaleX
+                            translationX = dismiss.offset.x * 0.7f
+                            translationY = dismiss.offset.y + viewportHeight * 0.18f * (1f - remaining)
+                        } else {
+                            // Unwind the drag with the shared return so it lands on its source.
+                            scaleX = 1f - fraction * 0.25f * remaining
+                            scaleY = scaleX
+                            translationX = dismiss.offset.x * 0.7f * remaining
+                            translationY = dismiss.offset.y * remaining
+                        }
+                    }
+                    .clipToBounds(),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (!imageState.isImageDisplayed && placeholder != null) {
+                    Image(placeholder, null, Modifier.fillMaxSize(), contentScale = contentScale)
+                }
+                ZoomableImage(
+                    image = image,
+                    contentDescription = description,
+                    state = imageState,
+                    contentScale = contentScale,
+                    gestures = if (transitioning || dismiss.active) {
+                        EnabledZoomGestures.None
+                    } else {
+                        EnabledZoomGestures.ZoomAndPan
+                    },
+                    clipToBounds = false,
+                    onClick = { if (!transitioning && !dismiss.active) onToggleControls() },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .imageReturnTransform(imageState, visibilityProgress)
+                        .semantics(mergeDescendants = true) {
+                            onClick(label = toggleLabel) {
+                                if (!transitioning && !dismiss.active) onToggleControls()
+                                !transitioning && !dismiss.active
+                            }
+                        },
+                )
+            }
+        }
+        if (loadFailed) {
+            ContentUnavailableView(
+                state = ContentUnavailableState.ERROR,
+                title = stringResource(R.string.image_load_failed),
+                description = null,
+                onRetry = onRetry,
+                retryEnabled = !transitioning && !dismiss.active,
+                presentation = ContentUnavailablePresentation.MEDIA,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
+                    .padding(top = 80.dp, bottom = 96.dp),
+            )
+        } else if (!imageState.isImageDisplayed && !transitioning) {
+            IndeterminateCircularProgressIndicator(color = Color.White)
+        }
+        AnimatedVisibility(
+            visible = controlsVisible,
+            enter = fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()),
+            exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+            modifier = Modifier.align(Alignment.TopCenter).then(controlsModifier).then(controlsDragModifier),
+        ) {
+            TopAppBar(
+                title = {},
+                navigationIcon = {
+                    ShadowFilledIconButton(
+                        onClick = onBack,
+                        enabled = controlsVisible && !transitioning && !dismiss.active,
+                        shapes = IconButtonShapes(CircleShape, CircleShape),
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = Color(0xFF242424),
+                            contentColor = Color.White,
+                            disabledContainerColor = Color(0xFF242424),
+                            disabledContentColor = Color.White,
+                        ),
+                    ) {
+                        Icon(painterResource(R.drawable.ic_icon_close), stringResource(R.string.image_close))
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
+                    navigationIconContentColor = Color.White,
+                ),
+                modifier = Modifier.onFocusChanged { appBarFocused = it.hasFocus },
+            )
+        }
+        AnimatedVisibility(
+            visible = controlsVisible,
+            enter = fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()),
+            exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.End + WindowInsetsSides.Bottom))
+                .padding(end = 16.dp, bottom = 16.dp)
+                .then(controlsModifier)
+                .then(controlsDragModifier),
+        ) {
+            HorizontalFloatingToolbar(
+                expanded = true,
+                colors = FloatingToolbarDefaults.standardFloatingToolbarColors(
+                    toolbarContainerColor = Color(0xFF242424),
+                    toolbarContentColor = Color.White,
+                ),
+                modifier = Modifier.onFocusChanged { toolbarFocused = it.hasFocus }.focusGroup(),
+            ) {
+                LoadingIconButton(
+                    onClick = onSave,
+                    enabled = controlsVisible && available,
+                    loading = saving,
+                    indicatorColor = Color.White,
+                ) {
+                    Icon(painterResource(R.drawable.ic_icon_download), saveLabel)
+                }
+                LoadingIconButton(
+                    onClick = onCopy,
+                    enabled = controlsVisible && available,
+                    loading = copying,
+                    indicatorColor = Color.White,
+                ) {
+                    Icon(painterResource(R.drawable.ic_icon_copy), copyLabel)
+                }
+            }
+        }
+        SnackbarHost(
+            snackbarHostState,
+            Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = if (controlsVisible) 88.dp else 16.dp),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun ImageViewerPreview() {
+    val painter = painterResource(R.drawable.ic_icon_video_library)
+    val image = remember(painter) {
+        object : ZoomableImageSource {
+            @Composable
+            override fun resolve(canvasSize: Flow<Size>) =
+                ZoomableImageSource.ResolveResult(ZoomableImageSource.PainterDelegate(painter))
+        }
+    }
+    KIRAKIRATheme {
+        ImageViewerScreen(
+            image = image,
+            description = "Avatar",
+            imageState = rememberZoomableImageState(),
+            loadFailed = false,
+            saving = false,
+            copying = false,
+            transitioning = false,
+            controlsVisible = true,
+            snackbarHostState = SnackbarHostState(),
+            onBack = {},
+            onSave = {},
+            onCopy = {},
+            onRetry = {},
+            onToggleControls = {},
+            onInteractionChange = {},
+        )
+    }
+}

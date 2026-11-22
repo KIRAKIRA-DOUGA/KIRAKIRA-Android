@@ -27,10 +27,10 @@
 
 <!-- 只勾选已完成的检查；不适用项在上方说明。详细参数以 CONTRIBUTING.md 为准。 -->
 
-- [ ] 已遵循 [技术选型与架构](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/blob/main/CONTRIBUTING.md#技术选型与架构)及 [Kotlin 风格](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/blob/main/CONTRIBUTING.md#kotlin-风格与命名)，完成适用的格式化与导入清理。
-- [ ] 已遵循 [Compose 与界面规范](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/blob/main/CONTRIBUTING.md#compose-与界面规范)，核对涉及的 Material 3 Expressive 组件与动画曲线、按钮按压形变、固定轮廓与按钮加载反馈、单组普通列表与多组连接列表的选择、弹出菜单组间分割与毛玻璃背景、列表区域标题排版与数量摘要格式、Material Design 2 风格配色与高度阴影、KIRAKIRA 彩色阴影，以及 Modifier 工厂与链、状态展示、表单、图标来源与样式、反馈动效和 Insets 规则。
-- [ ] 新文案已同步中英文，布局兼顾长文本、字体缩放与无障碍；读取失败遵循已确认数据保留与明确访问失效清理规则；瞬时错误使用 Snackbar，不使用 Toast，页面及可重试内容错误保留 ContentUnavailableView，错误和危险确认图标使用主题 `error`；不内置 Demo 内容，预览使用空表单、游客账号或空列表。
-- [ ] 涉及认证或 API 时，已遵循 [认证状态约束](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/blob/main/CONTRIBUTING.md#认证状态约束)和 [API 与会话规范](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/blob/main/CONTRIBUTING.md#api-与会话接入规范)，保留账号隔离、错误与取消处理、私有账号文件及备份排除边界；涉及存储迁移时说明旧库恢复失败后的重新登录行为。
-- [ ] 已按 [构建与检查](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/blob/main/CONTRIBUTING.md#构建与检查)记录实际执行结果，未自行增加或运行用户未要求的测试和额外检查，未将历史记录或未运行项写为通过。
-- [ ] 已按 [文档维护分工](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/blob/main/CONTRIBUTING.md#文档维护)同步所属专题、摘要及配置，检查移动后的链接与锚点。
-- [ ] 变更聚焦，未混入凭据、个人路径、生成文件或无关工具链升级；规范例外已说明原因。
+- [ ] 已遵循[技术选型与架构](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/blob/main/CONTRIBUTING.md#技术选型与架构)（包结构与依赖方向）和 [Kotlin 风格](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/blob/main/CONTRIBUTING.md#kotlin-风格与命名)，完成格式化与导入清理。
+- [ ] 界面变更已对照[界面规范](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/blob/main/docs/ui-guidelines.md)中涉及的小节，优先复用共享组件；新文案已同步英语、简体中文、繁体中文和日语，布局兼顾长文本、字体缩放与无障碍。
+- [ ] 读取失败保留已确认的内容，写请求不自动重放；瞬时错误使用 Snackbar，不使用 Toast；不内置演示内容。
+- [ ] 涉及认证或 API 时，已遵循[认证状态约束](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/blob/main/CONTRIBUTING.md#认证状态约束)和 [API 与会话接入规范](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/blob/main/CONTRIBUTING.md#api-与会话接入规范)；改动已保存数据的格式或位置时，在上方写明迁移方案。
+- [ ] 已按[构建与检查](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/blob/main/CONTRIBUTING.md#构建与检查)如实记录执行过的检查，没有把未运行的检查写成通过。
+- [ ] 已按[文档维护](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/blob/main/CONTRIBUTING.md#文档维护)更新所属文档：改写所属段落而不是追加，并检查了移动后的链接与锚点。
+- [ ] 变更聚焦，没有混入凭据、个人路径、生成文件或无关的工具链升级；规范例外已说明原因。
