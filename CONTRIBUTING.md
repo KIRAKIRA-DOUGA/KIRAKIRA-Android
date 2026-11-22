@@ -206,4 +206,4 @@
 - 提交格式为 `type(scope): summary`，scope 可以省略。type 使用 `feat`、`fix`、`refactor`、`docs`、`test`、`style`、`build`、`ci` 或 `chore`，例如 `feat(home): add empty state`、`docs: 完善开发环境说明`。summary 简洁地说明动作，不写“更新代码”这类泛泛的描述。
 - 一次提交聚焦一个目的，不混入无关的重排、依赖升级或生成目录。破坏兼容性的变更在正文里解释影响和迁移方式。
 - 使用 [PR 模板](.github/pull_request_template.md)，说明问题、方案、关联的 issue（如有）、构建结果和风险。测试结果、界面截图或录屏只在用户要求时提供；规范例外写明原因。
-- 合并前由其他开发者审核适用的规范和验证证据。推送到 `main` 或正式版本的 tag 会触发 [GitHub Actions 发版](docs/release.md)。PR 的合并规则由维护者在远端设置。
+- 合并前由其他开发者审核适用的规范和验证证据。PR 会运行不签名的 Release 构建检查。推送到 `main` 或正式版本的 tag 会触发 [GitHub Actions 发版](docs/release.md)。PR 的合并规则由维护者在远端设置。

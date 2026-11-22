@@ -1,0 +1,32 @@
+name: Android check
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: gradle
+      - uses: ./.github/actions/setup-android-sdk
+        with:
+          build-tools: '37.0.0'
+      # Unsigned release build: same R8 and resource shrinking as distribution, without signing secrets.
+      - name: Build release APK
+        run: ./gradlew :app:assembleRelease --console=plain --no-scan

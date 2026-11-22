@@ -29,6 +29,10 @@ if [[ "$release" == null ]]; then
         [[ "$release" != null ]] && break
         sleep "$attempt"
     done
+    if [[ "$release" == null ]]; then
+        echo "::error::Release $tag was created but is not listed yet; rerun the publish job."
+        exit 1
+    fi
 fi
 
 release_id=$(jq -er '.id' <<< "$release")

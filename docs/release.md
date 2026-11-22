@@ -4,7 +4,9 @@
 
 [Android distribution](../.github/workflows/android-distribution.yml) 使用同一套 Release 构建和签名流程。每次 `main` 推送触发的构建成功后，Releases 中的 [CI build](https://github.com/KIRAKIRA-DOUGA/KIRAKIRA-Android/releases/tag/ci) 预发行会更新到最新成功构建。CI 的 APK 文件名包含版本号、运行序号和提交 SHA 的前 7 位，例如 `KIRAKIRA-0.4-ci-12-a659b8b.apk`。每次运行的 APK 和同次生成的 `mapping.txt` 可从 Actions 的 **Artifacts** 下载，保留 90 天。
 
-工作流从 Google 下载固定版本的 Android SDK 命令行工具，校验 SHA-256 后把 SDK Platform 和 Build Tools 安装到 runner 的临时目录。Release 构建与签名使用同一 SDK，不依赖 runner 预装的 `sdkmanager`。
+工作流通过 [setup-android-sdk](../.github/actions/setup-android-sdk/action.yml) 从 Google 下载固定版本的 Android SDK 命令行工具，校验 SHA-256 后把 SDK Platform 和 Build Tools 安装到 runner 的临时目录。Release 构建与签名使用同一 SDK，不依赖 runner 预装的 `sdkmanager`。
+
+[Android check](../.github/workflows/android-check.yml) 在每个 PR 上用同一 SDK 执行不签名的 Release 构建，不接触签名 Environment，也可在 Actions 中手动运行。它让未提交的源码、R8 或资源压缩的问题在合并前暴露。
 
 正式版与 CI 版共享应用 ID 和签名。分发包使用 `3 + GITHUB_RUN_NUMBER` 作为 `versionCode`，其中 3 是已发布的 `0.3` APK 的版本号。CI 的版本名包含运行序号，例如 `0.4-ci.12`。如果手机已安装构建序号更高的 CI，需要等序号更高的正式版才能覆盖更新。两个渠道使用同一个工作流计数。迁移工作流前应确保新计数生成的版本号高于已分发的 APK。
 
