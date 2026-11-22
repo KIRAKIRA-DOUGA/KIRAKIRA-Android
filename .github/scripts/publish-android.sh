@@ -23,7 +23,12 @@ if [[ "$release" == null ]]; then
         notes=$(printf '待补充中文更新说明。\n\n提交 `%s` · [Actions 构建](%s)' "$SOURCE_COMMIT" "$run_url")
         gh release create "$tag" --verify-tag --draft --title "$tag" --notes "$notes"
     fi
-    release=$(find_release)
+    # The release list can lag behind a newly created draft.
+    for attempt in {1..10}; do
+        release=$(find_release)
+        [[ "$release" != null ]] && break
+        sleep "$attempt"
+    done
 fi
 
 release_id=$(jq -er '.id' <<< "$release")
