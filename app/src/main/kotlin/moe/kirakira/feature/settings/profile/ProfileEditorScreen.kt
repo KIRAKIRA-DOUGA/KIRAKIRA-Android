@@ -84,6 +84,7 @@ import moe.kirakira.ui.components.form.TextFieldEdits
 import moe.kirakira.ui.components.form.dismissKeyboardOnBlankTap
 import moe.kirakira.ui.components.form.rememberBoundTextField
 import moe.kirakira.ui.components.list.connectedListItemShapes
+import moe.kirakira.ui.components.overlay.MenuDivider
 import moe.kirakira.ui.components.overlay.MenuPopup
 import moe.kirakira.ui.components.overlay.menuItemColors
 import moe.kirakira.ui.components.overlay.menuItemShapes
@@ -340,6 +341,23 @@ private fun PersonalInformation(state: ProfileEditorState, onEdit: (String, Stri
                     ) {
                         val colors = menuItemColors()
                         val shapes = menuItemShapes()
+                        val customGender = state.original?.gender?.takeIf { it.isNotBlank() && it !in genderValues }
+                        if (customGender != null) {
+                            SelectableDropdownMenuItem(
+                                selected = draft.gender == customGender,
+                                text = { Text(customGender) },
+                                onClick = {
+                                    onEdit("gender", customGender)
+                                    showGender = false
+                                },
+                                shapes = shapes,
+                                colors = colors,
+                                trailingContent = if (draft.gender == customGender) {
+                                    { ProfileIcon(R.drawable.ic_icon_check) }
+                                } else null,
+                            )
+                            MenuDivider()
+                        }
                         genderValues.forEachIndexed { index, value ->
                             SelectableDropdownMenuItem(
                                 selected = draft.gender == value,
