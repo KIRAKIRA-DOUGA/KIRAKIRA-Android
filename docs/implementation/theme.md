@@ -184,7 +184,7 @@ Android 12+ 之所以要先显式画底色：Haze 的 `backgroundColor` 只在�
 - **按可见轮廓绘制**。投影读取官方的 `MinimumInteractiveLeftAlignmentLine` 和 `MinimumInteractiveTopAlignmentLine`，按实际可见轮廓内缩并平移。否则最小触摸目标的留白会被当成按钮表面，投影比按钮大一圈。
 - **形状与投影共用一个交互源**。带文字的按钮在静止和按压形状之间用公开的 `Interpolatable` API 插值，同一个动画形状用于按钮轮廓、投影和装饰裁剪，不访问 Material 3 的内部 API。
 - **禁用优先**。禁用时立即移除投影，优先于按压、悬停和聚焦。
-- **容器要给投影留空间**。投影画在按钮外侧，状态提示、账号流程、头像裁剪和规则管理页的 FAB 等位置在各自的容器里预留了空间。
+- **容器要给投影留空间**。投影画在按钮外侧，状态提示、账号流程、头像裁剪、规则管理页和邀请码页的 FAB 等位置在各自的容器里预留了空间。
 
 [ShadowToggleButton](../../app/src/main/kotlin/moe/kirakira/ui/components/button/ShadowToggleButton.kt) 是通用选择按钮的封装，`FollowButton` 基于它实现；`Segmented` 的强调色指示块也共用按钮的高度动画与双层投影。接入见[选择按钮阴影](components.md#选择按钮阴影)和[分段选择](components.md#分段选择)，按压形变见[按钮按压轮廓](components.md#按钮按压轮廓)。
 

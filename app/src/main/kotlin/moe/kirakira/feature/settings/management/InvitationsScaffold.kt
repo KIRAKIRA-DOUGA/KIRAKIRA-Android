@@ -85,6 +85,7 @@ internal fun InvitationsScaffold(
     onDismissMessage: () -> Unit,
     modifier: Modifier = Modifier,
     onTabReselect: suspend (Int) -> Unit = {},
+    floatingActionButton: @Composable () -> Unit = {},
     header: @Composable () -> Unit,
     content: @Composable (Int, PaddingValues, Dp) -> Unit,
 ) {
@@ -153,6 +154,7 @@ internal fun InvitationsScaffold(
                 }
             },
             snackbarHost = { SnackbarHost(snackbar) },
+            floatingActionButton = { if (showContent) floatingActionButton() },
         ) { padding ->
             ContentPullToRefresh(
                 isRefreshing = signedIn && loaded && loading,
@@ -240,7 +242,7 @@ internal fun InvitationsScaffold(
                                                 start = 16.dp,
                                                 end = 16.dp,
                                                 top = topContentPadding + 16.dp,
-                                                bottom = padding.calculateBottomPadding() + 24.dp,
+                                                bottom = padding.calculateBottomPadding() + 104.dp,
                                             ),
                                             with(density) { (headerState.headerHeight - headerState.offset).toDp() },
                                         )

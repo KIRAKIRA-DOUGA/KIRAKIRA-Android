@@ -4,32 +4,27 @@ package moe.kirakira.feature.settings.management
 
 import android.content.ClipData
 import android.content.res.Configuration
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
@@ -43,11 +38,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -56,11 +54,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import moe.kirakira.R
 import moe.kirakira.data.settings.Invitation
-import moe.kirakira.ui.components.button.ButtonLoadingIndicator
 import moe.kirakira.ui.components.button.FlatTextButton
 import moe.kirakira.ui.components.button.ShadowButton
-import moe.kirakira.ui.components.button.pressToRoundButtonShapes
-import moe.kirakira.ui.components.button.withEnabledAppearance
+import moe.kirakira.ui.components.button.ShadowFloatingActionButton
 import moe.kirakira.ui.components.icon.IconBadgeTone
 import moe.kirakira.ui.components.list.ConnectedLazyColumn
 import moe.kirakira.ui.components.list.LazyListScrollbar
@@ -74,7 +70,6 @@ import moe.kirakira.ui.components.status.ContentUnavailableState
 import moe.kirakira.ui.components.status.ContentUnavailableView
 import moe.kirakira.ui.components.text.AnimatedNumberText
 import moe.kirakira.ui.theme.KIRAKIRATheme
-import moe.kirakira.ui.theme.cardColorShadow
 
 @Composable
 internal fun InvitationsPage(model: InvitationsViewModel, onBack: () -> Unit, onLogin: () -> Unit) {
@@ -146,7 +141,8 @@ internal fun InvitationsScreen(
             onDismissMessage = { if (copyMessage != null) copyMessage = null else onDismissMessage() },
             modifier = modifier,
             onTabReselect = { page -> listStates[page].smoothScrollToTop() },
-            header = { InvitationStatistics(state, busy, accountRevision, onCreate) },
+            header = { InvitationStatistics(state, accountRevision) },
+            floatingActionButton = { InvitationFab(busy, onCreate) },
         ) { page, padding, obscuredBottom ->
             StatusBarScrollToTopEffect(listStates[page])
             val visible = codes.filter { page == 0 || (if (page == 1) !it.used else it.used) }
@@ -177,79 +173,31 @@ internal fun InvitationsScreen(
 }
 
 @Composable
-private fun InvitationStatistics(
-    state: SettingsLoad<List<Invitation>>,
-    busy: Boolean,
-    accountRevision: Long,
-    onCreate: () -> Unit,
-) {
-    val unused = state.data.orEmpty().count { !it.used }
-    val shape = MaterialTheme.shapes.large
-    val container = MaterialTheme.colorScheme.primary
-    Surface(
-        shape = shape, color = container,
-        contentColor = MaterialTheme.colorScheme.onPrimary,
-        modifier = Modifier
-            .fillMaxWidth()
-            .cardColorShadow(shape, container)
-            .animateContentSize(),
+private fun InvitationStatistics(state: SettingsLoad<List<Invitation>>, accountRevision: Long) {
+    val codes = state.data
+    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(vertical = 8.dp)) {
+        InvitationStatistic(
+            stringResource(R.string.invitation_unused), codes?.count { !it.used }, accountRevision,
+            Modifier.weight(1f), MaterialTheme.colorScheme.primary,
+        )
+        VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        InvitationStatistic(stringResource(R.string.invitation_total), codes?.size, accountRevision, Modifier.weight(1f))
+        VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        InvitationStatistic(
+            stringResource(R.string.invitation_used), codes?.count { it.used }, accountRevision, Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun InvitationFab(busy: Boolean, onCreate: () -> Unit) {
+    ShadowFloatingActionButton(
+        onClick = onCreate,
+        enabled = !busy,
+        // Together with Scaffold's 16dp margins, fit the 12dp elevation shadow at the edges.
+        modifier = Modifier.padding(end = 2.dp, bottom = 10.dp),
     ) {
-        Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.invitation_unused), style = MaterialTheme.typography.titleMedium)
-                    if (state.data == null) Text("—", style = MaterialTheme.typography.displayLarge)
-                    else key(accountRevision) {
-                        AnimatedNumberText(unused, style = MaterialTheme.typography.displayLarge)
-                    }
-                }
-                Surface(
-                    modifier = Modifier.size(64.dp),
-                    shape = MaterialShapes.Cookie12Sided.toShape(),
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.12f),
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            painterResource(R.drawable.ic_icon_gift),
-                            contentDescription = null,
-                            modifier = Modifier.size(32.dp),
-                        )
-                    }
-                }
-            }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(32.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                InvitationStatistic(stringResource(R.string.invitation_total), state.data?.size, accountRevision)
-                InvitationStatistic(stringResource(R.string.invitation_used), state.data?.let { it.size - unused }, accountRevision)
-            }
-            val shapes = pressToRoundButtonShapes(ButtonDefaults.MediumContainerHeight)
-            val colors = ButtonDefaults.buttonColors(
-                containerColor = Color.White,
-                contentColor = MaterialTheme.colorScheme.primary,
-            )
-            ButtonLoadingIndicator(
-                loading = busy,
-                shape = shapes.shape,
-                modifier = Modifier.fillMaxWidth().heightIn(min = ButtonDefaults.MediumContainerHeight),
-                color = MaterialTheme.colorScheme.onPrimaryFixed,
-            ) { buttonModifier ->
-                Button(
-                    onClick = { if (!busy) onCreate() },
-                    enabled = !busy,
-                    modifier = buttonModifier,
-                    shapes = shapes,
-                    contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight, hasStartIcon = true),
-                    colors = colors.withEnabledAppearance(busy),
-                    elevation = null,
-                ) {
-                    Icon(painterResource(R.drawable.ic_icon_add), null,
-                        Modifier.size(ButtonDefaults.iconSizeFor(ButtonDefaults.MediumContainerHeight)))
-                    Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(ButtonDefaults.MediumContainerHeight)))
-                    Text(stringResource(R.string.invitation_generate),
-                        style = ButtonDefaults.textStyleFor(ButtonDefaults.MediumContainerHeight))
-                }
-            }
-        }
+        Icon(painterResource(R.drawable.ic_icon_add), stringResource(R.string.invitation_generate))
     }
 }
 
@@ -337,13 +285,27 @@ private fun InvitationList(
 }
 
 @Composable
-private fun InvitationStatistic(label: String, count: Int?, accountRevision: Long) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        if (count == null) Text("—", style = MaterialTheme.typography.headlineSmall)
-        else key(accountRevision) {
-            AnimatedNumberText(count, style = MaterialTheme.typography.headlineSmall)
-        }
-        Text(label, style = MaterialTheme.typography.labelLarge)
+private fun InvitationStatistic(
+    label: String,
+    count: Int?,
+    accountRevision: Long,
+    modifier: Modifier = Modifier,
+    accent: Color = Color.Unspecified,
+) {
+    Column(
+        modifier.padding(horizontal = 16.dp).semantics(mergeDescendants = true) {},
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            color = accent.takeOrElse { MaterialTheme.colorScheme.onSurfaceVariant },
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        val style = MaterialTheme.typography.headlineLarge.copy(color = accent.takeOrElse { MaterialTheme.colorScheme.onSurface })
+        if (count == null) Text("—", style = style)
+        else key(accountRevision) { AnimatedNumberText(count, style = style) }
     }
 }
 
