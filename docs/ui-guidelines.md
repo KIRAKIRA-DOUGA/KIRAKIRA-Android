@@ -119,6 +119,9 @@
 ### 菜单、对话框与弹层
 
 - **下拉菜单**统一使用 `MenuPopup`，选项组之间用 `MenuDivider`。条目使用官方 `SelectableDropdownMenuItem` 和共享的 `menuItemShapes()`。见[弹出菜单](implementation/components.md#弹出菜单)。
+- **单项选择用菜单还是底部 Sheet**取决于选择的语义，不按页面统一：
+  - 表单里只改草稿的字段（如资料页的性别），选项是少量短文本、不需要图标或说明时，用锚定在该行的 `MenuPopup`，选中项尾部显示对勾。
+  - 选择后立即提交（写服务端或设置），选项需要图标或说明，或多个入口共用同一个选择器、需要标题说明当前对象时（如隐私可见性），用 `ModalBottomSheet`，选项为连接列表，尾部用 `ShadowRadioButton`。
 - **对话框**复用 `ActionDialog`：标题居中，图标是可选插槽。操作按钮按可用宽度自适应排列——一行放得下时横向靠右、主操作在末端，否则纵向全宽、主操作在前；不按操作数量或业务场景固定排列。主操作用 `ShadowButton`，次操作用平面文字按钮，关闭或取消放最后。日期选择器保留官方结构。见[普通对话框](implementation/components.md#普通对话框)。
 - **危险确认弹窗**通过 `DestructiveActionIcon` 让顶部图标与确认按钮共用主题 `error` 色。
 - **弹层背景**按内容决定：对话框、底部 Sheet、日期选择和开源组件详情中，包含连接列表条目时使用灰色（业务 Sheet 为 `surfaceContainerLow`），否则使用 `surface`。空列表、首次加载与错误占位使用 `surface`；刷新时已有条目则保持灰色。调用处按实际内容直接选择颜色，不探测组件树。见[弹层背景](implementation/theme.md#弹层背景)。
