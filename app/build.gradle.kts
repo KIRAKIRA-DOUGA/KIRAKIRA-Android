@@ -64,6 +64,10 @@ android {
             }
             buildConfigField("boolean", "SYSTEM_CREDENTIALS_ENABLED", "false")
         }
+        // Baseline Profile generation installs these plugin-created variants; release stays unsigned.
+        matching { it.name.startsWith("nonMinified") || it.name.startsWith("benchmark") }.configureEach {
+            signingConfig = signingConfigs.getByName("debug")
+        }
     }
     // Vendored Number Flow sources; see third_party/number-flow/README.md.
     sourceSets.getByName("main").kotlin.directories.add(rootProject.file("third_party/number-flow/src").path)
@@ -78,6 +82,15 @@ android {
 }
 
 androidComponents {
+    // The Baseline Profile plugin copies release's optimization block into the build types it records
+    // with; profiles must be recorded against unobfuscated names, so turn R8 off after it runs.
+    finalizeDsl { android ->
+        android.buildTypes.matching { it.name.startsWith("nonMinified") }.configureEach {
+            optimization {
+                enable = false
+            }
+        }
+    }
     onVariants(selector().withBuildType("release")) { variant ->
         val output = variant.outputs.single()
         require(!(ciRunNumber.isPresent && releaseVersionName.isPresent)) {
