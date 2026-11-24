@@ -54,8 +54,9 @@
 播放器使用 Media3 ExoPlayer、DASH／HLS、OkHttp 数据源、Compose 的 `ContentFrame` 和 MediaSession；按钮和进度条是项目自己的 Material 3 控件，不使用 XML 的 PlayerView。
 
 - **一个共享会话**。`AppNavHost` 持有共享的 [PlaybackViewModel](../../app/src/main/kotlin/moe/kirakira/feature/player/PlaybackViewModel.kt)，视频页、应用内小窗和系统画中画使用同一个 ExoPlayer 与 MediaSession，同一时刻只有一个画面绑定。`PlaybackViewModel` 在构造时把 Context 转成 Application Context，不随宿主作用域持有 Activity。
-- **独立的媒体客户端**拒绝 HTTP 和带凭据的 URL，清单和分片都不携带账号会话。
-- **可恢复的内容**。SavedState 保留视频 ID、分 P 序号、播放毫秒数、倍速相关的标量和“禁止恢复自动播放”的标记，不保存 URL 或凭据。进程重建后保持暂停，不恢复小窗。
+- **独立配置的媒体客户端**拒绝 HTTP 和带凭据的 URL，清单和分片都不携带账号会话。
+- **磁盘缓存**。媒体数据经 `CacheDataSource` 写入 `cacheDir/media`，按 LRU 保留至多 256 MiB，重看、回拖和切换分 P 可命中；缓存出错时直接回源。`SimpleCache` 会锁定目录，所以进程内只建一个实例（[MediaCache.kt](../../app/src/main/kotlin/moe/kirakira/feature/player/MediaCache.kt)）。缓存只存公开媒体，不在备份范围内。
+- **可恢复的内容**。SavedState 保留视频 ID、分 P 序号、播放毫秒数、倍速相关的标量和“禁止恢复自动播放”的标记，不保存 URL 或凭据。播放毫秒数通过 `SavedStateProvider` 在保存时读取，进度轮询不写 SavedState。进程重建后保持暂停，不恢复小窗。
 - **自动播放只有一次资格**。新页面在设置已加载、路由处于前台且有可播放内容时，可以按设置自动准备媒体一次；手动操作、账号变化或离开页面都会消耗这次资格。
 - **重读详情不打断播放**。回到视频页重新读取详情时，同一分 P 的媒体 URL 更新不打断当前播放。分 P 重排后按 ID 保留当前选择和进度；当前分 P 不存在了才释放播放器并回到首 P。
 - **何时释放**。关闭小窗、账号修订变化和普通的进入后台都会释放会话；旋转保留 ViewModel。

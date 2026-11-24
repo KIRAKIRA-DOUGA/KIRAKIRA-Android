@@ -538,7 +538,7 @@ internal fun VideoScreen(
                                             )
                                         }
                                     }
-                                    items(danmaku.data.orEmpty()) { entry ->
+                                    items(danmaku.data.orEmpty(), contentType = { "danmaku" }) { entry ->
                                         DanmakuListItem(durationText((entry.timeSeconds * 1000).toLong()), entry.text)
                                     }
                                 }

@@ -2,6 +2,7 @@ package moe.kirakira.feature.player
 
 import android.content.Context
 import android.graphics.Rect
+import android.os.Bundle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -20,7 +21,6 @@ import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
-import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
@@ -31,6 +31,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import moe.kirakira.core.image.isPublicMediaHttpUrl
+import moe.kirakira.core.network.sharedOkHttpClient
 import moe.kirakira.data.content.VideoPart
 import moe.kirakira.data.history.HistoryRepository
 import okhttp3.OkHttpClient
@@ -113,7 +114,6 @@ internal class PlaybackViewModel(
                 continuousSpeed = false
                 preservesPitch = true
                 savedState["part"] = 0
-                savedState["position"] = 0L
                 savedState["speed"] = speed
                 savedState["continuous_speed"] = false
                 savedState["preserves_pitch"] = true
@@ -182,8 +182,13 @@ internal class PlaybackViewModel(
         private set
     var selectedPart by mutableIntStateOf(0)
         private set
-    var positionMs by mutableLongStateOf(savedState.get<Long>("position") ?: 0L)
+    var positionMs by mutableLongStateOf(savedState.get<Bundle>("playback_position")?.getLong("position") ?: 0L)
         private set
+
+    init {
+        // Read only when the state is saved, so the progress loop never writes SavedState.
+        savedState.setSavedStateProvider("playback_position") { Bundle().apply { putLong("position", positionMs) } }
+    }
     var durationMs by mutableLongStateOf(0L)
         private set
     var bufferedPositionMs by mutableLongStateOf(0L)
@@ -310,7 +315,6 @@ internal class PlaybackViewModel(
             durationMs = 0L
             failed = false
             historyRecorder.resetPosition(0L)
-            savedState["position"] = 0L
         } else if (previousPart != null && previousPart.sourceIndex != parts[nextIndex].sourceIndex) {
             // Flush under the old selection before its first-part history eligibility changes.
             flushHistory()
@@ -324,7 +328,6 @@ internal class PlaybackViewModel(
             val candidate = resumePosition.takeIf { player == null && positionMs == 0L }
             resume.resolve(parts.getOrNull(selectedPart), candidate)?.let { position ->
                 positionMs = position
-                savedState["position"] = position
                 historyRecorder.resetPosition(position)
             }
         }
@@ -346,7 +349,7 @@ internal class PlaybackViewModel(
         initialLoading = part.id !in initiallyReadyPartIds
         val resumePosition = positionMs
         val next = ExoPlayer.Builder(applicationContext)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(OkHttpDataSource.Factory(publicMediaClient)))
+            .setMediaSourceFactory(DefaultMediaSourceFactory(publicMediaDataSourceFactory(applicationContext, publicMediaClient)))
             .build().apply playerSetup@ {
                 setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA)
                     .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
@@ -369,7 +372,6 @@ internal class PlaybackViewModel(
                         resume.resolveDuration(durationMs)?.let { position ->
                             if (position == 0L) {
                                 historyRecorder.resetPosition(0L)
-                                savedState["position"] = 0L
                                 player.seekTo(0)
                             } else {
                                 showResumeNotice(position)
@@ -407,7 +409,6 @@ internal class PlaybackViewModel(
                 actualVideoHeight = next.videoFormat?.height?.takeIf { it > 0 }
                 positionMs = next.currentPosition.coerceAtLeast(0)
                 bufferedPositionMs = next.bufferedPosition.coerceIn(0, durationMs)
-                savedState["position"] = positionMs
                 delay(500.milliseconds)
                 historyRecorder.sample(historySample())
             }
@@ -427,7 +428,6 @@ internal class PlaybackViewModel(
         positionMs = position.coerceIn(0, durationMs.coerceAtLeast(0))
         player?.seekTo(positionMs)
         bufferedPositionMs = player?.bufferedPosition?.coerceIn(0, durationMs) ?: 0L
-        savedState["position"] = positionMs
     }
     fun selectPart(index: Int) {
         autoplayHandled = true
@@ -441,7 +441,6 @@ internal class PlaybackViewModel(
         durationMs = 0
         failed = false
         savedState["part"] = parts[index].sourceIndex
-        savedState["position"] = 0L
         if (continuePlaying) play()
     }
     fun pause() { autoplayHandled = true; player?.pause(); flushHistory() }
@@ -459,7 +458,6 @@ internal class PlaybackViewModel(
         dismissResumeNotice()
         flushHistory()
         player?.let { positionMs = it.currentPosition.coerceAtLeast(0) }
-        savedState["position"] = positionMs
         parts.getOrNull(selectedPart)?.let { savedState["part"] = it.sourceIndex }
         progress?.cancel()
         progress = null
@@ -484,7 +482,7 @@ internal class PlaybackViewModel(
 }
 
 /** A separate public-media transport: no API cookie jar, headers or authentication interceptors. */
-private val publicMediaClient: OkHttpClient = OkHttpClient.Builder()
+private val publicMediaClient: OkHttpClient = sharedOkHttpClient.newBuilder()
     .connectTimeout(15.seconds).readTimeout(30.seconds)
     .followSslRedirects(false)
     .addNetworkInterceptor { chain ->
