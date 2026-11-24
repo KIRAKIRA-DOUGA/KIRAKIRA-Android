@@ -18,6 +18,7 @@ import moe.kirakira.core.image.isPublicMediaHttpUrl
 import moe.kirakira.core.network.ApiClient
 import moe.kirakira.core.network.ApiException
 import moe.kirakira.core.network.ApiFailure
+import moe.kirakira.core.network.sharedOkHttpClient
 import moe.kirakira.data.auth.AccountProfile
 import moe.kirakira.data.auth.AuthRepository
 import okhttp3.Call
@@ -25,7 +26,6 @@ import okhttp3.Callback
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.Response
@@ -187,7 +187,7 @@ internal class ProfileRepository(private val api: ApiClient, private val auth: A
     }
 
     private companion object {
-        val uploadClient = OkHttpClient.Builder().connectTimeout(15.seconds)
+        val uploadClient = sharedOkHttpClient.newBuilder().connectTimeout(15.seconds)
             .readTimeout(30.seconds).writeTimeout(30.seconds)
             .callTimeout(60.seconds).followRedirects(false).followSslRedirects(false)
             .retryOnConnectionFailure(false).build()

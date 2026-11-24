@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import kotlin.time.Duration.Companion.seconds
 import moe.kirakira.core.credentials.passwordCredentialGateway
 import moe.kirakira.core.network.ApiClient
+import moe.kirakira.core.network.sharedOkHttpClient
 import moe.kirakira.data.auth.AuthApi
 import moe.kirakira.data.auth.AuthRepository
 import moe.kirakira.data.auth.SessionStore
@@ -17,7 +18,6 @@ import moe.kirakira.data.profile.ProfileRepository
 import moe.kirakira.data.search.SearchHistoryRepository
 import moe.kirakira.data.security.SecurityRepository
 import moe.kirakira.data.settings.AccountSettingsRepository
-import okhttp3.OkHttpClient
 
 /** Retained host dependencies; account-bound history work ends with this ViewModel's scope. */
 internal class AppDependenciesViewModel(application: Application) : AndroidViewModel(application) {
@@ -33,7 +33,7 @@ internal class AppDependenciesViewModel(application: Application) : AndroidViewM
     val recentKaomoji = RecentKaomojiStore(application)
     val settings = AccountSettingsRepository(api, auth)
     val history = HistoryRepository(api, auth, viewModelScope)
-    private val imageClient = OkHttpClient.Builder()
+    private val imageClient = sharedOkHttpClient.newBuilder()
         .connectTimeout(15.seconds)
         .readTimeout(20.seconds)
         .callTimeout(30.seconds)

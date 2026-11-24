@@ -150,11 +150,11 @@
 
 ### 网络与错误
 
-[ApiClient](../../app/src/main/kotlin/moe/kirakira/core/network/ApiClient.kt) 由宿主的 `AppDependenciesViewModel` 创建并注入各 Repository，认证与内容请求共享同一个 OkHttp 客户端。
+[ApiClient](../../app/src/main/kotlin/moe/kirakira/core/network/ApiClient.kt) 由宿主的 `AppDependenciesViewModel` 创建并注入各 Repository，认证与内容请求共享同一个 OkHttp 客户端。它和头像上传、图片导出、媒体播放、Coil 的客户端都从进程级的 `sharedOkHttpClient` 派生，只共享连接池和调度器；底座本身不挂拦截器或 CookieJar，因此会话不会经由共享底座泄漏到其他用途。
 
 - **超时与上限**：连接 15 秒、读写 20 秒、完整调用 30 秒，响应上限 1 MiB。
 - **取消**：通过 callback 与 `suspendCancellableCoroutine` 把协程取消传到 HTTP Call。解析和散列在 Default 调度器，存储在 IO 调度器。
-- **禁用的能力**：自动重试、重定向、缓存、请求日志和全局 CookieJar。路径是代码常量，query 通过 builder 编码，每次请求明确绑定凭据快照。头像请求使用独立客户端，不共享会话。
+- **禁用的能力**：自动重试、重定向、缓存、请求日志和全局 CookieJar。路径是代码常量，query 通过 builder 编码，每次请求明确绑定凭据快照。头像请求使用单独配置的派生客户端，不共享会话。
 
 `AuthRepository.withRequestSession` 是内容、历史、账号设置和安全请求的统一入口：它捕获账号快照，检查预期的 revision、取消状态和结果归属，并处理明确的会话失效。默认要求登录，内容仓库按接口约定显式允许游客。这个入口不重放请求，代码块内也不得发布新的 revision——资料保存和安全操作在本地完成阶段自己发布身份，否则操作自身推进的版本会被误判为账号切换。账号库初始化或恢复读取失败时保留当前 revision，恢复成功后继续递增，避免同一进程里复用旧请求的版本号。
 

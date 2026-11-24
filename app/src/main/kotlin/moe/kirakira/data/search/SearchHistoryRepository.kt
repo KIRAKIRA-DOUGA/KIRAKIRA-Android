@@ -9,7 +9,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
-import kotlinx.serialization.json.Json
+import moe.kirakira.core.serialization.AppJson
 import moe.kirakira.data.content.VideoTag
 
 @Serializable
@@ -32,7 +32,7 @@ internal class SearchHistoryRepository(context: Context, private val baseUrl: St
     }
     private val mutex = Mutex()
     private val committed = mutableMapOf<String, List<SearchHistoryEntry>>()
-    private val json = Json { ignoreUnknownKeys = true }
+    private val json = AppJson
 
     suspend fun load(accountUuid: String?): List<SearchHistoryEntry>? = access(accountUuid)
 

@@ -331,7 +331,7 @@ Android 12+ 上，`AppNavHost` 在 `ActivityNavDisplay` 的图层上模糊并压
 - 保存：Android 10+ 通过 `MediaStore.Images` 和 `IS_PENDING`；Android 8–9 取得旧版写权限后写入公共的 `Pictures/KIRAKIRA` 并触发媒体扫描。
 - 复制：把原始字节写进专用缓存（`cacheDir/copied_images`），通过 `FileProvider` 交给系统剪贴板；超过七天的复制缓存在下一次复制时清理。
 - 资源来源只支持能被 `BitmapFactory` 解码的位图 drawable，不支持 XML 或矢量 drawable。
-- 远程下载使用独立的、无认证的 OkHttp 客户端，限制 HTTPS 重定向次数和 32 MiB 的文件上限；取消时关闭请求并清理临时文件。
+- 远程下载使用单独配置、无认证的 OkHttp 派生客户端，限制 HTTPS 重定向次数和 32 MiB 的文件上限；取消时关闭请求并清理临时文件。
 
 宿主作用域的 [ImageExportViewModel](../../app/src/main/kotlin/moe/kirakira/feature/imageviewer/ImageExportViewModel.kt) 按查看器实例记录保存和复制的状态。
 

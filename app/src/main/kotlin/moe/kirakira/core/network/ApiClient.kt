@@ -14,6 +14,7 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.decodeFromJsonElement
+import moe.kirakira.core.serialization.AppJson
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -54,7 +55,7 @@ internal class ApiClient(
     private val decodeDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
     private val base = baseUrl.toHttpUrl().also { require(it.isHttps) }
-    val json = Json { ignoreUnknownKeys = true }
+    val json: Json = AppJson
 
     suspend inline fun <reified T> get(
         path: String,
@@ -161,7 +162,7 @@ internal class ApiClient(
     }
 }
 
-private fun defaultApiClient(): OkHttpClient = OkHttpClient.Builder()
+private fun defaultApiClient(): OkHttpClient = sharedOkHttpClient.newBuilder()
     .connectTimeout(15.seconds)
     .readTimeout(20.seconds)
     .writeTimeout(20.seconds)

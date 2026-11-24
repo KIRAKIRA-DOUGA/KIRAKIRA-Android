@@ -99,7 +99,7 @@
 
 - API 地址只能来自 `BuildConfig.API_BASE_URL`，必须是 HTTPS；构建配置里不得含凭据、查询串或片段。
 - 禁止放宽证书校验、自动降级到 HTTP、跟随鉴权请求的重定向，禁止把会话发往图片或其他域名。切换环境时不得复用另一个后端的会话。
-- 使用共享的 OkHttp API 客户端和 kotlinx.serialization。设置连接、读写和整个调用的超时，限制响应大小，查询值通过 URL builder 编码。
+- 使用共享的 OkHttp API 客户端和 kotlinx.serialization。设置连接、读写和整个调用的超时，限制响应大小，查询值通过 URL builder 编码。其他用途的客户端从 `core/network` 的 `sharedOkHttpClient` 以 `newBuilder()` 派生，只共享连接池和调度器；拦截器、Cookie、超时与重定向规则各自配置，不得挂在共享底座上。
 - 网络、散列和磁盘操作不在主线程执行；请求的取消必须传递到 HTTP Call。
 
 ### 结果与错误

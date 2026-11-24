@@ -1,13 +1,13 @@
 package moe.kirakira.data.auth
 
-import kotlinx.serialization.json.Json
 import moe.kirakira.core.network.ApiException
 import moe.kirakira.core.network.ApiFailure
+import moe.kirakira.core.serialization.AppJson
 import okhttp3.HttpUrl.Companion.toHttpUrl
 
 /** Versioned account JSON stored in the private file. */
 internal class SessionCodec {
-    private val json = Json { ignoreUnknownKeys = true }
+    private val json = AppJson
 
     fun encode(state: StoredSessions): ByteArray = sessionStorageOperation(ApiFailure.STORAGE_DATA) {
         validate(state)

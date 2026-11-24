@@ -27,6 +27,10 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
+import coil3.network.okhttp.OkHttpNetworkFetcherFactory
+import moe.kirakira.core.network.sharedOkHttpClient
 import moe.kirakira.core.system.ProvideAppLanguage
 import moe.kirakira.core.system.initializeLegacyAppLanguage
 import moe.kirakira.core.system.reapplyLegacyAppLanguage
@@ -145,6 +149,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         initializeLegacyAppLanguage(this)
+        SingletonImageLoader.setSafe { context ->
+            ImageLoader.Builder(context)
+                .components { add(OkHttpNetworkFetcherFactory(callFactory = { sharedOkHttpClient })) }
+                .build()
+        }
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
         // Theme loading can finish before Compose applies and lays out the first page.
