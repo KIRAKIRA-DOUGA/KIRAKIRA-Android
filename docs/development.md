@@ -12,9 +12,9 @@
 | Android 最低版本 | API 27 |
 | compileSdk / targetSdk | 37（minor API 2）/ 37 |
 | Gradle Daemon JDK | 25 |
-| Java 源码 / 字节码兼容级别 | 11 |
+| Java 源码 / 字节码兼容级别 | 17 |
 
-依赖与插件版本以[版本目录](../gradle/libs.versions.toml)为准，文档不重复记录具体版本号。环境配置来源为[应用构建配置](../app/build.gradle.kts)、[Gradle Wrapper](../gradle/wrapper/gradle-wrapper.properties) 与 [Daemon JDK 配置](../gradle/gradle-daemon-jvm.properties)。使用兼容项目工具链的 Android Studio，并安装匹配 compileSdk 37、minor API 2 的 Android SDK Platform。JDK 25 用于运行 Gradle，与 Java 11 的编译兼容设置用途不同。
+依赖与插件版本以[版本目录](../gradle/libs.versions.toml)为准，文档不重复记录具体版本号。环境配置来源为[应用构建配置](../app/build.gradle.kts)、[Gradle Wrapper](../gradle/wrapper/gradle-wrapper.properties) 与 [Daemon JDK 配置](../gradle/gradle-daemon-jvm.properties)。使用兼容项目工具链的 Android Studio，并安装匹配 compileSdk 37、minor API 2 的 Android SDK Platform。JDK 25 用于运行 Gradle，与 Java 17 的编译兼容设置用途不同。`gradle.properties` 开启了构建缓存、配置缓存和并行构建，Daemon 堆上限为 4 GiB。
 
 应用直接声明 `androidx.core:core` 和 `androidx.lifecycle:lifecycle-runtime`，分别提供 `SharedPreferences.edit` 等 Kotlin 扩展和 `repeatOnLifecycle`，无需再直接声明旧的 `-ktx` 模块。Compose 中的 `collectAsStateWithLifecycle` 仍由 `lifecycle-runtime-compose` 提供。
 
@@ -89,7 +89,7 @@ android studio render-compose-preview \
 
 Android Studio 的 Build Variants 可选择 `performance`，再以 Run 启动；命令行也可使用 `:app:installPerformance`。此变体沿用 Release 代码、依赖和配置，使用 `isDebuggable=false`、`isProfileable=true` 与 R8 优化；Debug 保留日常调试用途。Debug 执行开销会显著放大 Compose 页面首帧的组合、子组合和布局耗时，性能比较应分别记录构建类型，不能把非调试包的结果算作同配置 Debug 优化收益。依据见 [Compose 性能配置](https://developer.android.com/develop/ui/compose/performance#properly-configure)。
 
-性能包包含依赖提供的 Baseline Profiles，不新增采集测试或依赖。Gradle 安装时同时提交 APK 和 `.dm` 编译元数据；安装后的实际 ART 编译状态由设备决定。每次采样仍应使用 `adb shell dumpsys package moe.kirakira` 核对实际 Dexopt 状态，并记录首次进入和重复进入。未预编译的设备也可在应用启动并等待 ProfileInstaller 写入后执行 `adb shell cmd package compile -m speed-profile -f moe.kirakira`，冷启动重录；预编译前后的样本分开报告。Debug 请求编译可能被设备限制为 `verify`，命令返回成功不代表代码已预编译。
+Release 与性能包包含依赖提供的 Baseline Profiles，以及仓库提交的应用 Profile（若已生成）。应用 Profile 由 `:baselineprofile` 模块的 `BaselineProfileGenerator` 采集启动和首页首次滚动，只在用户要求时生成：连接一台设备，执行 `./gradlew :app:generateBaselineProfile -Pkirakira.apiBaseUrl=https://stg-rainyun-rosales.kirafile.com/ -Pkirakira.imageProvider=cloudflare-stg`。必须指向 staging，不得用生产后端采集。结果按 `mergeIntoMain` 写入 `app/src/main/generated/baselineProfiles/`，提交后 Release 和 `performance` 都会使用；普通构建不会自动采集。Gradle 安装时同时提交 APK 和 `.dm` 编译元数据；安装后的实际 ART 编译状态由设备决定。每次采样仍应使用 `adb shell dumpsys package moe.kirakira` 核对实际 Dexopt 状态，并记录首次进入和重复进入。未预编译的设备也可在应用启动并等待 ProfileInstaller 写入后执行 `adb shell cmd package compile -m speed-profile -f moe.kirakira`，冷启动重录；预编译前后的样本分开报告。Debug 请求编译可能被设备限制为 `verify`，命令返回成功不代表代码已预编译。
 
 `performance` 使用本机默认 Debug 密钥，仅供本地采样，禁用真实系统凭据提供者。它与 Debug 使用相同应用 ID 和签名，互相覆盖安装时保留同一后端的数据；不要将此 APK 作为正式发行包。采样完成后可通过 `:app:installDebug` 恢复调试包。默认检查入口仍是 `:app:assembleDebug`，性能采样只在用户要求时执行。
 
@@ -119,7 +119,7 @@ Manifest 禁用明文流量。网络客户端与会话存储的细节见[认证�
 依赖解析失败时，先核对 SDK、JDK、仓库网络和错误日志，不要以任意降级依赖作为默认解决方案。
 
 - SDK 缺失：按应用构建配置检查 Platform 及 minor API 是否匹配，并确认本机 `local.properties` 指向正确 SDK。
-- Gradle 启动失败：核对 Android Studio 的 Gradle JDK 与 Daemon JDK 配置；Java 11 是源码／字节码兼容级别，不是此项目运行 Gradle 的 JDK 要求。
+- Gradle 启动失败：核对 Android Studio 的 Gradle JDK 与 Daemon JDK 配置；Java 17 是源码／字节码兼容级别，不是此项目运行 Gradle 的 JDK 要求。
 - 首次同步或下载失败：根据日志区分 Gradle 分发包、Maven 依赖和本机网络问题，修复对应配置后重试。
 
 ## 目录结构
@@ -156,6 +156,7 @@ app/src/
 │   └── AndroidManifest.xml
 ├── test/kotlin/                      # 本机 JUnit 4 单元测试与测试替身（moe.kirakira.testing）
 └── androidTest/kotlin/               # Compose UI 设备测试
+baselineprofile/                      # Baseline Profile 采集模块（com.android.test），不含应用代码
 gradle/                               # Wrapper、JDK 配置和版本目录
 docs/                                 # 功能现状、界面规范、开发指南、发版和认证专项指南
 ├── implementation/                   # 按专题维护的实现说明

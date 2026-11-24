@@ -14,7 +14,7 @@
 
 ## 项目约束
 
-- Kotlin + Jetpack Compose，单 Activity、单 `:app` 模块，包名 `moe.kirakira`，源码位于各源集的 `kotlin/` 目录。不新增 XML Layout、Fragment、ViewBinding 或 DataBinding 页面。
+- Kotlin + Jetpack Compose，单 Activity，应用代码只在 `:app` 模块（`:baselineprofile` 仅采集 Baseline Profile），包名 `moe.kirakira`，源码位于各源集的 `kotlin/` 目录。不新增 XML Layout、Fragment、ViewBinding 或 DataBinding 页面。
 - 新功能放 `feature/<name>/`，共享 UI 放 `ui/components/<组件族>/`，路由与页面注册放 `navigation/`，按需增加 `data/` 与 `core/`，不预建空层。
 - 依赖方向为 `navigation` → `feature` → `ui`／`data` → `core`。`ui` 不依赖 `feature`；`feature` 和 `ui` 不引用 `moe.kirakira.navigation`。
 - 单向数据流：业务状态在 ViewModel，可复用 UI 接收状态与回调，第一个可选参数是 `modifier: Modifier = Modifier`。组合执行体中不请求网络、写存储或导航；取消异常继续传播。

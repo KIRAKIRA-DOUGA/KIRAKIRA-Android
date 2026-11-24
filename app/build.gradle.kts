@@ -3,6 +3,7 @@ import java.net.URI
 plugins {
     alias(libs.plugins.aboutlibraries.android)
     alias(libs.plugins.android.application)
+    alias(libs.plugins.androidx.baselineprofile)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
 }
@@ -67,8 +68,8 @@ android {
     // Vendored Number Flow sources; see third_party/number-flow/README.md.
     sourceSets.getByName("main").kotlin.directories.add(rootProject.file("third_party/number-flow/src").path)
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     buildFeatures {
         buildConfig = true
@@ -100,7 +101,6 @@ dependencies {
     implementation(libs.androidx.compose.material)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.ui)
-    implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
@@ -115,6 +115,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.navigation3)
     implementation(libs.androidx.navigation3.runtime)
     implementation(libs.androidx.navigation3.ui)
+    implementation(libs.androidx.profileinstaller)
+    baselineProfile(project(":baselineprofile"))
 
     // Network and serialization
     implementation(libs.kotlinx.serialization.json)
@@ -152,6 +154,12 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+baselineProfile {
+    // One committed profile serves release and performance; normal builds never start generation.
+    mergeIntoMain = true
+    automaticGenerationDuringBuild = false
 }
 
 aboutLibraries {

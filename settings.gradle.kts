@@ -24,3 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "KIRAKIRA"
 include(":app")
+include(":baselineprofile")

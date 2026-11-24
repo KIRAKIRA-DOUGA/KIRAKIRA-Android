@@ -23,7 +23,7 @@
 
 ### 包结构
 
-保留单个 `:app` 模块，Kotlin 源码位于各源集的 `kotlin/` 目录。完整的目录说明见[开发指南](docs/development.md#目录结构)。
+应用代码只放在 `:app` 模块，Kotlin 源码位于各源集的 `kotlin/` 目录。唯一的其他模块 `:baselineprofile` 只负责采集 Baseline Profile，不放应用代码，也不被 `:app` 在运行时依赖。完整的目录说明见[开发指南](docs/development.md#目录结构)。
 
 | 包 | 放什么 |
 | --- | --- |
