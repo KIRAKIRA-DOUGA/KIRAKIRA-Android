@@ -113,7 +113,6 @@ internal fun AppNavHost(
     onResetLocalAccounts: () -> Unit,
     onRetrySession: () -> Unit,
     onDismissSessionError: () -> Unit,
-    onDismissSessionNotice: () -> Unit,
     onSelectAccount: (String?) -> Unit,
     onRemoveAccount: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -155,14 +154,6 @@ internal fun AppNavHost(
             (current - previous).forEach { ImageViewerDiagnostics.stack(it, present = true) }
             (previous - current).forEach { ImageViewerDiagnostics.stack(it, present = false) }
             previous = current
-        }
-    }
-    // Discard retired demo destinations when restoring navigation after an upgrade.
-    LaunchedEffect(Unit) {
-        backStack.removeAll {
-            it is TestRoute || it is ComponentSamplesRoute ||
-                (it is VideoRoute && it.videoId <= 0) || (it is ProfileRoute && it.uid <= 0) ||
-                (it is TagRoute && it.tagId <= 0) || (it is FollowListRoute && it.uid <= 0)
         }
     }
     val autofill = LocalAutofillManager.current
@@ -213,7 +204,7 @@ internal fun AppNavHost(
         onImageViewerActiveChange(imageViewerActive)
         val sessionChanged = playback.syncSession(accountState.revision)
         val video = backStack.lastOrNull() as? VideoRoute
-        if (video != null && contentRepository != null && video.videoId > 0) {
+        if (video != null && contentRepository != null) {
             if (viewportState.exitingVideoId != video.videoId) viewportState.exitingVideoId = null
             playback.showVideo(video.videoId)
         } else if (viewportState.exitingVideoId == null) {
@@ -242,7 +233,6 @@ internal fun AppNavHost(
     SessionFeedback(
         state = accountState,
         onDismissError = onDismissSessionError,
-        onDismissNotice = onDismissSessionNotice,
         onRetry = onRetrySession,
         onResetLocalAccounts = onResetLocalAccounts,
         onLogin = { email ->

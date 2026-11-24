@@ -31,11 +31,8 @@
 | [AuthViewModelTest](../app/src/test/kotlin/moe/kirakira/feature/auth/AuthViewModelTest.kt) | 密码／邮箱／TOTP 登录、四步注册、找回密码、逐步返回保留草稿、字段错误与确认密码重校验、冷却、重复提交、邮箱恢复与秘密清除、失败与保存重试、成功后不可再编辑 |
 | [AuthNavigationTest](../app/src/test/kotlin/moe/kirakira/feature/auth/AuthNavigationTest.kt) | 注册、找回密码和保存重试的返回路径，避免回到已经消耗验证码的步骤 |
 | [AuthCredentialOperationTest](../app/src/test/kotlin/moe/kirakira/feature/auth/AuthCredentialOperationTest.kt) | 凭据操作的一次性结果、取消与无提供者、TOTP 完成前不保存、存储与清理重试后才保存、系统原密码不重复保存、保存失败不撤销认证、旋转与退出后丢弃旧结果 |
-| [SessionCipherTest](../app/src/test/kotlin/moe/kirakira/data/auth/SessionCipherTest.kt) | 旧加密格式：AES-256-GCM 往返、IV 不重复、篡改 IV／密文／标签、错误密钥、截断／追加／超限、旧格式兼容、错误脱敏 |
 
 内容、历史、关注列表和评论的“读取失败保留内容”用例也在 `src/test`（`*ResilienceTest`），使用同一套替身。
-
-`SessionCipherTest` 直接调用标准的 JCA AES-GCM，密钥在每个用例里临时生成。它验证的是**旧的加密格式**（现在只在迁移时读取），不能证明新的私有 JSON 文件存储或迁移行为已经验证。
 
 ## 运行
 
@@ -63,7 +60,7 @@
 
 以下内容没有任何自动化覆盖，也不能由历史的替身结果证明：
 
-- 当前的私有 JSON 账号库在真实设备文件系统上的读写、原子替换与旧库迁移。
+- 当前的私有 JSON 账号库在真实设备文件系统上的读写与原子替换。
 - 当前认证界面的实际交互、系统 Autofill，以及真实密码管理器的选择、保存和更新。
 - 不同密码提供者之间的兼容性，完整的预测性返回手势。
 - 真实的 HTTP／TLS、Socket 超时，以及与生产或预发布后端的联调。

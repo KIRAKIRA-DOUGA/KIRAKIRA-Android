@@ -337,7 +337,6 @@
     <string name="account_storage_error">無法讀取或儲存本機帳號，請重試。若持續失敗，請檢查儲存空間及應用程式資料存取是否正常。</string>
     <string name="account_storage_full">儲存空間不足，無法完成本機帳號資料操作。請釋放空間後重試。</string>
     <string name="account_storage_data_error">本機帳號資料格式異常或已損毀，無法讀取，請重試。若仍失敗，可清除本機帳號資料後重新登入。</string>
-    <string name="account_migration_sign_in_required">原有登入資訊無法復原，請重新登入</string>
     <string name="account_session_unverified">無法驗證此帳號，請重試或重新登入。已保留本機帳號資訊。</string>
     <string name="account_session_problem">帳號狀態提示</string>
     <string name="account_connection_error_title">暫時無法連線伺服器</string>

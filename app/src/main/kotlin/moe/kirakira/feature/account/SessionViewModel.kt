@@ -50,10 +50,6 @@ internal class SessionViewModel(
         repository.reportError(null)
     }
 
-    fun dismissNotice() {
-        repository.dismissNotice()
-    }
-
     fun retry() = runOperation(
         if (repository.needsInitialization) SessionOperation(SessionOperationType.INITIALIZE) else retryTarget,
         retryOperation.takeUnless { repository.needsInitialization } ?: {

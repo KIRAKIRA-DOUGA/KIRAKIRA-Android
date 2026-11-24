@@ -3,19 +3,16 @@ package moe.kirakira.feature.account
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import moe.kirakira.R
 import moe.kirakira.core.network.ApiFailure
-import moe.kirakira.data.auth.SessionNotice
 import moe.kirakira.data.auth.SessionState
 import moe.kirakira.ui.components.button.DestructiveActionIcon
 import moe.kirakira.ui.components.button.DestructiveTextButton
@@ -29,38 +26,11 @@ import moe.kirakira.ui.components.status.messageRes
 internal fun SessionFeedback(
     state: SessionState,
     onDismissError: () -> Unit,
-    onDismissNotice: () -> Unit,
     onRetry: () -> Unit,
     onResetLocalAccounts: () -> Unit,
     onLogin: (String) -> Unit,
 ) {
-    val error = state.error
-    if (error == null) {
-        when (state.notice) {
-            SessionNotice.LEGACY_SIGN_IN_REQUIRED -> ActionDialog(
-                onDismissRequest = onDismissNotice,
-                icon = { Icon(painterResource(R.drawable.ic_icon_info), contentDescription = null) },
-                title = { Text(stringResource(R.string.account_needs_login)) },
-                text = { Text(stringResource(R.string.account_migration_sign_in_required)) },
-                actions = {
-                    ShadowButton(
-                        onClick = {
-                            onDismissNotice()
-                            onLogin("")
-                        },
-                    ) { Text(stringResource(R.string.auth_sign_in)) }
-                    FlatTextButton(
-                        contentPadding = ButtonDefaults.ContentPadding,
-                        onClick = onDismissNotice,
-                    ) {
-                        Text(stringResource(R.string.account_continue))
-                    }
-                },
-            )
-            null -> Unit
-        }
-        return
-    }
+    val error = state.error ?: return
     val isConnectionFailure = error == ApiFailure.NETWORK || error == ApiFailure.TIMEOUT
     var confirmingReset by remember(error) { mutableStateOf(false) }
     if (confirmingReset) {

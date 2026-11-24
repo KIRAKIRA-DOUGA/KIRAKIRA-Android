@@ -58,7 +58,6 @@ fun KIRAKIRAApp(
             onResetLocalAccounts = { sessionViewModel?.resetLocalAccounts() },
             onRetrySession = { sessionViewModel?.retry() },
             onDismissSessionError = { sessionViewModel?.dismissError() },
-            onDismissSessionNotice = { sessionViewModel?.dismissNotice() },
             modifier = modifier,
         )
     }

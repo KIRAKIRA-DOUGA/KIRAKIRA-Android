@@ -112,7 +112,7 @@ Android Studio 的 Build Variants 可选择 `performance`，再以 Run 启动；
 - **非生产地址的构建不使用真实的系统密码提供者**。只有完整的默认生产根地址构建才会把 `SYSTEM_CREDENTIALS_ENABLED` 设为 true。
 - **账号与 API 根地址绑定**。切换构建环境后，应用不会加载另一个后端的账号，只显示游客；首次在新环境保存会话时，才会替换本机旧环境的账号库。
 
-Manifest 禁用明文流量。网络客户端、会话存储与迁移的细节见[认证与会话](implementation/auth.md#api-与会话)。
+Manifest 禁用明文流量。网络客户端与会话存储的细节见[认证与会话](implementation/auth.md#api-与会话)。
 
 ## 环境排障
 

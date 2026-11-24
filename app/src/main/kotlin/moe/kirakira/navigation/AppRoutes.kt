@@ -1,17 +1,13 @@
 package moe.kirakira.navigation
 
 import androidx.navigation3.runtime.NavKey
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import moe.kirakira.data.content.FollowListKind
-import moe.kirakira.feature.gallery.ComponentCategory
 import moe.kirakira.feature.gallery.GalleryComponent
 import moe.kirakira.feature.imageviewer.ViewerImage
 import java.util.UUID
 
-// Explicit serial names predate the move into the navigation package and are kept as declared.
 @Serializable
-@SerialName("moe.kirakira.MainRoute")
 internal data object MainRoute : NavKey
 
 @Serializable
@@ -21,7 +17,6 @@ internal data object HistoryRoute : NavKey
 internal data object FavoritesRoute : NavKey
 
 @Serializable
-@SerialName("moe.kirakira.SettingsRoute")
 internal data object SettingsRoute : NavKey
 
 @Serializable
@@ -34,44 +29,31 @@ internal data object PrivacySettingsRoute : NavKey
 internal data object SecuritySettingsRoute : NavKey
 
 @Serializable
-@SerialName("moe.kirakira.AboutRoute")
 internal data object AboutRoute : NavKey
 
 @Serializable
 internal data object ComponentGalleryRoute : NavKey
 
-// Decode legacy saved stacks so AppNavHost can return to the gallery index.
-@Serializable
-internal data class ComponentSamplesRoute(val category: ComponentCategory) : NavKey
-
 @Serializable
 internal data class ComponentDetailRoute(val component: GalleryComponent) : NavKey
 
 @Serializable
-@SerialName("moe.kirakira.LicensesRoute")
 internal data object LicensesRoute : NavKey
 
 @Serializable
-@SerialName("moe.kirakira.AppearanceRoute")
 internal data object AppearanceRoute : NavKey
 
 @Serializable
-@SerialName("moe.kirakira.AccountSwitchRoute")
 internal data object AccountSwitchRoute : NavKey
 
-// Decode legacy saved stacks so AppNavHost can discard the retired demo destination.
 @Serializable
-@SerialName("moe.kirakira.TestRoute")
-internal data object TestRoute : NavKey
-
-@Serializable
-internal data class VideoRoute(val videoId: Int = -1) : NavKey
+internal data class VideoRoute(val videoId: Int) : NavKey
 
 @Serializable
 internal data class TagRoute(val tagId: Long) : NavKey
 
 @Serializable
-internal data class ProfileRoute(val uid: Long = -1) : NavKey
+internal data class ProfileRoute(val uid: Long) : NavKey
 
 @Serializable
 internal data class FollowListRoute(val uid: Long, val kind: FollowListKind) : NavKey
@@ -82,7 +64,6 @@ internal data object SelfProfileRoute : NavKey
 @Serializable
 internal data class ImageViewerRoute(
     val image: ViewerImage,
-    // A default also allows restoring stacks saved before viewer instances had an identity.
     val instanceId: String = UUID.randomUUID().toString(),
 ) : NavKey
 

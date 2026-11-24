@@ -54,7 +54,7 @@ internal fun registerContentEntries(
         }
         entry<TagRoute> { route ->
             NavigationPage {
-                if (contentRepository != null && route.tagId > 0) {
+                if (contentRepository != null) {
                     TagPage(
                         model = viewModel { TagViewModel(route.tagId, contentRepository) },
                         onBack = { navigation.popFrom(route) },
@@ -65,7 +65,7 @@ internal fun registerContentEntries(
         }
         entry<ProfileRoute> { route ->
             NavigationPage {
-                if (contentRepository == null || route.uid <= 0) Text(stringResource(R.string.content_login_to_interact))
+                if (contentRepository == null) Text(stringResource(R.string.content_login_to_interact))
                 else ProfilePage(model = viewModel { moe.kirakira.feature.profile.ProfileViewModel(route.uid, contentRepository, requireNotNull(dependencies).settings) },
                     onEditProfile = { navigation.openFrom(route, ProfileEditorRoute) },
                     onOpenFollowList = { kind -> navigation.openFrom(route, FollowListRoute(route.uid, kind)) },
@@ -90,7 +90,7 @@ internal fun registerContentEntries(
         }
         entry<FollowListRoute> { route ->
             NavigationPage {
-                if (contentRepository != null && route.uid > 0) {
+                if (contentRepository != null) {
                     FollowListPage(
                         model = viewModel { FollowListViewModel(route.uid, route.kind, contentRepository) },
                         isActive = navigation.backStack.lastOrNull() == route,

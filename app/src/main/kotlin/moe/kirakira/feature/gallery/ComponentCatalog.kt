@@ -4,10 +4,6 @@ import androidx.annotation.StringRes
 import kotlinx.serialization.Serializable
 import moe.kirakira.R
 
-// Preserve the old category values so Navigation 3 can decode a saved ComponentSamplesRoute.
-@Serializable
-internal enum class ComponentCategory { BUTTONS, CONTROLS, CONTENT, LISTS, OVERLAYS }
-
 internal enum class GalleryGroup(@param:StringRes val title: Int) {
     BUTTONS(R.string.component_gallery_group_buttons),
     CONTROLS(R.string.component_gallery_group_controls),

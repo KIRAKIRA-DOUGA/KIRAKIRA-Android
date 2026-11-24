@@ -54,7 +54,6 @@ internal class AuthRepository(
         try {
             stored = store.read()
             publish()
-            _session.update { it.copy(notice = store.migrationNotice) }
         } catch (error: ApiException) {
             // Recovery failures must not reuse revisions belonging to retired account requests.
             _session.update {
@@ -330,8 +329,6 @@ internal class AuthRepository(
 
     fun reportError(failure: ApiFailure?, uuid: String? = null) =
         _session.update { it.copy(error = failure, failedAccountUuid = uuid) }
-
-    fun dismissNotice() = _session.update { it.copy(notice = null) }
 
     fun setOperation(operation: SessionOperation?) = _session.update { it.copy(operation = operation) }
 

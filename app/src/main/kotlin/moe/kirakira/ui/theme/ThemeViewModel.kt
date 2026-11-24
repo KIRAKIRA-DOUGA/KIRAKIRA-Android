@@ -34,16 +34,7 @@ class ThemeViewModel(application: Application) : AndroidViewModel(application) {
     init {
         viewModelScope.launch {
             val settings = withContext(Dispatchers.IO) {
-                store.read(
-                    defaultColorArgb = KIRAKIRAPink.toArgb(),
-                    presetMigrations = mapOf(
-                        0xFF537FE7.toInt() to ThemePresetColor.BLUE.color.toArgb(),
-                        0xFF9C6ADE.toInt() to ThemePresetColor.PURPLE.color.toArgb(),
-                        0xFF008577.toInt() to ThemePresetColor.GREEN.color.toArgb(),
-                        0xFFE5A23D.toInt() to ThemePresetColor.YELLOW.color.toArgb(),
-                        0xFFD97757.toInt() to ThemePresetColor.RED.color.toArgb(),
-                    ),
-                )
+                store.read(defaultColorArgb = KIRAKIRAPink.toArgb())
             }
             _themeMode.value = ThemeMode.entries.firstOrNull { it.name == settings.mode } ?: ThemeMode.SYSTEM
             _themeColors.value = settings.colors.let {

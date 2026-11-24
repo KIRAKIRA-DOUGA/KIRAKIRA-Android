@@ -345,9 +345,6 @@ internal fun registerSettingsEntries(
                 )
             }
         }
-        entry<ComponentSamplesRoute> {
-            // AppNavHost drops this restored legacy destination.
-        }
         entry<ComponentDetailRoute> { route ->
             NavigationPage {
                 ComponentDetailScreen(

@@ -300,9 +300,9 @@ Android 12+ 上，`AppNavHost` 在 `ActivityNavDisplay` 的图层上模糊并压
 
 ### 实例身份
 
-每次打开的 `ImageViewerRoute` 都生成一个可保存的 `instanceId`（缺少该字段的旧返回栈在反序列化时补上）。返回状态与处理器按当前条目的身份创建，关闭按钮和系统返回都校验目标实例，移除之后再次回调不会重复出栈。系统栏的样式按仍在组合中的查看器实例计数，包含退出动画，旧实例销毁不会覆盖新实例的状态。
+每次打开的 `ImageViewerRoute` 都生成一个可保存的 `instanceId`。返回状态与处理器按当前条目的身份创建，关闭按钮和系统返回都校验目标实例，移除之后再次回调不会重复出栈。系统栏的样式按仍在组合中的查看器实例计数，包含退出动画，旧实例销毁不会覆盖新实例的状态。
 
-[ViewerImage](../../app/src/main/kotlin/moe/kirakira/feature/imageviewer/ViewerImage.kt) 是可序列化的图片描述。它的来源模型 [ImageSource](../../app/src/main/kotlin/moe/kirakira/data/image/ImageSource.kt) 支持 drawable 资源 ID、可读的 `content://` URI 和公开的 HTTPS 图片 URL，并用 `@SerialName` 保留了迁移前的序列化类型名。调用方负责保留 URI 的读取授权。
+[ViewerImage](../../app/src/main/kotlin/moe/kirakira/feature/imageviewer/ViewerImage.kt) 是可序列化的图片描述。它的来源模型 [ImageSource](../../app/src/main/kotlin/moe/kirakira/data/image/ImageSource.kt) 支持 drawable 资源 ID、可读的 `content://` URI 和公开的 HTTPS 图片 URL。调用方负责保留 URI 的读取授权。
 
 视频封面从“更多”菜单的“查看封面”打开，使用不限制宽度的原图地址；不传共享键，不与视频卡片或播放器关联。
 

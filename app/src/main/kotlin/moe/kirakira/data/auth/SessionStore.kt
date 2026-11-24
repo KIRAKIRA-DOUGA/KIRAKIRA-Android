@@ -5,10 +5,7 @@ import androidx.core.util.AtomicFile
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -19,79 +16,30 @@ import moe.kirakira.core.network.ApiFailure
 internal class SessionStore(
     context: Context,
     private val baseUrl: String,
-    private val keyAlias: String = "kirakira.sessions.v1",
 ) : SessionPersistence {
     private val file = AtomicFile(File(context.noBackupFilesDir, "sessions.json"))
-    private val legacyFile = AtomicFile(File(context.noBackupFilesDir, "sessions.v1.enc"))
     private val codec = SessionCodec()
     private val mutex = Mutex()
     private var writable = false
     override var requiresReload: Boolean = false
         private set
 
-    override var migrationNotice: SessionNotice? = null
-        private set
-
     override suspend fun read(): StoredSessions = mutex.withLock {
         withContext(Dispatchers.IO) {
             writable = false
-            migrationNotice = null
             sessionStorageOperation {
-                // Only a committed file or its backup marks migration as complete.
-                // Never resurrect legacy sessions after a logout or a failed new-store read.
-                if (hasCommittedFiles(file)) {
+                val state = if (hasCommittedFiles(file)) {
                     val bytes = readFile(file)
-                    val state = try {
+                    try {
                         codec.decode(bytes)
                     } finally {
                         bytes.fill(0)
                     }
-                    writable = true
-                    requiresReload = false
-                    return@withContext forCurrentBackend(state)
-                }
-
-                // A first write interrupted before rename leaves only .new. It has never committed;
-                // discard it and retry migration without touching the original encrypted store.
-                val pending = File(file.baseFile.path + ".new")
-                if (pending.exists()) check(pending.delete())
-
-                var notice: SessionNotice? = null
-                var migrated = false
-                val state = if (hasFiles(legacyFile)) {
-                    try {
-                        val bytes = readFile(legacyFile)
-                        val legacy = try {
-                            LegacySessionReader(keyAlias).read(bytes)
-                        } finally {
-                            bytes.fill(0)
-                        }
-                        migrated = true
-                        legacy
-                    } catch (error: CancellationException) {
-                        throw error
-                    } catch (_: Exception) {
-                        // Preserve the old file, but do not let a broken legacy key block new sign-ins.
-                        notice = SessionNotice.LEGACY_SIGN_IN_REQUIRED
-                        StoredSessions(baseUrl = baseUrl)
-                    }
                 } else {
                     StoredSessions(baseUrl = baseUrl)
                 }
-                currentCoroutineContext().ensureActive()
-                // Commit an empty store too: it records that migration is complete after a failure.
-                writeFile(state)
                 writable = true
-                migrationNotice = notice
-                if (migrated) {
-                    try {
-                        deleteFiles(legacyFile)
-                    } catch (error: CancellationException) {
-                        throw error
-                    } catch (_: Exception) {
-                        // The new store has committed. Leftover legacy files are never loaded again.
-                    }
-                }
+                requiresReload = false
                 forCurrentBackend(state)
             }
         }
@@ -107,18 +55,15 @@ internal class SessionStore(
         }
     }
 
-    /** User-confirmed reset; no key-service access, including when migration failed. */
+    /** User-confirmed reset. */
     override suspend fun reset() = mutex.withLock {
         withContext(Dispatchers.IO) {
             writable = false
             requiresReload = true
-            migrationNotice = null
             sessionStorageOperation {
-                deleteFiles(legacyFile)
                 deleteFiles(file)
-                // Keep an empty new store so a leftover legacy key can never restore a session.
-                writeFile(StoredSessions(baseUrl = baseUrl))
                 writable = true
+                requiresReload = false
             }
         }
     }

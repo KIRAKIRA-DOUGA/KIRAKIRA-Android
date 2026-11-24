@@ -40,9 +40,9 @@
 
 ### 返回栈的保存与路由类名
 
-返回栈通过 `rememberNavBackStack` 保存。Navigation 3 在 Android 上的 `NavKeySerializer` 把每个路由的 **Java 类名**写进保存状态，还原时用 `Class.forName` 找回序列化器；`@SerialName` 不参与这一步。因此移动或重命名路由类之后，改动前保存下来的返回栈无法还原。Release 构建经过 R8 混淆，类名本来就随构建变化，所以跨版本还原返回栈从未有保证；需要兼容旧栈时，要保留旧类并在恢复时迁移，而不是依赖注解。
+返回栈通过 `rememberNavBackStack` 保存。Navigation 3 在 Android 上的 `NavKeySerializer` 把每个路由的 **Java 类名**写进保存状态，还原时用 `Class.forName` 找回序列化器；`@SerialName` 不参与这一步。
 
-`AppRoutes` 中仍有几个只为解码旧栈而保留的路由，`AppNavHost` 在恢复时把它们移除或替换。
+保存的返回栈只在同一个安装包内还原（进程被回收后重建）。覆盖安装时系统会强制停止应用并销毁它的 Activity 记录，从最近任务返回是重新启动、不带保存状态，所以旧版本的返回栈不会交给新版本解码。Release 构建经过 R8 混淆，类名本来也随构建变化。因此路由类可以自由移动和重命名，不保留旧类、序列化名或迁移代码。
 
 ### 条目、Scene 与装饰器
 

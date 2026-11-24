@@ -22,7 +22,7 @@ internal class ThemeSettingsStore(context: Context) {
         settingsPreferences(context)
     }
 
-    fun read(defaultColorArgb: Int, presetMigrations: Map<Int, Int>): StoredThemeSettings {
+    fun read(defaultColorArgb: Int): StoredThemeSettings {
         val defaults = StoredThemeSettings(
             colors = StoredThemeColors(seedColorArgb = defaultColorArgb, customColorArgb = defaultColorArgb),
         )
@@ -32,15 +32,9 @@ internal class ThemeSettingsStore(context: Context) {
             customColorArgb = preferences.getInt("theme_custom_color", defaults.colors.customColorArgb) or 0xFF000000.toInt(),
             useCustomColor = preferences.getBoolean("theme_use_custom_color", defaults.colors.useCustomColor),
         )
-        // Migrate only the stored manual preset, including when wallpaper colors are active.
-        val migratedSeed = if (colors.useCustomColor) null else presetMigrations[colors.seedColorArgb]
-        val migratedColors = if (migratedSeed == null) colors else {
-            preferences.edit { putInt("theme_seed_color", migratedSeed) }
-            colors.copy(seedColorArgb = migratedSeed)
-        }
         return StoredThemeSettings(
             mode = preferences.getString("theme_mode", defaults.mode) ?: defaults.mode,
-            colors = migratedColors,
+            colors = colors,
             predictiveBackEnabled = preferences.getBoolean("predictive_back_enabled", defaults.predictiveBackEnabled),
             backgroundDepthEnabled = preferences.getBoolean("background_depth_enabled", defaults.backgroundDepthEnabled),
         )

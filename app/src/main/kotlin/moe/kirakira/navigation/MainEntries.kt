@@ -29,9 +29,6 @@ internal fun registerMainEntries(
     showRailWordmark: Boolean,
 ) {
     with(scope) {
-        entry<TestRoute> {
-            // Retained only until the restored legacy entry is removed above.
-        }
         entry<MainRoute> {
             NavigationPage {
                 val searchAnchor = remember(accountState.revision) { TagSearchAnchor() }

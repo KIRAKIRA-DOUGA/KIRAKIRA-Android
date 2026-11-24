@@ -337,7 +337,6 @@
     <string name="account_storage_error">この端末でアカウントを読み込みまたは保存できませんでした。再試行してください。問題が続く場合は、空き容量とアプリデータへのアクセスを確認してください。</string>
     <string name="account_storage_full">空き容量が不足しているため、アカウントデータの操作を完了できません。空き容量を確保してから再試行してください。</string>
     <string name="account_storage_data_error">この端末のアカウントデータの形式が無効か破損しているため、読み込めませんでした。再試行してください。それでも失敗する場合は、保存済みアカウントを消去して再ログインしてください。</string>
-    <string name="account_migration_sign_in_required">以前のログイン情報を復元できませんでした。もう一度ログインしてください。</string>
     <string name="account_session_unverified">このアカウントを確認できませんでした。再試行するか、もう一度ログインしてください。保存済みのアカウント情報は保持されています。</string>
     <string name="account_session_problem">アカウントの確認が必要です</string>
     <string name="account_connection_error_title">サーバーに接続できませんでした</string>

@@ -5,7 +5,7 @@ import moe.kirakira.core.network.ApiException
 import moe.kirakira.core.network.ApiFailure
 import okhttp3.HttpUrl.Companion.toHttpUrl
 
-/** Versioned account JSON shared by the private file and the legacy migration decoder. */
+/** Versioned account JSON stored in the private file. */
 internal class SessionCodec {
     private val json = Json { ignoreUnknownKeys = true }
 
