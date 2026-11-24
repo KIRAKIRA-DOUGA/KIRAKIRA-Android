@@ -52,7 +52,7 @@
 
 ### 返回事件
 
-[ActivityBackHandler](../../app/src/main/kotlin/moe/kirakira/ui/navigation/ActivityBackHandler.kt) 单独拥有普通页面的返回事件、生命周期监听和过期回调的拦截；[ActivityNavDisplay](../../app/src/main/kotlin/moe/kirakira/ui/navigation/ActivityNavDisplay.kt) 负责入口装饰、Scene、共享转场和页面展示。
+[ActivityBackHandler](../../app/src/main/kotlin/moe/kirakira/ui/navigation/ActivityBackHandler.kt) 单独拥有普通页面的返回事件、生命周期监听和过期回调的拦截；[ActivityNavDisplay](../../app/src/main/kotlin/moe/kirakira/ui/navigation/ActivityNavDisplay.kt) 负责入口装饰、共享转场和页面展示，Scene 的拆分策略与绘制在 [ActivityScene](../../app/src/main/kotlin/moe/kirakira/ui/navigation/ActivityScene.kt)。
 
 处理器以一次手势的起始条目和预览许可记录返回尝试，在手势完成和异步收尾出栈之前都重新核对当前条目。返回处理器不随“普通页面”与“视频页”两种模式的切换而重建，而是按最新状态选择普通转场或视频 Zoom，否则仍待退场的帧会被清空。图片页面使用独立的 Navigation 3 返回处理器。
 
