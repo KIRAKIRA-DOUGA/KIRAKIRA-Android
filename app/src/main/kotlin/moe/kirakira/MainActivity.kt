@@ -170,12 +170,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             val isReady by themeViewModel.isReady.collectAsStateWithLifecycle()
             if (!isReady) return@setContent
-            val themeMode by themeViewModel.themeMode.collectAsStateWithLifecycle()
-            val themeColors by themeViewModel.themeColors.collectAsStateWithLifecycle()
-            val predictiveBackEnabled by themeViewModel.predictiveBackEnabled.collectAsStateWithLifecycle()
-            val backgroundDepthEnabled by themeViewModel.backgroundDepthEnabled.collectAsStateWithLifecycle()
+            val appearance by themeViewModel.appearance.collectAsStateWithLifecycle()
+            val themeColors = appearance.themeColors
             val revealInfo = splashRevealController.revealInfo
-            val darkTheme = when (themeMode) {
+            val darkTheme = when (appearance.themeMode) {
                 ThemeMode.SYSTEM -> isSystemInDarkTheme()
                 ThemeMode.LIGHT -> false
                 ThemeMode.DARK -> true
@@ -192,14 +190,8 @@ class MainActivity : ComponentActivity() {
                             .onGloballyPositioned { appContentReady = true },
                     ) {
                         KIRAKIRAApp(
-                            themeMode = themeMode,
-                            onThemeModeChange = themeViewModel::setThemeMode,
-                            themeColors = themeColors,
-                            onThemeColorsChange = themeViewModel::setThemeColors,
-                            predictiveBackEnabled = predictiveBackEnabled,
-                            onPredictiveBackEnabledChange = themeViewModel::setPredictiveBackEnabled,
-                            backgroundDepthEnabled = backgroundDepthEnabled,
-                            onBackgroundDepthEnabledChange = themeViewModel::setBackgroundDepthEnabled,
+                            appearance = appearance,
+                            onAppearanceChange = themeViewModel::updateAppearance,
                             modifier = if (revealInfo != null) Modifier.clearAndSetSemantics { } else Modifier,
                             onVideoPageActiveChange = { active ->
                                 // Keep the latest page style while the launch overlay owns the bars.

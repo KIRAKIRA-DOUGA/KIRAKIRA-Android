@@ -68,7 +68,7 @@
 
 普通进入与返回复用 AOSP Activity 的横移和透明度参数。源码版本、双页面 Scene、几何变换以及与公开 API 的适配差异维护在 [Android 转场说明](../../third_party/android-motion/README.md)。
 
-预测性返回的开关保存在 `kirakira_settings` 的 `predictive_back_enabled`，缺省为 false，参与非敏感设置备份。它由 `ThemeViewModel` 读取，经 `MainActivity`、`KIRAKIRAApp` 和 `AppNavHost` 传给外观页，也同时传给顶层和认证流程里嵌套的 `ActivityNavDisplay`。
+预测性返回的开关保存在 `kirakira_settings` 的 `predictive_back_enabled`，缺省为 false，参与非敏感设置备份。它由 `ThemeViewModel` 读取，作为 `AppearanceSettings` 的一部分经 `MainActivity`、`KIRAKIRAApp` 和 `AppNavHost` 传给外观页，也同时传给顶层和认证流程里嵌套的 `ActivityNavDisplay`。
 
 | 开关 | 行为 |
 | --- | --- |

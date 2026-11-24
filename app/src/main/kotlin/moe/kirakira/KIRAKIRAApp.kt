@@ -13,21 +13,14 @@ import moe.kirakira.data.auth.SessionState
 import moe.kirakira.feature.account.SessionViewModel
 import moe.kirakira.navigation.AppNavHost
 import moe.kirakira.ui.components.scaffold.StatusBarScrollToTopHost
+import moe.kirakira.ui.theme.AppearanceSettings
 import moe.kirakira.ui.theme.KIRAKIRATheme
-import moe.kirakira.ui.theme.ThemeColorSettings
-import moe.kirakira.ui.theme.ThemeMode
 
 @Composable
 fun KIRAKIRAApp(
-    themeMode: ThemeMode,
-    onThemeModeChange: (ThemeMode) -> Unit,
+    appearance: AppearanceSettings,
+    onAppearanceChange: (AppearanceSettings) -> Unit,
     modifier: Modifier = Modifier,
-    themeColors: ThemeColorSettings = ThemeColorSettings(),
-    onThemeColorsChange: (ThemeColorSettings) -> Unit = {},
-    predictiveBackEnabled: Boolean = false,
-    onPredictiveBackEnabledChange: (Boolean) -> Unit = {},
-    backgroundDepthEnabled: Boolean = true,
-    onBackgroundDepthEnabledChange: (Boolean) -> Unit = {},
     onVideoPageActiveChange: (Boolean) -> Unit = {},
     onImageViewerActiveChange: (Boolean) -> Unit = {},
 ) {
@@ -40,14 +33,8 @@ fun KIRAKIRAApp(
 
     StatusBarScrollToTopHost {
         AppNavHost(
-            themeMode = themeMode,
-            onThemeModeChange = onThemeModeChange,
-            themeColors = themeColors,
-            onThemeColorsChange = onThemeColorsChange,
-            predictiveBackEnabled = predictiveBackEnabled,
-            onPredictiveBackEnabledChange = onPredictiveBackEnabledChange,
-            backgroundDepthEnabled = backgroundDepthEnabled,
-            onBackgroundDepthEnabledChange = onBackgroundDepthEnabledChange,
+            appearance = appearance,
+            onAppearanceChange = onAppearanceChange,
             onVideoPageActiveChange = onVideoPageActiveChange,
             onImageViewerActiveChange = onImageViewerActiveChange,
             accountState = accountState,
@@ -70,8 +57,8 @@ fun KIRAKIRAApp(
 private fun AppPreview() {
     KIRAKIRATheme(dynamicColor = false) {
         KIRAKIRAApp(
-            themeMode = ThemeMode.SYSTEM,
-            onThemeModeChange = {},
+            appearance = AppearanceSettings(),
+            onAppearanceChange = {},
         )
     }
 }

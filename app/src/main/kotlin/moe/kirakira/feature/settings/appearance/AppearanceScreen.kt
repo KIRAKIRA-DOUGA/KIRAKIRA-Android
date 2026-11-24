@@ -41,6 +41,7 @@ import moe.kirakira.feature.settings.search.LocalSettingsSearchTarget
 import moe.kirakira.feature.settings.search.PrepareSettingsSearchList
 import moe.kirakira.feature.settings.search.settingsSearchAnchor
 import moe.kirakira.ui.components.scaffold.StatusBarScrollToTopEffect
+import moe.kirakira.ui.theme.AppearanceSettings
 import moe.kirakira.ui.theme.KIRAKIRATheme
 import moe.kirakira.ui.theme.ThemeColorSettings
 import moe.kirakira.ui.theme.ThemeMode
@@ -65,17 +66,13 @@ private sealed interface AppearanceColorOption {
 
 @Composable
 fun AppearanceScreen(
-    themeMode: ThemeMode,
-    onThemeModeChange: (ThemeMode) -> Unit,
+    appearance: AppearanceSettings,
+    onAppearanceChange: (AppearanceSettings) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    themeColors: ThemeColorSettings = ThemeColorSettings(),
-    onThemeColorsChange: (ThemeColorSettings) -> Unit = {},
-    predictiveBackEnabled: Boolean = false,
-    onPredictiveBackEnabledChange: (Boolean) -> Unit = {},
-    backgroundDepthEnabled: Boolean = true,
-    onBackgroundDepthEnabledChange: (Boolean) -> Unit = {},
 ) {
+    val themeColors = appearance.themeColors
+    val onThemeColorsChange: (ThemeColorSettings) -> Unit = { onAppearanceChange(appearance.copy(themeColors = it)) }
     var showCustomColor by rememberSaveable { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val direction = LocalLayoutDirection.current
@@ -169,8 +166,8 @@ fun AppearanceScreen(
                             ThemeModeCard(
                                 title = stringResource(mode.titleRes),
                                 icon = mode.iconRes(),
-                                selected = themeMode == mode,
-                                onClick = { onThemeModeChange(mode) },
+                                selected = appearance.themeMode == mode,
+                                onClick = { onAppearanceChange(appearance.copy(themeMode = mode)) },
                                 modifier = cardModifier.settingsSearchAnchor(stringResource(mode.titleRes)),
                             )
                         }
@@ -225,16 +222,16 @@ fun AppearanceScreen(
                         SettingsSection(title = stringResource(R.string.settings_section_animations)) {
                             SettingsSwitchItem(
                                 title = stringResource(R.string.settings_predictive_back),
-                                checked = predictiveBackEnabled,
-                                onCheckedChange = onPredictiveBackEnabledChange,
+                                checked = appearance.predictiveBackEnabled,
+                                onCheckedChange = { onAppearanceChange(appearance.copy(predictiveBackEnabled = it)) },
                                 index = 0,
                                 count = 2,
                                 icon = R.drawable.ic_icon_arrow_left,
                             )
                             SettingsSwitchItem(
                                 title = stringResource(R.string.settings_background_depth),
-                                checked = backgroundDepthEnabled,
-                                onCheckedChange = onBackgroundDepthEnabledChange,
+                                checked = appearance.backgroundDepthEnabled,
+                                onCheckedChange = { onAppearanceChange(appearance.copy(backgroundDepthEnabled = it)) },
                                 index = 1,
                                 count = 2,
                                 icon = R.drawable.ic_icon_opacity,
@@ -291,10 +288,9 @@ private fun themeCardColumns(width: Dp, minWidth: Dp, fontScale: Float, count: I
 private fun AppearancePreview() {
     KIRAKIRATheme(dynamicColor = false) {
         AppearanceScreen(
-            themeMode = ThemeMode.SYSTEM,
-            onThemeModeChange = {},
+            appearance = AppearanceSettings(themeColors = ThemeColorSettings(useSystemColors = false)),
+            onAppearanceChange = {},
             onBack = {},
-            themeColors = ThemeColorSettings(useSystemColors = false),
         )
     }
 }

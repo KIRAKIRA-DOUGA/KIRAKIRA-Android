@@ -56,8 +56,7 @@ import moe.kirakira.ui.navigation.NavigationPage
 import moe.kirakira.ui.navigation.SettingsCategoryIndexKey
 import moe.kirakira.ui.navigation.SettingsPane
 import moe.kirakira.ui.navigation.SettingsPaneKey
-import moe.kirakira.ui.theme.ThemeColorSettings
-import moe.kirakira.ui.theme.ThemeMode
+import moe.kirakira.ui.theme.AppearanceSettings
 
 internal fun settingsCategoryPane(route: NavKey) = metadata {
     put(SettingsPaneKey, SettingsPane.CATEGORY)
@@ -72,14 +71,8 @@ internal fun registerSettingsEntries(
     dependencies: AppDependenciesViewModel?,
     accountState: SessionState,
     onLogout: () -> Unit,
-    themeMode: ThemeMode,
-    onThemeModeChange: (ThemeMode) -> Unit,
-    themeColors: ThemeColorSettings,
-    onThemeColorsChange: (ThemeColorSettings) -> Unit,
-    predictiveBackEnabled: Boolean,
-    onPredictiveBackEnabledChange: (Boolean) -> Unit,
-    backgroundDepthEnabled: Boolean,
-    onBackgroundDepthEnabledChange: (Boolean) -> Unit,
+    appearance: AppearanceSettings,
+    onAppearanceChange: (AppearanceSettings) -> Unit,
     playbackSettingsModel: PlaybackSettingsViewModel?,
     playbackSettings: PlaybackSettings?,
     danmakuSettingsModel: DanmakuSettingsViewModel?,
@@ -162,7 +155,7 @@ internal fun registerSettingsEntries(
                         SecuritySettingsPage(
                             model = model,
                             isActive = navigation.backStack.lastOrNull() == currentRoute,
-                            predictiveBackEnabled = predictiveBackEnabled,
+                            predictiveBackEnabled = appearance.predictiveBackEnabled,
                             onBack = { navigation.popFrom(currentRoute) },
                             onLogin = { email ->
                                 navigation.openFrom(currentRoute, AuthRoute(email))
@@ -232,14 +225,8 @@ internal fun registerSettingsEntries(
             AppearanceRoute -> {
                 NavigationPage {
                     AppearanceScreen(
-                        themeMode = themeMode,
-                        onThemeModeChange = onThemeModeChange,
-                        themeColors = themeColors,
-                        onThemeColorsChange = onThemeColorsChange,
-                        predictiveBackEnabled = predictiveBackEnabled,
-                        onPredictiveBackEnabledChange = onPredictiveBackEnabledChange,
-                        backgroundDepthEnabled = backgroundDepthEnabled,
-                        onBackgroundDepthEnabledChange = onBackgroundDepthEnabledChange,
+                        appearance = appearance,
+                        onAppearanceChange = onAppearanceChange,
                         onBack = { navigation.popFrom(currentRoute) },
                     )
                 }

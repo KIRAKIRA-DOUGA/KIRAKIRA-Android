@@ -93,20 +93,13 @@ import moe.kirakira.ui.navigation.ActivityNavDisplay
 import moe.kirakira.ui.navigation.ActivityStartRail
 import moe.kirakira.ui.navigation.PlaybackViewportState
 import moe.kirakira.ui.navigation.imageViewerNavigationMetadata
-import moe.kirakira.ui.theme.ThemeColorSettings
-import moe.kirakira.ui.theme.ThemeMode
+import moe.kirakira.ui.theme.AppearanceSettings
 import kotlin.math.ceil
 
 @Composable
 internal fun AppNavHost(
-    themeMode: ThemeMode,
-    onThemeModeChange: (ThemeMode) -> Unit,
-    themeColors: ThemeColorSettings,
-    onThemeColorsChange: (ThemeColorSettings) -> Unit,
-    predictiveBackEnabled: Boolean,
-    onPredictiveBackEnabledChange: (Boolean) -> Unit,
-    backgroundDepthEnabled: Boolean,
-    onBackgroundDepthEnabledChange: (Boolean) -> Unit,
+    appearance: AppearanceSettings,
+    onAppearanceChange: (AppearanceSettings) -> Unit,
     accountState: SessionState,
     dependencies: AppDependenciesViewModel?,
     onLogout: () -> Unit,
@@ -361,7 +354,7 @@ internal fun AppNavHost(
         ) {
             ActivityNavDisplay(
                 backStack = backStack,
-                predictiveBackEnabled = predictiveBackEnabled,
+                predictiveBackEnabled = appearance.predictiveBackEnabled,
                 videoZoomState = viewportState,
                 videoPageUnderImage = videoPageUnderImage,
                 startRail = startRail,
@@ -390,7 +383,7 @@ internal fun AppNavHost(
                 },
                 // Keep Haze recording away from the sibling PlaybackHost and its SurfaceView.
                 modifier = Modifier
-                    .videoZoomBackgroundEffect(viewportState, depthEnabled = backgroundDepthEnabled)
+                    .videoZoomBackgroundEffect(viewportState, depthEnabled = appearance.backgroundDepthEnabled)
                     .menuHazeSource(menuHazeState),
                 entryProvider = entryProvider {
                     registerMainEntries(
@@ -401,14 +394,12 @@ internal fun AppNavHost(
                     registerImageViewerEntries(this, navigation, imageMetadata, imageExports)
                     registerSettingsEntries(
                         this, navigation, dependencies, accountState, onLogout,
-                        themeMode, onThemeModeChange, themeColors, onThemeColorsChange,
-                        predictiveBackEnabled, onPredictiveBackEnabledChange,
-                        backgroundDepthEnabled, onBackgroundDepthEnabledChange,
+                        appearance, onAppearanceChange,
                         playbackSettingsModel, playbackSettings, danmakuSettingsModel, danmakuSettings,
                     )
                     registerAccountEntries(
                         this, navigation, authRepository, accountState, onSelectAccount, onRemoveAccount,
-                        predictiveBackEnabled,
+                        appearance.predictiveBackEnabled,
                         onCredentialSaveFailure = showFeedback,
                     )
                 },

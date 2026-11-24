@@ -18,7 +18,7 @@
 
 [KIRAKIRATheme](../../app/src/main/kotlin/moe/kirakira/ui/theme/Theme.kt) 基于 `MaterialExpressiveTheme`：组件、形状档位、排版与动效沿用 Material 3 Expressive，配色由项目自己的生成器提供，并通过 `shapes` 参数覆盖八档圆角。头像与胶囊 Chip 使用 `CircleShape`。
 
-主题偏好由 [ThemeSettingsStore](../../app/src/main/kotlin/moe/kirakira/data/settings/ThemeSettingsStore.kt) 读写，[ThemeViewModel](../../app/src/main/kotlin/moe/kirakira/ui/theme/ThemeViewModel.kt) 把存储结果映射为界面状态。首次读取在后台进行，读取完成前系统启动屏不退出（见[启动动画](navigation.md#启动动画)）；明暗模式缺失或无效时回退为跟随系统。
+主题偏好由 [ThemeSettingsStore](../../app/src/main/kotlin/moe/kirakira/data/settings/ThemeSettingsStore.kt) 读写，[ThemeViewModel](../../app/src/main/kotlin/moe/kirakira/ui/theme/ThemeViewModel.kt) 把存储结果映射为一个 `AppearanceSettings`（明暗模式、配色、预测性返回、背景纵深），沿宿主一路传给外观页；外观页回传修改后的整份设置，`ThemeViewModel` 只写入变化的字段，各字段沿用原来的偏好键。首次读取在后台进行，读取完成前系统启动屏不退出（见[启动动画](navigation.md#启动动画)）；明暗模式缺失或无效时回退为跟随系统。
 
 ### 品牌标题字体
 
