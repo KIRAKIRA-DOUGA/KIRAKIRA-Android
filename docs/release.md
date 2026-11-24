@@ -8,7 +8,7 @@
 
 [Android check](../.github/workflows/android-check.yml) 在每个 PR 上用同一 SDK 执行不签名的 Release 构建，不接触签名 Environment，也可在 Actions 中手动运行。它让未提交的源码、R8 或资源压缩的问题在合并前暴露。
 
-正式版与 CI 版共享应用 ID 和签名。分发包使用 `3 + GITHUB_RUN_NUMBER` 作为 `versionCode`，其中 3 是已发布的 `0.3` APK 的版本号。CI 的版本名包含运行序号，例如 `0.4-ci.12`。如果手机已安装构建序号更高的 CI，需要等序号更高的正式版才能覆盖更新。两个渠道使用同一个工作流计数。迁移工作流前应确保新计数生成的版本号高于已分发的 APK。
+正式版与 CI 版共享应用 ID 和签名。分发包使用 `3 + GITHUB_RUN_NUMBER` 作为 `versionCode`，其中 3 是已发布的 `0.3` APK 的版本号。正式版的版本名取自 tag，工作流通过 `kirakira.releaseVersionName` 传给 Gradle；[应用构建配置](../app/build.gradle.kts)中的 `appVersionName` 表示开发中的下一个版本，只用于 CI 和本地构建。CI 的版本名为 `appVersionName` 加运行序号，例如 `0.4-ci.12`。如果手机已安装构建序号更高的 CI，需要等序号更高的正式版才能覆盖更新。两个渠道使用同一个工作流计数。迁移工作流前应确保新计数生成的版本号高于已分发的 APK。
 
 ## 首次配置
 
@@ -28,12 +28,12 @@
 
 ## 发布正式版
 
-1. 把 [应用构建配置](../app/build.gradle.kts) 的 `appVersionName` 更新为版本号，例如 `0.4`。推送到 `main` 并等该提交的 CI 完成。
-2. 在该提交创建并推送同名 tag。
+1. 在要发布的 `main` 提交上创建并推送 tag，tag 名即版本名。无需先修改 `appVersionName`。
 
    ```sh
    git tag -a 0.4 -m "0.4"
    git push origin refs/tags/0.4
    ```
 
-3. 在 Releases 打开生成的草稿，核对 `KIRAKIRA-0.4-release.apk`，补充中文说明并点击 **Publish release**。从对应 Actions 产物长期保存同一 APK 的 `mapping.txt`，可用 APK 的 SHA-256 对照 Release 附件和构建产物。重跑会补齐缺失的草稿附件，保留已有 APK 和说明。
+2. 在 Releases 打开生成的草稿，核对 `KIRAKIRA-0.4-release.apk`，补充中文说明并点击 **Publish release**。从对应 Actions 产物长期保存同一 APK 的 `mapping.txt`，可用 APK 的 SHA-256 对照 Release 附件和构建产物。重跑会补齐缺失的草稿附件，保留已有 APK 和说明。
+3. 把 `appVersionName` 改为下一个计划版本，例如 `0.5`，让之后的 CI 包不沿用已发布的版本名。这一步不影响已发布的版本，可以随下一个 PR 合入。

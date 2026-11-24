@@ -20,9 +20,10 @@ val imageDeliveryBaseUrl = when (providers.gradleProperty("kirakira.imageProvide
     else -> error("kirakira.imageProvider must be cloudflare-prod or cloudflare-stg")
 }
 
-val appVersionName = "0.3"
+val appVersionName = "0.4"
 val distributionVersionCode = providers.gradleProperty("kirakira.distributionVersionCode").map { it.toInt() }
 val ciRunNumber = providers.gradleProperty("kirakira.ciRunNumber").map { it.toInt() }
+val releaseVersionName = providers.gradleProperty("kirakira.releaseVersionName")
 
 android {
     namespace = "moe.kirakira"
@@ -78,8 +79,15 @@ android {
 androidComponents {
     onVariants(selector().withBuildType("release")) { variant ->
         val output = variant.outputs.single()
+        require(!(ciRunNumber.isPresent && releaseVersionName.isPresent)) {
+            "kirakira.ciRunNumber and kirakira.releaseVersionName cannot be used together"
+        }
         distributionVersionCode.orNull?.let { output.versionCode.set(it) }
         ciRunNumber.orNull?.let { output.versionName.set("$appVersionName-ci.$it") }
+        releaseVersionName.orNull?.let {
+            require(Regex("""\d+\.\d+(\.\d+)?""").matches(it)) { "kirakira.releaseVersionName must be a numeric version" }
+            output.versionName.set(it)
+        }
         output.outputFileName.set(output.versionName.map { "KIRAKIRA-$it-release.apk" })
     }
 }

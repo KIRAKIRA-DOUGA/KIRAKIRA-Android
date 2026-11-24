@@ -43,7 +43,9 @@ jobs:
         run: |
           version_code=$((ANDROID_BASE_VERSION_CODE + GITHUB_RUN_NUMBER))
           gradle_args=("-Pkirakira.distributionVersionCode=$version_code")
-          if [[ "$GITHUB_REF" == refs/heads/main ]]; then
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            gradle_args+=("-Pkirakira.releaseVersionName=$GITHUB_REF_NAME")
+          elif [[ "$GITHUB_REF" == refs/heads/main ]]; then
             gradle_args+=("-Pkirakira.ciRunNumber=$GITHUB_RUN_NUMBER")
           fi
           ./gradlew :app:assembleRelease --console=plain --no-scan "${gradle_args[@]}"
