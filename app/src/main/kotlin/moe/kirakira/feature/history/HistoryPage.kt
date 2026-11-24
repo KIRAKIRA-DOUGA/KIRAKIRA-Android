@@ -38,6 +38,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSearchBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -103,7 +104,9 @@ import moe.kirakira.ui.components.video.VideoFeedGrid
 import moe.kirakira.ui.components.video.dateText
 import moe.kirakira.ui.components.video.durationText
 import moe.kirakira.ui.components.video.rememberVideoZoomSource
+import moe.kirakira.ui.components.video.videoZoomCard
 import moe.kirakira.ui.components.video.videoZoomSource
+import moe.kirakira.ui.components.video.videoZoomSourceGroup
 import moe.kirakira.ui.content.ContentState
 import moe.kirakira.ui.navigation.blockNavigationInput
 import moe.kirakira.ui.theme.KIRAKIRATheme
@@ -227,12 +230,14 @@ internal fun HistoryScreen(
             },
             snackbarHost = { SnackbarHost(snackbar) },
         ) { padding ->
-            HistoryContent(
-                state, signedIn, ready, query, sections, onRefresh, onLogin, onOpenVideo,
-                padding = padding,
-                list = pageList,
-                isActive = historyActive,
-            )
+            CompositionLocalProvider(videoZoomSourceGroup(HistoryList.PAGE, !searchOpen)) {
+                HistoryContent(
+                    state, signedIn, ready, query, sections, onRefresh, onLogin, onOpenVideo,
+                    padding = padding,
+                    list = pageList,
+                    isActive = historyActive,
+                )
+            }
         }
         PageSearchOverlay(
             text = searchText,
@@ -245,19 +250,22 @@ internal fun HistoryScreen(
             val focus = LocalFocusManager.current
             val keyboard = LocalSoftwareKeyboardController.current
             Box(Modifier.fillMaxSize()) {
-                HistoryContent(
-                    state, signedIn, ready, query, sections, onRefresh, onLogin,
-                    onOpenVideo = { id ->
-                        if (isActive && signedIn && ready) {
-                            focus.clearFocus()
-                            keyboard?.hide()
-                            onOpenVideo(id)
-                        }
-                    },
-                    padding = contentPadding,
-                    list = searchList,
-                    isActive = isActive && searchState.targetValue == SearchBarValue.Expanded,
-                )
+                val searchShown = searchState.targetValue == SearchBarValue.Expanded
+                CompositionLocalProvider(videoZoomSourceGroup(HistoryList.SEARCH, searchShown)) {
+                    HistoryContent(
+                        state, signedIn, ready, query, sections, onRefresh, onLogin,
+                        onOpenVideo = { id ->
+                            if (isActive && signedIn && ready) {
+                                focus.clearFocus()
+                                keyboard?.hide()
+                                onOpenVideo(id)
+                            }
+                        },
+                        padding = contentPadding,
+                        list = searchList,
+                        isActive = isActive && searchShown,
+                    )
+                }
                 SnackbarHost(
                     snackbar,
                     modifier = Modifier.align(Alignment.BottomCenter).padding(contentPadding),
@@ -266,6 +274,8 @@ internal fun HistoryScreen(
         }
     }
 }
+
+private enum class HistoryList { PAGE, SEARCH }
 
 @Composable
 private fun HistoryContent(
@@ -358,13 +368,14 @@ private fun HistoryRow(
     modifier: Modifier = Modifier,
 ) {
     val artworkShape = MaterialTheme.shapes.medium
-    val zoomSource = rememberVideoZoomSource(entry.video.id, entry.video.image, artworkShape)
+    val zoomSource = rememberVideoZoomSource(entry.video.id, entry.video.image, artworkShape, onClick)
     val time = dateText(entry.updatedAt)
     // Keeping artwork in the content slot lets the text use the full width with large fonts.
     ListItem(
         modifier = modifier.fillMaxWidth()
+            .videoZoomCard(zoomSource)
             .clickable(role = Role.Button) {
-                if (zoomSource == null) onClick() else zoomSource.open(onClick)
+                if (zoomSource == null) onClick() else zoomSource.open()
             },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         supportingContent = null,

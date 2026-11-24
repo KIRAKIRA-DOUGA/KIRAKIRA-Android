@@ -24,7 +24,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -89,12 +89,15 @@ import moe.kirakira.ui.components.motion.rememberEmphasizedEasing
 import moe.kirakira.ui.components.overlay.LocalMenuHazeState
 import moe.kirakira.ui.components.overlay.menuHazeSource
 import moe.kirakira.ui.components.video.LocalVideoZoomState
+import moe.kirakira.ui.components.video.completeVideoZoomTap
 import moe.kirakira.ui.navigation.ActivityNavDisplay
 import moe.kirakira.ui.navigation.ActivityStartRail
 import moe.kirakira.ui.navigation.PlaybackViewportState
+import moe.kirakira.ui.navigation.VideoCardReturn
 import moe.kirakira.ui.navigation.imageViewerNavigationMetadata
 import moe.kirakira.ui.theme.AppearanceSettings
 import kotlin.math.ceil
+import kotlin.math.roundToInt
 
 @Composable
 internal fun AppNavHost(
@@ -172,13 +175,22 @@ internal fun AppNavHost(
     val viewportState = remember { PlaybackViewportState() }
     val retainedVideoModels = viewModel { RetainedVideoPageViewModel() }
     val currentRoute = backStack.last()
-    var miniPlayerExitViewport by remember(playback) { mutableStateOf<MiniPlayerExitViewport?>(null) }
+    // One per retiring session in the playback model, so quick switches let every exit finish.
+    val exitViewports = remember(playback) { mutableStateListOf<MiniPlayerExitViewport>() }
+    fun canKeepMiniPlayer(): Boolean = currentPlaybackSettings?.inAppMiniPlayer == true &&
+        playback.showPauseIcon && playback.player != null && !playback.failed
+
     fun popRoute(route: NavKey) {
-        if (route is VideoRoute && backStack.lastOrNull() == route) {
-            val keepMiniPlayer = currentPlaybackSettings?.inAppMiniPlayer == true && playback.showPauseIcon &&
-                playback.player != null && !playback.failed
+        if (route is VideoRoute && backStack.lastOrNull() == route && playback.videoId == route.videoId) {
+            if (viewportState.exitingVideoId == route.videoId) return
+            val keepMiniPlayer = viewportState.backPreviewFor(route)?.toMiniPlayer != false && canKeepMiniPlayer()
             if (!keepMiniPlayer) {
-                viewportState.exitingVideoId = route.videoId
+                // The retained page carries the return on its own, so the source page takes input
+                // right away and another card can open while this one lands. A revealed video page
+                // would take over the session, so that return still pops when it finishes.
+                val source = backStack.getOrNull(backStack.lastIndex - 1)
+                viewportState.cardReturn = VideoCardReturn(route.videoId, source)
+                if (source !is VideoRoute) navigation.popFrom(route)
                 return
             }
             // Publish the mini-player destination before removing its navigation entry so the
@@ -198,25 +210,21 @@ internal fun AppNavHost(
         val sessionChanged = playback.syncSession(accountState.revision)
         val video = backStack.lastOrNull() as? VideoRoute
         if (video != null && contentRepository != null) {
-            if (viewportState.exitingVideoId != video.videoId) viewportState.exitingVideoId = null
+            if (viewportState.exitingVideoId != video.videoId) viewportState.cardReturn = null
             playback.showVideo(video.videoId)
         } else if (viewportState.exitingVideoId == null) {
             playback.leaveVideo(playbackSettings?.inAppMiniPlayer == true)
         }
-        if (sessionChanged) viewportState.exitingVideoId = null
-        if (!viewportState.backPreviewActive) {
-            viewportState.backToMiniPlayer = playbackSettings?.inAppMiniPlayer == true &&
-                playback.showPauseIcon && playback.player != null && !playback.failed
-        }
+        if (sessionChanged) viewportState.cardReturn = null
+        viewportState.canBackToMiniPlayer = ::canKeepMiniPlayer
         if (sessionChanged) playback.cancelAutoplay()
         if (playbackSettings?.inAppMiniPlayer != true) {
             if (playback.miniPlayer) playback.closeMiniPlayer()
-            playback.finishMiniPlayerExit()
+            playback.miniPlayerExits.filterNot { it.toCard }.forEach(playback::finishMiniPlayerExit)
         }
-        if (miniPlayerExitViewport?.session !== playback.miniPlayerExit) {
-            playback.finishMiniPlayerExit()
-            miniPlayerExitViewport = null
-        }
+        val exits = playback.miniPlayerExits
+        exitViewports.removeAll { viewport -> exits.none { it === viewport.session } }
+        exits.filter { exit -> exitViewports.none { it.session === exit } }.forEach(playback::finishMiniPlayerExit)
         if (sessionChanged || (backStack.none { it is VideoRoute } && !playback.miniPlayer &&
                 viewportState.exitingVideoId == null)) {
             viewportState.cards.clear()
@@ -323,19 +331,40 @@ internal fun AppNavHost(
         IntSize(railStart + with(density) { chromeRailPadding.roundToPx() }, 0)
     } else IntSize(0, chromeBottomBarHeight)
     SideEffect {
-        viewportState.cards.onOpenVideo = { videoId, open ->
+        viewportState.cards.onOpenVideo = openVideo@{ videoId, origin, open ->
             val previousOrigin = viewportState.cards.origin
+            val cardReturn = viewportState.cardReturn?.takeIf { it.videoId == playback.videoId }
+            val returning = cardReturn?.videoId
             open()
-            if (backStack.lastOrNull() == VideoRoute(videoId) && playback.videoId != videoId &&
-                !imageViewerActive && !viewportState.navigatingPage
-            ) {
-                playback.beginMiniPlayerExit()?.let { exit ->
-                    miniPlayerExitViewport = MiniPlayerExitViewport(
+            if (backStack.lastOrNull() != VideoRoute(videoId)) return@openVideo
+            val matchingOrigin = if (returning == videoId) previousOrigin else {
+                exitViewports.firstOrNull { it.session.toCard && it.session.videoId == videoId }?.origin
+            }
+            viewportState.cards.select(matchingOrigin?.takeIf { it.key == origin?.key } ?: origin)
+            if (returning == videoId) {
+                // Reopening the card being returned to reverses the same flight from where it is.
+                viewportState.cardReturn = null
+            } else if (returning != null) {
+                playback.beginCardExit()?.let { exit ->
+                    exitViewports += MiniPlayerExitViewport(
                         session = exit,
                         origin = previousOrigin?.takeIf { it.videoId == exit.videoId },
                         pageViewport = viewportState.pageViewport?.takeIf { it.videoId == exit.videoId },
                         mainNavigationSize = chromeSize,
+                        cardReturn = cardReturn,
                     )
+                }
+                viewportState.cardReturn = null
+            } else {
+                if (playback.videoId != videoId && !imageViewerActive && !viewportState.navigatingPage) {
+                    playback.beginMiniPlayerExit()?.let { exit ->
+                        exitViewports += MiniPlayerExitViewport(
+                            session = exit,
+                            origin = previousOrigin?.takeIf { it.videoId == exit.videoId },
+                            pageViewport = viewportState.pageViewport?.takeIf { it.videoId == exit.videoId },
+                            mainNavigationSize = chromeSize,
+                        )
+                    }
                 }
             }
         }
@@ -349,6 +378,10 @@ internal fun AppNavHost(
         Box(
             modifier
                 .fillMaxSize()
+                .completeVideoZoomTap(viewportState.cards) {
+                    val source = viewportState.cardReturn?.sourceRoute
+                    source != null && source !is VideoRoute && backStack.lastOrNull() == source
+                }
                 .background(MaterialTheme.colorScheme.surfaceContainer)
                 .onGloballyPositioned { viewportState.windowOrigin = it.positionInWindow() },
         ) {
@@ -404,14 +437,20 @@ internal fun AppNavHost(
                     )
                 },
             )
-            val retainedVideoId = (currentRoute as? VideoRoute)?.videoId
+            val foregroundVideoId = (currentRoute as? VideoRoute)?.videoId
                 ?: viewportState.exitingVideoId
                 ?: playback.videoId?.takeIf { playback.miniPlayer }
-                ?: backStack.filterIsInstance<VideoRoute>().lastOrNull()?.videoId
-            val exitingMini = miniPlayerExitViewport?.takeIf { it.session === playback.miniPlayerExit }
-            val exitingMiniId = exitingMini?.session?.videoId
-            val displayedVideoIds = listOfNotNull(retainedVideoId, exitingMiniId).distinct().filter { it > 0 }
-            val retainedIds = backStack.filterIsInstance<VideoRoute>().map { it.videoId }.toSet() + displayedVideoIds
+            // A covered route can share an ID with a retiring session. Keep the exit mounted until
+            // it releases its player, even if that route becomes the only video left in the stack.
+            val liveExits = playback.miniPlayerExits.toSet()
+            val outgoingById = exitViewports
+                .filter { it.session.videoId != foregroundVideoId && it.session in liveExits }
+                .associateBy { it.session.videoId }
+            val stackVideos = backStack.filterIsInstance<VideoRoute>()
+            val retainedVideoId = foregroundVideoId
+                ?: stackVideos.lastOrNull()?.videoId?.takeUnless(outgoingById::containsKey)
+            val displayedVideoIds = (listOfNotNull(retainedVideoId) + outgoingById.keys).filter { it > 0 }
+            val retainedIds = stackVideos.map { it.videoId }.toSet() + displayedVideoIds
             SideEffect { retainedVideoModels.retain(accountState.revision, retainedIds) }
             if (displayedVideoIds.isNotEmpty() && contentRepository != null && kaomojiModel != null) {
                 RetainedVideoPages(
@@ -422,26 +461,51 @@ internal fun AppNavHost(
                     activeVideoId = retainedVideoId.takeIf { videoPageActive && !imageViewerActive },
                 ) { videoId ->
                     val route = VideoRoute(videoId)
-                    val outgoing = exitingMini?.takeIf { videoId != retainedVideoId && videoId == exitingMiniId }
+                    val outgoing = outgoingById[videoId]
+                    val cardReturn = viewportState.cardReturn?.takeIf { it.videoId == videoId }
                     PlaybackHost(
                         playback = playback,
                         videoId = videoId,
                         viewportState = viewportState,
+                        backPreview = if (outgoing == null && videoPageActive) viewportState.backPreviewFor(route) else null,
+                        sourceOwner = chromeRoute,
                         settings = playbackSettings,
                         videoPageActive = outgoing == null && videoPageActive,
                         imageViewerActive = imageViewerActive,
                         videoPageUnderImage = outgoing == null && videoPageUnderImage,
-                        videoPageCovered = outgoing == null && !imageViewerActive && (
-                            (!videoPageActive && backStack.any { it is VideoRoute }) ||
+                        videoPageCovered = outgoing == null && !imageViewerActive &&
+                            viewportState.exitingVideoId != videoId && (
+                            (!videoPageActive && stackVideos.isNotEmpty()) ||
                                 viewportState.coveringPageKeys.isNotEmpty()
                             ),
-                        modifier = Modifier.zIndex(
-                            if (outgoing != null || (playback.miniPlayer && !videoPageActive && !videoPageUnderImage &&
-                                    !viewportState.navigatingPage)
-                            ) 2f else 0f,
-                        ),
+                        // A card return has left the stack, so it draws above the revealed page, even one
+                        // that covers another video; once detached it stays under the video expanding over it.
+                        modifier = Modifier
+                            .zIndex(
+                                when {
+                                    outgoing?.session?.toCard == true -> 0.25f
+                                    outgoing != null || (playback.miniPlayer && !videoPageActive &&
+                                        !videoPageUnderImage && !viewportState.navigatingPage) -> 2f
+                                    viewportState.exitingVideoId == videoId -> 1.5f
+                                    else -> 0.5f
+                                },
+                            )
+                            .then(
+                                // Layers only while a detached return is pushed back with the page.
+                                if (outgoing?.session?.toCard == true) {
+                                    Modifier.videoZoomBackgroundEffect(
+                                        viewportState,
+                                        depthEnabled = appearance.backgroundDepthEnabled,
+                                        excludingVideoId = videoId,
+                                        mirrorEdges = false,
+                                    )
+                                } else Modifier,
+                            ),
                         mainNavigationSize = outgoing?.mainNavigationSize ?: chromeSize,
                         miniPlayerExit = outgoing,
+                        hostScale = if (outgoing?.session?.toCard == true) {
+                            { viewportState.backgroundScale(appearance.backgroundDepthEnabled, excludingVideoId = videoId) }
+                        } else NoHostScale,
                         onRestore = {
                             if (currentRoute !is VideoRoute && currentRoute !is ImageViewerRoute &&
                                 navigation.composedViewers.isEmpty() && playback.miniPlayer &&
@@ -453,11 +517,15 @@ internal fun AppNavHost(
                             }
                         },
                         onCardExitFinished = {
-                            if (viewportState.exitingVideoId == videoId) {
+                            if (cardReturn != null && viewportState.cardReturn === cardReturn) {
                                 // Keep the source Scene mounted until the visual return is complete.
                                 if (backStack.lastOrNull() == route) navigation.popFrom(route)
-                                viewportState.exitingVideoId = null
+                                viewportState.cardReturn = null
                                 if (playback.videoId == videoId) playback.leaveVideo(false)
+                            } else if (cardReturn != null) {
+                                // The flight may land after detachment but before its host recomposes.
+                                exitViewports.firstOrNull { it.cardReturn === cardReturn }
+                                    ?.session?.let(playback::finishMiniPlayerExit)
                             }
                         },
                     ) { pageModifier, interactive, surfaceVisible ->
@@ -516,62 +584,104 @@ internal fun AppNavHost(
     }
 }
 
+private val NoHostScale = { 1f }
+
 private const val MAX_VIDEO_ZOOM_BLUR_DP = 24
+private const val VIDEO_ZOOM_BLUR_STEPS_PER_PX = 2
 private const val MAX_VIDEO_ZOOM_SCRIM_ALPHA = 0.25f
+
+/** The scrim's alpha in 8-bit levels, the finest step the tint can show. */
+private const val MAX_VIDEO_ZOOM_SCRIM_STEPS = (MAX_VIDEO_ZOOM_SCRIM_ALPHA * 255).toInt()
 private const val MAX_VIDEO_ZOOM_BACKGROUND_SCALE = 0.1f
+
+/** Scale steps per unit: under half a pixel of edge movement per step on a phone-width window. */
+private const val VIDEO_ZOOM_SCALE_STEPS = 4096
 
 /**
  * Pushes the page behind a card or mini player zoom into the distance. Android 12+ dims it; with
  * [depthEnabled] it also blurs there and, on Android 13+, shrinks it while mirroring its edges
  * into the uncovered margin, like iOS's background extension effect.
+ *
+ * The shrink is a layer transform, so hit testing and coordinates follow what is drawn: the page
+ * takes taps while a card return flies, and the flight lands where the card is shown. Blur, dim and
+ * the mirrored margin only change the drawing, on an outer layer around the scaled one.
+ *
+ * A layer that floats above the page but belongs to the background, such as a card return the next
+ * video now expands over, passes its [excludingVideoId] and no [mirrorEdges]: it takes the same push
+ * except its own, about the same centre so it stays on its shrunken card.
  */
 @Composable
-private fun Modifier.videoZoomBackgroundEffect(viewportState: PlaybackViewportState, depthEnabled: Boolean): Modifier {
+private fun Modifier.videoZoomBackgroundEffect(
+    viewportState: PlaybackViewportState,
+    depthEnabled: Boolean,
+    excludingVideoId: Int? = null,
+    mirrorEdges: Boolean = true,
+): Modifier {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return this
     val density = LocalDensity.current.density
-    val blurStep by remember(viewportState) {
-        derivedStateOf(structuralEqualityPolicy()) {
-            val fraction = viewportState.videoZoomBlurFraction?.invoke() ?: 0f
-            ceil(MAX_VIDEO_ZOOM_BLUR_DP * fraction).toInt()
-        }
+    val maxBlurSteps = ceil(MAX_VIDEO_ZOOM_BLUR_DP * density * VIDEO_ZOOM_BLUR_STEPS_PER_PX).toInt()
+    val blurEffects = remember(maxBlurSteps) { arrayOfNulls<BlurEffect>(maxBlurSteps + 1) }
+    val scrimFilters = remember { arrayOfNulls<ColorFilter>(MAX_VIDEO_ZOOM_SCRIM_STEPS + 1) }
+    val edgeMirror = remember(mirrorEdges) {
+        if (mirrorEdges && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) VideoZoomEdgeMirror() else null
     }
-    val blurEffects = remember(density) { arrayOfNulls<BlurEffect>(MAX_VIDEO_ZOOM_BLUR_DP + 1) }
-    val scrimFilters = remember { arrayOfNulls<ColorFilter>(MAX_VIDEO_ZOOM_BLUR_DP + 1) }
-    val shrinkEffect = remember {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) VideoZoomShrinkEffect() else null
+    fun strength() = viewportState.backgroundStrength(excludingVideoId).coerceAtMost(1f)
+
+    fun shrink() = viewportState.backgroundScale(depthEnabled, excludingVideoId)
+
+    // Quantized steps, so the effect layer only updates when a visible step changes. Sub-pixel radius
+    // steps, rounded rather than ceiled: the last visible step is half a pixel, so the tail of the
+    // restore fades out instead of dropping a whole dp of blur in one frame.
+    val blurStep by remember(viewportState, excludingVideoId, maxBlurSteps) {
+        derivedStateOf(structuralEqualityPolicy()) { (maxBlurSteps * strength()).roundToInt() }
+    }
+    val scrimStep by remember(viewportState, excludingVideoId) {
+        derivedStateOf(structuralEqualityPolicy()) { (MAX_VIDEO_ZOOM_SCRIM_STEPS * strength()).roundToInt() }
     }
     return graphicsLayer {
-        val step = blurStep
-        if (step == 0) {
-            renderEffect = null
-            colorFilter = null
-            return@graphicsLayer
-        }
-        val fraction = (viewportState.videoZoomBlurFraction?.invoke() ?: 0f).coerceIn(0f, 1f)
+        val blur = blurStep
+        val scrim = scrimStep
+        // Only the mirrored margin depends on the continuous scale; it alone updates every frame.
+        val scale = if (edgeMirror != null) shrink() else 1f
+        val blurRadius = blur.toFloat() / VIDEO_ZOOM_BLUR_STEPS_PER_PX
         renderEffect = when {
             !depthEnabled -> null
-            // Scale follows the raw progress; the blur radius stays quantized.
-            shrinkEffect != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> shrinkEffect.create(
-                width = size.width,
-                height = size.height,
-                scale = 1f - MAX_VIDEO_ZOOM_BACKGROUND_SCALE * fraction,
-                blurRadius = step * density,
-            )
-            else -> blurEffects[step] ?: BlurEffect(step * density, step * density).also { blurEffects[step] = it }
+            edgeMirror != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && scale < 1f ->
+                edgeMirror.create(size.width, size.height, scale, blurRadius)
+            blur == 0 -> null
+            else -> blurEffects[blur] ?: BlurEffect(blurRadius, blurRadius).also { blurEffects[blur] = it }
         }
-        colorFilter = scrimFilters[step] ?: ColorFilter.tint(
-            color = Color.Black.copy(alpha = MAX_VIDEO_ZOOM_SCRIM_ALPHA * step / MAX_VIDEO_ZOOM_BLUR_DP),
+        colorFilter = if (scrim == 0) null else scrimFilters[scrim] ?: ColorFilter.tint(
+            color = Color.Black.copy(alpha = scrim / 255f),
             blendMode = BlendMode.SrcAtop,
-        ).also { scrimFilters[step] = it }
+        ).also { scrimFilters[scrim] = it }
+    }.graphicsLayer {
+        val scale = shrink()
+        scaleX = scale
+        scaleY = scale
     }
 }
 
 /**
- * Shrinks the layer about its centre and fills the uncovered margin by mirroring the page across its
- * edges, then blurs the result so the reflection reads as a soft continuation rather than a seam.
+ * The scale the background's shrink applies about the window centre, also read by a detached return
+ * to place itself on its card: one source for the transform and its inverse.
+ */
+private fun PlaybackViewportState.backgroundScale(depthEnabled: Boolean, excludingVideoId: Int? = null): Float {
+    if (!depthEnabled || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return 1f
+    if (backgroundStrength(excludingVideoId) == 0f) return 1f
+    val scale = 1f - MAX_VIDEO_ZOOM_BACKGROUND_SCALE * backgroundDepth(excludingVideoId)
+    // Quantized here, once, so the layer, its mirrored margin and a detached return's inverse all see
+    // the same value: the margin never seams against the page, and an unchanged step reuses its effect.
+    return (scale * VIDEO_ZOOM_SCALE_STEPS).roundToInt() / VIDEO_ZOOM_SCALE_STEPS.toFloat()
+}
+
+/**
+ * Fills the margin a shrunken page leaves by mirroring the page across its new edges, then blurs
+ * the result so the reflection reads as a soft continuation rather than a seam. The page itself is
+ * scaled by its own layer; this only paints the margin, so input is unaffected.
  */
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-private class VideoZoomShrinkEffect {
+private class VideoZoomEdgeMirror {
     private val shader = RuntimeShader(
         """
         uniform shader content;
@@ -579,21 +689,36 @@ private class VideoZoomShrinkEffect {
         uniform float scale;
 
         half4 main(float2 position) {
-            float2 center = size * 0.5;
-            float2 source = center + (position - center) / scale;
-            // Reflect once across each edge; the margin never exceeds the page itself.
-            source = abs(source);
-            source = size - abs(size - source);
-            return content.eval(clamp(source, float2(0.5), size - 0.5));
+            float2 page = size * scale;
+            float2 origin = (size - page) * 0.5;
+            // Reflect once across each edge of the scaled page; the margin never exceeds the page.
+            float2 local = abs(position - origin);
+            local = page - abs(page - local);
+            return content.eval(clamp(origin + local, origin + 0.5, origin + page - 0.5));
         }
         """.trimIndent(),
     )
 
+    private var last: androidx.compose.ui.graphics.RenderEffect? = null
+    private var lastKey = floatArrayOf(-1f, -1f, -1f, -1f)
+
+    /** Reuses the previous effect while the quantized scale, blur and size are unchanged. */
     fun create(width: Float, height: Float, scale: Float, blurRadius: Float): androidx.compose.ui.graphics.RenderEffect {
+        val key = lastKey
+        last?.let { if (key[0] == width && key[1] == height && key[2] == scale && key[3] == blurRadius) return it }
+        key[0] = width
+        key[1] = height
+        key[2] = scale
+        key[3] = blurRadius
+        return build(width, height, scale, blurRadius).also { last = it }
+    }
+
+    private fun build(width: Float, height: Float, scale: Float, blurRadius: Float): androidx.compose.ui.graphics.RenderEffect {
         shader.setFloatUniform("size", width, height)
         shader.setFloatUniform("scale", scale)
-        val shrink = android.graphics.RenderEffect.createRuntimeShaderEffect(shader, "content")
+        val mirror = android.graphics.RenderEffect.createRuntimeShaderEffect(shader, "content")
+        if (blurRadius <= 0f) return mirror.asComposeRenderEffect()
         val blur = android.graphics.RenderEffect.createBlurEffect(blurRadius, blurRadius, Shader.TileMode.CLAMP)
-        return android.graphics.RenderEffect.createChainEffect(blur, shrink).asComposeRenderEffect()
+        return android.graphics.RenderEffect.createChainEffect(blur, mirror).asComposeRenderEffect()
     }
 }

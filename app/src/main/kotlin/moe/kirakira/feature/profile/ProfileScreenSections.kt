@@ -50,6 +50,7 @@ import moe.kirakira.ui.components.text.LocalNumberAnimationIdentity
 import moe.kirakira.ui.components.video.VideoCardLayout
 import moe.kirakira.ui.components.video.VideoCardRow
 import moe.kirakira.ui.components.video.VideoCardRowSpacing
+import moe.kirakira.ui.components.video.videoZoomSourceGroup
 import moe.kirakira.ui.content.ContentState
 import moe.kirakira.ui.navigation.imageSharedBounds
 import moe.kirakira.ui.navigation.rememberImageContentScale
@@ -168,72 +169,76 @@ internal fun ProfileTabPage(
     onOpenVideo: (Int) -> Unit,
 ) {
     val videoRows = remember(videos, columns) { videos.data.orEmpty().chunked(columns) }
-    ContentStatusViewport(
-        modifier = Modifier.fillMaxSize().then(viewportModifier),
-        contentPadding = listContentPadding,
-    ) { statusModifier ->
-        if (tab == ProfileTab.VIDEOS) {
-            LazyColumn(
-                state = videosListState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = listContentPadding,
-            ) {
-                if (videos.error != null || videos.data.isNullOrEmpty()) {
-                    item(key = "profile_videos_status") {
-                        ContentStatus(
-                            videos.copy(loading = videos.loading && videos.data == null),
-                            onRetry,
-                            Modifier
+    // The page being left keeps its cards composed while it slides away; a return to one of them
+    // dissolves rather than drawing over the incoming tab.
+    CompositionLocalProvider(videoZoomSourceGroup(tab, pagerState.targetPage == page)) {
+        ContentStatusViewport(
+            modifier = Modifier.fillMaxSize().then(viewportModifier),
+            contentPadding = listContentPadding,
+        ) { statusModifier ->
+            if (tab == ProfileTab.VIDEOS) {
+                LazyColumn(
+                    state = videosListState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = listContentPadding,
+                ) {
+                    if (videos.error != null || videos.data.isNullOrEmpty()) {
+                        item(key = "profile_videos_status") {
+                            ContentStatus(
+                                videos.copy(loading = videos.loading && videos.data == null),
+                                onRetry,
+                                Modifier
+                                    .fillMaxWidth()
+                                    .then(
+                                        if (videos.data.isNullOrEmpty()) statusModifier else Modifier,
+                                    ),
+                                videos.data.isNullOrEmpty(),
+                            )
+                        }
+                    }
+                    itemsIndexed(
+                        items = videoRows,
+                        key = { _, row -> "profile_video_row_${row.first().id}" },
+                    ) { index, row ->
+                        Box(
+                            modifier = Modifier
                                 .fillMaxWidth()
-                                .then(
-                                    if (videos.data.isNullOrEmpty()) statusModifier else Modifier,
+                                .padding(
+                                    start = 16.dp,
+                                    end = 16.dp,
+                                    top = if (index == 0) 16.dp else VideoCardRowSpacing,
+                                    bottom = if (index == videoRows.lastIndex) 16.dp else 0.dp,
                                 ),
-                            videos.data.isNullOrEmpty(),
-                        )
+                        ) {
+                            VideoCardRow(
+                                videos = row,
+                                layout = layout,
+                                onOpenVideo = onOpenVideo,
+                                modifier = Modifier.fillMaxWidth(),
+                                showUploader = false,
+                                columns = columns,
+                            )
+                        }
                     }
                 }
-                itemsIndexed(
-                    items = videoRows,
-                    key = { _, row -> "profile_video_row_${row.first().id}" },
-                ) { index, row ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(
-                                start = 16.dp,
-                                end = 16.dp,
-                                top = if (index == 0) 16.dp else VideoCardRowSpacing,
-                                bottom = if (index == videoRows.lastIndex) 16.dp else 0.dp,
-                            ),
-                    ) {
-                        VideoCardRow(
-                            videos = row,
-                            layout = layout,
-                            onOpenVideo = onOpenVideo,
-                            modifier = Modifier.fillMaxWidth(),
-                            showUploader = false,
-                            columns = columns,
+            } else {
+                LazyColumn(
+                    state = collectionsListState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = listContentPadding,
+                ) {
+                    item(key = "profile_collections_empty") {
+                        ContentUnavailableView(
+                            state = ContentUnavailableState.EMPTY,
+                            title = stringResource(R.string.content_not_available_yet),
+                            description = null,
+                            icon = { FavoritesLogo(isActive = pagerState.settledPage == page) },
+                            presentation = ContentUnavailablePresentation.INLINE,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(statusModifier),
                         )
                     }
-                }
-            }
-        } else {
-            LazyColumn(
-                state = collectionsListState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = listContentPadding,
-            ) {
-                item(key = "profile_collections_empty") {
-                    ContentUnavailableView(
-                        state = ContentUnavailableState.EMPTY,
-                        title = stringResource(R.string.content_not_available_yet),
-                        description = null,
-                        icon = { FavoritesLogo(isActive = pagerState.settledPage == page) },
-                        presentation = ContentUnavailablePresentation.INLINE,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .then(statusModifier),
-                    )
                 }
             }
         }

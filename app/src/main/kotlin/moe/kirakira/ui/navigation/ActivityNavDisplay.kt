@@ -109,7 +109,7 @@ internal fun <T : Any> ActivityNavDisplay(
     }
     val currentEntryProvider by rememberUpdatedState(entryProvider)
     val currentRailState = rememberUpdatedState(startRail)
-    val topDestination by rememberUpdatedState(backStack.lastOrNull())
+    val topDestination = rememberUpdatedState(backStack.lastOrNull())
     var composedImageEntries by remember { mutableIntStateOf(0) }
     val entries = rememberDecoratedNavEntries(
         backStack = backStack,
@@ -127,7 +127,7 @@ internal fun <T : Any> ActivityNavDisplay(
                     LocalVideoZoomOwner provides key,
                     LocalDestinationActive provides if (pane == SettingsPane.DIRECTORY) {
                         LocalSettingsDirectoryActive.current
-                    } else key == topDestination,
+                    } else key == topDestination.value,
                 ) {
                     val configuredRail = currentRailState.value.takeIf { pane == null }
                     val rail = configuredRail?.takeIf { it.showsFor(key) }
@@ -168,6 +168,7 @@ internal fun <T : Any> ActivityNavDisplay(
     val currentEntriesState = rememberUpdatedState(entries)
     val imageActive = entries.last().usesImageTransition
     val imagePredictiveBack = imageActive && predictiveBackEnabled
+    val topRoute = backStack.last()
     val zoomRoute = entries.last().metadata[VIDEO_ZOOM_METADATA] == true
     // Keep outgoing ordinary pages above the retained video until their Scene is disposed.
     val videoCovered = !imageActive && (
@@ -176,7 +177,7 @@ internal fun <T : Any> ActivityNavDisplay(
         )
     val videoCoveredState = rememberUpdatedState(videoCovered)
     val videoSourceCoveredState = rememberUpdatedState(videoCovered || videoPageUnderImage)
-    val zoomPreview = zoomRoute && videoZoomState?.backPreviewActive == true
+    val zoomPreview = zoomRoute && videoZoomState?.backPreviewFor(topRoute) != null
     val previewKey = if (zoomPreview) entries.last().contentKey else motion.closingKey
     val returningToVideo = !zoomRoute && motion.closingKey == entries.last().contentKey &&
         entries.getOrNull(entries.lastIndex - 1)?.metadata?.get(VIDEO_ZOOM_METADATA) == true
@@ -189,13 +190,12 @@ internal fun <T : Any> ActivityNavDisplay(
     }
     val strategy = remember(motion, previewKey, zoomPreview, videoZoomState, settingsPanes, settingsRoot, fullPageKeys) {
         ActivitySceneStrategy(
-            motion, previewKey, currentEntriesState, zoomPreview, videoZoomState,
+            motion, previewKey, currentEntriesState, topDestination, zoomPreview, videoZoomState,
             videoCoveredState, videoSourceCoveredState,
             settingsPanes, settingsRoot, fullPageKeys, currentRailState,
         )
     }
     val sceneState = rememberSceneState(entries, listOf(strategy), onBack = onBack)
-    val topRoute = backStack.last()
     // Only opt into Navigation 3's seekable image return while the setting is enabled.
     // Changing the setting retires the previous gesture state and its handler.
     val displayState = key(if (imagePredictiveBack) entries.last().contentKey else OrdinaryNavigationEventKey) {
@@ -242,6 +242,7 @@ internal fun <T : Any> ActivityNavDisplay(
     ActivityBackHandler(
         motion = motion,
         sceneState = sceneState,
+        backStack = backStack,
         predictiveBackEnabled = predictiveBackEnabled,
         enabled = entries.size > 1 && !imagePredictiveBack,
         onBackRequested = onBackRequested,
@@ -332,7 +333,7 @@ internal fun <T : Any> ActivityNavDisplay(
                     (!videoSourceCoveredState.value && videoZoomState?.exitingVideoId != null)),
                 interactive = !zoomRoute && previewKey == null,
                 videoZoomState = videoZoomState,
-                seekVideoBack = zoomRoute && placement != null && !videoSourceCoveredState.value,
+                previewRoute = topRoute.takeIf { zoomRoute && placement != null && !videoSourceCoveredState.value },
             )
         }
     }
@@ -350,14 +351,14 @@ private fun <T : Any> StartRailOverlay(
     visible: Boolean,
     interactive: Boolean,
     videoZoomState: PlaybackViewportState?,
-    seekVideoBack: Boolean,
+    previewRoute: T?,
 ) {
     val reveal = remember { Animatable(if (visible) 1f else 0f) }
     val spec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     var lastPlacement by remember { mutableStateOf<StartRailPlacement<T>?>(null) }
     if (visible && placement != null) SideEffect { lastPlacement = placement }
-    LaunchedEffect(visible, seekVideoBack, videoZoomState, spec) {
-        snapshotFlow { if (seekVideoBack) videoZoomState?.backProgress else null }.collectLatest { gesture ->
+    LaunchedEffect(visible, previewRoute, videoZoomState, spec) {
+        snapshotFlow { previewRoute?.let { videoZoomState?.backPreviewFor(it)?.progress } }.collectLatest { gesture ->
             if (gesture != null) reveal.snapTo(gesture.coerceIn(0f, 1f))
             else {
                 val target = if (visible) 1f else 0f

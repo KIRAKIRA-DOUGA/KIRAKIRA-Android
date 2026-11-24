@@ -105,14 +105,14 @@ internal class PredictiveBackMotion(
         swipeEdge = event.swipeEdge
         rawProgress = 0f
         velocity = 0f
-        lastEventTime = eventTime(event)
+        lastEventTime = event.sampleTimeMillis()
         phase = BackPhase.Gesture(BackPages(closing, entering))
         updateGesture(0f)
     }
 
     fun progress(event: NavigationEvent) {
         if (phase !is BackPhase.Gesture) return
-        val time = eventTime(event)
+        val time = event.sampleTimeMillis()
         val deltaTime = time - lastEventTime
         val progress = event.progress.coerceIn(0f, 1f)
         // Android exposes progress samples, but not BackProgressAnimator.getVelocity().
@@ -255,10 +255,10 @@ internal class PredictiveBackMotion(
             width = bounds.width,
         )
     }
-
-    private fun eventTime(event: NavigationEvent): Long =
-        event.frameTimeMillis.takeIf { it > 0 } ?: SystemClock.uptimeMillis()
 }
+
+internal fun NavigationEvent.sampleTimeMillis(): Long =
+    if (frameTimeMillis > 0) frameTimeMillis else SystemClock.uptimeMillis()
 
 private data class BackPages(val closing: Any, val entering: Any)
 

@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
@@ -38,7 +39,13 @@ import okhttp3.OkHttpClient
 
 internal data class VideoQualityOption(val height: Int, val bitrate: Int?)
 
-internal class MiniPlayerExit(val videoId: Int, val player: ExoPlayer, val loading: Boolean)
+/** A retiring session that keeps its video output while it animates out: to a closed mini player or its card. */
+internal class MiniPlayerExit(
+    val videoId: Int,
+    val player: ExoPlayer?,
+    val loading: Boolean,
+    val toCard: Boolean = false,
+)
 
 internal val playbackSpeeds = PlaybackSpeedRules.speeds
 
@@ -55,8 +62,9 @@ internal class PlaybackViewModel(
         private set
     var miniPlayer by mutableStateOf(false)
         private set
-    var miniPlayerExit by mutableStateOf<MiniPlayerExit?>(null)
-        private set
+    /** Retiring sessions still animating out; any number may overlap when videos are switched quickly. */
+    val miniPlayerExits: List<MiniPlayerExit> get() = exits
+    private val exits = mutableStateListOf<MiniPlayerExit>()
     private var pageVideoId: Int? = null
     var bounds by mutableStateOf<Rect?>(null)
         private set
@@ -97,7 +105,7 @@ internal class PlaybackViewModel(
     }
 
     fun showVideo(id: Int) {
-        if (miniPlayerExit?.videoId == id) finishMiniPlayerExit()
+        exits.firstOrNull { it.videoId == id }?.let(::finishMiniPlayerExit)
         if (videoId != id) {
             release()
             initiallyReadyPartIds.clear()
@@ -151,25 +159,41 @@ internal class PlaybackViewModel(
     fun beginMiniPlayerExit(): MiniPlayerExit? {
         val id = videoId ?: return null
         val current = player?.takeIf { miniPlayer } ?: return null
-        finishMiniPlayerExit()
         val exit = MiniPlayerExit(id, current, buffering || initialLoading)
         current.pause()
         // Keep video output attached while retiring the old media session and history sampling.
         release(keepPlayer = true)
         miniPlayer = false
         bounds = null
-        miniPlayerExit = exit
+        exits += exit
         return exit
     }
 
-    fun finishMiniPlayerExit(exit: MiniPlayerExit? = miniPlayerExit) {
-        if (exit == null || miniPlayerExit !== exit) return
-        miniPlayerExit = null
-        exit.player.release()
+    /** Detaches the page still returning to its card, so another video can open while it lands. */
+    fun beginCardExit(): MiniPlayerExit? {
+        val id = videoId ?: return null
+        val current = player
+        val exit = MiniPlayerExit(id, current, current != null && (buffering || initialLoading), toCard = true)
+        current?.pause()
+        cancelAutoplay()
+        release(keepPlayer = true)
+        initiallyReadyPartIds.clear()
+        pageVideoId = null
+        miniPlayer = false
+        bounds = null
+        exits += exit
+        return exit
     }
 
+    /** Releases [exit] by instance; a late callback for an exit already finished does nothing. */
+    fun finishMiniPlayerExit(exit: MiniPlayerExit) {
+        if (exits.remove(exit)) exit.player?.release()
+    }
+
+    fun finishMiniPlayerExits() = exits.toList().forEach(::finishMiniPlayerExit)
+
     fun clearSession() {
-        finishMiniPlayerExit()
+        finishMiniPlayerExits()
         closeMiniPlayer()
         videoId = null
         pageVideoId = null
@@ -384,7 +408,9 @@ internal class PlaybackViewModel(
                     }
                     override fun onPlayerError(error: PlaybackException) {
                         if (this@playerSetup !== this@PlaybackViewModel.player) {
-                            miniPlayerExit?.takeIf { it.player === this@playerSetup }?.let(::finishMiniPlayerExit)
+                            // The card artwork covers a failed return; only a closing mini player ends early.
+                            exits.firstOrNull { it.player === this@playerSetup && !it.toCard }
+                                ?.let(::finishMiniPlayerExit)
                             return
                         }
                         failed = true
@@ -476,7 +502,7 @@ internal class PlaybackViewModel(
         initialLoading = false
     }
     override fun onCleared() {
-        finishMiniPlayerExit()
+        finishMiniPlayerExits()
         release()
     }
 }

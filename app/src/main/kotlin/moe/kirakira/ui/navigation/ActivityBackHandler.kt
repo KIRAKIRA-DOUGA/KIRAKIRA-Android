@@ -20,6 +20,7 @@ import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 internal fun <T : Any> ActivityBackHandler(
     motion: PredictiveBackMotion,
     sceneState: SceneState<T>,
+    backStack: List<T>,
     predictiveBackEnabled: Boolean,
     enabled: Boolean,
     onBackRequested: () -> Boolean,
@@ -29,6 +30,8 @@ internal fun <T : Any> ActivityBackHandler(
     zoomState: PlaybackViewportState? = null,
 ) {
     val currentSceneState by rememberUpdatedState(sceneState)
+    val currentBackStack by rememberUpdatedState(backStack)
+    val currentSceneRoute by rememberUpdatedState(backStack.last())
     val currentOnBack by rememberUpdatedState(onBack)
     val currentBackRequest by rememberUpdatedState(onBackRequested)
     val currentCanNavigateBack by rememberUpdatedState(canNavigateBack)
@@ -40,28 +43,33 @@ internal fun <T : Any> ActivityBackHandler(
             initialInfo = SceneInfo(sceneState.currentScene),
             isBackEnabled = false,
         ) {
-            private var attempt: BackAttempt? = null
+            private var attempt: BackAttempt<T>? = null
+            private var available = false
 
             override fun onBackStarted(event: NavigationEvent) {
                 val key = currentSceneState.entries.last().contentKey
-                val allowed = currentCanNavigateBack()
-                attempt = BackAttempt(key, allowed)
-                if (allowed && predictiveBackEnabled) {
-                    if (currentZoomState != null) currentZoomState?.backProgress = 0f
-                    else currentStartGesture(event)
+                val route = currentSceneRoute
+                attempt?.finishPreview()
+                if (!isCurrent(key, route)) {
+                    motion.reset()
+                    attempt = BackAttempt(key, route, false, null, null).also { it.invalidate() }
+                    return
                 }
+                val allowed = currentCanNavigateBack()
+                val zoom = currentZoomState.takeIf { allowed && predictiveBackEnabled }
+                attempt = BackAttempt(key, route, allowed, zoom, zoom?.startBackPreview(route, event))
+                if (allowed && predictiveBackEnabled && zoom == null) currentStartGesture(event)
             }
 
             override fun onBackProgressed(event: NavigationEvent) {
-                if (attempt?.allowed == true && predictiveBackEnabled) {
-                    if (currentZoomState != null) currentZoomState?.backProgress = event.progress
-                    else motion.progress(event)
-                }
+                val started = attempt?.takeIf { it.allowed && !it.invalidated && predictiveBackEnabled } ?: return
+                if (!isBackEnabled || !isCurrent(started.key, started.route)) return
+                if (started.usesVideoZoom) started.preview?.update(event) else motion.progress(event)
             }
 
             override fun onBackCancelled() {
+                attempt?.finishPreview(transferVelocity = true)
                 attempt = null
-                currentZoomState?.backProgress = null
                 if (predictiveBackEnabled) motion.cancel() else motion.reset()
             }
 
@@ -69,9 +77,12 @@ internal fun <T : Any> ActivityBackHandler(
                 val started = attempt
                 attempt = null
                 val key = currentSceneState.entries.last().contentKey
-                if (started != null && key != started.key) {
+                val route = currentSceneRoute
+                if (!isBackEnabled || !isCurrent(key, route) ||
+                    (started != null && (started.invalidated || key != started.key || route != started.route))
+                ) {
                     motion.reset()
-                    currentZoomState?.backProgress = null
+                    started?.finishPreview()
                     return
                 }
                 val allowed = if (started != null && predictiveBackEnabled) {
@@ -81,60 +92,108 @@ internal fun <T : Any> ActivityBackHandler(
                 }
                 if (!allowed) {
                     motion.reset()
-                    currentZoomState?.backProgress = null
+                    started?.finishPreview()
                     if (started != null && predictiveBackEnabled) currentBackRequest()
                     return
                 }
                 if (!predictiveBackEnabled) {
                     motion.reset()
-                    popIfCurrent(key)
+                    popIfCurrent(key, route)
                     return
                 }
                 if (currentZoomState != null) {
-                    popIfCurrent(key)
-                    currentZoomState?.backProgress = null
+                    popIfCurrent(key, route)
+                    started?.finishPreview(transferVelocity = true)
                 } else motion.complete {
+                    if (!isBackEnabled || !isCurrent(key, route)) {
+                        motion.reset()
+                        return@complete
+                    }
                     if (currentCanNavigateBack()) {
-                        popIfCurrent(key)
+                        popIfCurrent(key, route)
                     } else {
                         motion.reset()
-                        if (currentSceneState.entries.last().contentKey == key) currentBackRequest()
+                        currentBackRequest()
                     }
                 }
             }
 
-            private fun popIfCurrent(key: Any) {
-                val entries = currentSceneState.entries
-                // Retired gestures and delayed animation callbacks must never pop a newer page.
-                if (currentEnabled && entries.size > 1 && entries.last().contentKey == key) currentOnBack()
+            // The back stack can change before composition publishes the corresponding Scene.
+            private fun isCurrent(key: Any, route: T): Boolean =
+                currentBackStack.lastOrNull() == route && currentSceneRoute == route &&
+                    currentSceneState.entries.last().contentKey == key
+
+            private fun popIfCurrent(key: Any, route: T) {
+                if (isBackEnabled && currentBackStack.size > 1 && isCurrent(key, route)) currentOnBack()
+            }
+
+            fun abandonAttempt() {
+                attempt?.finishPreview()
+                attempt = null
+            }
+
+            fun onTopChanged(key: Any) {
+                attempt?.takeUnless { it.key == key && it.route == currentSceneRoute }?.invalidate()
+            }
+
+            fun updateEnabled(enabled: Boolean) {
+                if (available == enabled) return
+                available = enabled
+                isBackEnabled = enabled
+                if (!enabled) {
+                    // The dispatcher can still deliver the terminal event to an in-flight handler.
+                    // Keep the retired attempt so that callback cannot become a fresh back request.
+                    attempt?.invalidate()
+                    motion.reset()
+                }
             }
         }
     }
     val dispatcher = checkNotNull(LocalNavigationEventDispatcherOwner.current).navigationEventDispatcher
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     SideEffect {
-        motion.onTopChanged(sceneState.entries.last().contentKey)
+        val topKey = sceneState.entries.last().contentKey
+        handler.onTopChanged(topKey)
+        motion.onTopChanged(topKey)
         handler.setInfo(
             currentInfo = SceneInfo(sceneState.currentScene),
             backInfo = sceneState.previousScenes.asReversed().map { SceneInfo(it) },
         )
-        handler.isBackEnabled = enabled && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+        handler.updateEnabled(enabled && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
     }
     DisposableEffect(dispatcher, lifecycle, handler) {
         dispatcher.addHandler(handler)
         val observer = LifecycleEventObserver { _, _ ->
             val started = lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
-            handler.isBackEnabled = currentEnabled && started
-            if (!started) motion.reset()
+            handler.updateEnabled(currentEnabled && started)
         }
         lifecycle.addObserver(observer)
         onDispose {
             lifecycle.removeObserver(observer)
+            handler.abandonAttempt()
             handler.remove()
             motion.reset()
-            currentZoomState?.backProgress = null
         }
     }
 }
 
-private data class BackAttempt(val key: Any, val allowed: Boolean)
+private class BackAttempt<T : Any>(
+    val key: Any,
+    val route: T,
+    val allowed: Boolean,
+    private val zoom: PlaybackViewportState?,
+    val preview: VideoBackPreview?,
+) {
+    val usesVideoZoom: Boolean get() = zoom != null
+    var invalidated = false
+        private set
+
+    fun finishPreview(transferVelocity: Boolean = false) {
+        if (preview != null) zoom?.finishBackPreview(preview, transferVelocity)
+    }
+
+    fun invalidate() {
+        invalidated = true
+        finishPreview()
+    }
+}

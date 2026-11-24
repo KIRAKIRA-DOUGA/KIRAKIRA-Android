@@ -70,6 +70,7 @@ internal class ActivitySceneStrategy<T : Any>(
     private val motion: PredictiveBackMotion,
     private val previewKey: Any?,
     private val currentEntries: State<List<NavEntry<T>>>,
+    private val currentRoute: State<T?>,
     private val zoomPreview: Boolean,
     private val videoZoomState: PlaybackViewportState?,
     private val videoCovered: State<Boolean>,
@@ -89,6 +90,7 @@ internal class ActivitySceneStrategy<T : Any>(
             previousEntries = previousEntries,
             motion = motion,
             currentEntries = currentEntries,
+            currentRoute = currentRoute,
             zoomPreview = zoomPreview,
             videoZoomState = videoZoomState,
             videoCovered = videoCovered,
@@ -125,6 +127,7 @@ internal data class ActivityScene<T : Any>(
     override val previousEntries: List<NavEntry<T>>,
     val motion: PredictiveBackMotion,
     val currentEntries: State<List<NavEntry<T>>>,
+    val currentRoute: State<T?>,
     val zoomPreview: Boolean,
     val videoZoomState: PlaybackViewportState?,
     val videoCovered: State<Boolean>,
@@ -140,6 +143,9 @@ internal data class ActivityScene<T : Any>(
 
     override val content: @Composable () -> Unit = {
         val destination = page.top.contentKey
+        val stack = currentEntries.value
+        val topKey = stack.lastOrNull()?.contentKey
+        val inStack = stack.any { it.contentKey == destination }
         DisposableEffect(destination, motion) {
             onDispose { motion.onDestinationDisposed(destination) }
         }
@@ -158,8 +164,14 @@ internal data class ActivityScene<T : Any>(
         )
         val lifecycleState by owner.lifecycle.currentStateAsState()
         val visibility = LocalNavAnimatedContentScope.current.transition
-        if (usesVideoZoom && videoZoomState != null) {
-            val ordinary by rememberUpdatedState(videoCovered.value && motion.completedPop?.second != destination)
+        if (usesVideoZoom && videoZoomState != null &&
+            stack.lastOrNull { it.metadata[VIDEO_ZOOM_METADATA] == true }?.contentKey == destination
+        ) {
+            // A popped or older video Scene can still be composed while NavDisplay settles.
+            // Only the stack's most recent video can drive the retained page's ordinary slide.
+            val ordinary by rememberUpdatedState(
+                videoCovered.value && motion.completedPop?.second != destination,
+            )
             val ordinaryMotion = rememberNavigationMotion()
             val offset = visibility.animateFloat(
                 transitionSpec = { if (ordinary) ordinaryMotion.pageSlideSpec else snap() },
@@ -182,10 +194,8 @@ internal data class ActivityScene<T : Any>(
                 }
             }
         }
-        val stack = currentEntries.value
-        val topKey = stack.lastOrNull()?.contentKey
         val imageScene = entries.last().usesImageTransition
-        val ordinaryPop = !preview && !imageScene && stack.none { it.contentKey == destination } &&
+        val ordinaryPop = !preview && !imageScene && !inStack &&
             previousEntries.any { it.contentKey == topKey } && motion.completedPop?.first != destination
         val exitOpacity = visibility.animateFloat(
             transitionSpec = { if (ordinaryPop) activityCloseFadeSpec() else snap() },
@@ -195,12 +205,21 @@ internal data class ActivityScene<T : Any>(
         val retainContent by remember(ordinaryPop, exitOpacity) {
             derivedStateOf { !ordinaryPop || exitOpacity.value > 0f }
         }
+        // A card return pops the video route at once and rebuilds this page as its own Scene; its
+        // lifecycle takes a few frames to start. The page was already laid out under the video and the
+        // user aims at its cards right away, so it takes input from the first frame.
+        val cardReturn = videoZoomState?.cardReturn
+        val revealedByCardReturn = cardReturn != null && cardReturn.sourceRoute == currentRoute.value
         val interactive = !preview && !zoomLayer && topKey == destination &&
-            lifecycleState.isAtLeast(Lifecycle.State.STARTED) && visibility.targetState == EnterExitState.Visible &&
+            (lifecycleState.isAtLeast(Lifecycle.State.STARTED) || revealedByCardReturn) &&
+            visibility.targetState == EnterExitState.Visible &&
             (!imageScene || (
                 lifecycleState == Lifecycle.State.RESUMED && visibility.currentState == EnterExitState.Visible
                 ))
         val parentScrollToTopEnabled = LocalStatusBarScrollToTopEnabled.current
+        // A popped video Scene can outlive its flight while NavDisplay settles. It no longer owns
+        // input. A video still in the stack under a pushed page keeps its input block.
+        val passPointers = zoomLayer && !inStack
         val blockInput = retainContent && !interactive
         CompositionLocalProvider(
             LocalLifecycleOwner provides owner,
@@ -223,10 +242,13 @@ internal data class ActivityScene<T : Any>(
                         }
                         drawContent()
                     }
-                    .blockNavigationInput(blockInput),
+                    .blockNavigationInput(blockInput, passPointers),
             ) {
                 if (zoomLayer) {
-                    RenderPage(checkNotNull(underlay), interactive = false)
+                    val source = checkNotNull(underlay)
+                    if (!passPointers || source.top.contentKey == topKey) {
+                        RenderPage(source, interactive = false)
+                    }
                     RenderPage(page, interactive = false)
                 } else if (preview && !page.sharesSettingsDirectory(underlay)) {
                     BackPreview(

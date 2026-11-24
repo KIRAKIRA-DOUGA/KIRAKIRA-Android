@@ -450,9 +450,6 @@ internal fun VideoPage(
                         modifier = Modifier.fillMaxSize()
                             .onGloballyPositioned {
                                 if (miniPlayerExit != null) return@onGloballyPositioned
-                                val bounds = it.boundsInWindow().let { b ->
-                                    Rect(b.left.toInt(), b.top.toInt(), b.right.toInt(), b.bottom.toInt())
-                                }
                                 val position = it.positionInParent()
                                 viewportState.pageViewport = PlaybackPageViewport(
                                     videoId,
@@ -461,7 +458,12 @@ internal fun VideoPage(
                                         position.x + it.size.width, position.y + it.size.height,
                                     ),
                                 )
-                                if (isActive) onPlayerBounds(bounds)
+                                if (isActive) {
+                                    val bounds = it.boundsInWindow()
+                                    onPlayerBounds(
+                                        Rect(bounds.left.toInt(), bounds.top.toInt(), bounds.right.toInt(), bounds.bottom.toInt()),
+                                    )
+                                }
                             },
                     ) {
                         VideoPlayer(
@@ -483,7 +485,8 @@ internal fun VideoPage(
                             onContinuousSpeed = playback::changeContinuousSpeed,
                             onPreservesPitch = playback::changePreservesPitch,
                             player = if (accessBlocked || !surfaceVisible) null
-                                else miniPlayerExit?.player ?: playback.player.takeIf { playback.videoId == videoId },
+                                else if (miniPlayerExit != null) miniPlayerExit.player
+                                else playback.player.takeIf { playback.videoId == videoId },
                             state = if (miniPlayerExit != null) PlayerUiState() else PlayerUiState(
                                 qualityOptions = playback.qualityOptions,
                                 selectedQualityHeight = playback.selectedQualityHeight,

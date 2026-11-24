@@ -82,6 +82,7 @@ import moe.kirakira.ui.components.video.FeedVideoCard
 import moe.kirakira.ui.components.video.VideoCardLayout
 import moe.kirakira.ui.components.video.VideoCardRowSpacing
 import moe.kirakira.ui.components.video.VideoFeedGrid
+import moe.kirakira.ui.components.video.videoZoomSourceGroup
 import moe.kirakira.ui.content.ContentState
 import moe.kirakira.ui.navigation.LocalDestinationActive
 import moe.kirakira.ui.navigation.blockNavigationFocus
@@ -189,6 +190,7 @@ internal fun MainScreen(
             tabStateHolder.SaveableStateProvider(page.name) {
                 CompositionLocalProvider(
                     LocalDestinationActive provides (LocalDestinationActive.current && selected),
+                    videoZoomSourceGroup(page, selected),
                     LocalStatusBarScrollToTopEnabled provides (
                         LocalStatusBarScrollToTopEnabled.current && selected &&
                             transition.currentState == EnterExitState.Visible &&

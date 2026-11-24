@@ -50,12 +50,13 @@ internal fun VideoCard(
     videoId: Int? = null,
 ) {
     val artworkShape = MaterialTheme.shapes.medium
-    val zoomSource = rememberVideoZoomSource(videoId, image, artworkShape)
+    val zoomSource = rememberVideoZoomSource(videoId, image, artworkShape, onClick)
     Box(
         modifier = modifier
             .clip(MaterialTheme.shapes.medium)
+            .videoZoomCard(zoomSource)
             .clickable(role = Role.Button) {
-                if (zoomSource == null) onClick() else zoomSource.open(onClick)
+                if (zoomSource == null) onClick() else zoomSource.open()
             }
     ) {
         if (layout == VideoCardLayout.GRID) {

@@ -29,15 +29,16 @@ internal fun Modifier.blockNavigationFocus(block: Boolean): Modifier {
     return if (block) focusBoundary.onPreviewKeyEvent { true } else focusBoundary
 }
 
+/** Blocks focus, semantics and, unless [passPointers], touch for content that is not interactive. */
 @Composable
-internal fun Modifier.blockNavigationInput(block: Boolean): Modifier {
+internal fun Modifier.blockNavigationInput(block: Boolean, passPointers: Boolean = false): Modifier {
     val focusBoundary = blockNavigationFocus(block)
     if (!block) return focusBoundary
-    return focusBoundary
-        .clearAndSetSemantics {}
-        .pointerInput(Unit) {
-            awaitPointerEventScope {
-                while (true) awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
-            }
+    val isolated = focusBoundary.clearAndSetSemantics {}
+    if (passPointers) return isolated
+    return isolated.pointerInput(Unit) {
+        awaitPointerEventScope {
+            while (true) awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
         }
+    }
 }
