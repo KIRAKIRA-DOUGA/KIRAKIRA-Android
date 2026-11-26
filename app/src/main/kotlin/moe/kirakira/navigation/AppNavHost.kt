@@ -209,9 +209,10 @@ internal fun AppNavHost(
         onImageViewerActiveChange(imageViewerActive)
         val sessionChanged = playback.syncSession(accountState.revision)
         val video = backStack.lastOrNull() as? VideoRoute
+        val newlyOpened = navigation.consumeVideoOpening(video)
         if (video != null && contentRepository != null) {
             if (viewportState.exitingVideoId != video.videoId) viewportState.cardReturn = null
-            playback.showVideo(video.videoId)
+            playback.showVideo(video.videoId, newlyOpened)
         } else if (viewportState.exitingVideoId == null) {
             playback.leaveVideo(playbackSettings?.inAppMiniPlayer == true)
         }

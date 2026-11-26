@@ -23,9 +23,9 @@ import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.Job
@@ -77,6 +77,8 @@ internal class PlaybackViewModel(
     private val resume = PlaybackResumeController()
     private val historyRecorder = PlaybackHistoryRecorder(history)
     private val initiallyReadyPartIds = mutableSetOf<Int>()
+    // Keep cache failures across retries without letting retiring loaders modify the next video.
+    private var bypassMediaCache = AtomicBoolean()
 
     var resumeNoticePositionMs by mutableStateOf<Long?>(null)
         private set
@@ -104,11 +106,15 @@ internal class PlaybackViewModel(
         return changed
     }
 
-    fun showVideo(id: Int) {
+    fun showVideo(id: Int, newlyOpened: Boolean) {
         exits.firstOrNull { it.videoId == id }?.let(::finishMiniPlayerExit)
+        if (videoId != id || (pageVideoId != id && !miniPlayer)) {
+            autoplayHandled = !newlyOpened
+        }
         if (videoId != id) {
             release()
             initiallyReadyPartIds.clear()
+            bypassMediaCache = AtomicBoolean()
             resume.begin(restored = savedState.get<Int>("video_id") == id)
             bounds = null
             parts = emptyList()
@@ -121,11 +127,10 @@ internal class PlaybackViewModel(
                 speed = 1f
                 continuousSpeed = false
                 preservesPitch = true
-                savedState["part"] = 0
+                savedState.remove<Int>("part_id")
                 savedState["speed"] = speed
                 savedState["continuous_speed"] = false
                 savedState["preserves_pitch"] = true
-                autoplayHandled = false
             }
             failed = false
             historyRecorder.resetPosition(positionMs)
@@ -200,18 +205,23 @@ internal class PlaybackViewModel(
         parts = emptyList()
         artwork = null
         savedState.remove<Int>("video_id")
+        savedState.remove<Int>("part_id")
     }
 
     var player by mutableStateOf<ExoPlayer?>(null)
         private set
     var selectedPart by mutableIntStateOf(0)
         private set
-    var positionMs by mutableLongStateOf(savedState.get<Bundle>("playback_position")?.getLong("position") ?: 0L)
+    var positionMs by mutableLongStateOf(
+        savedState.get<Int>("part_id")?.let { savedState.get<Bundle>("playback_position")?.getLong("position") } ?: 0L,
+    )
         private set
 
     init {
         // Read only when the state is saved, so the progress loop never writes SavedState.
-        savedState.setSavedStateProvider("playback_position") { Bundle().apply { putLong("position", positionMs) } }
+        savedState.setSavedStateProvider("playback_position") {
+            Bundle().apply { putLong("position", resumePositionMs()) }
+        }
     }
     var durationMs by mutableLongStateOf(0L)
         private set
@@ -291,12 +301,7 @@ internal class PlaybackViewModel(
         player?.playbackParameters = PlaybackParameters(speed, if (preservesPitch) 1f else speed)
     }
 
-    private var autoplayHandled = savedState.get<Boolean>("autoplay_handled") == true
-
-    init {
-        // A restored route must remain paused, including when it was killed during loading.
-        savedState["autoplay_handled"] = true
-    }
+    private var autoplayHandled = true
 
     fun maybeAutoplay(enabled: Boolean) {
         if (autoplayHandled || parts.getOrNull(selectedPart)?.url == null) return
@@ -321,17 +326,11 @@ internal class PlaybackViewModel(
         artwork: String? = null,
     ) {
         this.artwork = artwork
-        // Live refresh follows the ID. Saved state stores the original position in the response.
         val previousPart = this.parts.getOrNull(selectedPart)
-        val sourceIndex = savedState.get<Int>("part") ?: 0
-        val matchingIndex = parts.indexOfFirst { part ->
-            if (previousPart != null) part.id == previousPart.id else part.sourceIndex == sourceIndex
-        }
-        val nextIndex = matchingIndex.coerceAtLeast(0)
-        val partRemoved = this.parts.isNotEmpty() && (previousPart == null || matchingIndex == -1)
-        val restoredPartMissing = this.parts.isEmpty() && parts.isNotEmpty() && matchingIndex == -1 &&
-            (positionMs != 0L || sourceIndex != 0)
-        if (partRemoved || restoredPartMissing) {
+        val partId = previousPart?.id ?: savedState.get<Int>("part_id")
+        val matchingIndex = parts.indexOfFirst { it.id == partId }
+        val selectionMissing = partId != null && matchingIndex == -1 && (previousPart != null || parts.isNotEmpty())
+        if (selectionMissing) {
             release()
             resume.onSeek()
             cancelAutoplay()
@@ -339,15 +338,16 @@ internal class PlaybackViewModel(
             durationMs = 0L
             failed = false
             historyRecorder.resetPosition(0L)
-        } else if (previousPart != null && previousPart.sourceIndex != parts[nextIndex].sourceIndex) {
+            savedState.remove<Int>("part_id")
+        } else if (previousPart != null && previousPart.sourceIndex != parts[matchingIndex].sourceIndex) {
             // Flush under the old selection before its first-part history eligibility changes.
             flushHistory()
             historyRecorder.resetPosition(positionMs)
         }
         this.title = title
         this.parts = parts
-        selectedPart = nextIndex
-        parts.getOrNull(selectedPart)?.let { savedState["part"] = it.sourceIndex }
+        selectedPart = matchingIndex.coerceAtLeast(0)
+        parts.getOrNull(selectedPart)?.let { savedState["part_id"] = it.id }
         if (resumeReady && parts.isNotEmpty()) {
             val candidate = resumePosition.takeIf { player == null && positionMs == 0L }
             resume.resolve(parts.getOrNull(selectedPart), candidate)?.let { position ->
@@ -372,8 +372,10 @@ internal class PlaybackViewModel(
         failed = false
         initialLoading = part.id !in initiallyReadyPartIds
         val resumePosition = positionMs
+        val item = MediaItem.Builder().setUri(part.url).setMediaId(part.id.toString())
+            .setMediaMetadata(MediaMetadata.Builder().setTitle(title).setSubtitle(part.title).build()).build()
+        val source = publicMediaSource(applicationContext, publicMediaClient, item, bypassMediaCache)
         val next = ExoPlayer.Builder(applicationContext)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(publicMediaDataSourceFactory(applicationContext, publicMediaClient)))
             .build().apply playerSetup@ {
                 setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA)
                     .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
@@ -420,8 +422,7 @@ internal class PlaybackViewModel(
                         if (miniPlayer) closeMiniPlayer()
                     }
                 })
-                setMediaItem(MediaItem.Builder().setUri(part.url).setMediaId(part.id.toString())
-                    .setMediaMetadata(MediaMetadata.Builder().setTitle(title).setSubtitle(part.title).build()).build())
+                setMediaSource(source)
                 seekTo(resumePosition)
             }
         player = next
@@ -466,7 +467,7 @@ internal class PlaybackViewModel(
         historyRecorder.resetPosition(0L)
         durationMs = 0
         failed = false
-        savedState["part"] = parts[index].sourceIndex
+        savedState["part_id"] = parts[index].id
         if (continuePlaying) play()
     }
     fun pause() { autoplayHandled = true; player?.pause(); flushHistory() }
@@ -480,11 +481,14 @@ internal class PlaybackViewModel(
         return PlaybackHistorySample(id, revision, current.currentPosition.coerceAtLeast(0), durationMs)
     }
 
+    private fun resumePositionMs(): Long = player?.let {
+        if (it.playbackState == Player.STATE_ENDED) 0L else it.currentPosition.coerceAtLeast(0)
+    } ?: positionMs
+
     private fun release(keepPlayer: Boolean = false) {
         dismissResumeNotice()
         flushHistory()
-        player?.let { positionMs = it.currentPosition.coerceAtLeast(0) }
-        parts.getOrNull(selectedPart)?.let { savedState["part"] = it.sourceIndex }
+        positionMs = resumePositionMs()
         progress?.cancel()
         progress = null
         mediaSession?.release()

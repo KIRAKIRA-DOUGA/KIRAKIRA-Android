@@ -23,6 +23,7 @@ internal class AppNavigationState(val backStack: NavBackStack<NavKey>) {
     private val expandedSettings = mutableStateSetOf<NavKey>()
     val fullPageSettings: Set<NavKey> get() = expandedSettings.toSet()
     private var pendingSettingsLeave: Pair<NavKey, () -> Unit>? = null
+    private var pendingVideoOpening: VideoRoute? = null
     var settingsAnchorRequest by mutableStateOf<SettingsAnchorRequest?>(null)
         private set
 
@@ -131,12 +132,20 @@ internal class AppNavigationState(val backStack: NavBackStack<NavKey>) {
         open(target)
     }
 
+    fun consumeVideoOpening(route: VideoRoute?): Boolean {
+        val opened = pendingVideoOpening
+        pendingVideoOpening = null
+        // The route instance distinguishes a push from a previous visit with the same video ID.
+        return opened != null && opened === route
+    }
+
     private fun open(target: NavKey) {
         val existingIndex = backStack.indexOf(target)
         if (existingIndex >= 0) {
             while (backStack.lastIndex > existingIndex) backStack.removeLastOrNull()
         } else {
             backStack.add(target)
+            if (target is VideoRoute) pendingVideoOpening = target
         }
     }
 
