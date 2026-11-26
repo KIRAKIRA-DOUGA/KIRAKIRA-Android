@@ -5,7 +5,6 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
 import moe.kirakira.R
 import moe.kirakira.core.network.ApiException
 import moe.kirakira.data.settings.AccountSettingsRepository
@@ -18,6 +17,8 @@ internal class InvitationsViewModel(repository: AccountSettingsRepository) : Set
     val invitations = _invitations.asStateFlow()
     private val _confirmCreation = MutableStateFlow(false)
     val creationConfirmation = _confirmCreation.asStateFlow()
+    private val canCreate: Boolean
+        get() = ready && !busyState.value && _invitations.value.canCreateInvitation
     private var unconfirmedCodes: Set<String>? = null
     private var read: Job? = null
     // Preserve a confirmed generation if the following read fails or is briefly stale.
@@ -55,7 +56,7 @@ internal class InvitationsViewModel(repository: AccountSettingsRepository) : Set
     }
 
     fun create() {
-        if (!ready || busyState.value) return
+        if (!canCreate) return
         if (unconfirmedCodes != null) {
             _confirmCreation.value = true
             return
@@ -66,20 +67,12 @@ internal class InvitationsViewModel(repository: AccountSettingsRepository) : Set
     fun dismissCreation() { _confirmCreation.value = false }
 
     fun confirmCreation() {
-        if (!_confirmCreation.value || !ready || busyState.value) return
+        if (!_confirmCreation.value || !canCreate) return
         dismissCreation()
         createInvitation()
     }
 
     private fun createInvitation() {
-        if (!ready || busyState.value) return
-        if (_invitations.value.loading) return
-        if (_invitations.value.error != null) {
-            refresh()
-            return
-        }
-        read?.cancel()
-        _invitations.value = _invitations.value.copy(loading = false)
         busyState.value = true
         val previousCodes = _invitations.value.data.orEmpty().map { it.code }.toSet()
         task { expected ->
@@ -111,3 +104,6 @@ internal class InvitationsViewModel(repository: AccountSettingsRepository) : Set
         }
     }
 }
+
+internal val SettingsLoad<List<Invitation>>.canCreateInvitation: Boolean
+    get() = data != null && !loading && error == null
