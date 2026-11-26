@@ -17,6 +17,7 @@ internal fun PlaybackActivityEffects(
     activity: MainActivity?,
     settings: PlaybackSettings?,
     videoPageActive: Boolean,
+    imageViewerActive: Boolean,
     pip: Boolean,
 ) {
     val view = LocalView.current
@@ -51,14 +52,15 @@ internal fun PlaybackActivityEffects(
     }
     LaunchedEffect(
         playback.player, playback.playing, playback.failed, playback.bounds, playback.actualVideoHeight,
-        settings?.outsideAppMiniPlayer, videoPageActive, playback.miniPlayer, pip,
+        settings?.outsideAppMiniPlayer, videoPageActive, playback.miniPlayer, imageViewerActive, pip,
     ) {
         val size = playback.player?.videoSize
         val ratio = if (size != null && size.width > 0 && size.height > 0) {
             size.width.toFloat() * size.pixelWidthHeightRatio / size.height
         } else 16f / 9f
         activity?.updatePictureInPicture(
-            eligible = (videoPageActive || playback.miniPlayer) && playback.player != null && !playback.failed,
+            eligible = !imageViewerActive && (videoPageActive || playback.miniPlayer) &&
+                playback.player != null && !playback.failed,
             bounds = playback.bounds,
             aspectRatio = ratio,
             autoEnter = playback.playing && settings?.outsideAppMiniPlayer == true,

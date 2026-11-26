@@ -81,13 +81,20 @@ internal fun InvitationsPage(model: InvitationsViewModel, onBack: () -> Unit, on
     InvitationsScreen(state, session.activeProfile != null && !session.isBusy, busy, message, session.revision,
         onBack, onLogin, model::refresh, model::create, model::dismissMessage)
     if (confirmCreation && session.activeProfile != null && !session.isBusy) {
-        InvitationRetryDialog(busy || state.loading, model::dismissCreation, model::refresh, model::confirmCreation)
+        InvitationRetryDialog(
+            canCheckStatus = !busy && !state.loading,
+            canCreate = !busy && state.canCreateInvitation,
+            onDismiss = model::dismissCreation,
+            onCheck = model::refresh,
+            onCreate = model::confirmCreation,
+        )
     }
 }
 
 @Composable
 private fun InvitationRetryDialog(
-    busy: Boolean,
+    canCheckStatus: Boolean,
+    canCreate: Boolean,
     onDismiss: () -> Unit,
     onCheck: () -> Unit,
     onCreate: () -> Unit,
@@ -97,10 +104,10 @@ private fun InvitationRetryDialog(
         title = { Text(stringResource(R.string.invitation_creation_unconfirmed_title)) },
         text = { Text(stringResource(R.string.invitation_creation_retry_message)) },
         actions = {
-            ShadowButton(onClick = { onDismiss(); onCheck() }, enabled = !busy) {
+            ShadowButton(onClick = { onDismiss(); onCheck() }, enabled = canCheckStatus) {
                 Text(stringResource(R.string.security_check_status))
             }
-            FlatTextButton(onClick = onCreate, enabled = !busy) {
+            FlatTextButton(onClick = onCreate, enabled = canCreate) {
                 Text(stringResource(R.string.invitation_generate_again))
             }
         },
@@ -142,7 +149,7 @@ internal fun InvitationsScreen(
             modifier = modifier,
             onTabReselect = { page -> listStates[page].smoothScrollToTop() },
             header = { InvitationStatistics(state, accountRevision) },
-            floatingActionButton = { InvitationFab(busy, onCreate) },
+            floatingActionButton = { InvitationFab(enabled = !busy && state.canCreateInvitation, onCreate = onCreate) },
         ) { page, padding, obscuredBottom ->
             StatusBarScrollToTopEffect(listStates[page])
             val visible = codes.filter { page == 0 || (if (page == 1) !it.used else it.used) }
@@ -190,10 +197,10 @@ private fun InvitationStatistics(state: SettingsLoad<List<Invitation>>, accountR
 }
 
 @Composable
-private fun InvitationFab(busy: Boolean, onCreate: () -> Unit) {
+private fun InvitationFab(enabled: Boolean, onCreate: () -> Unit) {
     ShadowFloatingActionButton(
         onClick = onCreate,
-        enabled = !busy,
+        enabled = enabled,
         // Together with Scaffold's 16dp margins, fit the 12dp elevation shadow at the edges.
         modifier = Modifier.padding(end = 2.dp, bottom = 10.dp),
     ) {

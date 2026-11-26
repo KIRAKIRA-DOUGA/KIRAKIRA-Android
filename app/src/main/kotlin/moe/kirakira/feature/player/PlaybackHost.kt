@@ -149,7 +149,7 @@ internal fun PlaybackHost(
     val outgoing = miniPlayerExit?.session
     val outgoingToCard = outgoing?.toCard == true
     if (outgoing == null) {
-        PlaybackActivityEffects(playback, activity, settings, videoPageActive, pip)
+        PlaybackActivityEffects(playback, activity, settings, videoPageActive, imageViewerActive, pip)
     } else {
         DisposableEffect(activity, playback, outgoing) {
             val observer = LifecycleEventObserver { _, event ->
